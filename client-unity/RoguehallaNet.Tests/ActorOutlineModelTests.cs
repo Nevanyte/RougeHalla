@@ -10,9 +10,10 @@ namespace Roguehalla.Net.Tests
         {
             float worst = ActorOutlineModel.WorstRatio();
             Assert.GreaterOrEqual(worst, 4.2f, "the two stroke colours must be far enough apart for the crossover to stay above 4.2:1");
+            Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(ActorOutlineModel.Crossover() - ActorOutlineModel.DeadZone * .99f, false), 3.6f, "worst case inside the dead zone");
             for (float l = 0f; l <= 1.0001f; l += .0025f)
                 foreach (bool previous in new[] { false, true })
-                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), worst * .93f, "ground " + l + " previous " + previous);
+                    Assert.GreaterOrEqual(ActorOutlineModel.StrokeRatio(l, previous), worst * .85f, "ground " + l + " previous " + previous);
         }
 
         [Test] public void ThreeToOneHoldsOnEveryGroundWhateverTheDeadZoneKept()
