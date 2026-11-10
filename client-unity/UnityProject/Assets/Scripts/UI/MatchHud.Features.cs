@@ -102,8 +102,7 @@ namespace Roguehalla.Client
             var go = new GameObject(name, typeof(RectTransform), typeof(HudStage));
             go.transform.SetParent(_root, false);
             scaler = go.GetComponent<HudStage>();
-            var canvas = _root.GetComponentInParent<Canvas>();
-            scaler.Apply(Screen.width, Screen.height, canvas != null ? canvas.scaleFactor : HudLayout.CanvasScalerFactor(Screen.width, Screen.height));
+            scaler.Relayout();
             return (RectTransform)go.transform;
         }
 
