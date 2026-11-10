@@ -191,7 +191,7 @@ namespace Roguehalla.Client
             _root.gameObject.AddComponent<Image>().color = theme.Scrim;
             var dismiss = _root.gameObject.AddComponent<ModalDismissSurface>(); dismiss.Dismiss = CloseByUser;
             _card = HudUi.Box(_root, "HelpGuideCard", HudAnchor.Center, 0, 0, CardWidth, 640f);
-            HudUi.Surface(_card, theme.Surface, theme.CornerRadiusLarge, theme.Border, true, true);
+            HudUi.Surface(_card, theme.Surface, theme.CornerRadiusLarge, theme.AccentDim, true, true);
             HudUi.Label(HudUi.At(_card, "TitleRow", 20, 16, 400, 24), "HelpTitle", "CONTROLS & GUIDE", theme.SizeHeading, theme.TextPrimary, bold: true, role: UiFontRole.Display).characterSpacing = 2f;
             _closeButton = HudUi.Button(_card, "HelpClose", "x", HudAnchor.TopRight, 16f, 14f, 24f, 24f, CloseByUser, theme.SizeBody, theme.CornerRadiusSmall);
             _controlsTab = HudUi.Button(_card, "ControlsTab", "Controls", HudAnchor.TopLeft, 20f, 50f, 110f, 26f, () => ShowTab(HelpGuideTab.Controls), theme.SizeBody, theme.CornerRadiusSmall);

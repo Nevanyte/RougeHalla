@@ -34,6 +34,7 @@ namespace Roguehalla.Client
         readonly CanvasGroup[] _slotGroups = new CanvasGroup[2];
         UnityEngine.UI.Button _swapChip, _potionButton, _windChip;
         RectTransform _weaponBar, _wishTile;
+        UnityEngine.UI.Image _wishIcon;
         TMP_Text _wishSeconds, _wishCharges, _healText, _healStatus, _windText, _pickupText;
         UnityEngine.UI.Image _wishSweep, _wishCastBar;
         float _attackCooldownTotal = 1f;
@@ -248,7 +249,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < 3; i++)
             {
                 var row = HudUi.At(_championHud, "Row" + labels[i], 8, 28 + i * 32, 234, 30);
-                row.gameObject.AddComponent<UnityEngine.UI.Image>().color = Tone(theme.TextPrimary, .05f);
+                row.gameObject.AddComponent<UnityEngine.UI.Image>().color = Tone(theme.SurfaceSunken, .7f);
                 row.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 var rule = HudUi.Box(row, "Rule", HudAnchor.TopLeft, 0, 0, 2, 30);
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
@@ -340,7 +341,7 @@ namespace Roguehalla.Client
             var wishInfo = _wishTile.gameObject.AddComponent<UnityEngine.UI.Button>(); wishInfo.targetGraphic = image;
             HudUi.ApplyColors(wishInfo, theme.SurfaceRaised);
             HudUi.Label(HudUi.At(_wishTile, "Key", 5, 4, 14, 12), "Label", "R", theme.SizeTiny, theme.TextSecondary);
-            var icon = MythicUi.Icon(_wishTile, "WishIcon", MythicGlyph.Wish, 24f);
+            var icon = _wishIcon = MythicUi.Icon(_wishTile, "WishIcon", MythicGlyph.Wish, 24f);
             icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.5f, 1f);
             icon.rectTransform.pivot = new Vector2(.5f, 1f); icon.rectTransform.anchoredPosition = new Vector2(0, -6);
             _wishSeconds = HudUi.Label(HudUi.At(_wishTile, "Seconds", 0, 6, WishSize, 24), "Label", "", 15f, theme.TextPrimary, TextAlignmentOptions.Center, true);
@@ -375,6 +376,7 @@ namespace Roguehalla.Client
             HudUi.Label(HudUi.At(heal, "Name", 42, 7, 28, 14), "Label", "Heal", theme.SizeSmall, theme.Success, bold: true);
             _healText = HudUi.Label(HudUi.At(heal, "Count", 72, 7, 76, 14), "Label", "— large · — small", theme.SizeSmall, theme.TextPrimary);
             _healStatus = HudUi.Label(HudUi.At(heal, "Status", 150, 7, 48, 14), "Label", "", theme.SizeSmall, theme.Accent);
+            foreach (var fit in new[] { _healText, _healStatus }) { fit.enableAutoSizing = true; fit.fontSizeMin = 8f; fit.fontSizeMax = theme.SizeSmall; }
             _potionHint = HudIconHint.Attach(_potionButton, _root, "E · Drink potion\nAwaiting inventory");
             // Wind chip: delivered facts do not include the boost timer, so it only names the emblem.
             var wind = HudUi.Box(row, "Wind", HudAnchor.BottomRight, 0, 0, 146f, ConsumablesHeight);
@@ -408,6 +410,7 @@ namespace Roguehalla.Client
             var box = HudUi.Box(_hud, "DeathLine", HudAnchor.Center, 0, 0, 640f, 64f);
             _deathLine = HudUi.Label(box, "Label", "YOU DIED", theme.SizeDisplay, theme.Danger, TextAlignmentOptions.Center, true, UiFontRole.Display);
             _deathLine.characterSpacing = 6f;
+            _deathLine.outlineWidth = .22f; _deathLine.outlineColor = theme.OutlineDark; // legible over any ground
             box.gameObject.SetActive(false);
         }
 
@@ -480,6 +483,8 @@ namespace Roguehalla.Client
             double remainingMs = Math.Max(0d, w.ReadyAt - serverTimeMs);
             bool ready = remainingMs <= 0d && w.Charges > 0;
             Set(_wishSeconds, remainingMs > 0d ? Math.Ceiling(remainingMs / 1000d).ToString("0") : "");
+            // The seconds sit over the icon (legacy); dim the icon while they show so the number stays legible.
+            if (_wishIcon != null) { var tint = MythicUi.GlyphColor(MythicGlyph.Wish); tint.a = remainingMs > 0d ? .3f : 1f; _wishIcon.color = tint; }
             Set(_wishCharges, w.MaxCharges > 1 ? w.Charges.ToString() : "");
             if (_wishSweep != null)
             {

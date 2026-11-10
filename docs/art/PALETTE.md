@@ -80,9 +80,9 @@ Honest caveats on what "pass" means:
 - The CVD model is a population model of full dichromacy, not a clinical test; real anomalous trichromacy varies. These checks flag hue-only collisions in flat colours and cannot establish that a rendered scene, with lighting, bloom and particles, is accessible. Review rendered frames at gameplay scale and re-run the existing `docs/art/COLOR_REVIEW.md` captures after the new palette is wired in.
 - Lighting colours (key, ambient, shadow, fog) are gamut- and order-checked only. How they combine with the sprites in URP is untested.
 
-## 6. Unity token values (not yet applied)
+## 6. Unity token values (applied)
 
-`ShowcasePalette.cs` still holds the legacy faction tokens; this task did not edit C#. When the coordinator wires the palette in, the values are:
+Applied to the in-match HUD and the planning screen: `UiTheme.Skin()` reads `Assets/Scripts/UI/UiPaletteTokens.cs`, which `node tools/art/gen-ui-theme.cjs` generates from `palette.json` (`--check` fails on drift and on any text role under 4.5:1; the derived tokens, namely sunken/hover/selected/disabled surfaces, strong border, accent-dim, info, the eight build-stat tints and the scrim, follow fixed OKLCH rules in that script). `ShowcasePalette` forwards to the theme. The values are:
 
 | Token | New hex | OKLCH |
 |---|---|---|

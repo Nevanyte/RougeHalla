@@ -85,6 +85,7 @@ namespace Roguehalla.Editor
                 new[] { "Assets/Art/ThirdParty/Flare/Raw/CREDITS.txt", "Flare-Credits.txt" },
                 new[] { "Assets/Art/ThirdParty/Flare/Audio/NOTICE.txt", "Flare-Audio-Notice.txt" },
                 new[] { "Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt", "CinzelDecorative-OFL.txt" },
+                new[] { "Assets/Art/ThirdParty/Fonts/OFL-Nunito.txt", "Nunito-OFL.txt" },
                 new[] { "../THIRD_PARTY_ASSETS.md", "Third-Party-Assets.md" },
                 new[] { "Assets/TextMesh Pro/License.Unity.md", "Unity-Companion.md" },
                 new[] { "Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt", "LiberationSans-OFL.txt" },

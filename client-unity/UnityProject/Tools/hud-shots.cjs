@@ -2,7 +2,7 @@
 // Real-browser screenshots of the in-match HUD and the planning screen of the Unity Web player.
 //
 //   node client-unity/UnityProject/Tools/hud-shots.cjs [--out docs/rework/evidence/hud] [--prefix skin] [--only 1280x800@1]
-//        [--steps planning,match,settings,help,map] [--headless]
+//        [--steps hub,planning,match,settings,help,map] [--headless]
 //
 // Needs the Rust server and the served Web build (see docs/rework/evidence/hud/README.md for the commands):
 //   RH_SHOTS_URL    default http://127.0.0.1:8117/
@@ -25,7 +25,7 @@ const repo = path.resolve(__dirname, '../../..');
 const outDir = path.resolve(repo, opt('out', 'docs/rework/evidence/hud'));
 const tag = opt('prefix', 'skin');
 const only = opt('only', '');
-const steps = new Set(opt('steps', 'planning,match,settings,help,map,chest').split(','));
+const steps = new Set(opt('steps', 'hub,planning,match,settings,help,map').split(','));
 const baseUrl = process.env.RH_SHOTS_URL || 'http://127.0.0.1:8117/';
 const wsUrl = process.env.RH_SHOTS_WS || 'ws://127.0.0.1:7817/ws';
 const configs = [[1280, 800, 1], [1920, 1080, 1], [2560, 1440, 1], [1280, 800, 2]]
@@ -55,6 +55,17 @@ async function run(cfg) {
   const clickStage = async (fromRight, fromTop, w = 0, h = 0) => { await page.mouse.click(cfg.w - (fromRight + w / 2) * s, (fromTop + h / 2) * s, { delay: 60 }); await page.waitForTimeout(500); };
   fs.mkdirSync(outDir, { recursive: true });
   console.log(cfg.id, 'scale', s.toFixed(3));
+  if (steps.has('hub')) {
+    // The hub and menu (not auto-joined): they share the theme, so check they are not broken by it.
+    const hub = await context.newPage();
+    hub.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+    await hub.goto(url + '&auto=0', { waitUntil: 'load' });
+    await hub.waitForSelector('canvas', { timeout: 60000 });
+    await hub.waitForTimeout(Number(process.env.RH_SHOTS_BOOT_MS || 14000));
+    await hub.screenshot({ path: path.join(outDir, `${tag}-${cfg.id.replace('@', '-dpr')}-hub.png`) });
+    console.log('  wrote hub');
+    await hub.close();
+  }
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForSelector('canvas', { timeout: 60000 });
   await page.waitForTimeout(Number(process.env.RH_SHOTS_BOOT_MS || 14000));
