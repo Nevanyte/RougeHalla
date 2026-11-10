@@ -105,6 +105,9 @@ Nothing is called done until the coordinator has seen it in a real browser build
 - [ ] Licences: ledger complete; every notice in the build; EmojiOne resolved; audio attributions shipped.
 - [ ] Gate 2 and Gate 3 reports written; `optimization_port` merged into the branch and re-verified; owner approves Gate 3; merge (squash); Opus final review of the combined tree against the real deploy command.
 
+## Owner ruling on the character outline (2026-11-10, late)
+No line outline on characters by default (owner; the baked sprite shadow gets outlined and the line has "a lot of visual artifacts"); the owner accepts the contrast risk; the 3:1 gate is reported as not met. Contrast agent redirected: (1) outlines and halo off by default, interim report, merge; (2) two opt-in variants for the owner to judge, default off: `?fx.outline=1` (about 1 px, softened, baked shadow excluded by alpha, outer contour only, no stacking) and `?fx.rim=1` (adaptive inner rim, nothing outside the sprite). Spec amended in `UNITY_REWORK_FABLE.md` section 4.
+
 ## Deferred to a later development cycle (owner decisions, 2026-11-10)
 Carry these into the Gate 3 report and the handback note; do not build them now.
 - **Bot stand-off (owner: "note it as a later wanted change").** Fill bots run onto their target's exact position and chase it (no fighter-to-fighter collision), so a melee bot overlaps the player and reads as a doubled model (measured: a bot within 3-4 u of the hero seconds after match start in 3 of 5 probe runs). Wanted later: bots stop at about weapon reach. It is a bot-brain change (`crates/rh-policy/src/bots`, backend lane), to be done like mob spacing: Archetypes mode only, legacy parity untouched, independent review. Bots keep overlapping for the beta.
