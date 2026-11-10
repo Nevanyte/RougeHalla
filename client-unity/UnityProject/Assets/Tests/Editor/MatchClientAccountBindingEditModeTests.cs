@@ -97,7 +97,19 @@ public sealed class MatchClientAccountBindingEditModeTests
             typeof(MatchClient).GetField("<Hud>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(Client, Hud);
         }
 
-        public void Dispose() { UnityEngine.Object.DestroyImmediate(Object); }
+        public void Dispose()
+        {
+            // MatchClient is not ExecuteAlways, so EditMode never calls its OnDestroy and the Arena that JoinCore
+            // created (with its global Light2D) would outlive the test and trip URP's one-global-light check in every
+            // later fixture. Retire it the way a player does: Leave, then destroy any Arena still owned.
+            var arena = Client != null ? Client.Arena : null;
+            try { if (Client != null) Client.Leave(); }
+            finally
+            {
+                if (arena != null) UnityEngine.Object.DestroyImmediate(arena.gameObject);
+                UnityEngine.Object.DestroyImmediate(Object);
+            }
+        }
     }
 
     static AccountHttpResponse Owned(string canonicalName = "Alice")

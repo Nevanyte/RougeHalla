@@ -1,0 +1,244 @@
+{
+  "generatedAt": "2026-11-10T04:46:10.975Z",
+  "label": "baseline: pre-rework visuals, perf branch",
+  "dir": "client-unity/UnityProject/Build/Web",
+  "budgetMb": 150,
+  "brotliQuality": 11,
+  "judgedOn": "larger of gzip and brotli totals",
+  "fileCount": 32,
+  "totals": {
+    "raw": 107349788,
+    "gzip": 50429315,
+    "brotli": 43034513
+  },
+  "budgetBytes": 157286400,
+  "judgedBytes": 50429315,
+  "overBudget": false,
+  "headroomBytes": 106857085,
+  "files": [
+    {
+      "path": "Build/Web.wasm",
+      "raw": 58625867,
+      "gzip": 14662341,
+      "brotli": 9903307,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.data",
+      "raw": 47893479,
+      "gzip": 35560551,
+      "brotli": 32960539,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "raw": 501638,
+      "gzip": 98110,
+      "brotli": 82299,
+      "precompressed": false
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "raw": 26455,
+      "gzip": 9220,
+      "brotli": 8046,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/Flare-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareAudioExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareProps-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareAudioExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareProps-LICENSE.txt",
+      "raw": 22240,
+      "gzip": 7402,
+      "brotli": 5858,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareAudioExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareProps-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareAudioExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareProps-CREDITS_CAPTURE.txt",
+      "raw": 14306,
+      "gzip": 3616,
+      "brotli": 3160,
+      "precompressed": false
+    },
+    {
+      "path": "index.html",
+      "raw": 8119,
+      "gzip": 2779,
+      "brotli": 2256,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "raw": 4469,
+      "gzip": 1930,
+      "brotli": 1364,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "raw": 4393,
+      "gzip": 1966,
+      "brotli": 1423,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/THIRD_PARTY_ASSETS.md",
+      "raw": 3566,
+      "gzip": 1554,
+      "brotli": 1236,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "raw": 3566,
+      "gzip": 1554,
+      "brotli": 1236,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/Flare-CREDITS.txt",
+      "raw": 3510,
+      "gzip": 2051,
+      "brotli": 1826,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "raw": 3510,
+      "gzip": 2051,
+      "brotli": 1826,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/FlareExpansion-CREDITS.md",
+      "raw": 1737,
+      "gzip": 986,
+      "brotli": 783,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/FlareExpansion-CREDITS.md",
+      "raw": 1737,
+      "gzip": 986,
+      "brotli": 783,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare/Flare-Audio-NOTICE.txt",
+      "raw": 1130,
+      "gzip": 589,
+      "brotli": 484,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "raw": 1130,
+      "gzip": 589,
+      "brotli": 484,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "raw": 1080,
+      "gzip": 653,
+      "brotli": 470,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "raw": 461,
+      "gzip": 346,
+      "brotli": 230,
+      "precompressed": false
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "raw": 185,
+      "gzip": 147,
+      "brotli": 97,
+      "precompressed": false
+    }
+  ]
+}
