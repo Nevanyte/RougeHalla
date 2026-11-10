@@ -145,3 +145,15 @@ activation still require their own implementation and proofs.
 - `root-integrated-policy.log`: 54573 bytes, SHA256 `37175fc5b1d281f35c1278b4cc5ddf6418e1b2ccdbbd7cbbecc81c96162772d1`.
 
 - `root-integrated-lint-format.log`: 1633 bytes, SHA256 `ed87dfafe6056bad93debbe51534b53808dc7cbe8a4ea0af4e8ba1badde0dde1`.
+
+
+## Shared-engine headless integration check
+
+The Modules bridge changes planning/Wish/hazard cores also used by the existing HumanBot, so Root additionally reran
+the unchanged release `source_arena_soak` at `20e9c72d` (same `721d04da` code). It passes1 aggregate test,0 failures,
+33.34s test /155.47s wall /exit0. Five historically crashing seeds6/17/28/42/62 run twice each, up to6000 ticks,
+with equal tick counts and private state hashes and no panic. The existing runner accepts termination **or truncation**;
+this does not assert every match normally ended, and it uses the existing HumanBot, not the unimplemented private Brain.
+The test is unchanged. Exact command/env/cwd and raw receipt: [root-integrated-headless.log](root-integrated-headless.log).
+
+Receipt: 1214 bytes, SHA256 `4c95f5010c392ad947c6d5bc124cf26a8868cc81596d27367d06e5ac48f73c75`.

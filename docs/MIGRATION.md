@@ -51,7 +51,7 @@ check also passes18, including the full154/720 replay and repaired controls. The
 TierId-only component cannot represent resolved source overrides. Modules `0c6dcee4` is independently released and
 integrated as `721d04da`; all255 source histories/3259 operations,24 intake negatives,28 semantic controls,354 author
 library tests and required unchanged overlaps/lint/format pass at the sealed worker cut. The [final review](evidence/bot-private-modules-admission-review/README.md)
-verifies all36 manifest entries and the exact shared planning/Wish/hazard cores. Root's full combined policy test passes389/389 at `721d04da`, including all admitted bot dependencies; format and strict default/all-feature lint also pass. The final Brain adapter/visibility allocation remains under review.
+verifies all36 manifest entries and the exact shared planning/Wish/hazard cores. Root's full combined policy test passes389/389 at `721d04da`, including all admitted bot dependencies; format and strict default/all-feature lint also pass. The unchanged release headless soak also passes five seeds twice each, up to6000ticks, with no panic and matching results; termination or truncation is accepted, using the existing HumanBot. The final Brain adapter/visibility allocation remains under review.
 Card remains on its [bounded pre-seal capacity HOLD](evidence/card-bleed-native-review/final-review.md): separate private
 historical rows from the legacy512 non-Card bound, include accepted pending Card inventory, prepare all owned buffers
 cold and check actual u32 index representability. Its unchanged63-case ability source gate genuinely passed; only derived
