@@ -1,0 +1,45 @@
+{
+  "baseCommit": "eebb849f51949533c230a0e15e3094d60f9b41b8",
+  "files": [
+    {
+      "bytes": 13875,
+      "path": "hosting/technical-demo/bundle.py",
+      "sha256": "db7e947f027f29b57e086e063ac382988daa0518033a0e34f3937e39252d9956"
+    },
+    {
+      "bytes": 10156,
+      "path": "hosting/technical-demo/test_bundle.py",
+      "sha256": "32b17897bb0cf77b6a388f5f108e805be13a4e0a8321c8df6054d69bd57a9f4e"
+    },
+    {
+      "bytes": 18113,
+      "path": "hosting/technical-demo/README.md",
+      "sha256": "89ca9b695a823842ee7695e2b3b1538a8e360cba55d354027118a39d2962e666"
+    },
+    {
+      "bytes": 4000,
+      "path": "docs/evidence/morning-host-bundle/README.md",
+      "sha256": "50ac922cc654125ef4bfef545bb43b531a2cd820bbc768be97836bb016d1fc35"
+    },
+    {
+      "bytes": 782,
+      "path": "docs/evidence/morning-host-bundle/logs/test-bundle-final.txt",
+      "sha256": "8f1c360cc537e35a9b7f1b45dadbe6c4de5f2495e7236fdd3ceb54fa7ff91dee"
+    },
+    {
+      "bytes": 1391,
+      "path": "docs/evidence/morning-host-bundle/logs/test-bundle-first.txt",
+      "sha256": "fa3a4a6a5abff0efb403f66f9879d6b23a56d81c1f23f1ee924b122a2b95da8a"
+    },
+    {
+      "bytes": 906,
+      "path": "docs/evidence/morning-host-bundle/logs/test-offline.txt",
+      "sha256": "344ff0d441e080a9be212a6b73d2cec3a94084c26e06fc2a536269fabc430a16"
+    },
+    {
+      "bytes": 704,
+      "path": "docs/evidence/morning-host-bundle/logs/test-stack.txt",
+      "sha256": "5f113daad74e9f465f8f372b54f5e603d2881c298dfab894a50748d0008f404f"
+    }
+  ]
+}

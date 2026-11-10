@@ -74,6 +74,28 @@ members, no symlinks/hardlinks/devices, and these paths:
 - `bundle-manifest.json`: JSON object mapping **every other member's exact
   relative path to its lowercase SHA256**. No metadata wrapper or extra paths.
 
+Use the local-only `hosting/technical-demo/bundle.py` packager with explicit
+reviewed inputs; it never executes the server binary or contacts a service:
+
+```
+PYTHONDONTWRITEBYTECODE=1 python3 -B hosting/technical-demo/bundle.py \
+  --server /absolute/reviewed/rh-server \
+  --map /absolute/reviewed/source-map.json \
+  --web /absolute/reviewed/Web \
+  --output /absolute/new/technical-demo.tar \
+  --receipt /absolute/new/technical-demo-bundle.json
+```
+
+The output tar and receipt must not already exist; the Web directory is walked
+completely and any symlink, special file, unsafe member, or missing index
+refuses the package. The packager writes sorted USTAR regular files with fixed
+metadata and a separate local receipt containing archive/member hashes and
+sizes. The receipt marks itself `deployable: false` and records no protocol or
+content identity. Root obtains those two values separately from the exact
+reviewed binary's `/info`; the tar digest and final rendered config must bind
+that same binary, map and Web tree. The producer does not attest build
+provenance or authorize upload/launch.
+
 Maximum download 160 MiB, total expanded 400 MiB, 10,000 members. The full bundle
 SHA is supplied separately in nonsecret config, not trusted from S3 metadata.
 All member names/types/inventory are checked before creating the destination;
