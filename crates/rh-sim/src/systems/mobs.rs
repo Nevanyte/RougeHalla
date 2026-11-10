@@ -460,7 +460,14 @@ pub(crate) fn validate(
         if c.inputs.actions.len() != 0
             || c.inputs.move_before != 0
             || c.inputs.aim_before != 0
-            || matches!(c.inputs.mv, Some(crate::input::MoveCmd::AttackMove { .. }))
+            || matches!(
+                c.inputs.mv,
+                Some(
+                    crate::input::MoveCmd::AttackMove { .. }
+                        | crate::input::MoveCmd::MoveAt { .. }
+                        | crate::input::MoveCmd::AttackMoveAt { .. }
+                )
+            )
         {
             return Err("unsupported foundation actor action".into());
         }

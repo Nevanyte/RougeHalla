@@ -402,7 +402,14 @@ pub(crate) fn validate(
                 a,
                 crate::input::ActionCmd::Attack { .. } | crate::input::ActionCmd::Release { .. }
             )
-        }) || matches!(p.inputs.mv, Some(crate::input::MoveCmd::AttackMove { .. }))
+        }) || matches!(
+            p.inputs.mv,
+            Some(
+                crate::input::MoveCmd::AttackMove { .. }
+                    | crate::input::MoveCmd::MoveAt { .. }
+                    | crate::input::MoveCmd::AttackMoveAt { .. }
+            )
+        )
         {
             return Err("unsupported mob input".into());
         }

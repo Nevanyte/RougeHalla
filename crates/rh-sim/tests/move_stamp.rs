@@ -22,9 +22,11 @@ fn at(n: u32, faction: FactionId, x: f64, y: f64, w: Option<WeaponId>) -> Placem
     }
 }
 
+/// The live server's switch: the credit is part of lag fairness (off in parity, headless and recordings).
 fn config() -> SimConfig {
     SimConfig {
         quests: false,
+        lag_fairness: true,
         ..Default::default()
     }
 }
@@ -67,12 +69,16 @@ fn walked_one_tick(stamp: Option<f64>) -> f64 {
 
 /// A match of three players walking, stopping and attack-moving, each order either unstamped or carrying `stamp(s)`.
 fn scenario(stamp: impl Fn(&Sim) -> Option<f64>) -> Sim {
+    scenario_with(config(), stamp)
+}
+
+fn scenario_with(config: SimConfig, stamp: impl Fn(&Sim) -> Option<f64>) -> Sim {
     let ps = [
         at(1, FactionId::Holy, 300., 300., Some(WeaponId::Bow)),
         at(2, FactionId::Frost, 380., 330., Some(WeaponId::Wand)),
         at(3, FactionId::Fire, 450., 300., Some(WeaponId::Sword)),
     ];
-    let mut s = Sim::reset_active(config(), practice_arena(), Secrets::from_seed(9), &ps);
+    let mut s = Sim::reset_active(config, practice_arena(), Secrets::from_seed(9), &ps);
     for k in 0..240u32 {
         for i in 1..=3u32 {
             let x = 250. + ((k * 37 + i * 61) % 400) as f64;
@@ -133,6 +139,22 @@ fn a_stamp_that_earns_no_credit_is_the_unstamped_match_bit_for_bit() {
             seq: None
         })
     );
+}
+
+#[test]
+fn without_lag_fairness_every_stamp_is_the_unstamped_match_bit_for_bit() {
+    let legacy = SimConfig {
+        lag_fairness: false,
+        ..config()
+    };
+    let plain = scenario_with(legacy.clone(), |_| None);
+    for ago in [TICK_MS, 20., 1e6] {
+        let stamped = scenario_with(legacy.clone(), |s| Some(s.server_time() - ago));
+        assert_eq!(stamped.state_hash(), plain.state_hash(), "stamp {ago} ms old");
+    }
+    // The same stamps do earn credit with the flag on, so the scenario exercises it.
+    let on = scenario(|s| Some(s.server_time() - TICK_MS));
+    assert_ne!(on.state_hash(), scenario(|_| None).state_hash());
 }
 
 #[test]

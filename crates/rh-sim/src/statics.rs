@@ -243,10 +243,32 @@ pub struct SimConfig {
     /// Lag fairness (the lag-fairness rows of docs/DEVIATIONS.md, owner-approved netcode Wave 2): a melee swing starts from where the
     /// attacker stood when it landed, not a rewound past position; a player's shot catches up its lag beyond one tick
     /// against rewound bodies; a unit-target cast checks range and line of sight against the rewound target. Each is
-    /// the identity at the one-tick baseline lag. Unset or false: legacy, so the parity harness, recordings and
-    /// headless runs keep their behaviour. The live server turns it on.
-    #[serde(default)]
+    /// the identity at the one-tick baseline lag. It also gates the walk credit of a stamped order (`MoveAt`, DEV-012).
+    /// Unset or false: legacy, so the parity harness, recordings and headless runs keep their behaviour. The live server
+    /// (`rh-server` runtime profiles) turns it on.
+    ///
+    /// Off serializes as a unit (no word in the state-hash digest, `null` in JSON), so a config with it off has the digest,
+    /// and every state hash, it had before the field existed; on is a `true` word and changes the digest.
+    #[serde(
+        default,
+        serialize_with = "flag_off_is_unit",
+        deserialize_with = "flag_or_null"
+    )]
     pub lag_fairness: bool,
+}
+
+/// A late opt-in flag: `true` as a bool, `false` as a unit, which the state-hash serializer writes no word for (`hash.rs`).
+fn flag_off_is_unit<S: serde::Serializer>(on: &bool, s: S) -> Result<S::Ok, S::Error> {
+    if *on {
+        s.serialize_bool(true)
+    } else {
+        s.serialize_unit()
+    }
+}
+
+/// Reads what [`flag_off_is_unit`] writes (`null`), a plain bool, or nothing (`#[serde(default)]`).
+fn flag_or_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+    Ok(<Option<bool> as serde::Deserialize>::deserialize(d)?.unwrap_or(false))
 }
 
 fn default_wish_lock() -> f64 {

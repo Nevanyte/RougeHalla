@@ -136,7 +136,12 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
         }
         if k == move_before.min(n) {
             if let Some(mv) = mv {
-                let credit = walk_credit(cx.k.hazards.slip, cx.w.core(ix), mv, now);
+                // Lag fairness only (DEV-012): with it off a stamped order is the plain order, bit for bit.
+                let credit = if cx.k.config.lag_fairness {
+                    walk_credit(cx.k.hazards.slip, cx.w.core(ix), mv, now)
+                } else {
+                    0.0
+                };
                 apply_move(cx.w.core_mut(ix), map, cx.pf, &mut cx.s.path, mv);
                 if credit > 0.0 && !cx.s.path.is_empty() {
                     cx.s.walk_credit.push((cx.w.core(ix).id, credit));
@@ -187,7 +192,8 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
 /// tick (no path, no slide, its last two history samples and its position equal), so the credited span is time it really
 /// spent idle and the walk never covers more ground than walking from the stamp would have: crediting a moving fighter
 /// would count the same time twice. A map with slippery terrain earns none (a credited tick would read as a faster
-/// velocity when a slide begins). An unstamped order earns 0, so it changes nothing.
+/// velocity when a slide begins). An unstamped order earns 0, so it changes nothing; so does every order while
+/// `SimConfig::lag_fairness` is off (the caller's gate).
 fn walk_credit(slip_map: bool, p: &FighterCore, mv: MoveCmd, now: f64) -> f64 {
     use crate::constants::TICK_MS;
     let t = match mv {

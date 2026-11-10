@@ -3428,6 +3428,76 @@ mod tests {
         assert!(to.x > from.x, "the clamped order was submitted and walked");
     }
 
+    /// A room built from the live runtime profile plays with lag fairness: a stamped order from an idle seat walks its
+    /// credit (up to one extra tick), where the same order unstamped walks one tick.
+    #[tokio::test(start_paused = true)]
+    async fn a_live_runtime_room_has_lag_fairness_and_credits_a_stamped_order() {
+        let live = crate::runtime::Settings::from_args(&["--runtime".into(), "training".into()])
+            .unwrap()
+            .unwrap()
+            .sim();
+        assert!(live.lag_fairness);
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let walked = |stamped: bool| {
+            let (reports, _rx) = mpsc::unbounded_channel();
+            let mut room = Room::new(
+                [9; 16],
+                RoomConfig {
+                    sim: live.clone(),
+                    ..training_cfg(tick)
+                },
+                reports,
+                start,
+            );
+            assert!(room.sim.config().lag_fairness, "the live room has it on");
+            let joined = room
+                .join(
+                    "practice".into(),
+                    Some(FactionId::Holy),
+                    Arc::new(Outbox::default()),
+                    1,
+                    1,
+                    None,
+                )
+                .expect("one seat");
+            for k in 1..=3 {
+                assert!(room.wake(start + tick * k));
+            }
+            let from = room.sim.player(joined.player).unwrap().pos();
+            let (x, y) = ((from.x + 300.0) as f32, from.y as f32);
+            let command = if stamped {
+                rh_protocol::WireCommand::MoveAt {
+                    x,
+                    y,
+                    seq: Some(1),
+                    t: room.sim.server_time() - 1.0e6,
+                }
+            } else {
+                rh_protocol::WireCommand::Move { x, y, seq: Some(1) }
+            };
+            room.handle(
+                RoomCmd::Input {
+                    received: std::time::Instant::now(),
+                    player: joined.player,
+                    conn: 1,
+                    seq: 1,
+                    commands: vec![command],
+                },
+                start + tick * 3,
+            );
+            assert!(room.wake(start + tick * 4));
+            let to = room.sim.player(joined.player).unwrap().pos();
+            (to.x - from.x).hypot(to.y - from.y)
+        };
+        let (plain, credited) = (walked(false), walked(true));
+        assert!(plain > 0.0);
+        assert!(
+            (credited - 2.0 * plain).abs() < 1e-6,
+            "a forged stamp buys exactly the one-tick cap: {credited} vs {plain}"
+        );
+    }
+
     #[tokio::test(start_paused = true)]
     async fn a_training_room_leave_never_banks_a_mia_result() {
         let start = Instant::now();
