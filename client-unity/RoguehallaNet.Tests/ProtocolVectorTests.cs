@@ -291,6 +291,105 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void WelcomeCarriesTheWeaponTableRustWrote()
+        {
+            foreach (var v in Fixture().GetProperty("server").EnumerateArray())
+            {
+                string name = v.GetProperty("name").GetString();
+                if (!name.StartsWith("welcome")) continue;
+                var w = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(v.GetProperty("hex").GetString()));
+                var want = v.GetProperty("decoded").GetProperty("weapons");
+                Assert.AreEqual(want.GetArrayLength(), w.Weapons.Length, name);
+                int i = 0;
+                foreach (var row in want.EnumerateArray())
+                {
+                    var got = w.Weapons[i++];
+                    Assert.AreEqual(row.GetProperty("id").GetInt32(), got.Id, name);
+                    Assert.AreEqual(row.GetProperty("kind").GetInt32(), got.Kind, name);
+                    // Exact doubles: Rust prints the shortest round-trip form, so the parsed value is the sent value.
+                    Assert.AreEqual(row.GetProperty("reach").GetDouble(), got.Reach, 0.0, name);
+                    Assert.AreEqual(row.GetProperty("halfArc").GetDouble(), got.HalfArc, 0.0, name);
+                    Assert.AreEqual(row.GetProperty("speed").GetDouble(), got.Speed, 0.0, name);
+                    Assert.AreEqual(row.GetProperty("radius").GetDouble(), got.Radius, 0.0, name);
+                }
+                CollectionAssert.AreEqual(Util.FromHex(v.GetProperty("hex").GetString()), w.Encode(), name);
+            }
+            var sample = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
+            Assert.AreEqual(7, sample.Weapons.Length);
+            var sword = WireWeapon.Find(sample.Weapons, 0);
+            Assert.AreEqual((WireWeapon.KindArc, 112.0, Math.PI / 4, 0.0, 0.0), (sword.Kind, sword.Reach, sword.HalfArc, sword.Speed, sword.Radius));
+            var bow = WireWeapon.Find(sample.Weapons, 1);
+            Assert.AreEqual((WireWeapon.KindProjectile, 520.0, 0.0, 900.0, 7.0), (bow.Kind, bow.Reach, bow.HalfArc, bow.Speed, bow.Radius));
+            Assert.AreEqual(WireWeapon.KindNone, WireWeapon.Find(sample.Weapons, 31).Kind);
+            Assert.IsNull(WireWeapon.Find(sample.Weapons, 6));
+        }
+
+        [Test]
+        public void MalformedWeaponTablesAreRefusedForTheRustReason()
+        {
+            int seen = 0;
+            foreach (var v in Fixture().GetProperty("malformedServer").EnumerateArray())
+            {
+                string name = v.GetProperty("name").GetString();
+                if (!name.StartsWith("welcome_weapon_")) continue;
+                seen++;
+                string why = name == "welcome_weapon_count" ? "weapon count" : name == "welcome_weapon_kind" ? "weapon kind"
+                    : name == "welcome_weapon_order" || name == "welcome_weapon_duplicate_id" ? "weapon order"
+                    : name == "welcome_weapon_truncated" ? null : "weapon";
+                var e = Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(v.GetProperty("hex").GetString())), name);
+                if (why == null) Assert.AreEqual(DecodeError.Truncated, e.Error, name);
+                else Assert.AreEqual(DecodeError.BadField + ": " + why, e.Message, name);
+            }
+            Assert.AreEqual(16, seen);
+        }
+
+        [Test]
+        public void WelcomeEncoderRefusesAWeaponTableTheDecoderWouldRefuse()
+        {
+            var good = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
+            Func<int, Func<WireWeapon, WireWeapon>, WireWeapon[]> with = (i, f) =>
+            {
+                var t = new WireWeapon[good.Weapons.Length];
+                for (int k = 0; k < t.Length; k++)
+                {
+                    var g = good.Weapons[k];
+                    t[k] = new WireWeapon { Id = g.Id, Kind = g.Kind, Reach = g.Reach, HalfArc = g.HalfArc, Speed = g.Speed, Radius = g.Radius };
+                }
+                t[i] = f(t[i]);
+                return t;
+            };
+            var tooMany = new WireWeapon[WireWeapon.MaxRows + 1];
+            for (int k = 0; k < tooMany.Length; k++) tooMany[k] = new WireWeapon { Id = (byte)k, Kind = WireWeapon.KindArc, Reach = 1, HalfArc = 1 };
+            var cases = new (string, WireWeapon[])[]
+            {
+                ("weapon count", tooMany),
+                ("weapon kind", with(0, a => { a.Kind = 3; return a; })),
+                ("weapon order", with(1, a => { a.Id = 0; return a; })),
+                ("weapon", with(0, a => { a.Reach = double.NaN; return a; })),
+                ("weapon", with(1, a => { a.Speed = double.PositiveInfinity; return a; })),
+                ("weapon", with(1, a => { a.Radius = -1; return a; })),
+                ("weapon", with(1, a => { a.Reach = 1e6 + 1; return a; })),
+                ("weapon", with(0, a => { a.HalfArc = Math.PI + 1e-9; return a; })),
+                ("weapon", with(0, a => { a.HalfArc = 0; return a; })),
+                ("weapon", with(0, a => { a.Reach = 0; return a; })),
+                ("weapon", with(0, a => { a.Speed = 1; return a; })),
+                ("weapon", with(1, a => { a.Speed = 0; return a; })),
+                ("weapon", with(1, a => { a.HalfArc = 0.1; return a; })),
+                ("weapon", with(6, a => { a.Radius = 1; return a; })),
+            };
+            foreach (var (why, bad) in cases)
+            {
+                var msg = new ServerMsg.Welcome { Protocol = good.Protocol, MatchId = good.MatchId, Session = good.Session, Map = good.Map, Weapons = bad };
+                Assert.AreEqual(why, Assert.Throws<ArgumentException>(() => msg.Encode(), why).Message, why);
+            }
+            // The edges are valid.
+            var edge = new ServerMsg.Welcome { Protocol = good.Protocol, MatchId = good.MatchId, Session = good.Session, Map = good.Map,
+                Weapons = with(0, a => { a.HalfArc = Math.PI; return a; }) };
+            var back = (ServerMsg.Welcome)ServerMsg.Decode(edge.Encode());
+            Assert.AreEqual(Math.PI, back.Weapons[0].HalfArc);
+        }
+
+        [Test]
         public void MapWithWrongHashOrRunsIsRejected()
         {
             var good = ServerMsg.Decode(Util.FromHex(SrvHex("welcome")));
@@ -841,6 +940,12 @@ namespace Roguehalla.Net.Tests
                 case "welcome_vision_version_zero": case "welcome_vision_tile_zero": case "welcome_vision_radius_nan": case "welcome_vision_radius_negative":
                 case "welcome_vision_trail_negative": case "welcome_vision_update_infinite": case "welcome_vision_mask_zero": case "welcome_vision_coliseum_flag":
                 case "welcome_vision_coliseum_empty": case "welcome_vision_coliseum_outside": want = DecodeError.BadField; break;
+                case "welcome_weapon_truncated": want = DecodeError.Truncated; break;
+                case "welcome_weapon_count": case "welcome_weapon_kind": case "welcome_weapon_order": case "welcome_weapon_duplicate_id":
+                case "welcome_weapon_reach_nan": case "welcome_weapon_speed_infinite": case "welcome_weapon_radius_negative":
+                case "welcome_weapon_reach_over_max": case "welcome_weapon_arc_half_arc_over_pi": case "welcome_weapon_arc_half_arc_zero":
+                case "welcome_weapon_arc_reach_zero": case "welcome_weapon_arc_speed": case "welcome_weapon_projectile_speed_zero":
+                case "welcome_weapon_projectile_half_arc": case "welcome_weapon_none_values": want = DecodeError.BadField; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

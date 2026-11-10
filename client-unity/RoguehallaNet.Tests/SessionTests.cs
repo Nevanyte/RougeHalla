@@ -45,6 +45,18 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void WeaponsAreEmptyBeforeAWelcomeAndTheServersTableAfter()
+        {
+            CollectionAssert.IsEmpty(_s.Weapons);
+            _s.Connect(); _t.Open();
+            var w = Welcome();
+            w.Weapons = new[] { new WireWeapon { Id = 0, Kind = WireWeapon.KindArc, Reach = 112, HalfArc = Math.PI / 4 } };
+            _t.Deliver(w);
+            Assert.AreEqual(1, _s.Weapons.Length);
+            Assert.AreEqual(112.0, WireWeapon.Find(_s.Weapons, 0).Reach);
+        }
+
+        [Test]
         public void UpdatePingsOncePerIntervalAndPongFeedsTheClockSync()
         {
             ToMatch();

@@ -80,6 +80,8 @@ namespace Roguehalla.Net
         public Protocol.WireArchetype[] Archetypes { get { return Welcome == null || Welcome.Archetypes == null ? System.Array.Empty<Protocol.WireArchetype>() : Welcome.Archetypes; } }
         /// <summary>The vision rule's parameters the server sent (protocol 16), or null before a Welcome.</summary>
         public Protocol.WireVision Vision { get { return Welcome == null ? null : Welcome.Vision; } }
+        /// <summary>The weapon table of this server (protocol 16): each weapon's hit shape, empty before the Welcome.</summary>
+        public Protocol.WireWeapon[] Weapons { get { return Welcome == null || Welcome.Weapons == null ? System.Array.Empty<Protocol.WireWeapon>() : Welcome.Weapons; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
         readonly SelfView _me = new SelfView();
         bool _hasMe;
