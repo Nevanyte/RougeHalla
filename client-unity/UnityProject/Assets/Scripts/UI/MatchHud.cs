@@ -16,7 +16,8 @@ namespace Roguehalla.Client
         MatchClient _client;
         Session _session;
         Action<ServerMsg.Events> _boundNoticeEvents;
-        RectTransform _root, _menu, _hud, _rewards, _results, _settings;
+        RectTransform _root, _stage, _chromeStage, _menu, _hud, _rewards, _results, _settings;
+        HudStage _stageScaler, _chromeScaler;
         TMP_InputField _nickname;
         TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
         RectTransform _healthBarFill, _barrierBarFill;
@@ -74,6 +75,7 @@ namespace Roguehalla.Client
             var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
+            EnsureStage();
             _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .925f, .30f, .99f, 15);
             _headerActions[0] = Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
             _headerActions[1] = Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);

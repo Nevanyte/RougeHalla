@@ -84,9 +84,35 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>
+        /// Creates the legacy-sized HUD stages (1 unit = 1 legacy CSS px, see <see cref="HudStage"/>): the in-world HUD stage, and a chrome
+        /// stage kept above every modal for the always-visible chrome buttons and the settings/help cards.
+        /// </summary>
+        void EnsureStage()
+        {
+            if (_stage != null) return;
+            _stage = CreateStage("HudStage", out _stageScaler);
+            _chromeStage = CreateStage("ChromeStage", out _chromeScaler);
+            _stageScaler.ViewportChanged += ApplyViewport; _chromeScaler.ViewportChanged += ApplyViewport;
+        }
+
+        RectTransform CreateStage(string name, out HudStage scaler)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(HudStage));
+            go.transform.SetParent(_root, false);
+            scaler = go.GetComponent<HudStage>();
+            var canvas = _root.GetComponentInParent<Canvas>();
+            scaler.Apply(Screen.width, Screen.height, canvas != null ? canvas.scaleFactor : HudLayout.CanvasScalerFactor(Screen.width, Screen.height));
+            return (RectTransform)go.transform;
+        }
+
+        /// <summary>Re-solves every size that depends on the laid-out width or height (legacy min()/clamp() widths).</summary>
+        void ApplyViewport(HudViewport viewport) { ApplyLegacyViewport(viewport); }
+
         void CreateCombatHud()
         {
-            _hud = Rect(_root, "PlayerHUD", 0, 0, 1, 1);
+            EnsureStage();
+            _hud = Rect(_stage, "PlayerHUD", 0, 0, 1, 1);
             var vitals = _vitalsPanel = Panel(_hud, "VitalsPanel", .015f, .146f, .285f, .266f);
             _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .35f, .96f, .95f, 15);
             SetBaseSize(_vitals, 22);
