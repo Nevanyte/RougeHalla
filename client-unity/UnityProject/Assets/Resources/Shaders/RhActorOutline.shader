@@ -31,7 +31,7 @@ Shader "Roguehalla/ActorOutline"
         #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/Core2D.hlsl"
 
         struct Attributes { float3 positionOS : POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
-        struct Varyings { float4 positionCS : SV_POSITION; half4 color : COLOR; float2 uv : TEXCOORD0; float4 screen : TEXCOORD1; nointerpolation float figure : TEXCOORD2; };
+        struct Varyings { float4 positionCS : SV_POSITION; half4 color : COLOR; float2 uv : TEXCOORD0; float4 screen : TEXCOORD1; nointerpolation float figure : TEXCOORD2; float3 posWS : TEXCOORD3; };
 
         TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
         TEXTURE2D(_SrcTex); SAMPLER(sampler_SrcTex);
@@ -116,6 +116,30 @@ Shader "Roguehalla/ActorOutline"
             return m * max(_RhOutlineGain, 0.05);
         }
 
+        // The ground just OUTSIDE the stroke, where the gate measures it: nine taps (three distances 6 to 14 px, three across) along the outward direction of the silhouette at this
+        // pixel, median. A stroke is judged against the ring beyond it, not against what lies under it, so a bright vein that crosses the stroke itself must not decide its polarity.
+        float RingLuma(float3 pWS, float3 dirWS)
+        {
+            float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
+            float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
+            float v[9];
+            [unroll] for (int a = 0; a < 3; a++)
+                [unroll] for (int b = 0; b < 3; b++)
+                {
+                    float3 q = pWS + dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 1) * 6.0 * pxw);
+                    float4 cs = ComputeScreenPos(TransformWorldToHClip(q));
+                    v[a * 3 + b] = TapLum(cs.xy / cs.w);
+                }
+            float m = v[0];
+            [unroll] for (int i = 0; i < 9; i++)
+            {
+                int below = 0;
+                [unroll] for (int j = 0; j < 9; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
+                if (below == 4) m = v[i];
+            }
+            return m * max(_RhOutlineGain, 0.05);
+        }
+
         // The figure's own ground, wide and slow (nine taps out to one world unit, geometric mean): the tie break inside the dead zone, stable from frame to frame on animated ground.
         float FigureLuma(float2 uv)
         {
@@ -140,6 +164,7 @@ Shader "Roguehalla/ActorOutline"
             o.uv = v.uv * (1.0 + 2.0 * pad) - pad;   // sprite-normalised: 0..1 is the source sprite
             o.color = v.color * unity_SpriteColor;
             o.screen = ComputeScreenPos(o.positionCS);
+            o.posWS = TransformObjectToWorld(v.positionOS);
             float4 c = ComputeScreenPos(TransformObjectToHClip(float3(0, 0, 0)));
             o.figure = _RhOutlineGrab > 0.5 ? (FigureLuma(c.xy / c.w) < _RhOutlineTune.z ? 1.0 : 0.0) : _Prior;
             return o;
@@ -159,7 +184,22 @@ Shader "Roguehalla/ActorOutline"
             float light = _Prior;
             if (_RhOutlineGrab > 0.5)
             {
-                float l = GroundLuma(i.screen.xy / i.screen.w);
+                // Outward direction of the silhouette here: away from the source alpha around the pixel.
+                float2 rr = _Outline.zw * 2.0, out2 = 0.0;
+                [unroll] for (int k = 0; k < 8; k++)
+                {
+                    float s, c; sincos(0.7853982 * k, s, c);
+                    out2 -= float2(c, s) * SrcAlpha(i.uv + float2(c, s) * rr);
+                }
+                float l;
+                if (dot(out2, out2) > 0.04)
+                {
+                    float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
+                    float3 dWS = TransformObjectToWorldDir(dOS);
+                    dWS.z = 0.0; dWS = normalize(dWS);
+                    l = RingLuma(i.posWS, dWS);
+                }
+                else l = GroundLuma(i.screen.xy / i.screen.w);
                 // Hard choice per pixel; inside the dead zone the figure's own centre decides (one polarity per figure, never a speckled stroke).
                 light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : i.figure);
             }
