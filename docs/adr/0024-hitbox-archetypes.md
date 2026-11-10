@@ -1,0 +1,414 @@
+# ADR0024: Hitbox archetypes, foot and body boxes, chest-height projectiles
+
+Status: **Proposed.** Owner-approved direction 2026-11-09 ([UNITY_REWORK_FABLE.md](../prompts/UNITY_REWORK_FABLE.md)
+section 4: "Hitboxes", "Projectiles fire from the chest", "Parity conflict", "Protocol"). Nothing is implemented. Two
+points need the owner at Gate 1: the melee height rule (Decision 5) and the protocol number (Decision 9). Every line
+reference is to `feature/unity-rework` at `e1f45765`.
+
+**Parity conflict, stated plainly.** Live play under this ADR departs from legacy behaviour. That conflicts with the
+`CLAUDE.md` parity non-negotiable and with C-PARITY ("Accepted, FROZEN"). It also anticipates ORDER_OF_OPERATIONS D1
+(outcome-class parity), which is not yet an ADR, and it adds design inside the D5 freeze. The owner approved the
+departure. This ADR does not resolve the conflict. It confines it: legacy behaviour stays bit-exact under a
+`legacy_circle` archetype, every existing parity fixture runs only in that mode, and the live mode is a
+`docs/DEVIATIONS.md` **balance** row checked by Rust-native goldens and the balance harness instead of legacy captures. Under
+the existing records, a balance row cannot ship without a harness verdict (DEVIATIONS rule 3). Packet P-HB-9 owns that
+verdict.
+
+**Per-operation checklist** (ORDER_OF_OPERATIONS section 3). Phase/item: not in the plan; owner direction 2026-11-09
+(Unity rework, Rust exception). D1: byte-exact for everything under `legacy_circle`; the live mode is a ledger deviation.
+D2: a harness verdict is required before the live switch (P-HB-9). D5: an owner-approved exception. D9: only the foot-box
+path is predicted, mirrored from Rust and corrected by the server. Shared records (MIGRATION checkpoint, CONTRACTS table,
+`Cargo.lock`) are left to the coordinator.
+
+## Context
+
+What the code does today:
+
+- **One circle, one point.** `PLAYER_RADIUS = 12 u` (`crates/rh-sim/src/constants.rs:71`, tile 32 u). An entity is the
+  point `Body { x, y }` (`fighter.rs:41-46`). Characters never block each other.
+- **Normal walking has no wall test.** `advance_along_path` (`systems/movement.rs:132-156`) follows the A* path. Walls
+  are enforced only by the path's clearance: `circle_clear` and `segment_rays_clear` (`geometry.rs:288-367`) as used by
+  `Pathfinder::find_path_into` and `clamp_clear` (`pathfind.rs:230-433`). The one exception is the per-axis disc sweep on
+  slippery terrain (`systems/terrain/walk.rs:56-120`, called from `movement.rs:101`).
+- **Melee.** It rewinds every body (attacker included) to `rewind_t = now - min(MAX_REWIND_MS, max(TICK_MS, lag_ms))`
+  (`systems/weapons.rs:219`). Each hit goes through `in_arc(origin, a, reach, half_arc, at, PLAYER_RADIUS)`
+  (`melee.rs:112`, defined at `:262-280`). The wall check is a ground ray from the attacker's feet to the target's feet
+  (`:115-124`). Quest givers are never bodies (`:55`).
+- **Projectiles.** A shot spawns at the owner's feet (`projectiles.rs:92`). Walls are a ground raycast per sub-step
+  (`:179-184`). Bodies are a swept segment against a disc of reach `PLAYER_RADIUS + ARROW_RADIUS` (arrows) or
+  `+ RANGED_SLACK` (balls) (`:251-305`). Each body is taken at `position_at(t)` for that sub-step.
+- **Sim axes.** +x is east and +y is south, so screen-up (north) is -y. Evidence: `ArenaView.WorldPoint` maps sim y to
+  `-y * Scale * GroundSquash` (`client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs:14-16`), and facing pi/2
+  selects the Flare S frame (`SpriteActorPresenter.cs:183-184`).
+
+Findings that change how the direction can be applied:
+
+1. **The ground is drawn squashed.** `GroundSquash = 0.78` (`ArenaView.cs:15`, inverted in `ScreenToServer` at
+   `:424-427`). One Unity unit is 32 sim units across but 32 / 0.78 = 41.03 sim units vertically. A height drawn on
+   screen therefore converts at 41.03 u per Unity unit, not 32. The direction's "32 sim units per world unit" is correct
+   only horizontally.
+2. **The three "sprite heights" are not heights.** `WorldHeight` (1.15 / 0.894 / 0.671,
+   `Resources/Showcase/Catalog.asset`) is a scale factor applied to whole sprite cells
+   (`SpriteActorPresenter.cs:189-190`; cells are 388, 384 and 288 px at 128 PPU). The visible characters under the same
+   1.15 range from 41 u (goblin) to 72 u (knight). Read literally as heights (x1.2 x32), the numbers would give 44 / 34 /
+   26 u boxes that match no sprite. The table below is measured instead from the trimmed opaque frame rectangles in
+   `Assets/Art/Derived/ShowcaseLive/receipt.json`. The method is in P-HB-0.
+3. **Arrows already stop at the first body, but only a hostile one.** `first_body` takes the minimum
+   `(u, distance, rank, slot)` over contacted bodies (`projectiles.rs:273-305`). `advance` then ends the flight with
+   `Hit`, or reflects/blocks it (`:453-488`). One flight hits at most one victim. Wand specials add a ground splash at
+   the victim (`:329-361`), which does not pass through. The candidate list skips bodies that are not hostile to the
+   owner, and mob-owned shots skip non-players (`:285-289`). So a character in front shields the one behind only from
+   its enemies: allies do not block each other's shots. This ADR keeps that filter.
+4. **Measuring melee from the attacker's chest is lopsided between archetypes of different sizes.** Notation: `c` is a
+   chest height, `H` is how far a body box reaches above the feet (north), and `b` is how far it reaches below (south).
+   With origin chest `c_a`, a target is hit north of the attacker out to `reach + b_t + c_a` and south out to
+   `reach + H_t - c_a`. The two are equal only when `c_a` is the target's box centre. Example: a hero (c 30) against an
+   antlion (H 29) reaches 38 u further north than south. Measuring from the feet, which the direction rules out, would be
+   lopsided by 22 u. See Decision 5.
+5. **Homing balls would orbit short targets.** A homing ball steers its ground point onto the target's feet
+   (`projectiles.rs:143-159`). Raised by a chest height above the target's box top, it would never touch the box. See
+   Decision 4.
+
+## Decision
+
+### 1. The archetype table (data model)
+
+- **Where.** A new kernel module `crates/rh-sim/src/archetype.rs`, next to `content.rs`, `geometry.rs` and
+  `mob_catalog/`. It is data plus pure functions, with no system and no schedule row, so the ADR0009 tables and C-TICK
+  are untouched. Add it to the `crates/rh-sim/README.md` layout table. The new geometric primitives go in `geometry.rs`.
+- **Types.** `ArchetypeId(u8)` (stable and append-only, like a protocol bit). `Archetype { id, key: &'static str, hull,
+  chest: f64 }`, where `key` is the Unity catalog appearance key. `hull` is either `Hull::Circle { r }` or
+  `Hull::Boxes { foot: Half, body: Half, body_offset: (f64, f64) }`. `Half` is a pair of half-extents. The foot box is
+  centred on the feet. `pub const ARCHETYPES: [Archetype; 13]`. Every value is an integer in sim units, exact in f64 and
+  in a u8 or i8 on the wire.
+- **Content identity.** `archetype::visit_content` folds every row into `content_hash` as a tagged definition
+  (`("hitbox-archetypes/1", ...)`, the pattern at `content.rs:1134-1135`). Changing the table changes the rules identity
+  carried by Welcome, `/info` and replays. `tests/content.rs` registers the const.
+- **How an entity gets its id.** A new field `FighterCore.archetype: ArchetypeId` (`fighter.rs:127`). Its one writer is
+  `archetype::assign(mode, identity)`, called by every fighter constructor: players (`state.rs:678`), mobs and zombies
+  (`mob_runtime.rs:176`, `:236`), dummies and givers. Under `Archetypes` the identity maps as follows:
+  - Players by faction: Fire and Sentenced get `hero`, Plague `mage`, Frost `hero_female`, Holy `mage_female`, and no
+    faction gets `knight`.
+  - Training dummies get `knight`, corpse zombies get `zombie`, and quest givers get `hero` (the hero-sized default).
+  - The 30 mob types copy today's art mapping (`ShowcaseActorLook.cs:8-15`, in `MobTypeId` order):
+    EmberImp goblin, CinderHound antlion, MagmaBrute goblin_elite, FlameCaller skeleton_mage, Wyrmling goblin_elite,
+    AshDrake antlion, Bailiff skeleton, ChainWarden goblin_elite, Inquisitor skeleton_archer, Pardoner skeleton_mage,
+    Executioner goblin_elite, Gaoler skeleton_mage, PlagueRat antlion, Bloatfly antlion, RotMonk zombie, MiasmaWitch
+    mage_female, RatOgre goblin_elite, PoxBehemoth zombie, FrostWisp skeleton_mage, IceGolem goblin_elite, RimeStalker
+    skeleton_archer, FrostbowSentry skeleton_archer, GlacialWarden skeleton, AvalancheTroll goblin_elite, Acolyte mage,
+    SeraphShard skeleton_mage, Penitent zombie, Zealot hero, BloodSaint mage_female, Archon hero_female.
+
+  The mapping moves into Rust. Unity's `MobLooks` copy is deleted, and Unity picks the sprite from the archetype `key`
+  instead.
+- **Mode without branching the tick.** Add `SimConfig.hitboxes: HitboxMode { LegacyCircle, Archetypes }` with
+  `#[serde(default)]`, and `Default` returns `LegacyCircle` (`statics.rs:194-281`). This mirrors the netcode branch's
+  `lag_fairness` flag. Under `LegacyCircle`, `assign` returns id 0 for every entity. Hit code dispatches on the entity's
+  `hull` (data), never on the config. A `Circle` hull calls today's functions with today's arguments, so legacy runs are
+  bit-identical. Only `rh-server` live runtimes set `Archetypes` (`crates/rh-server/src/runtime.rs:122-124`).
+- **Restore.** `Sim::restore` refuses three states: an unknown id, an id that differs from
+  `assign(mode, identity)`, and a projectile height that is non-finite or negative. A test-only invariant check compares
+  every fighter's id with `assign` after each step.
+
+### 2. Geometry and numbers
+
+All values are in sim units. North is -y. The body box spans `[x-bx, x+bx]` by `[y+oy-by, y+oy+by]`. Its top is
+`-(oy-by)` north of the feet and its bottom is `oy+by` south of them. `chest = -oy`, the box centre, so equal archetypes
+are even north and south. Projectile height is always one archetype's `chest`.
+
+| id | key | foot half (x, y) | body half (bx, by) | body offset (0, oy) | chest | top / below feet |
+|---|---|---|---|---|---|---|
+| 0 | legacy_circle | circle r 12 (feet and body) | circle r 12 | n/a | 0 | n/a |
+| 1 | hero | 10, 6 | 16, 35 | 0, -30 | 30 | 65 / 5 |
+| 2 | hero_female | 10, 6 | 15, 35 | 0, -33 | 33 | 68 / 2 |
+| 3 | mage | 10, 6 | 17, 28 | 0, -25 | 25 | 53 / 3 |
+| 4 | mage_female | 10, 6 | 17, 28 | 0, -27 | 27 | 55 / 1 |
+| 5 | knight | 10, 6 | 18, 37 | 0, -35 | 35 | 72 / 2 |
+| 6 | goblin | 10, 6 | 17, 22 | 0, -19 | 19 | 41 / 3 |
+| 7 | skeleton | 10, 6 | 18, 40 | 0, -31 | 31 | 71 / 9 |
+| 8 | goblin_elite | 10, 6 | 13, 18 | 0, -16 | 16 | 34 / 2 |
+| 9 | antlion | 10, 6 | 20, 18 | 0, -11 | 11 | 29 / 7 |
+| 10 | skeleton_archer | 10, 6 | 14, 24 | 0, -21 | 21 | 45 / 3 |
+| 11 | skeleton_mage | 10, 6 | 14, 23 | 0, -21 | 21 | 44 / 2 |
+| 12 | zombie | 10, 6 | 9, 21 | 0, -21 | 21 | 42 / 0 |
+
+How the table was measured (P-HB-0 makes this reproducible):
+
+- **Top.** The median over Idle frames of the opaque top above the foot pivot, in Unity units:
+  `px * WorldHeight * 1.2 / 128`. Then add the presenter's 0.096 body lift (`SpriteActorPresenter.cs:191`) and multiply
+  by 41.03.
+- **Below.** The same median for the opaque bottom below the pivot.
+- **Half-width (`bx`).** Half the median Idle width of the N and S facings, multiplied by 32.
+- **Rounding.** Values are rounded to whole units with `top + below` even.
+- **Exception.** The skeleton's Idle frames include a two-handed weapon (all-facing median half-width 36), so its `bx`
+  is set to the knight's 18.
+
+The foot box is one value for every archetype. 10 by 6 lies inside the 12 u disc (sqrt(136) = 11.66), so every position
+or segment that is clear for the legacy disc is also clear for the foot box. This invariant is what makes it safe to leave
+spawn, placement and AI clearance at 12 u. A table test asserts `fx^2 + fy^2 <= PLAYER_RADIUS^2`,
+`2 * max(fx, fy) < TILE` and `chest == -oy` for every boxed row.
+
+### 3. Walls and pathfinding: the foot box
+
+- `geometry.rs` gains `enum Footprint { Disc(f64), Box { hx, hy } }` with three operations:
+  - `clear`: a box is blocked when it overlaps a blocked tile in the open interval, so touching is clear, matching the
+    disc's `< r^2`.
+  - `segment_clear`: both end boxes clear, plus the centre ray and the two silhouette-corner rays. A swept AABB is a
+    hexagon, and a tile can only enter it through an end box or a silhouette edge, because the box diagonal (23.3) is
+    less than a tile.
+  - `clamp`: x is clamped by `hx` and y by `hy`.
+
+  `Disc(r)` calls today's `circle_clear` and `segment_rays_clear` unchanged.
+- `Pathfinder::find_path_into`, `plan_path` and `plan_path_into` (`pathfind.rs:437-450`) take a `Footprint` instead of a
+  radius. Every caller must choose one:
+  - The fighter's foot: `systems/inputs.rs:184`, `systems/targeting.rs:92`, `Path::replan` (`state.rs:238-251`, via
+    `displace.rs:46` and `walk.rs:357`).
+  - The legacy disc: `training.rs:145` and `training/console.rs:234` (placement reachability).
+- `walk.rs`: `sweep` gets a box arm. A row counts when `[jT, (j+1)T]` openly overlaps `[y-hy, y+hy]`, and the stop face
+  is offset by `hx` instead of the disc chord. `clear`, `regrip` (`:354`) and `replan` take the mover's footprint, as
+  does `movement.rs:101`.
+- A* itself (the tile graph and the corner rule) and `snap_to_floor` are unchanged.
+
+### 4. Projectiles: ground position plus height
+
+- `ProjectileLaunch` (`state.rs:788-798`) gains `height: f64`, set at spawn (`projectiles.rs:83-97`):
+  - the owner's `chest`, or 0 under legacy;
+  - a reflected arrow keeps the incoming height, so the drawn path does not jump (`:429-439`).
+- **Walls** use the ground segment, as today (`stretch`, `:179-184`).
+- **Bodies.** `first_body` (`:273-305`) dispatches on the target's hull:
+  - `Circle`: today's `contact` on the ground segment.
+  - `Boxes`: the raised segment `ground - (0, height)` against the body box grown by `ARROW_RADIUS` or `RANGED_SLACK` on
+    every side. The test is a slab test with no sqrt, returning the entry `u`. Starting inside the box counts as `u = 0`
+    only if the shot is not moving away from the box centre, which mirrors `contact` (`:251-271`).
+
+  The contact point is `lerp(ground a, ground b, u)`. The tie-break tuple is unchanged.
+- **Homing** (`:143-159`) steers the ground point toward `target feet + (0, oy_t + height)`, so the raised point heads
+  for the target's box centre. This is the identity under legacy.
+- **Ball against arrow** (`delete_arrows`, `:210-249`) compares the raised stretches. The occlusion ray stays at ground.
+- **Splash** (`:329-361`) stays a ground circle around the victim.
+
+### 5. Melee: arc against the body box at chest height
+
+- **The test.** `geometry::arc_hits_box(o, a, reach, half_arc, box)` is exact. Let `p` be the point of the box closest
+  to `o`:
+  1. If `o` is inside the box, it hits.
+  2. If `|p - o| > reach`, it misses. Use the squared distance with the same margin as `in_arc`.
+  3. If `p`'s bearing is within `half_arc + ARC_EPS` of `a`, it hits.
+  4. Otherwise it hits if either boundary ray segment `o + [0, reach] * dir(a +/- half_arc)` crosses the box.
+
+  Proof: the box intersected with the disc is connected. If it holds a point inside the wedge but `p` is outside the
+  wedge, it must cross the wedge boundary inside the disc.
+- **Where it runs.** `melee.rs:112` dispatches on hull. `Circle` keeps `in_arc(.., PLAYER_RADIUS)`. The wall ray
+  (`:115-124`) and the shield-facing test (`:145-151`) stay feet-to-feet. Reach and arc constants are unchanged.
+- **Proposed height rule: the target's chest.** Measure from the attacker's rewound feet raised by the **target's**
+  chest, `o = origin + (0, oy_t)`. That is the same as testing the feet against the target box centred on the target's
+  feet, and it is even north and south for every pair of archetypes. For equal archetypes (every same-look PvP fight) it
+  equals the literal "attacker's chest". The direction's literal rule fails its own stated purpose for unequal sizes
+  (Context, finding 4). **Owner confirmation needed.** The fallback is one line: `oy_a` instead of `oy_t`.
+- **Ball interception.** Under this rule `meet_balls` (`projectiles.rs:526-574`) needs no change, because both ends are
+  raised by the same height. Under the literal rule its origin would rise by `c_a` and the ball by its own height.
+
+### 6. Aim
+
+- **Humans.** The fix is client-only. `MatchClient.cs:319` becomes
+  `atan2(cursorY - (myY - chest_self), cursorX - myX)`, with `chest_self` taken from the table on the wire. The raised
+  path then leaves the chest and passes through the cursor. The same angle drives facing and melee. The sim takes the
+  angle as given; no server change.
+- **Bots and mobs.** Their aim logic is unchanged. A feet-to-feet aim puts the raised line through `(tx, ty - c_s)`,
+  inside the target's box whenever `c_s <= top_t + slack`. That holds for every mob shot at a player and for every arrow.
+  The one predicted miss: a hero_female's ball (c 33) against antlion-look mobs (top 29 + 2). The fix, if P-HB-9 measures
+  misses, is "aim from own chest at target centre" and nothing more.
+
+### 7. Every `PLAYER_RADIUS` use, classified
+
+- **Foot box.**
+  - `systems/movement.rs:101` (ice walk)
+  - `systems/terrain/walk.rs:354` (regrip)
+  - `pathfind.rs:438`, `:449` (`plan_path*`, the mover's path)
+  - the indirect callers listed in Decision 3
+  - C# `client-unity/RoguehallaNet/Net/Pathfinder.cs:35` (`PlayerRadius`, default in `FindPath`, `:98-101`)
+- **Body box.**
+  - `systems/melee.rs:112`
+  - `systems/projectiles.rs:275`
+- **Stays 12 u: spawn and placement clearance.**
+  - `checkpoint.rs:316` (restore spawn check)
+  - `initial_world/mod.rs:282`
+  - `quests/placement.rs:309`, `:419`, `:495`, `:537`
+  - `traders/runtime.rs:33`, `:192` (trader walk, not a fighter)
+  - `abilities/blink.rs:182` (landing)
+  - `systems/wind.rs:114`
+  - `systems/plague_zombies.rs:71`
+  - `systems/cannons.rs:51` (landing)
+  - `systems/coliseum.rs:78`, `:87`
+  - `systems/training.rs:104`
+  - `systems/training/console.rs:219`
+  - `systems/planning/deal.rs:58`
+- **Stays 12 u: map generation.** Changing these would change map identity.
+  - `mapgen/certify/mod.rs:892`
+  - `mapgen/certify/diagnostics.rs:423`
+  - `mapgen/pipeline/mod.rs:659`
+  - `mapgen/style_rime/routes.rs:105`
+- **Stays 12 u: AI ranges.**
+  - `combat_policy.rs:19`
+  - `systems/bruiser.rs:28-29`
+  - `systems/signatures.rs:332-333`
+  - `systems/mob_ai.rs:327` (kiting clearance)
+  - `rh-policy` `bots/reflex.rs:141`
+  - `bots/paths.rs:139`, `:194`
+  - `bots/hazards.rs:101`, `:115`, `:184`, `:188`
+  - `bots/fight.rs:529`
+  - `bots/kite/reflex_geometry.rs:35-36`
+- **Tests that keep 12 u.**
+  - `tests/kernel.rs:13-1000`
+  - `tests/content.rs:987-1008`
+  - `systems/tests.rs:534-625`
+  - `systems/status/tests.rs:102`
+  - `systems/planning/source_tests.rs:744`
+  - `mapgen/spawns/tests.rs:277`
+  - `rh-policy` `bots/mob_hunt_parity_tests.rs:16-238`
+
+Every "stays" site is conservative for the new foot box because the foot box lies inside the disc. AI melee ranges stay
+sufficient, because the box test is at least as generous as the disc test at those ranges.
+
+### 8. Determinism (ADR0007)
+
+- **Arithmetic.** Table values are integers stored as f64. The new code uses only `+ - * /`, comparisons, and the
+  existing `math::atan2/cos/sin` (libm) in `arc_hits_box`. It needs no new transcendental functions, no FMA and no
+  hash-ordered collections.
+- **State hash.** It covers `FighterCore.archetype`, `ProjectileLaunch.height` and `SimConfig.hitboxes` (through the
+  statics digest, `statics.rs:76`).
+- **Versions.** `CHECKPOINT_FORMAT` goes from `rh-checkpoint/29` to `/30` (`checkpoint.rs:23`) and `REPLAY_FORMAT` from
+  `rh-replay/23` to `/24` (`replay.rs:11`).
+- **Proof of no change.** Legacy-mode perfproof fingerprints must be identical to the merge-base, within Ir 1.03x.
+
+### 9. Protocol and versions
+
+- **Snapshots.** One new byte per actor, plus self and projectile fields.
+  - Actor: Full actor-mask bit 10 and Delta actor bit 12 carry `archetype u8` (default 0). An entity's archetype never
+    changes, so a delta carries it only for new actors.
+  - Self: Full head bit 20 and Delta head bit 24 carry `archetype u8`. The self is not in the actor list, and faction is
+    chosen after the lobby Welcome.
+  - Projectile: `WireProjectile` (`rh-protocol/src/state.rs:878`) gains `height u8`.
+- **Table.** It goes on the wire, not through generated code: a trailer on Welcome after the map
+  (`encode.rs:1617-1660`). The trailer is a count followed by rows of `id`, `key`, `hull`, `r` or (`fx fy bx by`),
+  `ox oy` (i8) and `chest`, about 260 bytes. Unity then matches whichever server it joins, and the table is covered by
+  the Welcome content hash it already checks. Rust also writes `protocol/fixtures/archetypes_v1.json` as a golden, both
+  for the C# and JS tests and as offline data for Unity preview tools. Nothing is hand-copied.
+- **Version numbers.**
+  - `PROTOCOL_VERSION` goes from 14 to **16** (`rh-protocol/src/lib.rs:172`). The unmerged
+    `claude/peaceful-babbage-rtsgq6` (`1f7c5460`, "Rust side at protocol 15") already sets 15 and commits
+    `protocol/fixtures/v15.json`. Reusing 15 would give two incompatible wires one number. Rule: numbers rise in merge
+    order. If netcode merges first, it keeps 15. If this merges first, netcode rebases to 17 and regenerates its
+    fixtures, which it must do anyway because the actor layout changed.
+  - `OBSERVATION_VERSION` goes from 21 to 22 (`observe.rs:20`; `ActorView.archetype` at `:73`, `SelfView.archetype`,
+    `ProjectileView.height` at `projectile_view.rs:12`).
+  - `POLICY_CONTRACT_VERSION` goes from 15 to 16 (`rh-policy/src/lib.rs:37`; v15 binds accepted decoded public frames,
+    and `rh-policy/src/delivery/frame.rs` decodes `WireProjectile`).
+  - Checkpoint goes to 30 and replay to 24 (Decision 8). Content hash: new.
+- **Regenerated or new fixtures.**
+  - New `protocol/fixtures/v16.json` (`cargo run -p rh-protocol --bin protocol-fixtures`). `v14.json` stays as history.
+  - New `protocol/fixtures/archetypes_v1.json`.
+  - Decoders: Rust, C# (`client-unity/RoguehallaNet/Protocol/Codec.cs`, then `client-unity/sync-net.sh`) and JS
+    (`tools/protocol-js/check-vectors.mjs`, `crates/rh-server/web/probe.html`) must all pass `v16.json`.
+- **C-OBS.** The archetype id is derived from facts that are already public: kind, kit faction and mob type. Projectile
+  height is a property of a visible projectile, and Unity draws it. It does reveal the archetype class of an owner whose
+  id is redacted. That is accepted and must be recorded in C-OBS.
+
+### 10. Prediction
+
+- **`Pathfinder.cs`.** Mirror `Footprint` with `CircleClear`/`BoxClear`, `SegmentRaysClear`/`SegmentBoxClear` and
+  `ClampClear` by axis. `FindPath` takes the footprint.
+- **`LocalMotion.cs:475`.** Plan with the own archetype's foot from the Welcome table. With no table, or `legacy_circle`,
+  use `Disc(12)`.
+- **Vectors.**
+  - `protocol/fixtures/pathfinding_v1.json` and `server_walk_v1.json` stay byte-identical as the Disc(12) oracle.
+  - Add `pathfinding_v2.json` (`rh-pathfinding-golden/2`: the same blob and 300 queries plus `footprint`, with waypoints
+    for Box(10, 6)) and `server_walk_v2.json` (`rh-server-walk/2`: three corner walks in `Archetypes` mode, hero).
+  - A committed generator bin in rh-parity (with `--check`) replaces the throwaway crate the v1 note mentions.
+  - `crates/rh-parity/tests/pnet1_goldens.rs` keeps v1 (its `RADIUS = 12`, `:34`). A sibling `pnet2_goldens.rs` checks
+    v2. The C# tests in `client-unity/RoguehallaNet.Tests/` check both.
+- The unpredicted ice walk is unchanged.
+
+### 11. Parity
+
+- **All 123 `parity/fixtures/*.json` are unchanged and still MATCH**, including `pathfinding_seed1.json`. The reason:
+  `rh_parity` builds its config with `..Default::default()` (`crates/rh-parity/src/lib.rs:635-658`), and the default is
+  `LegacyCircle`.
+- `tools/*-fixtures` captures are untouched, and so are bot goldens (legacy mode, bot constants unchanged).
+- **`parity-report` changes.**
+  - It prints `hitboxes: legacy_circle` in its header.
+  - A new test, `every_compared_scenario_runs_legacy_circle`, fails if a compared run used another mode.
+  - A separate section reports the Rust-native archetype goldens (`crates/rh-sim/tests/hitbox_archetypes.rs`):
+    directional melee, N/S/E/W bow and wand duels, a front body shielding a rear one, and wall-adjacent shots. The
+    section is labelled "ADR0024 deviation, not legacy parity".
+- **`docs/DEVIATIONS.md`.** Two balance rows, hitboxes and projectile height, each with the filter
+  "parity runs `config.hitboxes = LegacyCircle`".
+
+### 12. Lag compensation
+
+Boxes are rigid translations of whatever feet position a test already uses. The archetype is constant, so no history is
+needed.
+
+- **Melee.** Rewound bodies (`melee.rs:57-111`), including the shared-rewind fast path, stay as they are.
+- **Projectiles.** The sub-step `position_at(t)` (`projectiles.rs:291`) is unchanged.
+- **`meet_balls`.** It uses the attacker's current position (`:538`), unchanged.
+- **The netcode branch.** Its `lag_fairness` tick-start melee origin and back-dated `catch_up` flights reuse
+  `advance`/`first_body`, so they compose with no extra work. The merge conflicts are textual: `melee.rs:83-86`, the
+  `projectiles.rs` spawn, the `SimConfig` fields, `observe.rs` and `projectile_view.rs`.
+
+## Consequences
+
+- **Melee reach grows.** For hero against hero, east-west reach goes from `reach + 12` to `reach + 16`, and north-south
+  from `reach + 12` to `reach + 35`.
+- **Arrow targets grow.** An east-west arrow's vertical target window goes from 38 u to 84 u, and a north-south arrow's
+  horizontal window from 38 u to 46 u. Ranged hits rise sharply, and bots dodge by today's 12 u geometry.
+- **Faction now sets hitbox size.** Plague and Holy players (mages, 53-55 u tall) are smaller targets than
+  Fire/Sentenced/Frost (65-68 u).
+- **Walls.** Feet reach 6 u from north and south walls and 10 u from east and west walls (12 today).
+- **Asymmetries between unequal archetypes are accepted.** Projectile reach north versus south differs by
+  `2(c_t - c_s)`, which is visually honest. A shot whose ground path a 1-tile wall stops can still touch a box whose
+  feet stand within about `c + b - 32` u north of that wall, at most about 10 u (skeleton target).
+- These are deviations validated by P-HB-9's harness before the live switch, not parity bugs.
+
+## Implementation plan
+
+Packets marked **[cheap]** are safe for a cheaper model given this ADR. Packets marked **[careful]** need an Opus-class
+implementer and independent review. Verification commands assume `export PATH="$HOME/.cargo/bin:$HOME/.dotnet:$PATH"`.
+
+| Packet | Scope | Depends on | Verify |
+|---|---|---|---|
+| **P-HB-0 [cheap]** measurement | `tools/hitbox-measure/measure.mjs` reads `receipt.json` and the Catalog `WorldHeight` values and prints the Decision 2 table under the stated rule; `--check` compares it with `archetype.rs` | none | `node tools/hitbox-measure/measure.mjs --check` |
+| **P-HB-1 [careful]** data model | `archetype.rs`, `HitboxMode`, `FighterCore.archetype` at every constructor, `ProjectileLaunch.height`, content fold, restore refusals, checkpoint 30, replay 24, `hash_coverage` | 0 | `cargo test -p rh-sim`; `cargo run -p rh-parity --bin parity-report` (all MATCH); perfproof legacy fingerprints identical |
+| **P-HB-2 [cheap]** geometry kernels | `Footprint`, `box_clear`, `segment_box_clear`, `arc_hits_box`, `segment_box_entry` plus property tests against dense sampling (seeded `rh_sim::rng`); no callers | none (parallel with 1) | `cargo test -p rh-sim geometry` |
+| **P-HB-3 [careful]** foot box | Decision 3 call sites, `walk.rs` box sweep, `Disc` paths bit-identical (`tests/kernel.rs` equivalence extended to boxes) | 1, 2 | `cargo test -p rh-sim`; `cargo test -p rh-parity --test pnet1_goldens`; parity-report |
+| **P-HB-4 [careful]** melee | `melee.rs:112` dispatch, height rule per owner ruling | 1, 2 | `cargo test -p rh-sim`; parity-report; new `hitbox_archetypes.rs` melee cases |
+| **P-HB-5 [careful]** projectiles | Decision 4 in `projectiles.rs` (spawn height, body test, homing, ball/arrow, reflect) | 1, 2 | as P-HB-4, plus projectile cases |
+| **P-HB-6 [careful]** wire | observation 22, actor/self/projectile fields, Welcome table, server mapping, policy 16, `v16.json`, `archetypes_v1.json`, C#/JS decoders, `sync-net.sh` | 1 | `cargo test -p rh-protocol -p rh-server -p rh-policy`; `cargo run -p rh-protocol --bin protocol-fixtures`; `dotnet test client-unity/RoguehallaNet.Tests`; `node tools/protocol-js/check-vectors.mjs`; `node tools/browser-proof/proof.mjs` |
+| **P-HB-7 [careful]** prediction | C# `Footprint`, `LocalMotion` own foot, v2 generator bin, `pnet2_goldens.rs` | 3, 6 | `cargo test -p rh-parity --test pnet1_goldens --test pnet2_goldens`; `dotnet test client-unity/RoguehallaNet.Tests` |
+| **P-HB-8 [cheap]** Unity presentation | chest aim (`MatchClient.cs:319`), projectiles drawn at `WorldPoint(x, y - h)`, sprite from archetype `key` (delete `MobLooks`), debug box overlay toggle | 6 | `dotnet test ...`; Unity batch build (`client-unity/UnityProject/Tools/build-web.sh`) plus screenshot with overlay |
+| **P-HB-9 [careful]** live switch | `runtime.rs` sets `Archetypes`; `rh-headless --hitboxes`; balance harness in both modes; bot hit-rate check (Decision 6); parity-report label and guard test; DEVIATIONS rows proposed to owner | 3-8 | parity-report; headless balance runs in both modes; owner playtest |
+| **P-HB-10 [cheap]** records | proposed CONTRACTS (C-NET, C-OBS, C-PARITY note), MIGRATION and DEVIATIONS edits handed to the coordinator | 9 | doc review |
+
+Order: 0 and 2 can run with 1. Then 3, 4 and 5 (disjoint files). Then 6. Then 7 and 8 in parallel. Then 9 and 10.
+
+## Risks and open questions (recommended answers)
+
+1. **Melee height rule** (finding 4). Recommendation: the target's chest. It meets the stated purpose for every pair and
+   equals the literal rule for same-look fights. Needs the owner's yes.
+2. **Balance shock** (Consequences). Recommendation: ship the measured table unchanged as the direction requires,
+   gather the P-HB-9 harness verdict and an owner playtest before the live default flips, and keep the table as one data
+   edit for retuning. No global scale knob.
+3. **Faction-dependent player boxes.** Recommendation: keep them (one archetype per look). Report the hit-rate
+   difference in P-HB-9.
+4. **Protocol number clash.** Recommendation: 16, reserved in the state file now. Netcode renumbers if it merges second.
+5. **Headless default.** Recommendation: `SimConfig::default()` stays `LegacyCircle`, so every existing test and golden
+   holds. The live server and the balance harness opt in. Revisit after P-HB-9.
+6. **Bot misses.** Recommendation: measure first. The predicted case is narrow (Decision 6), and the fix is the chest
+   correction only.
+7. **Projectile height as an observable.** Recommendation: allow it as a visible attribute of a visible projectile and
+   record it in C-OBS.
+8. **Reflected arrow height.** Recommendation: keep the incoming height. The alternative, the holder's chest, makes the
+   drawn arrow jump.
+9. **Thin-wall touch** (Consequences). Recommendation: accept it and pin it with a test. Reconsider only if playtests
+   notice it.
+10. **Rounded corners.** The grown box over-reaches a true rounded box by at most `slack * (sqrt(2) - 1)` (2.9 u for
+    arrows) at the corners. Recommendation: accept it; it keeps the test sqrt-free.
