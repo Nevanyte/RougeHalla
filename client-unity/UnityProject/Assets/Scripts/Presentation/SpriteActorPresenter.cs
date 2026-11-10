@@ -511,7 +511,30 @@ namespace Roguehalla.Client
             foreach (var r in t.GetComponentsInChildren<SpriteRenderer>(true))
                 if (NeedsStroke(r.gameObject.name)) plates.Add(new SpriteOutline(r, r.gameObject.name + " outline", ActorOutlineModel.MarkerWidth, ActorOutlineModel.MarkerTargetRatio));
             a.Plates = plates.ToArray();
+            MoveOverheadToStrokes(t, a);
             return a;
+        }
+
+        /// <summary>
+        /// The overhead cluster (hp track and fill, insignia tile, names, marks, status plates and icons, signature slots, text) is drawn in the "Strokes" layer, above every
+        /// body and prop and below the strokes' own order ties: it is therefore NOT in the grab the stroke shader reads, so a dark plate beside a fighter never decides that
+        /// fighter's stroke polarity (the ground does), and the plates keep their own relative order. Bodies, the held weapon, the footprint, the contact shadow and every ground ring
+        /// or bubble stay in "Default".
+        /// </summary>
+        static void MoveOverheadToStrokes(Transform root, Art a)
+        {
+            if (!StrokeLayer.Exists) return;
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == a.Body || r == a.Weapon || r == a.Halo || r == a.Shadow) continue;
+                string n = r.gameObject.name;
+                if (n.IndexOf("ring", System.StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("bubble", System.StringComparison.OrdinalIgnoreCase) >= 0 || n.Contains("shade")
+                    || n == "Contact shadow" || n == "Faction mantle") continue;
+                bool authored = false;
+                for (var tr = r.transform.parent; tr != null && tr != root; tr = tr.parent) if (tr.name == "Authored character") { authored = true; break; }
+                if (authored || n == "Authored character") continue;
+                r.sortingLayerID = StrokeLayer.Id;
+            }
         }
 
         static bool NeedsStroke(string n)

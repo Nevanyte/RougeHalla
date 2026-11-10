@@ -119,26 +119,47 @@ Shader "Roguehalla/ActorOutline"
 
         // The ground just OUTSIDE the stroke, where the gate measures it: nine taps (three distances 6 to 14 px, three across) along the outward direction of the silhouette at this
         // pixel, median. A stroke is judged against the ring beyond it, not against what lies under it, so a bright vein that crosses the stroke itself must not decide its polarity.
-        float RingLuma(float3 pWS, float3 dirWS, out float lo, out float hi)
+        float RingLuma(float3 pWS, float2 uv, float3 dirWS, out float lo, out float hi)
         {
             float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
             float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
             float v[15];
+            float2 uvScale = 1.0 + 2.0 * _Outline.xy;
+            int nValid = 0;
             [unroll] for (int a = 0; a < 3; a++)
                 [unroll] for (int b = 0; b < 5; b++)
                 {
-                    float3 q = pWS + dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 2) * 8.0 * pxw);
-                    float4 cs = ComputeScreenPos(TransformWorldToHClip(q));
-                    v[a * 5 + b] = TapLum(cs.xy / cs.w);
+                    float3 off = dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 2) * 8.0 * pxw);
+                    float4 cs = ComputeScreenPos(TransformWorldToHClip(pWS + off));
+                    float2 duv = TransformWorldToObjectDir(off).xy * uvScale;
+                    // A tap that lands on the figure's own body (a thin arm, a notch) is not ground: the grab holds the whole scene, the gate's ring does not hold the body.
+                    float own = SrcAlpha(uv + duv);
+                    v[a * 5 + b] = own > 0.3 ? -1.0 : TapLum(cs.xy / cs.w);
+                    nValid += own > 0.3 ? 0 : 1;
                 }
-            float q25 = v[0], med = v[0], q75 = v[0];
+            if (nValid < 4)
+            {
+                [unroll] for (int a2 = 0; a2 < 3; a2++)
+                    [unroll] for (int b2 = 0; b2 < 5; b2++)
+                    {
+                        float3 off = dirWS * ((6.0 + 4.0 * a2) * pxw) + latWS * ((b2 - 2) * 8.0 * pxw);
+                        float4 cs = ComputeScreenPos(TransformWorldToHClip(pWS + off));
+                        v[a2 * 5 + b2] = TapLum(cs.xy / cs.w);
+                    }
+                nValid = 15;
+            }
+            int r25 = (int)round(0.25 * (nValid - 1)), r50 = (int)round(0.5 * (nValid - 1)), r75 = (int)round(0.75 * (nValid - 1));
+            float q25 = 0.5, med = 0.5, q75 = 0.5;
             [unroll] for (int i = 0; i < 15; i++)
             {
                 int below = 0;
-                [unroll] for (int j = 0; j < 15; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
-                if (below == 3) q25 = v[i];
-                if (below == 7) med = v[i];
-                if (below == 11) q75 = v[i];
+                [unroll] for (int j = 0; j < 15; j++) below += (v[j] >= 0.0 && (v[j] < v[i] || (v[j] == v[i] && j < i))) ? 1 : 0;
+                if (v[i] >= 0.0)
+                {
+                    if (below == r25) q25 = v[i];
+                    if (below == r50) med = v[i];
+                    if (below == r75) q75 = v[i];
+                }
             }
             // A ground of bright veins over dark cells (a wide spread between the quartiles) is judged by its dark cells: the gate's ring median sits there.
             float m = q75 > 3.0 * max(q25, 0.02) ? q25 : med;
@@ -215,7 +236,7 @@ Shader "Roguehalla/ActorOutline"
                     float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
                     float3 dWS = TransformObjectToWorldDir(dOS);
                     dWS.z = 0.0; dWS = normalize(dWS);
-                    l = RingLuma(i.posWS, dWS, lLo, lHi);
+                    l = RingLuma(i.posWS, i.uv, dWS, lLo, lHi);
                 }
                 else { l = GroundLuma(i.screen.xy / i.screen.w); lLo = lHi = l; }
                 // Hard polarity per pixel; inside the dead zone one polarity per figure decides (a stroke never speckles).
