@@ -1,0 +1,62 @@
+[
+ {
+  "shot": "frost-1",
+  "mean": 0.282,
+  "p95": 0.716,
+  "clipped": 0.04
+ },
+ {
+  "shot": "frost-2",
+  "mean": 0.282,
+  "p95": 0.719,
+  "clipped": 0.04
+ },
+ {
+  "shot": "fire-1",
+  "mean": 0.667,
+  "p95": 0.841,
+  "clipped": 0.18
+ },
+ {
+  "shot": "fire-2",
+  "mean": 0.667,
+  "p95": 0.841,
+  "clipped": 0.27
+ },
+ {
+  "shot": "plague-1",
+  "mean": 0.433,
+  "p95": 0.666,
+  "clipped": 0.04
+ },
+ {
+  "shot": "plague-2",
+  "mean": 0.432,
+  "p95": 0.662,
+  "clipped": 0.03
+ },
+ {
+  "shot": "holy-1",
+  "mean": 0.517,
+  "p95": 0.794,
+  "clipped": 0.03
+ },
+ {
+  "shot": "holy-2",
+  "mean": 0.517,
+  "p95": 0.793,
+  "clipped": 0.03
+ },
+ {
+  "shot": "sentenced-1",
+  "mean": 0.509,
+  "p95": 0.682,
+  "clipped": 0.03
+ },
+ {
+  "shot": "sentenced-2",
+  "mean": 0.508,
+  "p95": 0.677,
+  "clipped": 0.03
+ }
+]

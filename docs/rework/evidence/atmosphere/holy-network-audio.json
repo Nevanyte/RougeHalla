@@ -1,0 +1,27 @@
+[
+ {
+  "url": "StreamingAssets/Audio/music_fire.ogg",
+  "status": 200,
+  "afterMatchStartMs": 895
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_fire.ogg",
+  "status": 200,
+  "afterMatchStartMs": 895
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.ogg",
+  "status": 200,
+  "afterMatchStartMs": 906
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_sentenced.ogg",
+  "status": 200,
+  "afterMatchStartMs": 1101
+ },
+ {
+  "url": "StreamingAssets/Audio/music_sentenced.ogg",
+  "status": 200,
+  "afterMatchStartMs": 1102
+ }
+]

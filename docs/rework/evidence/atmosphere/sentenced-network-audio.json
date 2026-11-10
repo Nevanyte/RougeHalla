@@ -1,0 +1,27 @@
+[
+ {
+  "url": "StreamingAssets/Audio/music_fire.ogg",
+  "status": 200,
+  "afterMatchStartMs": 326
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_fire.ogg",
+  "status": 200,
+  "afterMatchStartMs": 327
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.ogg",
+  "status": 200,
+  "afterMatchStartMs": 337
+ },
+ {
+  "url": "StreamingAssets/Audio/music_plague.ogg",
+  "status": 200,
+  "afterMatchStartMs": 522
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_plague.ogg",
+  "status": 200,
+  "afterMatchStartMs": 524
+ }
+]
