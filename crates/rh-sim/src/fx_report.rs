@@ -1,6 +1,13 @@
 //! Sealed derived reports, frozen against the completed step. Never hashed or checkpointed.
 use std::sync::Arc;
 // Representation limits for the bounded eight-player producer. Checked before copying.
+//
+// `FX_REPORT_EVENTS_MAX` is the legacy **non-Card** sealed-event bound. The private Card history rows are a
+// separately admitted, cold-prepared envelope: the actual pending Card raw rows emitted by a due flush are
+// bounded by the design's checked `Q` (trusted pending rows in one populated flush) plus `T0` (the actual
+// serialized pending Card rows at construction/clone/restore). The two counts are checked independently so a
+// valid accepted restore with more than 512 retained historical rows flushes and serves a fresh viewer without
+// being refused by the legacy small-event cap.
 pub(crate) const FX_REPORT_EVENTS_MAX: usize = 512;
 pub(crate) const ABILITY_CONTRIBUTIONS_MAX: usize = crate::constants::MAX_PLAYERS
     * (crate::constants::MAX_PLAYERS + 1)
@@ -13,6 +20,22 @@ pub(crate) const FX_PUBLIC_BUCKETS_MAX: usize = 128
 pub(crate) const FX_INSTANT_BUCKETS_MAX: usize = 16;
 pub(crate) const FX_OUTPUT_EVENTS_MAX: usize =
     FX_REPORT_EVENTS_MAX + 2 * FX_PUBLIC_BUCKETS_MAX + FX_INSTANT_BUCKETS_MAX;
+
+/// The independent sealed-event bound: legacy non-Card events keep the legacy cap, while the private raw Card
+/// history rows are checked against the cold-prepared `Q + T0` envelope. Counting is by actual emitted event, not
+/// by marker count (an empty Card marker emits no rows and must not consume the history envelope).
+pub(crate) fn sealed_events_bounded(events: &[Event], card_limit: usize) -> bool {
+    let mut legacy = 0usize;
+    let mut card = 0usize;
+    for event in events {
+        if matches!(event, Event::CardBleedHit { .. }) {
+            card += 1;
+        } else {
+            legacy += 1;
+        }
+    }
+    legacy <= FX_REPORT_EVENTS_MAX && card <= card_limit
+}
 use crate::systems::signatures::LandedHit;
 use crate::{Event, PlayerId, Sim};
 #[derive(Debug)]
@@ -54,6 +77,14 @@ pub(crate) enum Op {
     AbilityFlush(usize),
     Reset(usize),
     InstantFlush(usize),
+    /// A Card exact-pair segment starts at this row offset of [`FxTickReport::card_rows`]. Recorded at the true
+    /// first contribution position; the sealed rows are exact, never derived per-status operations.
+    CardSegment(usize),
+    /// The Card marker at this event index: settle the accumulated Card buckets for every viewer. Present even
+    /// when the source flush had no rows.
+    CardFlush(usize),
+    /// The Card reset marker at this event index: clear only the Card projection state.
+    CardReset(usize),
 }
 #[derive(Debug, Default)]
 pub(crate) struct TickFx {
@@ -69,6 +100,11 @@ pub struct FxTickReport {
     // One viewer bitmask per mob; actor count is independent of the seat limit.
     pub(crate) mob_seen: Vec<(PlayerId, u8)>,
     pub(crate) ops: Vec<Op>,
+    /// The sealed exact raw-pair rows of this completed tick's Card segment(s), in first-occurrence order. These
+    /// are the producer's exact sidecar moved in at sealing; they are never serialized or hashed.
+    pub(crate) card_rows: Vec<crate::systems::card_bleed_feedback::CardExactRow>,
+    /// The cold-prepared private Card raw-row envelope for this completed step (`Q + T0`, never serialized).
+    pub(crate) card_event_limit: usize,
     pub(crate) events: Vec<Event>,
     /// Two viewer masks per event, frozen before catch-up: anchor and optional blink destination.
     pub(crate) wish_points: Vec<[u8; 2]>,
@@ -84,6 +120,8 @@ impl FxTickReport {
             seen: Vec::with_capacity(8),
             mob_seen: Vec::new(),
             ops: Vec::with_capacity(FX_REPORT_OPS_MAX),
+            card_rows: Vec::new(),
+            card_event_limit: 0,
             events: Vec::with_capacity(FX_REPORT_EVENTS_MAX),
             wish_points: Vec::with_capacity(FX_REPORT_EVENTS_MAX),
             bounded: true,
@@ -121,7 +159,9 @@ impl Sim {
         r.wish_points.clear();
         r.bounded = self.s.performed_bounded
             && self.w.players.len() <= 8
-            && events.len() <= FX_REPORT_EVENTS_MAX
+            // Independent bounds: legacy non-Card events keep the legacy 512 cap; private Card history rows are
+            // checked against the cold-prepared `Q + T0` envelope (actual rows, never marker count).
+            && sealed_events_bounded(events, r.card_event_limit)
             && events
                 .iter()
                 .filter(|e| {
@@ -161,6 +201,31 @@ impl Sim {
                 .filter(|o| matches!(o, Op::Flush(_)))
                 .count()
                 <= 2
+            // At most one populated Card segment and the preserved empty markers: two CardFlush and one CardReset.
+            && self
+                .s
+                .fx
+                .ops
+                .iter()
+                .filter(|o| matches!(o, Op::CardSegment(_)))
+                .count()
+                <= 1
+            && self
+                .s
+                .fx
+                .ops
+                .iter()
+                .filter(|o| matches!(o, Op::CardFlush(_)))
+                .count()
+                <= 2
+            && self
+                .s
+                .fx
+                .ops
+                .iter()
+                .filter(|o| matches!(o, Op::CardReset(_)))
+                .count()
+                <= 1
             && self
                 .s
                 .fx
@@ -169,6 +234,11 @@ impl Sim {
                 .filter(|o| matches!(o, Op::Contribution(_)))
                 .count()
                 <= 16 + ABILITY_CONTRIBUTIONS_MAX;
+        // Seal the producer's exact Card sidecar into this completed tick's report and hand the previous
+        // (already consumed) buffer back to the producer: both keep their prepared capacity, and neither ever
+        // reads a retained previous-pass segment.
+        std::mem::swap(&mut r.card_rows, &mut self.s.card_segment.rows);
+        self.s.card_segment.clear();
         if !r.bounded {
             return;
         }
@@ -228,8 +298,56 @@ impl Sim {
                 Op::AbilityFlush(i) => Op::AbilityFlush(i - offset),
                 Op::Reset(i) => Op::Reset(i - offset),
                 Op::InstantFlush(i) => Op::InstantFlush(i - offset),
+                Op::CardFlush(i) => Op::CardFlush(i - offset),
+                Op::CardReset(i) => Op::CardReset(i - offset),
                 o => o,
             }));
+        debug_assert!(
+            events.len() <= FX_REPORT_EVENTS_MAX + r.card_event_limit,
+            "sealed report events exceed the legacy + prepared Card envelope"
+        );
         r.events.extend_from_slice(events);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn non_card() -> Event {
+        Event::RaidStarted
+    }
+
+    fn card() -> Event {
+        Event::CardBleedHit {
+            victim: PlayerId(1),
+            by: None,
+            amount: crate::events::CardBleedAmount::Finite(1.),
+        }
+    }
+
+    #[test]
+    fn sealed_event_bounds_are_legacy_non_card_512_and_the_prepared_private_card_history() {
+        // The legacy non-Card cap is preserved exactly at its boundary.
+        assert!(sealed_events_bounded(
+            &vec![non_card(); FX_REPORT_EVENTS_MAX],
+            0
+        ));
+        assert!(!sealed_events_bounded(
+            &vec![non_card(); FX_REPORT_EVENTS_MAX + 1],
+            usize::MAX
+        ));
+        // The private Card history rows are bounded by the cold-prepared Q + T0, independently of the legacy cap.
+        assert!(sealed_events_bounded(&vec![card(); 600], 600));
+        assert!(!sealed_events_bounded(&vec![card(); 600], 599));
+        let mut mixed = vec![non_card(); FX_REPORT_EVENTS_MAX];
+        mixed.extend(vec![card(); 600]);
+        assert!(sealed_events_bounded(&mixed, 600));
+        let mut over_legacy = vec![non_card(); FX_REPORT_EVENTS_MAX + 1];
+        over_legacy.extend(vec![card(); 600]);
+        assert!(!sealed_events_bounded(&over_legacy, 600));
+        // Empty Card markers emit no rows: the history envelope is consumed by actual rows, never marker count.
+        assert!(sealed_events_bounded(&[], 0));
+        assert!(sealed_events_bounded(&vec![non_card(); 3], 0));
     }
 }

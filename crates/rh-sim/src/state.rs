@@ -886,6 +886,12 @@ pub(crate) struct World {
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
+    /// The trusted Card bleed report (source `cardHooks.ts` `bleeds` WeakMap): one ordered raw
+    /// `(victim, Option<by>)` row per pair and the source-ordered tagged binary64 fold, plus the report clock.
+    /// Written only by the scheduled after-damage producer; serialized and hashed. Its derived pair index and
+    /// capacity are skipped (never serialized/hashed) and prepared from the accepted state.
+    #[serde(default)]
+    pub(crate) card_bleed: crate::systems::card_bleed_feedback::CardBleedReport,
     /// Effects a hook link queued for the next tick (legacy `combat.deferred`): they open its ledger. Empty in the slice,
     /// which has no link that defers. Always serialized (a skipped field would be ambiguous to the state hash, see
     /// `hash.rs`); `default` still reads checkpoints written while it was omitted.
@@ -1237,6 +1243,7 @@ impl World {
             wind_next_at,
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
+            card_bleed: Default::default(),
             deferred: DeferredQueue::default(),
             card_splashes: Vec::new(),
             pay: PayQueue::default(),

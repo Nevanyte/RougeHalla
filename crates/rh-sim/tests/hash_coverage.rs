@@ -2085,6 +2085,11 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
             7,
             "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry",
         ),
+        (
+            "systems/card_bleed_feedback.rs",
+            1,
+            "CardBleedReport: the derived trusted pair index (arena AVL row ordinals) is rebuilt from the serialized ordered rows by cold construction/clone/restore preparation; it is never stored or hashed",
+        ),
     ];
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut found: BTreeMap<String, usize> = BTreeMap::new();

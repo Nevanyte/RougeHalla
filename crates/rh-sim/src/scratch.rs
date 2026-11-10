@@ -42,6 +42,10 @@ pub(crate) struct TickScratch {
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
     pub(crate) dot_sums: Vec<(PlayerId, f64)>,
     pub(crate) fx: crate::fx_report::TickFx,
+    /// The current step's exact Card raw-pair segment (P-CARD-BLEED-FEEDBACK-1). Filled by the after-damage
+    /// producer, sealed into `FxTickReport::card_rows` at the step boundary and cleared there; its prepared
+    /// capacity survives. Never serialized or hashed.
+    pub(crate) card_segment: crate::systems::card_bleed_feedback::CardSegment,
     /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`), by slot: a kill pays what the victim
     /// was worth before the tick's own kills raised it.
     pub(crate) bounty_at_tick_start: Vec<u32>,
@@ -121,6 +125,7 @@ impl Default for TickScratch {
             fx: crate::fx_report::TickFx {
                 ops: Vec::with_capacity(crate::fx_report::FX_REPORT_OPS_MAX),
             },
+            card_segment: crate::systems::card_bleed_feedback::CardSegment::default(),
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),
             rank: Vec::with_capacity(p),

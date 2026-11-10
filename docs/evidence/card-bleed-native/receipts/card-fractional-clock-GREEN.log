@@ -1,0 +1,4 @@
+running 2 tests
+test systems::card_bleed_feedback::tests::an_accepted_fractional_clock_records_a_real_card_report_and_restores_continuation ... ok
+test systems::mob_checkpoint::bleed_tests::earned_bleed_restores_under_an_accepted_fractional_clock_without_tick_time_equality ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 886 filtered out; finished in 0.59s

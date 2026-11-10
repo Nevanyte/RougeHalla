@@ -1348,6 +1348,8 @@ fn content_hash_of_definitions(
 
     h.str("status-runtime/1");
     crate::terrain::visit_content(|word| h.u64(word));
+    h.str("card-bleed-feedback/1");
+    crate::systems::card_bleed_feedback::visit_content(|word| h.u64(word));
     h.str("wish-producers/1");
     crate::abilities::visit_content(|word| h.u64(word));
     crate::systems::arena_rules::visit_content(|word| h.u64(word));

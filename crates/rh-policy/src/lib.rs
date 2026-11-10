@@ -33,8 +33,9 @@ use std::time::{Duration, Instant};
 /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
 /// Version 15 requires accepted decoded public frames for HumanBot, scoped references and transactional handoff.
+/// Version 16 reserves the observation-knowledge change of the Card bleed public `Hit` projection (OBS 22).
 /// Explicit native compatibility policies retain their separately declared input kind.
-pub const POLICY_CONTRACT_VERSION: u16 = 15;
+pub const POLICY_CONTRACT_VERSION: u16 = 16;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1843,7 +1844,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 15);
+        assert_eq!(POLICY_CONTRACT_VERSION, 16);
     }
 }
 

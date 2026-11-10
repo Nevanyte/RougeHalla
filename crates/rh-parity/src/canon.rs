@@ -218,6 +218,10 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::AttackCancelled { id } => json!({"kind":"cancel","id":fid(*id)}),
         Event::Stagger { id } => json!({"kind": "stagger", "id": fid(*id)}),
         Event::RaidStarted => json!({"kind": "raidStarted"}),
+        // The bounded legacy `rh-legacy-scenario/1` CAPTURE_WORLD has no cards: its fixed module boundary
+        // excludes cardHooks and legacy canonicalEvent has no Card aggregate. The dedicated Card source
+        // consumer compares the typed raw rows directly; never route Card comparison through this omission.
+        Event::CardBleedHit { .. } => return None,
         // The legacy scenario projection excludes arena lifecycle events. The dedicated arena
         // oracle compares these facts against its exercised Source captures.
         Event::PlanningStarted
