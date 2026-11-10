@@ -88,3 +88,7 @@ Evidence-format limits remain explicit rather than invented: the ten-line raw co
 First compile/module-registration/deref and lint/fmt failures are preserved. Prior hash/integration logs stop before terminal output and are labelled prior incomplete/timeout receipts, never final PASS. Their raw bytes alone do not establish an exit code or a process-kill cause; no guessed terminal status is inferred here. The privately overwritten unused-map type-inference failure is honestly documented as lost, not fabricated. Final owned hash completion is separate and explicit. No active process was interrupted/restarted by this reviewer, and no tests/probes/source captures were run.
 
 Root owns integration and any evidence-only follow-up. No remaining semantic/scope blocker found within this sealed Stage1 extraction.
+
+## Root evidence closure and admission
+
+Root verified evidence-only follow-up `49a6ab94`: actual final live/objectives sizes34237/4107, unchanged four Rust hashes, correct pre-cleanup candidate code binding, and a separate private invocation metadata record recovered by the author from retained tool calls. It is explicitly not an embedded raw-log header; toolchain identity was queried afterward. No tests were repeated for documentation. Root admits the reviewed code/evidence as `ad98c441` + `9debd3e2` on the isolated backend integration lane; no full-workspace or Claude client acceptance is implied.

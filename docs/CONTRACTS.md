@@ -21,7 +21,7 @@ content `8edd862f48ffa100` through the approved appended semantics marker; both 
 checks pass. Protocol14/checkpoint29/replay23/OBS21/policy15 shapes and all63 ability-tape case folds are unchanged.
 The [independent admission](evidence/quest-backend-admission-review/README.md) binds exact code, source and scoped gates,
 including historical test-harness failures; it does not claim a new full-workspace run, complete quest parity, Claude
-client refresh or hosted release. Stage1 is a separate behavior-preserving objective/reward extraction.
+client refresh or hosted release. Stage1 is independently admitted here as `ad98c441` + `9debd3e2`: four-file objective/reward extraction, exact12-case/35-frame original/Clone/restore continuations, unchanged rules/state identities and scoped preservation gates. The [Stage1 review](evidence/quest-backend-stage1-review/README.md) binds the final no-op formatting/conversion delta and documents recovered invocation metadata limits. This does not close the remaining four bounded notice consumers or future quest content rework.
 
 Private strategy candidate `8baad8f5` / receipts `71fa0d35` is **not admitted**: seven passing source-output suites do not yet enforce all captured callback/RNG/private-state traces or strict atomic input validation, and a shared callback flag crosses parallel cases. DeepSeek is repairing those review findings before a complete final gate. Tactics source candidate `54ff01a2` independently reproduces154 cases/720 methods with exact226-entry integrity (`c8d0a5e6`); this source-only result does not extend C-POLICY/C-OBS or activate live bots.
 
