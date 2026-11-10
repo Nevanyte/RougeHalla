@@ -193,6 +193,7 @@ namespace Roguehalla.Client
             if (_fps != null) Label(_fps, "FRAME RATE  " + (_prefs.ShowFps ? "ON" : "OFF"));
             if (_ping != null) Label(_ping, "PING  " + (_prefs.ShowPing ? "ON" : "OFF"));
             if (_scale != null) Label(_scale, "MINIMAP SIZE  " + Mathf.RoundToInt(_prefs.MinimapScale * 100f) + "%");
+            if (_reset != null) Label(_reset, "RESET");
             SetSlider(_textScale, _textScaleValue, _source.TextScale, "0.00×");
             SetSlider(_music, _musicValue, _source.MusicVolume, "0%");
             SetSlider(_ambience, _ambienceValue, _source.AmbienceVolume, "0%");
