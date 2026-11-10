@@ -187,7 +187,7 @@ namespace Roguehalla.Client.Tests
         {
             Assert.That(ContrastLabStage.ClassOf("Authored character"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
             Assert.That(ContrastLabStage.ClassOf("Character contrast rim"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
-            Assert.That(ContrastLabStage.ClassOf("Character light rim"), Is.EqualTo(ContrastLabStage.ClassSilhouette));
+            Assert.That(ContrastLabStage.ClassOf("Character light rim"), Is.EqualTo(ContrastLabStage.ClassRim));
             Assert.That(ContrastLabStage.ClassOf("Contact shadow"), Is.EqualTo(ContrastLabStage.ClassShadow));
             Assert.That(ContrastLabStage.ClassOf("Health and barrier track"), Is.EqualTo(ContrastLabStage.ClassHp));
             Assert.That(ContrastLabStage.ClassOf("Confirmed health"), Is.EqualTo(ContrastLabStage.ClassHp));

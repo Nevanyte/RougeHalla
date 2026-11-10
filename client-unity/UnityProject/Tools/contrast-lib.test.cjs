@@ -56,6 +56,7 @@ test('mask pixels classify by channel threshold', () => {
   assert.equal(L.classifyMaskPixel(0, 0, 255), L.CLASS.FOOT);
   assert.equal(L.classifyMaskPixel(255, 255, 0), L.CLASS.INSIGNIA);
   assert.equal(L.classifyMaskPixel(255, 0, 255), L.CLASS.OTHER);
+  assert.equal(L.classifyMaskPixel(0, 255, 255), L.CLASS.RIM);
   assert.equal(L.classifyMaskPixel(0, 0, 0), L.CLASS.NONE);
   assert.equal(L.classifyMaskPixel(60, 60, 60), L.CLASS.NONE);
   assert.equal(L.classifyMaskPixel(255, 255, 255), L.CLASS.NONE);
@@ -152,6 +153,19 @@ test('ring is 3..12 px out: ground at 2 px or beyond 12 px does not count', () =
     }
   } }));
   near(res.edge.min, 0.55 / 0.15, 1e-4);
+});
+
+test('a light rim at ground luminance hides the edge; the core alone shows the dark outline', () => {
+  // Dark core (0.01) inside a 4 px rim whose luminance equals the ground (0.5): the silhouette as drawn ends in the rim, so EDGE is ~1; the core edge is (0.55)/(0.06).
+  const r = 30, cx = 100, cy = 100;
+  const frame = discFrame({ r, ground: 0.5, disc: 0.01, extra: (lum, mask, w, h) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.hypot(x - cx, y - cy); if (d > r && d <= r + 4) { lum[y * w + x] = 0.5; mask[y * w + x] = L.CLASS.RIM; } }
+  } });
+  frame.rect = { x: cx - r - 4, y: cy - r - 4, w: 2 * (r + 4), h: 2 * (r + 4) };
+  const res = L.analyzeCell(frame);
+  assert.ok(res.valid, res.reason);
+  near(res.edge.p10, 1, 1e-3, 'edge with rim'); near(res.edge.core.p10, 0.55 / 0.06, 0.02, 'core edge'); near(res.body.ratio, 0.55 / 0.06, 0.02, 'body is the core interior');
+  assert.ok(res.edge.rimShare > 0.1 && res.edge.rimShare < 0.3, `rimShare ${res.edge.rimShare}`);
 });
 
 test('markers: a dark bar on 0.1 ground reports (0.1 + 0.05) / (bar + 0.05); an absent marker is null', () => {

@@ -85,9 +85,9 @@ function encodePng(width, height, rgba) {
 
 // ---- Mask classes (RhContrastMask.shader / ContrastLabStage.ClassColors) -----------------------------------------------------
 
-const CLASS = { SIL: 0, HP: 1, FOOT: 2, INSIGNIA: 3, OTHER: 4, NONE: 255 };
-const CLASS_NAMES = ['silhouette', 'hp', 'foot', 'insignia', 'other'];
-/** Class of a mask pixel by thresholding each channel at 128: red = silhouette, green = hp bar, blue = footprint, yellow = insignia, magenta = other. */
+const CLASS = { SIL: 0, HP: 1, FOOT: 2, INSIGNIA: 3, OTHER: 4, RIM: 5, NONE: 255 };
+const CLASS_NAMES = ['silhouette', 'hp', 'foot', 'insignia', 'other', 'rim'];
+/** Class of a mask pixel by thresholding each channel at 128: red = silhouette core (sprite + dark outline + mantle + weapon), cyan = light rim, green = hp bar, blue = footprint, yellow = insignia, magenta = other. */
 function classifyMaskPixel(r, g, b) {
   const R = r > 127, G = g > 127, B = b > 127;
   if (R && !G && !B) return CLASS.SIL;
@@ -95,6 +95,7 @@ function classifyMaskPixel(r, g, b) {
   if (!R && !G && B) return CLASS.FOOT;
   if (R && G && !B) return CLASS.INSIGNIA;
   if (R && !G && B) return CLASS.OTHER;
+  if (!R && G && B) return CLASS.RIM;
   return CLASS.NONE;
 }
 function decodeMask(data, w, h) {
@@ -214,20 +215,26 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
     const px = x0 + x, py = y0 + y;
     mine[d] = px >= rect.x - own && px <= rect.x + rect.w + own && py >= rect.y - own && py <= rect.y + rect.h + own ? 1 : 0;
   }
-  const shapeOf = k => { const m = new Uint8Array(w * h); let n = 0; for (let i = 0; i < m.length; i++) if (cls[i] === k && mine[i]) { m[i] = 1; n++; } return { m, n }; };
+  const shapeOf = (...ks) => { const m = new Uint8Array(w * h); let n = 0; for (let i = 0; i < m.length; i++) if (ks.includes(cls[i]) && mine[i]) { m[i] = 1; n++; } return { m, n }; };
   const result = { valid: false, reason: '', edge: null, body: null, markers: {}, rect: { x0, y0, w, h } };
-  const sil = shapeOf(CLASS.SIL);
-  if (sil.n < o.minMaskPixels) { result.reason = `silhouette mask has only ${sil.n} px`; return result; }
+  // The silhouette as drawn: the core (sprite, dark outline, mantle, weapon cue) plus the light rim.
+  const sil = shapeOf(CLASS.SIL, CLASS.RIM), core = shapeOf(CLASS.SIL);
+  if (sil.n < o.minMaskPixels || core.n < o.minMaskPixels) { result.reason = `silhouette mask has only ${sil.n} px`; return result; }
   const r = regions(sil.m, occupied, w, h, o), c = centroid(sil.m, w, h);
   const edge = sectorContrast(ln, ln, r.contour, r.ring, w, h, c, o);
   const ground = sectorContrast(ln, lg, r.contour, r.ring, w, h, c, o);
+  // The core alone (what the edge would be without the rim): its contour against the ring beyond the rim.
+  const rc = regions(core.m, occupied, w, h, o), cc = centroid(core.m, w, h);
+  const coreEdge = sectorContrast(ln, ln, rc.contour, rc.ring, w, h, cc, o);
   const ringVals = [], ringGround = [], interiorVals = [];
-  for (let i = 0; i < r.ring.length; i++) { if (r.ring[i]) { ringVals.push(ln[i]); ringGround.push(lg[i]); } if (r.interior[i]) interiorVals.push(ln[i]); }
+  for (let i = 0; i < r.ring.length; i++) { if (r.ring[i]) { ringVals.push(ln[i]); ringGround.push(lg[i]); } if (rc.interior[i]) interiorVals.push(ln[i]); }
   if (!edge.valid || ringVals.length < 30) { result.reason = `no measurable sectors (${edge.valid} valid, ${ringVals.length} ring px)`; return result; }
   result.valid = true;
   if (opts.debug) result.debug = { contour: r.contour, ring: r.ring, interior: r.interior, centroid: c, sectors: o.sectors, sectorRatios: edge.ratios };
+  const rimPx = sil.n - core.n;
   result.edge = { p10: edge.p10, min: edge.min, median: edge.median, sectors: edge.valid, ratios: edge.ratios,
-    ground: { p10: ground.p10, min: ground.min, median: ground.median }, contourMedian: median(Float64Array.from(edge.contourMed.filter(Number.isFinite))), ringMedian: median(ringVals) };
+    ground: { p10: ground.p10, min: ground.min, median: ground.median }, contourMedian: median(Float64Array.from(edge.contourMed.filter(Number.isFinite))), ringMedian: median(ringVals),
+    core: { p10: coreEdge.p10, min: coreEdge.min, median: coreEdge.median, sectors: coreEdge.valid }, rimShare: rimPx / sil.n };
   const bodyL = interiorVals.length ? median(interiorVals) : NaN;
   result.body = { ratio: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringVals)) : NaN, ratioGround: Number.isFinite(bodyL) ? contrastRatio(bodyL, median(ringGround)) : NaN, interiorPx: interiorVals.length, luminance: bodyL, ringLuminance: median(ringVals) };
   for (const [name, k] of [['hp', CLASS.HP], ['foot', CLASS.FOOT], ['insignia', CLASS.INSIGNIA]]) {

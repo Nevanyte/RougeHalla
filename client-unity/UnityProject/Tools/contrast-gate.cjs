@@ -15,7 +15,7 @@ const os = require('node:os');
 const path = require('node:path');
 const lib = require('./contrast-lib.cjs');
 
-const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
+const OUT_COLUMNS = ['cfg', 'zone', 'surface', 'appearance', 'pose', 'facing', 'prop', 'propMode', 'clip', 'frame', 'purity', 'valid', 'edgeP10', 'edgeMin', 'edgeMedian', 'edgeGroundP10', 'edgeCoreP10', 'rimShare', 'body', 'bodyGround', 'hp', 'foot', 'insignia', 'edgePass', 'markerPass', 'overlap', 'reason'];
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 
 function usage() {
@@ -131,7 +131,7 @@ function toCell(cfgName, c, res, opts) {
   const cell = {
     cfg: cfgName, zone: c.zone, surface: c.surface, appearance: c.appearance, pose: c.pose, facing: c.facing, prop: c.prop || '', propMode: c.propMode || '', clip: c.clip, frame: c.frame, purity: r2(c.purity),
     valid: !!res.valid, reason: res.reason || (res.valid && !markersMeasured ? 'a marker could not be measured' : ''),
-    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null,
+    edgeP10: res.valid ? r2(res.edge.p10) : null, edgeMin: res.valid ? r2(res.edge.min) : null, edgeMedian: res.valid ? r2(res.edge.median) : null, edgeGroundP10: res.valid ? r2(res.edge.ground.p10) : null, edgeCoreP10: res.valid ? r2(res.edge.core.p10) : null, rimShare: res.valid ? r2(res.edge.rimShare) : null,
     body: res.valid ? r2(res.body.ratio) : null, bodyGround: res.valid ? r2(res.body.ratioGround) : null,
     hp: r2(markerRatios[0]), foot: r2(markerRatios[1]), insignia: r2(markerRatios[2]), overlap: !!c.overlap,
   };
@@ -164,12 +164,12 @@ function buildMarkdown(result, opts) {
   const zones = [...new Set(cells.map(c => c.zone))];
   L.push('# Character contrast gate', '', `Generated ${result.generated}. Gate: EDGE p10 over 16 contour sectors >= ${opts.edge}; markers (hp bar, faction footprint, faction insignia) >= ${opts.marker}. Definition and caveats: docs/rework/CONTRAST_GATE.md.`, '');
   L.push(`GPU: ${[...new Set(result.configs.map(c => c.gpu))].join('; ')}. Frames: ${opts.frames} normal + ${opts.groundFrames} ground averaged per page.`, '');
-  L.push('## Pass counts', '', '| config | zone | cells | EDGE p10 >= ' + opts.edge + ' | EDGE min >= ' + opts.edge + ' | markers >= ' + opts.marker + ' | unmeasured |', '|---|---|---:|---:|---:|---:|---:|');
+  L.push('## Pass counts', '', '| config | zone | cells | EDGE p10 >= ' + opts.edge + ' | EDGE min >= ' + opts.edge + ' | core p10 >= ' + opts.edge + ' | markers >= ' + opts.marker + ' | unmeasured |', '|---|---|---:|---:|---:|---:|---:|---:|');
   for (const cfg of result.configs) for (const zone of zones) {
     const cs = cfg.cells.filter(c => c.zone === zone); if (!cs.length) continue;
-    L.push(`| ${cfg.name} | ${zone} | ${cs.length} | ${cs.filter(c => c.edgePass).length} | ${cs.filter(c => c.valid && c.edgeMin >= opts.edge).length} | ${cs.filter(c => c.markerPass).length} | ${cs.filter(c => !c.valid).length} |`);
+    L.push(`| ${cfg.name} | ${zone} | ${cs.length} | ${cs.filter(c => c.edgePass).length} | ${cs.filter(c => c.valid && c.edgeMin >= opts.edge).length} | ${cs.filter(c => c.valid && c.edgeCoreP10 >= opts.edge).length} | ${cs.filter(c => c.markerPass).length} | ${cs.filter(c => !c.valid).length} |`);
   }
-  L.push('', '## EDGE by zone', '', 'Cell = worst case over every pose, facing, size and quality of: EDGE p10 / EDGE min / BODY. A mark means EDGE p10 below the gate in at least one run. Plain-ground cells only; props are below.', '');
+  L.push('', '## EDGE by zone', '', 'Cell = worst case over every pose, facing, size and quality of: EDGE p10 / EDGE min / BODY, then [core p10] (the edge of the sprite and its dark outline alone, ignoring the light rim). A mark means EDGE p10 below the gate in at least one run. Plain-ground cells only; props are below.', '');
   for (const zone of zones) {
     const zc = cells.filter(c => c.zone === zone && !c.prop);
     const surfaces = [...new Set(zc.map(c => c.surface))];
@@ -178,7 +178,7 @@ function buildMarkdown(result, opts) {
       const row = surfaces.map(s => {
         const cs = zc.filter(c => c.appearance === app && c.surface === s); if (!cs.length) return '';
         const bad = cs.some(c => !c.edgePass), v = k => Math.min(...cs.map(c => (c[k] === null ? Infinity : c[k])));
-        return `${fmt(v('edgeP10'))} / ${fmt(v('edgeMin'))} / ${fmt(v('body'))}${bad ? ' ✗' : ''}`;
+        return `${fmt(v('edgeP10'))} / ${fmt(v('edgeMin'))} / ${fmt(v('body'))} [${fmt(v('edgeCoreP10'))}]${bad ? ' ✗' : ''}`;
       });
       L.push(`| ${app} | ${row.join(' | ')} |`);
     }
@@ -230,7 +230,7 @@ async function writeWorstSheet(chromium, opts, file) {
       let viz = null;
       if (d) viz = Buffer.from(d.viz).toString('base64');
       return { w: e.w, h: e.h, rgba: e.rgba.toString('base64'), viz,
-        lines: [`${c.zone} / ${c.surface}${c.prop ? ' / ' + c.prop + ' ' + c.propMode : ''}`, `${c.appearance}  ${c.pose} ${c.facing}  ${c.cfg}`, `EDGE p10 ${fmt(c.edgeP10)}  min ${fmt(c.edgeMin)}  med ${fmt(c.edgeMedian)}`, `BODY ${fmt(c.body)}  hp ${fmt(c.hp)} foot ${fmt(c.foot)} ins ${fmt(c.insignia)}${c.valid ? '' : '  UNMEASURED'}`] };
+        lines: [`${c.zone} / ${c.surface}${c.prop ? ' / ' + c.prop + ' ' + c.propMode : ''}`, `${c.appearance}  ${c.pose} ${c.facing}  ${c.cfg}`, `EDGE p10 ${fmt(c.edgeP10)}  min ${fmt(c.edgeMin)}  med ${fmt(c.edgeMedian)}  core ${fmt(c.edgeCoreP10)}`, `BODY ${fmt(c.body)}  hp ${fmt(c.hp)} foot ${fmt(c.foot)} ins ${fmt(c.insignia)}${c.valid ? '' : '  UNMEASURED'}`] };
     });
     const jpeg = await page.evaluate(async ({ tiles, edge }) => {
       const cols = 6, tw = 330, imgH = 280, th = imgH + 66, rows = Math.ceil(tiles.length / cols);

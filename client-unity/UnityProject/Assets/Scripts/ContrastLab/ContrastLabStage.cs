@@ -7,8 +7,8 @@
 // (RhContrastLab.jslib) for the cell rectangles and switches the render mode between screenshots:
 //   normal     the frame as the player sees it.
 //   no-actors  the same frame with the actors culled (ground, props, lights, haze only).
-//   mask       only the actors, each drawn renderer in a flat colour on black: silhouette (sprite + outline + light rim + mantle + weapon cue)
-//              red, hp bar green, faction footprint blue, faction insignia/badges yellow, any other indicator magenta. The contact shadow
+//   mask       only the actors, each drawn renderer in a flat colour on black: silhouette (sprite + dark outline + mantle + weapon cue)
+//              red, light rim cyan (the tool counts rim as silhouette too, and also measures the red core alone), hp bar green, faction footprint blue, faction insignia/badges yellow, any other indicator magenta. The contact shadow
 //              is hidden in this mode (it is a soft darkening, not part of the silhouette).
 //
 // Freezing: after the camera has settled, walking cells are driven toward their cell for a fixed time (so the real gait walks and lands on
@@ -37,10 +37,10 @@ namespace Roguehalla.Client
         public const int ActorLayer = 30;
         public const string ObjectName = "ContrastLab";
         // Mask classes (flat colours on black; see the header).
-        public const int ClassSilhouette = 0, ClassHp = 1, ClassFootprint = 2, ClassInsignia = 3, ClassOther = 4, ClassShadow = 5;
+        public const int ClassSilhouette = 0, ClassHp = 1, ClassFootprint = 2, ClassInsignia = 3, ClassOther = 4, ClassShadow = 5, ClassRim = 6;
         public static readonly Color32[] ClassColors =
         {
-            new Color32(255, 0, 0, 255), new Color32(0, 255, 0, 255), new Color32(0, 0, 255, 255), new Color32(255, 255, 0, 255), new Color32(255, 0, 255, 255), new Color32(0, 0, 0, 255)
+            new Color32(255, 0, 0, 255), new Color32(0, 255, 0, 255), new Color32(0, 0, 255, 255), new Color32(255, 255, 0, 255), new Color32(255, 0, 255, 255), new Color32(0, 0, 0, 255), new Color32(0, 255, 255, 255)
         };
         const float WalkSeconds = .4f, WalkDistance = 64f;       // server units walked before the freeze
         const float SettleFirst = 4f, SettleZone = 3.5f, SettlePage = 1.5f;
@@ -54,7 +54,8 @@ namespace Roguehalla.Client
         {
             switch (name)
             {
-                case "Authored character": case "Character contrast rim": case "Character light rim": case "Faction mantle": case "Equipped weapon cue": return ClassSilhouette;
+                case "Authored character": case "Character contrast rim": case "Faction mantle": case "Equipped weapon cue": return ClassSilhouette;
+                case "Character light rim": return ClassRim;
                 case "Contact shadow": return ClassShadow;
                 case "Faction footprint": return ClassFootprint;
                 case "Health and barrier track": case "Confirmed health": case "Confirmed barrier": return ClassHp;
