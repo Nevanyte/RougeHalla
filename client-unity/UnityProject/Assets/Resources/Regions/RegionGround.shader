@@ -643,18 +643,21 @@ Shader "Roguehalla/RegionGround"
                                 float2 bc = floor(t * 3.2); float2 bf = frac(t * 3.2) - 0.5;
                                 float bub = step(0.80, H21(bc)) * smoothstep(0.24, 0.12, length(bf + (H22(bc) - 0.5) * 0.3)) * (0.5 + 0.5 * sin(time * 2.2 + H21(bc + 3.0) * 6.28));
                                 float breathe = 0.5 + 0.5 * sin(time * 1.15 + t.x * 0.45 + t.y * 0.38);
-                                te = glow * (crustLine * 0.16 + bub * 0.8 + saturate(inner + 0.2) * (0.07 + 0.12 * breathe));
-                                tc += bub * glow * 0.35;
+                                // Contrast pass: calmer bubbles and breathing glow (was bubbles x 0.8, tint x 0.35, breathe 0.07 + 0.12).
+                                te = glow * (crustLine * 0.16 + bub * 0.5 + saturate(inner + 0.2) * (0.06 + 0.08 * breathe));
+                                tc += bub * glow * 0.2;
                                 hh = bub * 0.05 + (1.0 - crustLine) * 0.03; gl = 0.45;
                             }
                             else if (kd == 4)       // embers: charred ground with pulsing glowing cracks
                             {
                                 float2 w = Worley(t * 1.5 + Fbm(t * 0.8) * 1.5);
                                 float crack = 1.0 - smoothstep(0.0, 0.16, w.y);
-                                float pulse = 0.65 + 0.35 * sin(time * 1.7 + w.x * 9.0 + H21(floor(t)) * 6.28);
+                                // Contrast pass (docs/rework/evidence/contrast): the cracks keep their hue and their pulse but their luminance range is calmer, so a fighter's
+                                // edge reads against them (was pulse 0.65 + 0.35 sin, emission x 1.5, crack colour mix 0.6).
+                                float pulse = 0.72 + 0.28 * sin(time * 1.7 + w.x * 9.0 + H21(floor(t)) * 6.28);
                                 tc = deep * (0.75 + 0.5 * Fbm(t * 2.0));
-                                te = glow * crack * pulse * 1.5 + glow * 0.06;
-                                tc = lerp(tc, light, crack * 0.6);
+                                te = glow * crack * pulse * 0.95 + glow * 0.06;
+                                tc = lerp(tc, light, crack * 0.4);
                                 hh = -crack * 0.05; gl = 0.12;
                             }
                             else if (kd == 7)       // light: warm sanctified ground, concentric shimmer and slow sparks

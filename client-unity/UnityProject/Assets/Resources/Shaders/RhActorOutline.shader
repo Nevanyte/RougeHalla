@@ -119,7 +119,7 @@ Shader "Roguehalla/ActorOutline"
 
         // The ground just OUTSIDE the stroke, where the gate measures it: nine taps (three distances 6 to 14 px, three across) along the outward direction of the silhouette at this
         // pixel, median. A stroke is judged against the ring beyond it, not against what lies under it, so a bright vein that crosses the stroke itself must not decide its polarity.
-        float RingLuma(float3 pWS, float3 dirWS)
+        float RingLuma(float3 pWS, float3 dirWS, out float lo, out float hi)
         {
             float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
             float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
@@ -142,7 +142,9 @@ Shader "Roguehalla/ActorOutline"
             }
             // A ground of bright veins over dark cells (a wide spread between the quartiles) is judged by its dark cells: the gate's ring median sits there.
             float m = q75 > 3.0 * max(q25, 0.02) ? q25 : med;
-            return m * max(_RhOutlineGain, 0.05);
+            float g = max(_RhOutlineGain, 0.05);
+            lo = q25 * g; hi = q75 * g;      // the tone is judged against the dark and the bright end of the ring
+            return m * g;
         }
 
         // The figure's own ground, wide and slow (nine taps out to one world unit, geometric mean): the tie break inside the dead zone, stable from frame to frame on animated ground.
@@ -198,7 +200,7 @@ Shader "Roguehalla/ActorOutline"
             // The stroke is drawn above the scene, so it must not cover its own source: only the ring outside the silhouette.
             float cov = covFull * (1.0 - smoothstep(0.3, 0.8, srcA));
             clip(cov - 0.002);
-            float light = _Prior, l = -1.0;
+            float light = _Prior, l = -1.0, lLo = -1.0, lHi = -1.0;
             if (_RhOutlineGrab > 0.5)
             {
                 // Outward direction of the silhouette here: away from the source alpha around the pixel.
@@ -213,9 +215,9 @@ Shader "Roguehalla/ActorOutline"
                     float3 dOS = float3(out2.x / (1.0 + 2.0 * _Outline.x), out2.y / (1.0 + 2.0 * _Outline.y), 0.0);
                     float3 dWS = TransformObjectToWorldDir(dOS);
                     dWS.z = 0.0; dWS = normalize(dWS);
-                    l = RingLuma(i.posWS, dWS);
+                    l = RingLuma(i.posWS, dWS, lLo, lHi);
                 }
-                else l = GroundLuma(i.screen.xy / i.screen.w);
+                else { l = GroundLuma(i.screen.xy / i.screen.w); lLo = lHi = l; }
                 // Hard polarity per pixel; inside the dead zone one polarity per figure decides (a stroke never speckles).
                 light = l < _RhOutlineTune.z - _RhOutlineTune.w ? 1.0 : (l > _RhOutlineTune.z + _RhOutlineTune.w ? 0.0 : i.figure);
             }
@@ -223,7 +225,7 @@ Shader "Roguehalla/ActorOutline"
             // light rim and on pale ground a soft dark one; with no grab the full strength stays.
             float R = max(_Tone.x, 1.5), Ls;
             if (l >= 0.0)
-                Ls = light > 0.5 ? clamp(R * (l + 0.05) - 0.05, _RhOutlineTune.x, 0.86) : clamp((l + 0.05) / R - 0.05, _RhOutlineTune.y, _RhOutlineTone.w);
+                Ls = light > 0.5 ? clamp(R * (lHi + 0.05) - 0.05, _RhOutlineTune.x, 0.86) : clamp((lLo + 0.05) / (R * 1.9) - 0.05, _RhOutlineTune.y, _RhOutlineTone.w);
             else
                 Ls = light > 0.5 ? 0.86 : _RhOutlineTune.y;
             float3 rgb = float3(ToHdr(Ls), ToHdr(Ls), ToHdr(Ls) * 1.02);

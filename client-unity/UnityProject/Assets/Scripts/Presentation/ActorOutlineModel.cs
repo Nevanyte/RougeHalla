@@ -18,7 +18,7 @@ namespace Roguehalla.Client
         public const float DarkLinear = .004f, LightLinear = 1.5f;
 
         /// <summary>Stroke width in world units (final size on screen: 60 px per unit at 1080p, so 3 px; 4 px at 1440p: the same share of the figure).</summary>
-        public const float Width = .034f;
+        public const float Width = .038f;
 
         /// <summary>Contrast ratio the stroke aims for against the ground just outside it (figures, then markers). Above 3.0 with a margin for bloom and glow.</summary>
         public const float TargetRatio = 4.4f, MarkerTargetRatio = 5.4f;
@@ -28,7 +28,8 @@ namespace Roguehalla.Client
         /// <summary>On-screen luminance of the stroke for a ground luminance: just enough for <paramref name="ratio"/>, clamped (a soft rim light on dark ground, a soft dark rim on pale).</summary>
         public static float ToneLuma(float groundLuma, bool light, float ratio)
         {
-            float t = light ? ratio * (groundLuma + .05f) - .05f : (groundLuma + .05f) / ratio - .05f;
+            // The dark stroke aims higher (1.9x the ratio): bloom and haze lift it on screen, a light stroke has no such floor.
+            float t = light ? ratio * (groundLuma + .05f) - .05f : (groundLuma + .05f) / (ratio * 1.9f) - .05f;
             return light ? Math.Min(LightLuma, Math.Max(LightFloor, t)) : Math.Min(DarkCeil, Math.Max(DarkLuma, t));
         }
 
