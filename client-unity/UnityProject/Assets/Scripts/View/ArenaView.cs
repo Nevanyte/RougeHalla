@@ -655,6 +655,7 @@ namespace Roguehalla.Client
             foreach (var glow in _lampGlows) glow.enabled = Quality.DynamicLights > 0;
             foreach (var light in _lamps) { light.SetShadows(Quality.Shadows); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
+            WorldLayer.Tag(transform); // CONTRAST: ground and decals go to the World sorting layer (the outline's camera sorting layer texture is grabbed after it)
         }
         static void SetActive<T>(VolumeProfile profile, bool active) where T : VolumeComponent
         {
