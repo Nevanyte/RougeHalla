@@ -2,13 +2,14 @@
 
 This new preparation is for one **fresh x86-64 Ubuntu 24.04 instance in
 ca-west-1**, practice `play.rougehalla.com`, and an original absolute UTC deadline no
-more than three hours ahead. Eleven stdlib bootstrap controls and seven PyYAML
-stack controls pass. The first two actual guests terminated before application
+more than twelve hours ahead. The historical guest below used the earlier three-hour
+limit. The first two actual guests terminated before application
 readiness; the second guest proves the NFT syntax error documented below. The
 corrected rules pass an actual Ubuntu NFT parser check. Fixed guest03 now passes
 installation/native storage readiness, actual isolation/shaping, valid public TLS
 and an ordinary browser profile-load/Training/movement/Leave check. The fixed
-shutdown remains 2026-11-10 03:50:21 UTC; this is an ephemeral demo.
+shutdown was fixed at 2026-11-10 03:50:21 UTC; it was an ephemeral demo and its
+cleanup is recorded separately.
 
 The root URL redirects to `index.html` with the ordinary same-origin Training
 endpoint selected, so both Arena and Practice are available without operator setup.
@@ -52,10 +53,13 @@ Review that separately, without running it during this preparation; do not inter
 this preparation as an IAM permission grant. Instance stop/termination, disk,
 IPv4 and data transfer charges still require Root's launch packet; a shutdown
 timer is not a billing hard cap. Root supplied live ca-west-1 planning figures
-of USD0.09/GB egress and USD0.0232/hour compute. The conservative phase reserve
-is USD2 / CAD4, plus CAD5 historical reserve = CAD9 reserved / CAD11 unallocated
-within the CAD20 owner limit. These are planning reserves, not a live FX quote,
-credit/balance measurement or actual bill. Root must confirm termination
+of USD0.09/GB egress and USD0.0232/hour compute. For one 12-hour guest, the
+8mbit shaper yields at most 43.2 decimal GB before the per-start 512kb burst:
+USD3.888 egress plus USD0.2784 compute and USD1 other allowance. The planning
+conversion is 1.50 CAD/USD with a 25% buffer, or CAD9.687. The reserve is CAD10
+new plus CAD9 historical = CAD19 within the CAD20 owner limit. These are planning
+figures and a reserve, not a billing hard cap, live FX quote, credit/balance
+measurement or actual bill. Root must confirm termination
 behavior and DNS before release. This source does not validate live account/
 AMI/volume/role ownership or refresh prices.
 
@@ -78,8 +82,11 @@ powers off through the setup failure unit; no partial installation is served.
 No tar extraction API is used. This bundle preparation is separate from the
 existing 17MB native component tar; do not feed that component tar directly.
 
-Replace **all** placeholders in `config.example.json`. Keep the original expiry
-unchanged on reboot, and use a fresh run ID. Locally render (does not call AWS):
+Replace **all** placeholders in `config.example.json`; `protocol: 0` is an
+intentionally invalid sentinel. Set protocol and content hash from the exact
+reviewed binary's `/info`, then keep those identities immutable alongside the
+bundle digest. Keep the original expiry unchanged on reboot, and use a fresh run
+ID. Locally render (does not call AWS):
 
 ```
 PYTHONDONTWRITEBYTECODE=1 python3 hosting/technical-demo/render.py /private/nonsecret-demo-config.json > /private/demo-user-data.sh
@@ -116,9 +123,11 @@ Source and Training use the existing public runtimes/flags, loopback 7777/7779,
 no bots, Source 2 players/30s lobby, Training solo/immediate, and durable Source
 result spool on the ephemeral root. No gameplay edits. Source starts first (its
 normal migrations), then Training. Caddy is started only after both actual
-`/readyz` objects report ok/ready/storage-ok and both `/info` objects report
-protocol14/content `7c6a633f68c2cc72`. Caddy's restart/boot precondition repeats
-these checks and every app/PG start checks the unchanged absolute expiry.
+`/readyz` objects report ok/ready/storage-ok and both `/info` objects match the
+immutable `protocol` and `content_hash` identities in strict config. Protocol is
+a positive u16; content hash is 16 lowercase hex digits. Caddy's restart/boot
+precondition repeats these checks and every app/PG start checks the unchanged
+absolute expiry.
 
 Caddy exposes HTTPS static/WS/Source API only, routes `/training/ws` separately,
 refuses control/probe and Training API routes, replaces XFF with the actual peer,
@@ -151,8 +160,8 @@ queue-delay bound with that child. There is no hard50ms claim or byte quota/coun
 and **no 2GiB promise**. The earlier 2GiB quota request was superseded by Root's
 8mbit instruction before any quota implementation.
 
-At 8mbit for a fixed three-hour lifetime, nominal sustained egress is about
-10.8 decimal GB plus the 512kb burst allowance per shaper initialization. This
+At 8mbit for the new maximum 12-hour lifetime, nominal sustained egress is about
+43.2 decimal GB plus the 512kb burst allowance per shaper initialization. This
 is a rate-duration planning bound, not a measured transfer or durable byte
 ceiling; reboot does not renew TTL. Actual kernel/ENI shaping remains unrun.
 
@@ -162,11 +171,14 @@ ceiling; reboot does not renew TTL. Actual kernel/ENI shaping remains unrun.
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s hosting/technical-demo -p test_offline.py -v
 ```
 
-Eleven bootstrap tests cover expiry boundaries, config refusal, real tar good/exclusive write,
-traversal/link/FIFO/unknown/duplicate refusal, wrong hash, the exact TBF argv and route/ordering refusals, and critical rendered
-ordering/route/unit properties. They do not emulate a host or claim cloud-ready
-activation. Root should independently review first, then own the single bounded
-actual launch/readiness/browser attempt and its cleanup evidence.
+Twelve bootstrap tests cover exact 12-hour/expired/over-limit expiry cases, strict
+config refusal, positive and stale protocol/content readiness on both service
+ports, real tar good/exclusive write, traversal/link/FIFO/unknown/duplicate
+refusal, wrong hash, exact TBF argv and route/ordering refusals, and rendered
+ordering/route/unit properties. Seven stack tests cover offline structural,
+resource-scope, and absolute-schedule controls. These tests do not emulate a host
+or claim cloud-ready activation. See the source preparation receipt for exact
+commands/results; host execution remains pending.
 
 ## First isolation failure and diagnostic-only continuation
 

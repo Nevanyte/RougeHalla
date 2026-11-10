@@ -17,6 +17,7 @@ CONFIG = Path('/etc/rougehalla-demo.json')
 UNITS = Path('/etc/systemd/system')
 MAX_BUNDLE = 160 * 1024 * 1024
 MAX_EXTRACT = 400 * 1024 * 1024
+MAX_LIFETIME = dt.timedelta(hours=12)
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
 
 
@@ -27,8 +28,10 @@ def require(ok, reason):
 
 def config(raw, now=None):
     c = json.loads(raw)
-    require(type(c) is dict and set(c) == {'bucket', 'key', 'sha256', 'region', 'expires_at', 'domain', 'run_id'}, 'config keys')
-    require(all(type(v) is str and v for v in c.values()), 'config strings')
+    require(type(c) is dict and set(c) == {'bucket', 'key', 'sha256', 'region', 'expires_at', 'domain', 'run_id', 'protocol', 'content_hash'}, 'config keys')
+    require(all(type(v) is str and v for k, v in c.items() if k != 'protocol'), 'config strings')
+    require(type(c['protocol']) is int and 1 <= c['protocol'] <= 65535, 'protocol u16')
+    require(re.fullmatch(r'[a-f0-9]{16}', c['content_hash']), 'content hash')
     require(re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]', c['bucket']), 'bucket')
     require(re.fullmatch(r'[A-Za-z0-9_./-]{1,1024}', c['key']) and '..' not in c['key'].split('/'), 'key')
     require(re.fullmatch(r'[a-f0-9]{64}', c['sha256']), 'sha256')
@@ -37,7 +40,7 @@ def config(raw, now=None):
     require(re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', c['expires_at']), 'UTC expiry')
     end = dt.datetime.strptime(c['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc)
     now = now or dt.datetime.now(dt.timezone.utc)
-    require(dt.timedelta(0) < end - now <= dt.timedelta(hours=3), 'expired or greater than three hours')
+    require(dt.timedelta(0) < end - now <= MAX_LIFETIME, 'expired or greater than twelve hours')
     return c, end
 
 
@@ -295,7 +298,7 @@ def caddy_config():
 '''
 
 
-def ready(port):
+def ready(port, expected):
     for route in ('/readyz', '/info'):
         conn = http.client.HTTPConnection('127.0.0.1', port, timeout=2)
         try:
@@ -306,7 +309,7 @@ def ready(port):
             if route == '/readyz':
                 require(data.get('ok') is True and data.get('state') == 'ready' and data.get('storage') == 'ok', 'storage not ready')
             else:
-                require(data.get('protocol') == 14 and data.get('contentHash') == '7c6a633f68c2cc72', 'native identity')
+                require(data.get('protocol') == expected['protocol'] and data.get('contentHash') == expected['content_hash'], 'native identity')
         finally:
             conn.close()
 
@@ -376,7 +379,7 @@ def install():
     for _ in range(30):
         guard()
         try:
-            ready(7777)
+            ready(7777, c)
             break
         except (OSError, ValueError, http.client.HTTPException):
             time.sleep(1)
@@ -386,8 +389,8 @@ def install():
     for _ in range(30):
         guard()
         try:
-            ready(7777)
-            ready(7779)
+            ready(7777, c)
+            ready(7779, c)
             break
         except (OSError, ValueError, http.client.HTTPException):
             time.sleep(1)
@@ -416,8 +419,9 @@ if __name__ == '__main__':
             isolate()
         elif sys.argv[1:] == ['ready']:
             guard()
-            ready(7777)
-            ready(7779)
+            c, _ = config(CONFIG.read_bytes())
+            ready(7777, c)
+            ready(7779, c)
         elif sys.argv[1:] == ['install']:
             install()
         else:

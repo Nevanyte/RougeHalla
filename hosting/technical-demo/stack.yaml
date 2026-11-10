@@ -2,12 +2,13 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Disposable Calgary technical demo; PREPARATION ONLY, Root approval required.
 # Two-phase create: LaunchHost=false creates bucket, host IAM/profile and SG only.
 # Root uploads/verifies the exact bundle, then updates LaunchHost=true with a fresh
-# original <=3h expiry, matching bootstrap config and already-base64 gzip chunks.
+# original <=12h expiry, matching bootstrap config and already-base64 gzip chunks.
 # Bootstrap currently does ONE get_object, not a missing-key wait; never race upload.
 # Split encoded bytes at multiples of 4, each <=4096 ASCII bytes; join does not
 # base64 again. Root must verify joined gzip <=16384B and exact decompressed script.
-# No secret values belong in UserData. This template cannot enforce wall-clock age
-# or equality to embedded bootstrap config; Root must compare both before launch.
+# No secret values belong in UserData. This template cannot enforce the expiry
+# window or equality to embedded bootstrap config (including protocol/content
+# identity); Root must compare these values before launch.
 # CFN Schedule currently lacks ActionAfterCompletion. The completed one-time
 # schedule remains until Root deletes the stack; no repeat invocation is configured.
 # No unsupported CFN property, custom resource, Lambda or extra API step is used.
