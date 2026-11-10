@@ -145,6 +145,7 @@ pub mod codec;
 mod encode;
 pub mod ground;
 pub mod vision;
+pub mod weapon;
 pub use encode::delta;
 pub mod map;
 pub mod quant;
@@ -171,6 +172,9 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
 pub use ground::GroundMode;
 pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
+pub use weapon::{
+    WireWeapon, MAX_WEAPONS, WEAPON_KIND_ARC, WEAPON_KIND_NONE, WEAPON_KIND_PROJECTILE,
+};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
 pub const PROTOCOL_VERSION: u16 = 16;
@@ -721,6 +725,9 @@ pub enum ServerMsg {
         archetypes: Vec<archetype::WireArchetype>,
         /// The vision rule's parameters (protocol 16), after the archetype table and before the map.
         vision: vision::WireVision,
+        /// The weapon table (protocol 16): each weapon's hit shape from the sim content, rows by ascending id, after the
+        /// vision block and before the map.
+        weapons: Vec<weapon::WireWeapon>,
         /// The canonical public map (server-sent; clients never generate it): docs/adr/0003-canonical-map.md.
         map: map::MapBlob,
     },
@@ -1349,6 +1356,7 @@ impl ServerMsg {
                 let server_ms = r.f64()?;
                 let archetypes = archetype::read_table(&mut r)?;
                 let vision = vision::WireVision::read(&mut r)?;
+                let weapons = weapon::read_table(&mut r)?;
                 let map = map::MapBlob::read(&mut r)?;
                 if !vision.fits(map.w, map.h) {
                     return Err(DecodeError::BadField("vision"));
@@ -1364,6 +1372,7 @@ impl ServerMsg {
                     server_ms,
                     archetypes,
                     vision,
+                    weapons,
                     map,
                 }
             }

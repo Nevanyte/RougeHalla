@@ -488,6 +488,77 @@ pub fn wire_vision(map: &rh_sim::TileMap) -> rh_protocol::WireVision {
     }
 }
 
+/// The projectile body-contact radius the sim uses for `w`'s flights (`rh_sim::systems::projectiles`: the bow looses arrows
+/// that meet a body grown by `ARROW_RADIUS`; every other ranged weapon fires balls grown by `RANGED_SLACK`). The weapon to
+/// projectile-kind rule is private to the sim, so it is mirrored here and pinned by the test below.
+fn projectile_contact_radius(w: rh_sim::WeaponId) -> f64 {
+    use rh_sim::constants::{ARROW_RADIUS, RANGED_SLACK};
+    if w == rh_sim::WeaponId::Bow {
+        ARROW_RADIUS
+    } else {
+        RANGED_SLACK
+    }
+}
+
+/// The weapon table a Welcome carries (protocol 16): one row per `rh_sim::WeaponId::ALL` (wire id `code()`), built from the
+/// sim content's hit shapes, so a client draws the true melee sector or projectile reach without a hand copy. All public
+/// content constants (no C-OBS concern). A shape that would not fit the wire is a server bug (the test holds it).
+pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
+    use rh_sim::content::{weapon, Shape};
+    rh_sim::WeaponId::ALL
+        .into_iter()
+        .map(|w| match weapon(w).shape {
+            Shape::Arc { reach, half_arc } => rh_protocol::WireWeapon {
+                id: w.code(),
+                kind: rh_protocol::WEAPON_KIND_ARC,
+                reach,
+                half_arc,
+                speed: 0.0,
+                radius: 0.0,
+            },
+            Shape::Projectile { speed, range } => rh_protocol::WireWeapon {
+                id: w.code(),
+                kind: rh_protocol::WEAPON_KIND_PROJECTILE,
+                reach: range,
+                half_arc: 0.0,
+                speed,
+                radius: projectile_contact_radius(w),
+            },
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod weapon_table_tests {
+    /// Every weapon has exactly one row, in wire order, carrying the sim content's shape; the table passes the decoder's
+    /// checks; arrows (bow) and balls (wand) carry the contact radius their flights use.
+    #[test]
+    fn the_wire_weapon_table_is_the_sim_content() {
+        use rh_sim::content::{weapon, Shape};
+        use rh_sim::WeaponId;
+        let wire = super::wire_weapons();
+        assert_eq!(rh_protocol::weapon::table_fault(&wire), None);
+        assert_eq!(wire.len(), WeaponId::ALL.len());
+        for (row, w) in wire.iter().zip(WeaponId::ALL) {
+            assert_eq!(row.id, w.code());
+            assert_eq!(WeaponId::from_code(row.id), Some(w));
+            match weapon(w).shape {
+                Shape::Arc { reach, half_arc } => assert_eq!(
+                    (row.kind, row.reach, row.half_arc, row.speed, row.radius),
+                    (rh_protocol::WEAPON_KIND_ARC, reach, half_arc, 0.0, 0.0)
+                ),
+                Shape::Projectile { speed, range } => assert_eq!(
+                    (row.kind, row.reach, row.half_arc, row.speed),
+                    (rh_protocol::WEAPON_KIND_PROJECTILE, range, 0.0, speed)
+                ),
+            }
+        }
+        let radius = |w: WeaponId| wire[usize::from(w.code())].radius;
+        assert_eq!(radius(WeaponId::Bow), rh_sim::constants::ARROW_RADIUS);
+        assert_eq!(radius(WeaponId::Wand), rh_sim::constants::RANGED_SLACK);
+    }
+}
+
 #[cfg(test)]
 mod vision_block_tests {
     /// The block the server sends is valid, carries the sim's constants, and names exactly the rectangle

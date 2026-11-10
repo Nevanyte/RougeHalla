@@ -263,6 +263,21 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "welcome_vision_coliseum_flag"
             | "welcome_vision_coliseum_empty"
             | "welcome_vision_coliseum_outside" => BadField("vision"),
+            "welcome_weapon_count" => BadField("weapon count"),
+            "welcome_weapon_truncated" => Truncated,
+            "welcome_weapon_kind" => BadField("weapon kind"),
+            "welcome_weapon_order" | "welcome_weapon_duplicate_id" => BadField("weapon order"),
+            "welcome_weapon_reach_nan"
+            | "welcome_weapon_speed_infinite"
+            | "welcome_weapon_radius_negative"
+            | "welcome_weapon_reach_over_max"
+            | "welcome_weapon_arc_half_arc_over_pi"
+            | "welcome_weapon_arc_half_arc_zero"
+            | "welcome_weapon_arc_reach_zero"
+            | "welcome_weapon_arc_speed"
+            | "welcome_weapon_projectile_speed_zero"
+            | "welcome_weapon_projectile_half_arc"
+            | "welcome_weapon_none_values" => BadField("weapon"),
             other => panic!("no expectation for {other}"),
         }
     };

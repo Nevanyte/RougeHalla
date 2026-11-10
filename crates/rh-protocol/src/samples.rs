@@ -825,6 +825,53 @@ pub fn sample_vision() -> WireVision {
     }
 }
 
+/// A sample weapon table: the six weapons of the current content (`rh_sim::content::weapon`, wire ids 0..=5: sword, bow,
+/// wand, shield, axe, fists) as the server sends them, plus a reserved no-shape row (id 31) so every kind is on the wire.
+pub fn sample_weapons() -> Vec<WireWeapon> {
+    use std::f64::consts::PI;
+    let arc = |id, reach, half_arc| WireWeapon {
+        id,
+        kind: WEAPON_KIND_ARC,
+        reach,
+        half_arc,
+        speed: 0.0,
+        radius: 0.0,
+    };
+    let projectile = |id, reach, speed, radius| WireWeapon {
+        id,
+        kind: WEAPON_KIND_PROJECTILE,
+        reach,
+        half_arc: 0.0,
+        speed,
+        radius,
+    };
+    vec![
+        arc(0, 112.0, PI / 4.0),
+        projectile(1, 520.0, 900.0, 7.0),
+        projectile(2, 640.0, 380.0, 2.0),
+        arc(3, 96.0, PI / 3.0),
+        arc(4, 112.0, PI / 2.0),
+        arc(5, 72.0, PI / 3.0),
+        WireWeapon {
+            id: 31,
+            kind: WEAPON_KIND_NONE,
+            reach: 0.0,
+            half_arc: 0.0,
+            speed: 0.0,
+            radius: 0.0,
+        },
+    ]
+}
+
+/// Writes a weapon table without checking it (for decoder refusal tests).
+pub fn write_weapon_table_for_tests(w: &mut Writer, rows: &[WireWeapon]) {
+    crate::weapon::write_weapon_table_for_tests(w, rows);
+}
+
+/// Bytes between the Welcome header and the map in the hand-built frames below: an empty archetype table, the default
+/// vision block and an empty weapon table (protocol 16).
+const PRE_MAP_LEN: usize = 1 + crate::vision::VISION_BLOCK_LEN + 1;
+
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     // The sample rectangle needs a map of at least 3 x 2 tiles; smaller sample maps carry no coliseum.
     let vision = if map.w >= 3 && map.h >= 2 {
@@ -834,6 +881,7 @@ fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     };
     ServerMsg::Welcome {
         vision,
+        weapons: sample_weapons(),
         archetypes: sample_archetypes(),
         protocol: PROTOCOL_VERSION,
         content_hash: 0x0102_0304_0506_0708,
@@ -2354,6 +2402,173 @@ fn malformed_vision() -> Vec<(&'static str, Vec<u8>)> {
     ]
 }
 
+/// A Welcome on a valid 2 x 2 map whose weapon table is these raw bytes (protocol 16).
+fn welcome_weapon_bytes(table: &[u8]) -> Vec<u8> {
+    let good = welcome_map(2, 2, None, &[(1, 4)]);
+    let at = WELCOME_HEADER_LEN + PRE_MAP_LEN - 1;
+    let mut out = good[..at].to_vec();
+    out.extend_from_slice(table);
+    out.extend_from_slice(&good[at + 1..]);
+    out
+}
+
+/// [`welcome_weapon_bytes`] with `rows` written unchecked.
+fn welcome_weapons(rows: &[WireWeapon]) -> Vec<u8> {
+    let mut w = Writer::default();
+    crate::weapon::write_weapon_table_for_tests(&mut w, rows);
+    welcome_weapon_bytes(&w.finish())
+}
+
+/// Weapon tables a client must refuse (each one fault), on a 2 x 2 map.
+fn malformed_weapons() -> Vec<(&'static str, Vec<u8>)> {
+    use std::f64::consts::PI;
+    let rows = sample_weapons();
+    let (sword, bow) = (rows[0], rows[1]);
+    let with = |i: usize, row: WireWeapon| {
+        let mut t = rows.clone();
+        t[i] = row;
+        welcome_weapons(&t)
+    };
+    let mut kind = Writer::default();
+    crate::weapon::write_weapon_table_for_tests(&mut kind, &[sword]);
+    let mut kind = kind.finish();
+    kind[2] = 3;
+    let mut cut = Writer::default();
+    crate::weapon::write_weapon_table_for_tests(&mut cut, &rows[..2]);
+    let cut = cut.finish();
+    vec![
+        (
+            "welcome_weapon_count",
+            welcome_weapons(
+                &(0..=MAX_WEAPONS as u8)
+                    .map(|id| WireWeapon { id, ..sword })
+                    .collect::<Vec<_>>(),
+            ),
+        ),
+        ("welcome_weapon_truncated", {
+            // Two rows promised, the second cut off inside its reach: the frame ends inside the table.
+            let good = welcome_map(2, 2, None, &[(1, 4)]);
+            let mut out = good[..WELCOME_HEADER_LEN + PRE_MAP_LEN - 1].to_vec();
+            out.extend_from_slice(&cut[..1 + crate::weapon::WEAPON_ROW_LEN + 6]);
+            out
+        }),
+        ("welcome_weapon_kind", welcome_weapon_bytes(&kind)),
+        ("welcome_weapon_order", {
+            let mut t = rows.clone();
+            t.swap(0, 1);
+            welcome_weapons(&t)
+        }),
+        (
+            "welcome_weapon_duplicate_id",
+            with(1, WireWeapon { id: 0, ..bow }),
+        ),
+        (
+            "welcome_weapon_reach_nan",
+            with(
+                0,
+                WireWeapon {
+                    reach: f64::NAN,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_speed_infinite",
+            with(
+                1,
+                WireWeapon {
+                    speed: f64::INFINITY,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_radius_negative",
+            with(
+                1,
+                WireWeapon {
+                    radius: -7.0,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_reach_over_max",
+            with(
+                1,
+                WireWeapon {
+                    reach: 1.0e6 + 1.0,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_arc_half_arc_over_pi",
+            with(
+                0,
+                WireWeapon {
+                    half_arc: PI + 0.001,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_arc_half_arc_zero",
+            with(
+                0,
+                WireWeapon {
+                    half_arc: 0.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_arc_reach_zero",
+            with(
+                0,
+                WireWeapon {
+                    reach: 0.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_arc_speed",
+            with(
+                0,
+                WireWeapon {
+                    speed: 1.0,
+                    ..sword
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_projectile_speed_zero",
+            with(1, WireWeapon { speed: 0.0, ..bow }),
+        ),
+        (
+            "welcome_weapon_projectile_half_arc",
+            with(
+                1,
+                WireWeapon {
+                    half_arc: 0.5,
+                    ..bow
+                },
+            ),
+        ),
+        (
+            "welcome_weapon_none_values",
+            with(
+                6,
+                WireWeapon {
+                    reach: 1.0,
+                    ..rows[6]
+                },
+            ),
+        ),
+    ]
+}
+
 /// A Welcome whose archetype table is one legacy-circle row with this key (written unchecked). A valid 1x1 map follows.
 fn welcome_archetype_key(key: &str) -> Vec<u8> {
     let good = welcome_map(1, 1, None, &[(1, 1)]);
@@ -2385,9 +2600,10 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
-    // An empty archetype table and the default vision block (protocol 16).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16).
     b.u8(0);
     crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
+    b.u8(0);
     b.u16(w);
     b.u16(h);
     b.u32(hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)));
@@ -2426,17 +2642,18 @@ fn ground_welcome_bytes(
     w.u8(20);
     w.u32(0);
     w.f64(0.0);
-    // An empty archetype table and the default vision block (protocol 16).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16).
     w.u8(0);
     crate::vision::write_vision_for_tests(&mut w, &WireVision::default());
+    w.u8(0);
     map.write(&mut w);
     w.finish()
 }
 
-/// `at` is the offset in the frame without the archetype table and the vision block (the one-byte empty table and the
-/// vision block move the map).
+/// `at` is the offset in the frame without the blocks between the header and the map ([`PRE_MAP_LEN`]: the empty
+/// archetype table, the vision block and the empty weapon table move the map).
 fn mutate_ground_welcome(mut frame: Vec<u8>, at: usize, bytes: &[u8]) -> Vec<u8> {
-    let at = at + 1 + crate::vision::VISION_BLOCK_LEN;
+    let at = at + PRE_MAP_LEN;
     frame[at..at + bytes.len()].copy_from_slice(bytes);
     frame
 }
@@ -3807,9 +4024,9 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("map_ext_run_zero", {
             let mut frame = ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off);
-            // Offsets include the one-byte empty archetype table (protocol 16).
-            // and the vision block after it.
-            let v = crate::vision::VISION_BLOCK_LEN;
+            // Offsets include the one-byte empty archetype table (protocol 16); the vision block and the empty weapon
+            // table after it move the map further.
+            let v = PRE_MAP_LEN - 1;
             frame[86 + v..90 + v].copy_from_slice(&0u32.to_le_bytes());
             frame.drain(90 + v..93 + v);
             frame[76 + v..80 + v].copy_from_slice(&15u32.to_le_bytes());
@@ -3874,7 +4091,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("map_ext_trailing", {
             let mut frame = ground_welcome_bytes(None, None, crate::GroundMode::Off);
             frame.push(0);
-            let v = crate::vision::VISION_BLOCK_LEN;
+            let v = PRE_MAP_LEN - 1;
             frame[76 + v..80 + v].copy_from_slice(&12u32.to_le_bytes());
             frame
         }),
@@ -3886,6 +4103,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     ]
     .into_iter()
     .chain(malformed_vision())
+    .chain(malformed_weapons())
     .chain(malformed_deltas())
     .collect()
 }
@@ -5249,11 +5467,23 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         map,
         archetypes,
         vision,
+        weapons,
         ..
     } = m
     else {
         unreachable!()
     };
+    // Rust prints each f64 as its shortest round-trip form, so a JSON reader gets the exact value back.
+    let weapons: Vec<String> = weapons
+        .iter()
+        .map(|w| {
+            format!(
+                "{{\"id\":{},\"kind\":{},\"reach\":{},\"halfArc\":{},\"speed\":{},\"radius\":{}}}",
+                w.id, w.kind, w.reach, w.half_arc, w.speed, w.radius
+            )
+        })
+        .collect();
+    let weapons = weapons.join(",");
     let coliseum = vision.coliseum.map_or_else(
         || "null".to_string(),
         |r| {
@@ -5306,7 +5536,7 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         values.map_or_else(|| "null".to_string(), |v| format!("[{}]", nums(v)))
     };
     format!(
-        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
+        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"weapons\":[{weapons}],\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
         map.w,
         map.h,
         nums(&map.tiles),

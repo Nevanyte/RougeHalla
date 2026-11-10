@@ -366,15 +366,22 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         server_ms,
         archetypes,
         vision,
+        weapons,
         map,
     } = ServerMsg::decode(room_welcome).expect("a Welcome")
     else {
         panic!("not a Welcome")
     };
     assert_eq!(map.tiles, arena.map.tiles, "the map the sim plays on");
+    assert_eq!(
+        weapons,
+        rh_server::room::weapon_table(),
+        "the room's Welcome carries the sim content's weapon table"
+    );
     ServerMsg::Welcome {
         archetypes,
         vision,
+        weapons,
         protocol,
         content_hash,
         match_id,
