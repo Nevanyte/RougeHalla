@@ -1,0 +1,42 @@
+# P-BOT-MODULES-1 native scoped-file manifest
+# base_commit 9f74ff3e87461ff31f84720240455d6ef33f420b
+# branch codex/deepseek-private-modules
+# format: sha256  git_blob_sha1  bytes  mode  path
+# files 36
+
+31354547e27c44506480ced2ced5e99153574a04f6fd902d88e50d74b11baa21  5f38a35e90a06c2cfddacb20ccc25b14f1970a9f       5111  0o644  crates/rh-policy/src/bots/hazards.rs
+8c4b12af4bb8e90e11b1d3918c990a6ef0ecd55766c75c9020a31003e9a4f485  39c1bf665a38a1046f96a50987641fc3820c0a4d      26100  0o600  crates/rh-policy/src/bots/hazards/source_core.rs
+dc890370267c43ac4fc69402957a699790590a786e2457ee68321702670f2394  76cae36f66a430307c9315cd1a18875dc98f03c7      37549  0o644  crates/rh-policy/src/bots/planning.rs
+5e08b7cbc2ad357092f8afefba761e50692014fcefaadcd52dc01096bca54681  17f5f9b4437ab78cae21b4c216e893c0342fa829      27281  0o644  crates/rh-policy/src/bots/temporal_percept.rs
+337913abc51024dd52ddcab977a431876663e00f739a028fe3e32573d5377ab1  4798491e7b45270c7d51ce412eae2256484321ed        964  0o600  crates/rh-policy/src/bots/temporal_percept/modules.rs
+a520e1019635f8802c5ac92bc12d2c0e06ffa84b7a3c1c06e0d1b118fb3620d1  734e4f42e27ff83e7b471ecb5858f46112e495be      15192  0o644  crates/rh-policy/src/bots/temporal_percept/modules/catalog_tests.rs
+0395b2f020c36bf20ac8377f231cf91a6cae1cda928a8cf51532a578cc05d0ad  cd6d80acc51ca3b66f36ee66f46fdb061e3ee329      28814  0o600  crates/rh-policy/src/bots/temporal_percept/modules/chest_hunt.rs
+cc18b8a01a26e490ee330039cf43e60a61acb32764fe98197c8631affa4aeb00  3c3d066608deb4830e67e9cfa6562fd6d49a7162      39372  0o600  crates/rh-policy/src/bots/temporal_percept/modules/chests.rs
+f918e41492d61f9729e5abd9e5d56ee2e688b464aa3250086a3aae14622c00f8  13f8b5e3026777a8dc27213b670ee0f853af629d      17616  0o600  crates/rh-policy/src/bots/temporal_percept/modules/choice.rs
+12fc913a8a883a8b37f3abbee9a55928e56b85c625e7dfd4b859cee60234745f  8ff227fd8ef817e734ddbaefe03fd5ce77dcc2a9      70709  0o644  crates/rh-policy/src/bots/temporal_percept/modules/controls_tests.rs
+6b253fcf07d4b39a0aa7a27c22054833696b87d8c5e539cae356ddd238361fa7  5aa0408d522cb950e571e0e759347f60077e120c      44492  0o644  crates/rh-policy/src/bots/temporal_percept/modules/hazards.rs
+9380c2a8df4bdbaf878df2f7d5703c4ec561ae907c6a34138cffa823ac935eae  b2f2183452c8c5246cc38eefd3a20537c7179fba       7756  0o644  crates/rh-policy/src/bots/temporal_percept/modules/planning.rs
+fa6fae03ac77f60fc6978ef558f3d172ddd78fa498354eef93486bdae684e205  240f621fae4bf162454f4452919e96b11c50a853      13641  0o600  crates/rh-policy/src/bots/temporal_percept/modules/planning_core_tests.rs
+d06a0ad6e81ac65c8a316d8cacdd411410f07c63b69f08157b8191763f725674  4796a8b95699f0cceb2e7cef947924fefda81967       7394  0o600  crates/rh-policy/src/bots/temporal_percept/modules/registry.rs
+1f062ba85e51dfca83eb433696543cdcf6bed7c260c395950264a8c2f5764ca8  e01014185fd915a40dfbf5632d9bb15fcc72df1c     203921  0o644  crates/rh-policy/src/bots/temporal_percept/modules/source_input.rs
+b0f2b95f931286708a5edb42ddd883b73cf300d3102cbcdc488fda6c2aaafb2b  bb660e2d379e25064e62bac2b7a1f2680ccac1d3      14901  0o644  crates/rh-policy/src/bots/temporal_percept/modules/source_reader.rs
+c4cd7d383b5cb03ee0f0c5f60d0a6dfa5c6c30362d48a5952059d7f0f0dd796f  e8d62b42bda7f4200945f48adc2db33a7d1ddb6d      42888  0o644  crates/rh-policy/src/bots/temporal_percept/modules/source_tests.rs
+1b2a590fb2a43a30599f981a7b5fb5634d622880d2d6893a956e34959e33cdbf  09847a6f5b59e4645cb3205a6b32bbae1c0f75e6      86122  0o644  crates/rh-policy/src/bots/temporal_percept/modules/source_trace.rs
+efe3a12c0680b15e44bf290462dd879cff107ed88c4573c132d92b46b7a531de  1ee992bdde122e11ac22b4a0150d9ef34461b2d1      28674  0o600  crates/rh-policy/src/bots/temporal_percept/modules/types.rs
+e9d8686223660140708b1ca078817a6e56220563ae13a47b2b5efe8c6320299e  d0df4e62b6acd0a72d02782090f5d82a6bf5045a      66531  0o644  crates/rh-policy/src/bots/temporal_percept/modules/wishes.rs
+e5cf74d486cd822241be81876f46125dcf3386eb0d6cfb0512005b0633226ef2  14aac640e9804a3968e8186e40d5c93e5c4fcebf        576  0o644  crates/rh-policy/src/bots/temporal_percept/strategy.rs
+f3793390aceca4df9d8aa98f7b7ed1df1a152e24a330ad48275e932ae3a6d258  5fa7a9dcf396584986c976d87f3d494536568004      27485  0o644  crates/rh-policy/src/bots/wish.rs
+32c091477dbf613cbb38733ab6866e54582c9777839e197a8677ffaa958e5900  817516bf1020b86b0fde039913bfe1d7e3b5748e      52263  0o600  crates/rh-policy/src/bots/wish/source_core.rs
+19aa752600622a356dd3a0a9e23e11a7baa590fe16352a8df62947fea7ce5e76  bf1079a0c4495623d845a6d498e657e1f912b917       9232  0o600  docs/evidence/bot-private-modules-native/BRIDGES.md
+f06ebfdf84be98ca13aff4121d794173aa321ffb9ef9e7b9bcd3fc4742395400  d5cd85d44b8a2bff2acf92e3a544adcfd1889b31      59036  0o644  docs/evidence/bot-private-modules-native/CANDIDATE-MODIFIED.patch
+78623ac012519b6a6f99139c6773a4c5d63afee8e9f7d44d5044631c0e266810  36de5cd76501244f34fc2e5d6894a2987e792ba3       5871  0o600  docs/evidence/bot-private-modules-native/CANDIDATE.md
+f84095e54b1acc65705a6161887d1cf8f703bd992ba5306fdb083c9771070022  894bfab6f10e4ce170e52200a2a5d5c464810bb4       6832  0o600  docs/evidence/bot-private-modules-native/CONTROLS.md
+2dd4fb6b191b0c2f209d6bc2aac800c134fdb8ad4a04714252c49445d3f0ee78  a9ac66a433f0afdd35bbba3850c94bafb7c8548a       4101  0o600  docs/evidence/bot-private-modules-native/LEASES-ACK.md
+fcb78597641e90fbbd380d45f2befab82cfd58a1b16b9ac1cafd22da0d2f02bc  c14b06ca5d73be1dfe14a5be8921c52ec1aa3416       6834  0o600  docs/evidence/bot-private-modules-native/LEDGER.md
+b61f2c1a1dee99fd0ae7f49be49c151354d1e238a0411b2f0927eec73c05c584  d41069f402184970ed960a85ed0f6f93fc7d4a90       3509  0o600  docs/evidence/bot-private-modules-native/NUMERICS.md
+c418d748b84d8b1891dc40139769acf7e68196b4503cd2bbdf9cbf04179f4ad2  83f3fe7814d9d0a52a70a33861037d3dae86b231       3560  0o600  docs/evidence/bot-private-modules-native/OVERLAPS.md
+c028f3ef71363aeff6f15bbc555c4f6d2f25d4b4681c5f0c7b135fc6dcfd0044  8e1c1234052aea24880c221af7b3e22bc790fc8c       6491  0o600  docs/evidence/bot-private-modules-native/README.md
+55e11f98676bb21ec66c63e5e18640b82bbfc9d195da7aa10ec66ce3adae713c  98130601826b35ea57594b46e02d008e0d2cea57       5711  0o600  docs/evidence/bot-private-modules-native/REPLAY.md
+28f8be4035824046c51b8f4392bee60f22a8d1b219e545273e0de5839a6662fb  541b1b4c365e512b8eaa2471bb4285399b969962       5438  0o600  docs/evidence/bot-private-modules-native/RUNS.md
+85dd8ecb7aa2b8ed5e1cdabbf1b2103ecf6cef4b7cb4fce991cad8823d8be3c6  293b0b2a07094c06917f26de514bbbb006473097       2492  0o600  docs/evidence/bot-private-modules-native/SEND-COMPAT.md
+e0bd20adb1ba56f1af6cdc6397b77492c943e92cb221abbf3a47de4247738307  4e0d291ab650a42f44b9fc186c66759f28729d72      20701  0o600  docs/evidence/bot-private-modules-native/bridge-proposal.md

@@ -229,6 +229,7 @@ pub(crate) enum Run<F> {
         completed: &'static str,
         pending: &'static str,
     },
+    #[allow(dead_code)]
     Pending(&'static str),
 }
 
@@ -348,6 +349,7 @@ const fn partial_link(
     }
 }
 
+#[allow(dead_code)] // no hook row is pending after the Card packet; kept as the table representation
 const fn pending_link(legacy: &'static str, mode: Mode, gate: Gate, packet: &'static str) -> Link {
     Link {
         legacy,
@@ -1689,11 +1691,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Always,
         crate::cards::drop_deferred,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.flushBleeds",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::systems::card_bleed_feedback::run_ended,
     ),
     ported_link(
         "plagueCorpses.<arrow>",

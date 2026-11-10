@@ -1,0 +1,21 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+103000 !== 104000
+
+    at <anonymous> (/capture/checks.mts:37:213)
+    at check (/capture/checks.mts:3:60)
+    at reachedChecks (/capture/checks.mts:37:42)
+    at <anonymous> (/capture/capture.mts:40:52) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 103000,
+  expected: 104000,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

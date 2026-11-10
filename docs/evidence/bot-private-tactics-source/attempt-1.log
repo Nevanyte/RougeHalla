@@ -1,0 +1,14 @@
+/repo/packages/server/src/bots/brain/tactics/world.ts:232
+  return { x: next.x, y: next.y };
+                   ^
+
+TypeError: Cannot read properties of undefined (reading 'x')
+    at nextStep (/repo/packages/server/src/bots/brain/tactics/world.ts:232:20)
+    at actLoot (/repo/packages/server/src/bots/brain/tactics/world.ts:199:14)
+    at Object.act (/repo/packages/server/src/bots/brain/tactics/world.ts:91:18)
+    at dispatchWorld (/repo/packages/server/src/bots/brain/tactics.ts:89:23)
+    at Object.act (/repo/packages/server/src/bots/brain/tactics.ts:111:68)
+    at runCase (/capture/runner.mts:35:39)
+    at <anonymous> (/capture/capture.mts:21:34)
+
+Node.js v22.23.4

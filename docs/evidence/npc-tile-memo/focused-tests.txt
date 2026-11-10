@@ -1,0 +1,14 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-sim)
+error[E0609]: no field `status` on type `fighter::FighterCore`
+   --> crates/rh-sim/src/vision/npc_cache_tests.rs:169:14
+    |
+169 |     mob.core.status = Status::Dead;
+    |              ^^^^^^ unknown field
+    |
+help: a field with a similar name exists
+    |
+169 |     mob.core.statuses = Status::Dead;
+    |                    ++
+
+For more information about this error, try `rustc --explain E0609`.
+error: could not compile `rh-sim` (lib test) due to 1 previous error

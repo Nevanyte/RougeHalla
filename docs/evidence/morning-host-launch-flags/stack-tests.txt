@@ -1,0 +1,12 @@
+test_absolute_expiry_targets_same_instance_with_finite_retries (test_stack.StackTests) ... ok
+test_bucket_only_stage_cannot_launch_host_or_scheduler (test_stack.StackTests) ... ok
+test_bundle_bucket_is_private_encrypted_and_disposable (test_stack.StackTests) ... ok
+test_encoded_gzip_larger_than_one_parameter_roundtrips_without_double_encoding (test_stack.StackTests) ... ok
+test_only_approved_account_region_ami_and_outputs (test_stack.StackTests) ... ok
+test_security_contract (test_stack.StackTests) ... ok
+test_wide_instance_permission_and_extra_public_port_are_refused (test_stack.StackTests) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.005s
+
+OK

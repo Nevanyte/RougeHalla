@@ -39,11 +39,14 @@ fn sum_for(landed: &[LandedHit], by: PlayerId, victim: PlayerId) -> (f64, u32) {
 }
 
 pub(crate) fn after_damage(cx: &mut Cx) {
-    let Cx { k, w, s, .. } = cx;
+    let Cx { k, w, s, ev, .. } = cx;
     let now = w.server_time;
     let tick = w.tick;
     let order_salt = k.secrets.order_salt;
     let landed = &s.landed;
+    // Source `afterDamage`'s first pass: the eligible landed DoT rows feed the trusted Card report and the
+    // exact per-tick segment in landed order, before the streak/Wish/stillness work below.
+    crate::systems::card_bleed_feedback::contribute(w, landed, &mut s.fx, &mut s.card_segment);
     let blocks = &s.blocks;
     for i in 0..w.players.len() {
         let by = w.players[i].id;
@@ -153,6 +156,9 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
     }
     crate::cards::stillness(w, now);
+    // Source periodic check after stillness: only an existing report aged 500 ms flushes, and the marker is
+    // recorded at this exact event index even when its rows are empty.
+    crate::systems::card_bleed_feedback::periodic(w, ev, &mut s.fx);
     resolve_splashes(w);
 }
 

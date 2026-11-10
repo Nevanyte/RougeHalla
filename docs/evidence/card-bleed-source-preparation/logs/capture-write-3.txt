@@ -1,0 +1,2 @@
+{"cases":7,"ordinarySteps":390,"bytes":289141,"sha256":"6bd92fff24f2825d708962e24d971adcc0161e271777a8c4bc35681254865af5"}
+Captured card-bleed source corpus: /var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-card-bleed.kExBZI/source.json

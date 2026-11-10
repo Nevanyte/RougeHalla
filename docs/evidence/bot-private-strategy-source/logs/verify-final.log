@@ -1,0 +1,5 @@
+command: node tools/bot-private-strategy-fixtures/verify.mjs
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests
+exit: 0
+raw stdout/stderr:
+{"validated":"parity/policy/bot-private-strategy/source.json","cases":98,"operations":658,"readerControls":19,"bytes":12263237,"sha256":"3a3ae0d498cc3933b5eee11c5be995f267f4a76530379ad7c73a934082125d8d"}

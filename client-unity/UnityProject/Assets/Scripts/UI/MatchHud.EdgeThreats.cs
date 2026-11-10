@@ -20,22 +20,25 @@ namespace Roguehalla.Client
             { _edgeThreats.Show(null); return; }
             var rect = _edgeThreats.Root.rect; float w = rect.width - EdgeThreatView.Margin, h = rect.height - EdgeThreatView.Margin;
             _edgeList.Clear();
-            EdgeThreats.Collect(_client.Actors, me.Id, me.X, me.Y, w, h, (float)s.Vision.Radius, _edgeList, MaxEdgeThreats);
+            var cam = _client.Cam;
+            float halfH = cam != null ? cam.orthographicSize * 32f : 288f, halfW = cam != null ? cam.orthographicSize * cam.aspect * 32f : 512f;   // the visible ground in sim units (squashed)
+            EdgeThreats.Collect(_client.Actors, me.Id, me.X, me.Y, w, h, (float)s.Vision.Radius, _edgeList, MaxEdgeThreats, halfW, halfH);
             _edgeThreats.Show(_edgeList);
         }
     }
 
     public static class EdgeThreats
     {
-        /// <summary>The glow positions for every living creature or fighter other than <paramref name="meId"/> (legacy "threats"): the bearing is squashed like the ground, the colour follows the unsquashed distance.</summary>
-        public static void Collect(IReadOnlyList<InterpActor> actors, uint meId, float meX, float meY, float width, float height, float far, List<EdgeThreat> into, int max)
+        /// <summary>The glow positions for every living creature or fighter other than <paramref name="meId"/> (legacy "threats", players only and only those off screen): the bearing is squashed like the ground, the colour follows the unsquashed distance.</summary>
+        public static void Collect(IReadOnlyList<InterpActor> actors, uint meId, float meX, float meY, float width, float height, float far, List<EdgeThreat> into, int max, float viewHalfW = 0f, float viewHalfH = 0f)
         {
             for (int i = 0; i < actors.Count && into.Count < max; i++)
             {
                 var a = actors[i];
-                if (a.Id == meId || a.Status != ActorStatus.Alive || (a.Kind != ActorKind.Player && a.Kind != ActorKind.RegionalMob && a.Kind != ActorKind.Zombie)) continue;
+                if (a.Id == meId || a.Status != ActorStatus.Alive || a.Kind != ActorKind.Player) continue;   // legacy: other living players only (RaidScene.ts:773)
                 if ((a.Effects & Roguehalla.Net.Ui.Indicators.Hidden) != 0) continue;
                 float dx = a.X - meX, dy = a.Y - meY, dist = Mathf.Sqrt(dx * dx + dy * dy);
+                if (viewHalfW > 0f && Mathf.Abs(dx) < viewHalfW && Mathf.Abs(dy * ArenaView.GroundSquash) < viewHalfH) continue;   // on screen: the fighter itself is the cue, a dot would only cover it
                 into.Add(EdgeThreat.Compute(dx, -dy * ArenaView.GroundSquash, dist, width, height, far));
             }
         }

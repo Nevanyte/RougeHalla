@@ -1,0 +1,5 @@
+test systems::card_bleed_feedback::tests::card_bleed_alloc_public_output ... card public-output allocation witness: rows=2104 legacy_constant=1504 prepared_output_capacity=9442 feed_alloc_blocks=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 0.07s
+

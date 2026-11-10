@@ -4,7 +4,174 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## Current delivery scope: technical demo (owner decision, 2026-11-09)
+## Backend/Unity union checkpoint (2026-11-10)
+
+Branch `integration/backend-unity-union`, head `f6432ea9`. Merge `1319260b` combines the Unity primary `fbf6bb20`
+(`feature/unity-rework`) with the backend `40999db1` (`codex/backend-gameplay-quests`). The private Brain (`codex/deepseek-private-brain`
+`decf068f` + `15b41709`) and the host bundle packager (`codex/morning-host-bundle` `1f15f608`) were merged afterwards. Three
+Archetypes composition proofs were added (NPC earned bleed checkpoint, Card public flush, Quest Room earned completion), commit `9ca1122e`.
+
+- **Union identities:** protocol 16 (unchanged by these merges), observation 24, checkpoint `rh-checkpoint/31`, replay
+  `rh-replay/25`, policy contract 18, content hash `a2d1022ebe713382`.
+- **Superseded:** the provisional identities in the morning direction and parallel-lane paragraphs below (checkpoint 30 / replay 24 /
+  observation 22 / policy 16, and the expected 31/25/23/17) and the protocol14 lane identities. Kept as history.
+- **Gates at `f6432ea9`:** `cargo test --workspace` (Postgres) 2505 passed, 0 failed, 21 ignored; `parity-report` all MATCH (111);
+  clippy `-D warnings` clean; fmt clean; `dotnet test` 1241 passed; JS vectors v16 54205 checks pass; `source_arena_soak` run twice
+  identical; `source_soak` seeds 6-10 (legacy and archetypes) run twice, byte-identical.
+- **Private Brain (`P-BOT-BRAIN-NATIVE-1`):** 31 histories / 855 operations exact; Hand 6/12; Knowledge 32/2240/111; 38 focused tests.
+  Independent Sonnet review: LAND WITH NOTES. The Brain is private only and is **not wired to live bots**; fair live activation
+  (`P-BOT-FAIR-ACTIVATION-1`) remains open.
+- **Union merge review:** independent Sonnet review LAND WITH NOTES (no lost hunks, all new serialized fields present, identities
+  consistent, wire unchanged).
+- **JS tools repinned (2026-11-10):** `tools/protocol-js/check-first-playable.mjs` passes (66 checks, protocol 16 projectile rows with the height byte), and `tools/unity-browser-reload-proof` is repinned to protocol 16, `v16.json` and content `a2d1022ebe713382` (33 of 33 tests pass); the `probe.html` codec marker now reads `// ---- protocol v16 `. Still pinned to old identities on purpose (they record historical revisions): `check.mjs` `NATIVE_REFERENCE`/`CLIENT_SOURCE`, `pin-sources.mjs` `expectedIdentity`, `tools/scene-candidate/check.mjs`; `client-unity/UnityProject/Tools/profile-hub14.cjs` still looks for the v14 marker.
+  It fails identically on the Unity primary.
+- **Not done:** refreshing the union against later Unity-lane commits; Unity WebGL build from the combined tree and browser proof;
+  final combined-tree review; the `play.rougehalla.com` test deployment.
+- **Branches:** nothing pushed. `optimization_port` and `feature/unity-rework` are unmoved.
+- **Lane stall and handover:** the Codex/DeepSeek backend lane stalled (out of credits) on 2026-11-10. Claude (coordinator) completed
+  workplan items 5 and 7 with Sonnet/Haiku sub-agents.
+- **Evidence:** [backend-unity-union](evidence/backend-unity-union/README.md),
+  [bot-private-brain-native](evidence/bot-private-brain-native/README.md).
+
+## Morning release direction (owner instruction, 2026-11-10 America/Edmonton)
+
+Continue backend development until **10:30am Edmonton on November10 (17:30UTC)**. Do not communicate with Claude
+before that time; read-only commit monitoring may continue. Only at/after10:30 attempt the Claude handoff, compose and
+verify the final tree, then deploy the authorized test site **https://play.rougehalla.com**, targeting **11am Edmonton
+(18:00UTC)**. Production `play.roguehalla.com` remains outside this deployment. The owner explicitly grants standing
+Gate3/merge/deployment approval if unavailable; another confirmation is not required for this already authorized scope.
+
+The time target does not replace the complete launch-readiness checklist on `feature/unity-rework`, the real merged
+browser/build evidence, final tests/licences, both reports or the final **Opus** review. The Claude handback (`git show feature/unity-rework:docs/coordination/CLAUDE_UNITY_REWORK_HANDBACK.md`) calls for backend integration into `optimization_port` first,
+Claude consuming it and rerunning the final client/server gates, then a squash of the completed Unity work and Opus
+review of the exact combined runtime/map/flags before AWS activation. No final release or Opus pass is claimed yet.
+
+Root has dispatched the [independently reviewed isolated preflight](backlog/packets/P-BACKEND-UNITY-PREFLIGHT-1.md)
+to DeepSeek in `backend-unity-preflight` at12:03UTC, before that handoff window. The intentional uncommitted merge
+uses backend`cf9a4a9e` and fixed primary`bb0c1cad`; the worker is visibly running, with no acceptance result yet. It resolves version/merge
+seams and exercises the real NPC bleed, Card flush and Quest Room flows with Archetypes while retaining legacy
+source gates. It does not modify Claude's checkout, contact him early, merge into canonical branches, build Unity,
+or authorize release. Final primary drift, shared artifacts and all release gates are still reconciled after17:30UTC.
+
+Backend Card work reserves checkpoint30/replay24/OBS22/policy16 with unchanged wire14. Claude's separate hitbox work
+uses the same provisional numbers plus wire16; the second merge must renumber the combined identities (expected
+31/25/23/17, subject to final tree review), regenerate derived fixtures and build the server/client together. Never
+serve the reworked client from the old server/artifact. Hosting preparation `28d21c3f` + strict response-type repair `29a7d597` is independently reviewed and integrated as
+`f72f188c` + `7cb22c0e`: immutable artifact identities and at most12h original absolute expiry, with12offline+7stack
+checks passing. [Review](evidence/morning-host-preparation-review/README.md) retains the original malformed-protocol
+HOLD. Root-reviewed single-owner launch preparation `40b884aa` is integrated as `15da415c`: Source min1/fill target8/
+max1/lobby10/fill3, with Training unchanged and learning off. Existing12offline+7stack checks pass; the initial10s lobby
+deadline shortens to at most3remaining seconds after the human minimum is reached. This is configuration preparation,
+not an executed final match. Final runtime/map/hitbox flags/artifacts/cloud evidence remain open. The existing CAD20 total budget remains. No AWS guest
+is active from the earlier expired demo.
+
+**Full Brain source update:** candidate `6aaa4c6d` is independently released and integrated as `5a5a28c6` + `8fa97f24`.
+Fresh pinned capture/coverage, semantic controls and strict reader/manifest reproduction pass; all244 protected files
+remain unchanged. This closes the pending source review described below; full native composition and live activation remain open.
+The feature-aware Hand gate is independently admitted from `76f8a9aa` as `483c1490` + `2436ed80`:
+6 source profiles/12 operations, 8 focused tests, 13 reader controls and two real compiled mutation controls pass;
+the author full policy run passes228. Root verifies the complete integrated code/input/toolchain tree equals the
+tested worker tree, rather than claiming another execution. [Review](evidence/bot-hand-feature-review/preseal-review.md).
+The [fair activation plan](backlog/packets/P-BOT-FAIR-ACTIVATION-1.md) is independently reviewed at `10e9a901`;
+it inventories consumed facts and missing providers and authorizes no wire/publication change.
+
+**Current private composition work:** the [Brain plan review](evidence/bot-brain-native-plan-review/README.md)
+requires exact caller service/cache identity, all-command Memory.noteSent, Send-compatible persistent callbacks and
+mutable module-goal context before full native Brain dispatch. The borrowed path-allowance bridge `5d351cb5` is
+independently admitted as `07babf29` + `6b4dbfad`, with Root's three integrated path tests passing. The reviewed Strategy
+composition bridge `96905908` is independently admitted as `04577169` + `030b3be8`, preserving shared Arc callback identity and forwarding the same mutable goal services. Tactics is independently
+released at `cdf5b70f` and integrated as `df62934a`; [follow-up review](evidence/bot-private-tactics-admission-review/follow-up.md)
+clears same-entrypoint intake/nonadvance, specialized tagged-object order and direct-endpoint exactness. Author18 focused,
+154/720 source plus recreate/compatibility and238 full library pass with final lint/format. Root's integrated focused
+check also passes18, including the full154/720 replay and repaired controls. The accepted real private full-tier Reflexes variance preserves the old68-row overlap; the old
+TierId-only component cannot represent resolved source overrides. Modules `0c6dcee4` is independently released and
+integrated as `721d04da`; all255 source histories/3259 operations,24 intake negatives,28 semantic controls,354 author
+library tests and required unchanged overlaps/lint/format pass at the sealed worker cut. The [final review](evidence/bot-private-modules-admission-review/README.md)
+verifies all36 manifest entries and the exact shared planning/Wish/hazard cores. Root's full combined policy test passes389/389 at `721d04da`, including all admitted bot dependencies; format and strict default/all-feature lint also pass. The unchanged release headless soak also passes five seeds twice each, up to6000ticks, with no panic and matching results; termination or truncation is accepted, using the existing HumanBot. The final [Brain interface review](evidence/bot-brain-composition-interfaces/README.md) is approved by Root; full private Brain implementation is dispatched from `c050d938` to `codex/deepseek-private-brain` in isolated `backend-bot-brain-native`, with the original four existing-file interface hunks and new Brain paths. The separately reviewed draw/path bridge now
+adds one Hunt type reexport and a test-only actual RNG draw observer in `bots/random.rs`; exact global source trace
+order remains required, and historical per-lane comparisons are not admission. No native Brain pass or live activation is claimed.
+Card is independently [released](evidence/card-bleed-native-review/admission-review.md), sealed by Root as `8d06e5e8`
+and integrated as `37a02542`. The exact58-file candidate closes the earlier capacity/privacy/strict-intake HOLDs;
+the three already-admitted NPC files deduplicate on integration, and the existing fighter-churn test registration is
+preserved. Author source7/390 ordinary steps and unchanged ability63 pass; full simulation exits0 with881 library
+passes/15 ignored and all integration targets green. Final test-only strengthening passes29 Card tests,28 projector
+tests and both separately executed allocation profilers; a real2104-output synthetic projection allocates0 blocks in
+the measured flush. Eight actual viewer reservations total31,597,536 bytes for the listed containers, including their
+legacy baseline, not a whole-process heap claim. The general capacity is approved; no smaller pristine estimate is
+claimed. Identity is14/30/24/22/16/content`fa16f195dc22ef69`; derived tape/pin refresh followed the genuine final-semantic
+source gate. An unverified standalone15.60s timing was withdrawn without changing raw evidence. Root's focused combined
+checks now pass at `37a02542`: Card29, both isolated allocators with CI features, NPC6, ability63 consumer, native tape,
+content21 and format, with actual0-block public flush. The later hitbox/Unity union still needs distinct internal
+identities and its own gates.
+The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
+[Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample
+Active owner healing eligibility, overlap/expiry, cleanup and mid-HOT restore, with explicit Ended and missing-inventory
+refusal; it does not establish a runner or all nonactive phases. No full Brain or live bot activation is implied.
+The [quest Room-delivery proof](evidence/quest-public-completion-room-review/admission-review.md) is independently
+released, sealed as `47bf5c0b` and integrated as `63dbe68a`: real completion through issued handles, accepted movement,
+pickups and ordinary Room wakes, actual per-viewer carry/Outboxes and complete decoded owner4/foreign1 Toast vectors.
+The one790-line additive test/helper change preserves all old tests and production behavior. Author focused/module,
+format and both strict lints pass; Root's actual combined5-test module and format pass, with native completion at
+1386/69300ms. This is a labelled active-Sim component bootstrap and LegacyCircle proof, not hosted startup, browser,
+all181-source-record or new live-mode acceptance. Source runtime already enables quests; the older disabled Room
+test fixture is not a universal profile gate.
+
+## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
+
+The owner has resumed remaining Rust gameplay, bots and quests while Claude continues Unity and networking.
+Codex manages this lane, delegates most non-Rust architecture/planning/review to Sol and Luna, and assigns Rust
+implementation to DeepSeek. Quest work must prepare a backend architecture for a later content/design rework without
+silently redesigning current quest rules. The earlier demo-only parking instruction no longer parks this backend lane.
+
+Work is isolated on `codex/backend-gameplay-quests`, based on the latest committed backend `4151b3af`; Claude's
+`feature/unity-rework`, hitbox/crash/Unity branches and netcode work remain separate. No Unity or networking/protocol implementation belongs to this lane. The separately authorized morning test-host
+preparation and deployment follow the release direction above. The existing backend lead checkout's untracked plague regression
+and evidence are preserved. Integration into `optimization_port` follows reviewed scoped changes, not branch replacement.
+
+Private Memory is independently reviewed and integrated on this lane as `8a2d3c6c` (DeepSeek seal `0ea1589a`).
+The five code files exactly preserve the repaired `3e3178b9` implementation; new-base Memory27, prefix6 and protection4
+filters pass (overlapping coverage), as do format and strict default/all-feature policy lint. The
+[independent review](evidence/backend-bot-memory-admission-review/README.md) retains actual-source and synthetic-control
+limits. This remains a private component, with no live bot activation or new observation/publication surface.
+
+Sol's [quest architecture](coordination/QUEST_BACKEND_REWORK.md) and
+[ordered repair/extraction packet](backlog/packets/P-QUEST-BACKEND-1.md) are prepared. Source seal `c605f2fb` captures
+both actual Grand Tour supply outcomes, with bytechecks, semantic mutation and comment/restoration controls passing.
+The [frozen evidence](evidence/quest-tour-supply/README.md) is transferred to DeepSeek's quest worktree as `a3d8e8d4`;
+the full Source-profile consumer reaches both intended status reds and both repaired greens. DeepSeek seals `4fb5714e` + `36564c33` are [independently released](evidence/quest-backend-admission-review/README.md) and integrated here as `8a11520d` + `56843a8e`. At their recorded cuts, quests34 pass/1 ignored, quest-view26, content21, the unchanged63-case ability tape, selected checkpoint/replay refusal tests and strict all-target/all-feature lint/format pass. Two metadata pins now identify content `8edd862f48ffa100`; protocol14/checkpoint29/replay23/OBS21/policy15 shapes stay unchanged. This is isolated backend admission, not a Claude client/artifact refresh. Stage1 is independently admitted: DeepSeek `9f3e9502` + evidence correction `49a6ab94` integrate here as `ad98c441` + `9debd3e2`. The four-file objective/reward extraction preserves behavior; [independent review](evidence/quest-backend-stage1-review/README.md) verifies12 cases/35 remaining frames through real original/Clone/accepted restore with real pending producer queues. Quests34/1 ignored, quest-view26, checkpoint6/replay6/content21, schedule14, hash-coverage10 and final strict lint/format pass at their recorded cuts; the final code delta is only an identity conversion and formatting. Private invocation metadata is recovered from author tool receipts; toolchain identity is explicitly a later query. Earlier snapshots/refusals, incomplete gate attempts and the lost private compile log stay honestly recorded. No future quest redesign is invented.
+
+Luna's [workplan](coordination/BACKEND_GAMEPLAY_WORKPLAN.md) reconciles remaining gameplay/bot work against code.
+DeepSeek's complete private strategy is independently released at `9bde4438` and integrated through `2b05e607` (initial implementation `489c4409`). [Final review](evidence/bot-private-strategy-admission-review/intake-followup-review.md) clears typed-error propagation, shared checked dispatch with declaration-consistent semantic controls and real judged-z ancestry. All98 primary cases/658 operations plus4 supplement histories/48 calls retain callback/RNG/private-state comparison;33 reader negatives and8 reached semantic non-advance paths pass. Author source11/declared11, default/all-feature strict lint and format pass; Root's integration filter now also passes22 tests. Earlier output-only and intake HOLDs remain historical with their real failures and limits. This admits a finite private component, not a live Brain. Tactics and modules were the next dependencies at that cut; their subsequent native admissions are recorded in the current composition update above.
+The immutable [primary source witness](evidence/bot-private-strategy-source/README.md) `5ec31212` has98 cases/658 calls,
+all nine goal families and19 semantic controls. [Independent fresh-checkout reproduction](evidence/bot-private-strategy-source-review/README.md)
+passes exact source/coverage bytes and the pinned-runtime verifier; all17 files remain unchanged. Root transferred it as
+`36a3b2b9` to `codex/deepseek-private-strategy`; the complete finite native repair is admitted above. A separate four-case module
+JSON-key supplement `1d06f752` also passes [independent fresh reproduction](evidence/bot-module-goal-key-source-review/README.md) of all4 histories/48 calls and all26 protected file hashes. It is transferred as `d629e174`; neither source corpus changes. The next [complete private tactics packet](backlog/packets/P-BOT-TACTICS-1.md) has source `54ff01a2` (154 cases/720 methods/17 semantic controls), [released by Root](evidence/bot-private-tactics-source-review/ADMISSION.md) at `cef8d83d` after independent reproduction `c8d0a5e6` of exact source/coverage/manifest and226 entries. The finite geometry whitelist and typed World empty-route error mapping are explicit; native implementation is dispatched at `2f2e3150` to isolated `backend-bot-tactics` (worker start `f252b8697c`), with only the two declaration/visibility hunks allocated. The packet uses source-shaped private Fight/OrbWalk/Retreat and real existing Reflex reuse.
+
+The [complete modules and Brain delivery plan](coordination/BOT_BRAIN_COMPLETION.md), committed at `bd40fa2a`, confirms actual ChestHunter/card-choice/chest-module gaps while reusing the existing planning, Wish/slip and hazard engines through later source-context bridges. Sol's [complete modules source witness](backlog/packets/P-BOT-MODULES-1.md) `faba1278` is now independently reproduced and admitted on this lane as `d48b79bf` + `63f6fda8`:255 cases/3259 operations,36 reached assertions,24 reader negatives and26 semantic controls. Luna reproduced exact final source/coverage bytes, all26 semantic kills, comment/restoration controls and the complete manifest in a fresh checkout; [final review](evidence/bot-private-modules-source-review/final-review.md) closes the earlier optional `MobSeen.type` and reached-assertion concerns. The finite profile still excludes raw nonfinite Plan inputs. Native modules from `9f74ff3e` are now independently released at `0c6dcee4` and integrated as `721d04da`. Root's corrected shared planning/Wish/hazard transition bridges at `de908f2b` preserve old wrappers, finite f64 source semantics and the five-Wish profile; the sealed native candidate passes255/3259 source,354 library tests and required overlap/lint/format gates. Full Brain source `6aaa4c6d` is independently released as `5a5a28c6` + `8fa97f24`:31 histories/855 operations,6 hand profiles/12 calls,40 reached assertions,30 reader negatives,31 complete instrumentation comparisons and23 semantic kills, with one intentional survivor. The narrow Hand feature gate is independently admitted as `483c1490` + `2436ed80`; the old constructor remains compatible and the opt-in gate precedes hand mutation/draws. Native composition and fair live/headless binding remain separately required. All older source corpora remain frozen.
+
+Corrected card source `570fe186` (`rh-card-bleed-source/2`,7 cases/390 ordinary steps/410,111 bytes) passes [independent fresh reproduction](evidence/card-bleed-source-review/corrected/README.md), released at `a9a6615e`. It separates retained landed scratch from actual active-pass contributions: the run-end history contains5 fresh contributions, while the later ended tick processes none. The held `10519519` capture and all earlier failures remain preserved. Three semantic controls, comment/restoration checks and accurate Fire burn/backlash-only coverage are recorded. The Card report design now includes canonical B3 amounts, viewer-local numeric failures and the actual f32 wire-representability guard. Root dispatched the complete implementation at `22eef4d1` to a fresh DeepSeek session on `codex/deepseek-card-bleed-feedback`, base `03ec330b`; all source fixtures remain frozen. DeepSeek completed the three isolated numeric/earned-NPC restore probes; the actual receipts are committed at `97b70395` and [preserved separately](evidence/card-bleed-native-probes/README.md). Accepted generic player statuses produce one eligible +Infinity amount or a same-pair fold overflow at contribution3596 of4096 finite rows. A real physical attack/Release earns bleed on a surviving regional NPC, then restore refuses exactly `unsupported mob status domain`. These are reproduced gaps, not production fixes; Root approves the independently reviewed three-tag Card amount representation, with viewer-local typed errors after eligibility; a separate [NPC restore packet](backlog/packets/P-NPC-BLEED-RESTORE-1.md) is dispatched to DeepSeek on isolated `codex/deepseek-npc-bleed-restore`. The [privacy review](evidence/card-bleed-feedback-design-review/README.md) separates legacy
+trusted totals from the deliberate native temporal-visibility extension. The public-output, capacity/identity and Claude shared-file lease decisions are recorded in the dispatched packet. The revised exact-pair sidecar and bounded indexes have a provisional static Full8 reservation estimate of21.5675MiB including tag/classification allowances; this is not measured use or native admission. Root rechecked clean primary `edc60c50`, reserved30/24/22/16 with unchanged wire14, and allocated only the reviewed hunks. Actual layout/allocations, source/privacy/restore gates and final union review remain required for native admission. The disposable probe Rust was removed, the canonical base restored, and the exact probe source/patch retained privately; no permission mode was expanded. The [remaining quest notice packet](backlog/packets/P-QUEST-NOTICE-CONTINUATION-1.md) is dispatched to DeepSeek Post Rust on isolated `codex/deepseek-quest-notice-continuation` after Stage1 admission, with no new capture required and only the approved internal teleport visibility hunk. Notice candidate `b4aa87f8` passed its finite source notices/views but received a [review HOLD](evidence/quest-notice-continuation-review/README.md) for meaningful binding/comparator controls, required item/offer state guards and default lint. DeepSeek's completed repair `e499d865` is independently [released](evidence/quest-notice-continuation-review/followup.md) and integrated as `51a43597` + `0085ff79`. Its6 focused tests, unchanged cases0/4 test, default/all-feature strict lint and format pass at the worker cut. Root's combined integration check also passes6 new +1 unchanged notice tests and format. Full181-record transport parity and Claude's real quest UI flows remain outside this bounded notice/preview witness. Earned regional NPC bleed restore is independently released after those clock/overlap repairs and integrated from `0be00f95` as `dedb8658`; [follow-up review](evidence/npc-bleed-restore-review/followup.md) preserves the prior HOLDs. The final added binary64 predicate-shape control is explicitly not an installed status or checkpoint trajectory. Six worker tests, affected overlaps and both strict lints/format pass; Root's [final composition check](evidence/backend-crash-npc-composition/README.md) now passes6 NPC +2 crash tests and format; the five-seed/two-run bounded release soak also passes (termination or truncation, not proof of all matches ending). No complete bot/quest parity, integration-union test,
+deployment or Claude client acceptance is claimed.
+
+## Technical demo delivery record (owner decision, 2026-11-09)
+
+**Current hosting status, 2026-11-10 03:53 UTC:** the temporary test window has ended on its original expiry.
+Guest termination, stack deletion and all11 independent resource checks pass; the sole test DNS record is removed and
+verified empty after reload. **play.rougehalla.com is now offline.** The [cleanup receipt](evidence/calgary-demo-cleanup/README.md)
+retains exact targets, operation results and local screenshot evidence. Historical “live” statements below describe the
+completed demo window. Local builds/services/user data and worker WIP remain intact. NormalCI42748359516 at code9657cd56
+is now terminal SUCCESS across all five jobs. Client/FPS/complete rendered legacy comparison remains with Claude under
+the owner-imposed Codex Unity pause; this cleanup does not complete that remaining performance gate.
+
+**NPC observation cache update, 2026-11-10 04:20 UTC:** private ItemObserver tile-history memo reuse now covers NPC
+observations, preserving fresh LOS/ward/hidden predicates and existing cache sizing. Four new native differential controls,
+20vision tests, the existing zero-warm-allocation pressure check,21content checks, full-faction headless PvE, strict rh-sim
+lint and format pass. The [exact release measurement](evidence/npc-tile-memo/README.md) delivers600ticks/30s with sampled
+processCPU4.41% of one core versus6.76% before, RSS18.48–18.61MiB and all normal result/cleanup checks passing.
+This is a34.7% lower point reading from one run; differing spawn/reveal history and ambient/background work prevent attributing
+all of it to the cache or claiming a general speedup. No world/wire/content/Unity field changed. The source cut85e2d7c2 is
+locally verified and awaits its own normalCI; the prior9657CI remains green at its recorded cut.
 
 **Unity ownership change, 2026-11-10:** the owner has paused all Codex Unity development and assigned it to Claude.
 Unity code/assets/builds, client profiling and browser/Editor work are stopped. Root continues Rust/backend/AWS
@@ -12,6 +179,26 @@ coordination. The one approved local benchmark attempt ended before measurement 
 `BROWSER_DEFAULT_FLAGS_UNAVAILABLE`; its private browser, native child and both listeners closed, independently checked.
 There is no FPS result and no retry is authorized under this pause. The [handoff](coordination/CLAUDE_UNITY_HANDOFF.md)
 records the current artifacts, WIP and evidence for Claude.
+
+**Backend measurement update, 2026-11-10 03:10 UTC:** the first [paired M5 Pro backend run](evidence/m5-backend-first-pair/README.md)
+now captures the same160×160 collision map, three ordinary Holy seats and a30-second movement window after warmup.
+Both deliver600 observed steps. Rust's inner~29s process samples use6.69% of one CPU and18.38–18.48MiB RSS;
+legacy uses5.46% and191.58–191.88MiB. This demonstrates about90.4% lower resident memory, **no CPU speedup**;
+one active-workstation run, different interest/publication/storage/mechanics and CPU-clock precision prevent a maximum-capacity
+or general regression claim. Both owned processes/listeners close independently. A separate10s native CPU sample points to
+vision-trail/LOS and Frost/Sentenced scans for investigation; it changes no gameplay or prior measurement. Unity/FPS work remains
+paused. Normal source CI at `02551405` also finishes green (all five foundation jobs plus separate latency checks).
+
+The profiled [Frost guard reorder](evidence/frost-edge-guard/README.md) is now pushed at `9657cd56`:32 targeted tests,
+21content checks, format and strict all-feature/all-target lint pass. Its correct PostgreSQL-enabled Mac release captures
+another600steps/30s with all cleanup/result checks passing. Sampled CPU6.76% versus6.69% before establishes no CPU gain;
+no favorable retake or deployed artifact replacement follows. The original no-CPU-win comparison remains the baseline.
+
+The [actual Calgary WSS meter](evidence/calgary-wss-meter/README.md) now captures90 matched ordinary Ping/Pong samples
+in one30s/3player stationary Source window: applicationRTTmedian10.72ms/p9521.54ms/max24.60ms; incomingapplication
+payload3.68–5.99kB/s perclient (13.56kB/s total). These are Node protocol clients, not Unity/frame/input-to-visible timings;
+wire framing/admission are excluded. All owners stay alive/Active with600observed ticks, normal socket/process cleanup passes,
+and a later independent read settles publicSource0rooms/0players/6successfulresults,0failed/refused. Original shutdown unchanged.
 
 **Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
 composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
@@ -55,8 +242,8 @@ The finite M5 profiling runner is composed at `64327d70`:24 scoped Node controls
 asset/dependency preflight pass. It enables the Chromium sandbox, excludes unsafe SwiftShader fallback and classifies
 the actual renderer. The owner approved one local experiment; it failed before measurement and was cleaned up. The
 subsequent Unity pause now prevents Codex repair/retry. Its proposed30s local-WS/three-seat/48×40 window is not a matched legacy comparison.
-A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass; those artifacts
-have not yet been served or measured. The common full-map comparison still needs actual controlled runs.
+A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass. The first backend-only
+common-map pair is now captured above; a matched rendered client/FPS comparison remains open under Claude ownership.
 
 The bounded hosted Source protocol test now passes: two fresh normal accounts join the same WSS match, complete
 ordinary Plan/Ready, reach Active/alive/nontraining, and each send one Move/Stop with accepted sequence0→1→2 and

@@ -1,0 +1,38 @@
+# identity / scoped manifest receipt
+# generated: 2026-11-10T11:33:26Z
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# branch: codex/deepseek-quest-room-delivery
+# HEAD: 9ee84dfe3fa35cfdefc4b6cabaf4b9091db6a24c
+# cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+# rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+# rust-toolchain: [toolchain] channel = "1.97.0" components = ["rustfmt", "clippy"] 
+# git status --porcelain=v2:
+1 .M N... 100644 100644 100644 1cf18408bb217f3d84649a67fa0cd873bd39d3cc 1cf18408bb217f3d84649a67fa0cd873bd39d3cc crates/rh-server/src/quest_bridge_tests.rs
+? docs/evidence/quest-public-completion-room-delivery/
+? target-deepseek-quest-room-delivery/
+# git diff --stat:
+ crates/rh-server/src/quest_bridge_tests.rs | 790 +++++++++++++++++++++++++++++
+ 1 file changed, 790 insertions(+)
+# git diff --numstat:
+790	0	crates/rh-server/src/quest_bridge_tests.rs
+# sha256 scoped files:
+3a02b4097a583c8662bd06d54a6979836c469139cf369f32aad281f419fe0b6b  crates/rh-server/src/quest_bridge_tests.rs
+# sha256 frozen witnesses (unchanged, read-only):
+977450a6e0e1a1fcc3bd135edf7ebe6291f10d4da7aef98a44fc76b5886bd978  parity/quest-room-feedback/source.json
+039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4  parity/quest-giver/source.json
+6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5  parity/arena/source.json
+# worktree file list under docs/evidence/quest-public-completion-room-delivery:
+docs/evidence/quest-public-completion-room-delivery/logs/01-focused-proof.log
+docs/evidence/quest-public-completion-room-delivery/logs/02-quest-bridge-regressions.log
+docs/evidence/quest-public-completion-room-delivery/logs/03-fmt-check.log
+docs/evidence/quest-public-completion-room-delivery/logs/04-clippy-default.log
+docs/evidence/quest-public-completion-room-delivery/logs/05-clippy-all-features.log
+docs/evidence/quest-public-completion-room-delivery/logs/06-focused-proof-repeat.log
+docs/evidence/quest-public-completion-room-delivery/logs/07-identity.log
+docs/evidence/quest-public-completion-room-delivery/logs/08-fresh-target-rebuild.log
+docs/evidence/quest-public-completion-room-delivery/logs/09-final-manifest.log
+docs/evidence/quest-public-completion-room-delivery/logs/clippy-firstfailure-all-features.log
+docs/evidence/quest-public-completion-room-delivery/logs/clippy-firstfailure-default.log
+docs/evidence/quest-public-completion-room-delivery/logs/first-failure-objectives-assert.log
+docs/evidence/quest-public-completion-room-delivery/README.md
+docs/evidence/quest-public-completion-room-delivery/working-tree.diff

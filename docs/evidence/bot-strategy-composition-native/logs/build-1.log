@@ -1,0 +1,39 @@
+=== BUILD 1 (first compile after bridge edits) 2026-11-10T10:22:11Z ===
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy)
+error[E0061]: this function takes 0 arguments but 1 argument was supplied
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1186:5
+     |
+1186 |     assert_send_sync(&log);
+     |     ^^^^^^^^^^^^^^^^ ---- unexpected argument of type `&std::sync::Arc<dyn for<'a> Fn(&'a str) + Send + Sync>`
+     |
+note: function defined here
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1158:4
+     |
+1158 | fn assert_send_sync<T: Send + Sync>() {}
+     |    ^^^^^^^^^^^^^^^^
+help: remove the extra argument
+     |
+1186 -     assert_send_sync(&log);
+1186 +     assert_send_sync();
+     |
+
+error[E0061]: this function takes 0 arguments but 1 argument was supplied
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1193:5
+     |
+1193 |     assert_send_sync(&attacking);
+     |     ^^^^^^^^^^^^^^^^ ---------- unexpected argument of type `&std::sync::Arc<dyn Fn() -> bool + Send + Sync>`
+     |
+note: function defined here
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1158:4
+     |
+1158 | fn assert_send_sync<T: Send + Sync>() {}
+     |    ^^^^^^^^^^^^^^^^
+help: remove the extra argument
+     |
+1193 -     assert_send_sync(&attacking);
+1193 +     assert_send_sync();
+     |
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `rh-policy` (lib test) due to 2 previous errors
+=== BUILD 1 EXIT: 101 ===

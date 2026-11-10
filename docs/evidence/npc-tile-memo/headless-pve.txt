@@ -1,0 +1,11 @@
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-protocol)
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/root-backend-integration-01/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.59s
+     Running tests/full_faction_pve.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/backend-cpu-target/debug/deps/full_faction_pve-7188151686d6526f)
+
+running 1 test
+test full_and_fire_roam_pve_use_real_env_input_restore_clone_and_continuation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s

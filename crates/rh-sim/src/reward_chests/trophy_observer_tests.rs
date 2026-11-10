@@ -256,5 +256,5 @@ fn comparison_diagnostic_variant_ranges_and_gains_are_distinct() {
     };
     assert!(public_cmp(&with(kill(1.)), &with(kill(2.))).is_lt());
     assert!(public_cmp(&with(kill(1.)), &with(kill(1.))).is_eq());
-    assert_eq!(crate::OBSERVATION_VERSION, 23);
+    assert_eq!(crate::OBSERVATION_VERSION, 24);
 }

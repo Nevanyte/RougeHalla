@@ -1,0 +1,14 @@
+$ cargo test --offline --locked -j 8 -p rh-policy --lib potion_fact_tests -- --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/potion-fact-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 5 tests
+test bots::potion_fact_tests::accepted_use_overlap_final_expiry_and_mid_hot_restore_continuation ... ok
+test bots::potion_fact_tests::comparator_controls_reject_wrong_count_deadline_and_sample_time_pairing ... ok
+test bots::potion_fact_tests::ended_phase_elapses_the_hot_deadline_outside_the_predicate_contract_and_restores ... ok
+test bots::potion_fact_tests::real_non_ended_fighter_out_cleanup_clears_live_hot_mirrors_and_inventory ... ok
+test bots::potion_fact_tests::removed_owner_missing_inventory_stays_unavailable_and_mirrors_clear ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.09s
+
+exit=0

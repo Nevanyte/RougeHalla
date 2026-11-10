@@ -167,7 +167,7 @@ namespace Roguehalla.Client
         }
 
         public Button Credits { get; private set; }
-        public const string CreditsPath = "Licenses/Third-Party-Assets.md";
+        public const string CreditsPath = "Licenses/index.html";
         /// <summary>The credits file next to the page (relative to the page address); the plain relative path when there is no page (Editor).</summary>
         public static string CreditsUrl(string pageUrl)
         {

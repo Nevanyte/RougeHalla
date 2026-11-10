@@ -1,0 +1,4 @@
+{"mode":"--write","file":"source.json","bytes":31783919,"sha256":"8afbe6b8c452277c571b07c0cfce0b963c82555d4e338c9c95a27e9d85e1d801","cases":28,"operations":817}
+{"mode":"--write","file":"coverage.json","bytes":1938605,"sha256":"a08acbb86938692656b5b36f27dc69660cc576c81388863b488b8ce22f11de8c","cases":28,"operations":817}
+{"mode":"--check","file":"source.json","bytes":31783919,"sha256":"8afbe6b8c452277c571b07c0cfce0b963c82555d4e338c9c95a27e9d85e1d801","cases":28,"operations":817}
+{"mode":"--check","file":"coverage.json","bytes":1938605,"sha256":"a08acbb86938692656b5b36f27dc69660cc576c81388863b488b8ce22f11de8c","cases":28,"operations":817}

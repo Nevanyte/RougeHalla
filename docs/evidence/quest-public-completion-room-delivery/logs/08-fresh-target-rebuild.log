@@ -1,0 +1,26 @@
+# Raw output of the focused proof on a SECOND, independent target directory built from scratch
+# (target-deepseek-quest-room-delivery-proof2), captured before the final clippy assign-op formatting fix.
+# Command: CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=target-deepseek-quest-room-delivery-proof2 \
+#          /Users/nevinmckinnon/.cargo/bin/cargo test -p rh-server --lib --offline --locked -j 1 \
+#          room::quest_bridge_tests::quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts -- --nocapture
+# cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery
+# cargo/rustc: 1.97.0 (c980f4866) / 1.97.0 (2d8144b78)
+   Compiling axum v0.8.9
+   Compiling axum-server v0.7.3
+   Compiling rcgen v0.13.2
+   Compiling tokio-tungstenite v0.26.2
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery/crates/rh-headless)
+   Compiling sqlx v0.8.6
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-quest-room-delivery/crates/rh-server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 07s
+     Running unittests src/lib.rs (target-deepseek-quest-room-delivery-proof2/debug/deps/rh_server-64c4598d12265375)
+
+running 1 test
+quest room proof: accepted shards-frost handle 9 at native tick 3
+quest room proof: pickup 1/3 delivered at native tick 677
+quest room proof: pickup 2/3 delivered at native tick 679
+quest room proof: pickup 3/3 delivered at native tick 700
+quest room proof: native completion tick 1386 (69300 ms), quest handle 9, delivered pickup handles [18, 19, 20], owner toasts ["+10 GV (quest)", "Rime Stalker: +10 kill stacks · +12.5 Defense total", "Quest complete: Shards of the Watch", "name0 completed quest: Shards of the Watch"], foreign toasts ["name0 completed quest: Shards of the Watch"]
+test room::quest_bridge_tests::quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 222 filtered out; finished in 2.79s

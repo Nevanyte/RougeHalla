@@ -1,0 +1,18 @@
+== command: /Users/nevinmckinnon/.cargo/bin/cargo test -p rh-policy --lib bots::paths --locked --offline -j 2
+== cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget
+== cargo: cargo 1.97.0 (c980f4866 2026-06-30)
+== rustc: rustc 1.97.0 (2d8144b78 2026-07-07)
+== target: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/target/path-budget-build
+== started: 2026-11-10T10:09:49Z
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/path-budget-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 3 tests
+test bots::paths::shared_budget_tests::two_services_share_one_caller_allowance_without_sharing_caches ... ok
+test bots::paths_parity_tests::the_path_service_matches_the_source_step_by_step ... ok
+test bots::paths::shared_budget_tests::the_borrowed_entries_replay_the_frozen_source_script ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.00s
+
+== exit: 0
+== finished: 2026-11-10T10:09:49Z

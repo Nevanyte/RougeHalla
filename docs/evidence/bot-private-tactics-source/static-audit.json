@@ -1,0 +1,83 @@
+{
+ "format": "rh-bot-private-tactics-source-static-audit/1",
+ "commands": [
+  {
+   "command": [
+    "git",
+    "diff",
+    "--name-only",
+    "10519519",
+    "--",
+    "packages/server/src/bots",
+    "packages/shared/src",
+    "package-lock.json",
+    "tools/bot-private-strategy-fixtures",
+    "parity/policy/bot-private-strategy",
+    "parity/policy/bot-fight",
+    "parity/policy/bot-reflex",
+    "parity/policy/bot-sd",
+    "parity/policy/bot-core.json"
+   ],
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "stdout": "",
+   "stderr": ""
+  },
+  {
+   "command": [
+    "bash",
+    "-n",
+    "tools/bot-private-tactics-fixtures/capture.sh",
+    "tools/bot-private-tactics-fixtures/controls.sh"
+   ],
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "stdout": "",
+   "stderr": ""
+  },
+  {
+   "command": [
+    "node",
+    "--check",
+    "tools/bot-private-tactics-fixtures/verify.mjs"
+   ],
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "stdout": "",
+   "stderr": ""
+  },
+  {
+   "command": [
+    "node",
+    "--check",
+    "tools/bot-private-tactics-fixtures/controls.mjs"
+   ],
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "stdout": "",
+   "stderr": ""
+  },
+  {
+   "command": [
+    "node",
+    "--check",
+    "tools/bot-private-tactics-fixtures/manifest.mjs"
+   ],
+   "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests",
+   "exit": 0,
+   "stdout": "",
+   "stderr": ""
+  }
+ ],
+ "copiedCodec": {
+  "tools/bot-private-strategy-fixtures/codec.mts": {
+   "bytes": 1885,
+   "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+  },
+  "tools/bot-private-tactics-fixtures/codec.mts": {
+   "bytes": 1885,
+   "sha256": "18af593cc383869260002af50b52f74cec9f7ba94f0ebaf842fe9477ad48adc2"
+  }
+ },
+ "scope": "New tactics source directories only; Root owns other changes."
+}

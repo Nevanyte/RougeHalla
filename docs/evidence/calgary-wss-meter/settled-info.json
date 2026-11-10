@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "utc": "2026-11-10T03:30:51.639Z",
+  "info": {
+    "protocol": 14,
+    "contentHash": "7c6a633f68c2cc72",
+    "state": "ready",
+    "rooms": 0,
+    "lobbies": 0,
+    "players": 0,
+    "resultsOk": 6,
+    "resultsFailed": 0,
+    "resultsRefused": 0
+  },
+  "provenance": "Root copied the exact allowlisted result of its independent post-exit HTTPS /info command. The immediate meter finalInfo was a transient retirement snapshot (players1/results5); this later read confirms settled players0/results6."
+}

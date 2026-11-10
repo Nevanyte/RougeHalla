@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1b13d85e85ad1e84b7f6f8932e46995cfe7f1bd709e94485de12e95d5a431d89",
+    "command": [
+      "docker",
+      "ps",
+      "-aq",
+      "--filter",
+      "id=1b13d85e85ad1e84b7f6f8932e46995cfe7f1bd709e94485de12e95d5a431d89"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": "",
+    "disposition": "auto-removed by --rm; reviewer issued no stop/remove"
+  }
+]

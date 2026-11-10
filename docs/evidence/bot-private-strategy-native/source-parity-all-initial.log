@@ -1,0 +1,112 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy/crates/rh-policy)
+warning: unused import: `crate::bots::build_route::BuildGoal`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:17:5
+   |
+17 | use crate::bots::build_route::BuildGoal;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `PersonaId` and `TierId`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:22:26
+   |
+22 | use crate::bots::types::{PersonaId, PersonaParams, TierId, TierParams, PERSONAS, TIERS};
+   |                          ^^^^^^^^^                 ^^^^^^
+
+warning: unused import: `crate::bots::random::Rng`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/types.rs:13:5
+   |
+13 | use crate::bots::random::Rng;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `MemoryApi`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:14:59
+   |
+14 |     CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, MemoryApi, RouteCamp, StrategyConfig,
+   |                                                           ^^^^^^^^^
+
+warning: unused variable: `cfg`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:1690:41
+     |
+1690 | fn parse_strategy_percept(input: &SVal, cfg: &SourceConfig) -> R<StrategyPercept> {
+     |                                         ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: comparison is useless due to type limits
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs:384:29
+    |
+384 |         let mut chosen = if idx < 0 { 0 } else { idx as usize };
+    |                             ^^^^^^^
+    |
+    = note: `#[warn(unused_comparisons)]` on by default
+
+warning: `rh-policy` (lib test) generated 6 warnings (run `cargo fix --lib -p rh-policy --tests` to apply 4 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 10.67s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 27 tests
+test bots::temporal_percept::memory::source_tests::memory_expected_map_decoder_is_strict ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_refusal_exact_matrix ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_death_event_time_control ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_state_positive_and_negative ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_hit_clock_control ... ok
+test bots::temporal_percept::memory::source_tests::synthetic_memory_api_controls_are_labelled ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_synthetic_note_sent_and_whereabouts_controls ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_visible_never_dotted_mob_initializes_aux_positive ... ok
+test bots::fight::source_tests::missing_owner_lock_bad_slot_clock_duplicate_rows_and_nonfinite_arena_are_atomic_refusals ... ok
+test bots::fight::source_tests::actual_source_orb_all_six_sequences_and_20_frames ... ok
+test bots::fight::source_tests::reset_after_source_orb_cycle_drops_engagement_beliefs_lock_and_timers_without_draws ... ok
+test bots::fight::source_tests::actual_source_direct_exported_fight_uses_no_tactics_knowledge_draw ... ok
+test bots::fight::source_tests::sd_source_tests::reached_sd_cache_and_held_state_refuse_bad_health_atomically_and_reset_completely ... ok
+test bots::fight::source_tests::unavailable_facts_and_epoch_refuse_before_memory_or_rng_then_reset_drops_identity ... ok
+test bots::fight::source_tests::sd_source_tests::actual_source_sd_all_eight_sequences_and_46_frames ... ok
+test bots::fight::source_tests::actual_source_tactics_all_sixteen_sequences_and_47_frames ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_tracker_parity ... ok
+
+thread 'bots::temporal_percept::strategy::source_tests::private_strategy_source_hunt_adapter_parity' (71179717) panicked at crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:2149:5:
+adapter parity 67 ops; first failures:
+"adapter-catchup-3360.001" op3 adapterDecide: expected=Obj([("kind", Str("player")), ("why", Str("no mob in reach"))]) actual=Obj([("kind", Str("mob")), ("id", Str("m")), ("why", Str("sentenced mob with sword"))])
+"adapter-catchup-3360.001" op3 adapterDecide stats: expected=Obj([("targets", Num(1.0)), ("drops", Num(1.0)), ("retreats", Num(0.0)), ("focusMs", Num(3120.0009285714477))]) actual=Obj([("targets", Num(1.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(3360.0009999999893))])
+"adapter-catchup-3360.001" op3 adapterDecide target: expected=Null actual=Str("m")
+"adapter-catchup-3360.001" op4 observe stats: expected=Obj([("targets", Num(1.0)), ("drops", Num(1.0)), ("retreats", Num(0.0)), ("focusMs", Num(3120.0009285714477))]) actual=Obj([("targets", Num(1.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(3360.0009999999893))])
+"adapter-catchup-3360.001" op4 observe target: expected=Null actual=Str("m")
+"adapter-catchup-3360.001" op5 adapterDecide: expected=Obj([("kind", Str("player")), ("why", Str("no mob in reach"))]) actual=Obj([("kind", Str("mob")), ("id", Str("m")), ("why", Str("sentenced mob with sword"))])
+"adapter-catchup-3360.001" op5 adapterDecide stats: expected=Obj([("targets", Num(1.0)), ("drops", Num(1.0)), ("retreats", Num(0.0)), ("focusMs", Num(3120.0009285714477))]) actual=Obj([("targets", Num(1.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(4560.000999999989))])
+"adapter-catchup-3360.001" op5 adapterDecide target: expected=Null actual=Str("m")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunt_adapter_parity ... FAILED
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_memory_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_build_route_parity ... ok
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_hunter_parity ... ok
+
+thread 'bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity' (71179720) panicked at crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:2271:5:
+strategy parity 292 ops; first failures:
+"strategy-path-coordinate-block" op1 decide: expected=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(400.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5301093535963054)), ("why", Str("fire-5 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]) actual=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))])
+"strategy-path-coordinate-block" op1 decide state: expected=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.5552842134231004)), ("why", Str("fire-3 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(400.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5301093535963054)), ("why", Str("fire-5 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))]) actual=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1872.0)), ("y", Num(2448.0))])), ("why", Str("explore"))])), ("utility", Num(0.5157591201434372)), ("why", Str("fire-2 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))])
+"strategy-path-source" op1 decide: expected=Obj([("goal", Obj([("kind", Str("farm")), ("mob", Str("meal")), ("camp", Null)])), ("utility", Num(0.8903553452134609)), ("why", Str("sentenced mob, reward 0.98")), ("choice", Str("opener|fire|sentenced"))]) actual=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))])
+"strategy-path-source" op1 decide state: expected=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("farm")), ("mob", Str("meal")), ("camp", Null)])), ("utility", Num(0.8903553452134609)), ("why", Str("sentenced mob, reward 0.98")), ("choice", Str("opener|fire|sentenced"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))]) actual=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1872.0)), ("y", Num(2448.0))])), ("why", Str("explore"))])), ("utility", Num(0.5157591201434372)), ("why", Str("fire-2 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))])
+"strategy-path-source" op1 decide huntStats: expected=Obj([("targets", Num(1.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(0.0))]) actual=Obj([("targets", Num(0.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(0.0))])
+"strategy-path-source" op1 decide huntTarget: expected=Str("meal") actual=Null
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity ... FAILED
+npc-continuity memory: rows=773 nonnull=771 nulls=2
+test bots::temporal_percept::memory::source_tests::actual_npc_continuity_memory_773_supported ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict ... ok
+protection-cues memory: rows=2112 nonnull=2046 nulls=66 maps=10560 undefined=82
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete ... ok
+
+failures:
+
+failures:
+    bots::temporal_percept::strategy::source_tests::private_strategy_source_hunt_adapter_parity
+    bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity
+
+test result: FAILED. 25 passed; 2 failed; 0 ignored; 0 measured; 187 filtered out; finished in 160.97s
+
+error: test failed, to rerun pass `-p rh-policy --lib`

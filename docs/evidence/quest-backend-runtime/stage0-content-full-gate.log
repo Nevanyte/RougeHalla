@@ -1,0 +1,28 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests/content.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-quests/debug/deps/content-ca348d12f78c3d21)
+
+running 21 tests
+test a_second_declaration_of_a_registered_name_is_a_stray ... ok
+test hash_golden ... ok
+test registry_is_well_formed ... ok
+test stagger_rule_is_registered_data ... ok
+test landmark_search_rules_move_the_content_hash ... ok
+test camp_rules_move_the_content_hash ... ok
+test attempt_prefix_rules_move_the_content_hash ... ok
+test stagger_rule_moves_the_hash ... ok
+test fixed_map_geometry_and_pillar_data_move_the_content_hash ... ok
+test landmark_guard_rules_move_the_content_hash ... ok
+test removing_renaming_or_reordering_a_row_perturbs_the_hash ... ok
+test hash_is_stable_and_derived_from_the_registry ... ok
+test landmark_support_rules_move_the_content_hash ... ok
+test zone_partition_rules_move_the_content_hash ... ok
+test signature_identity_and_dot_classification_move_the_content_hash ... ok
+test every_bush_rule_moves_the_content_hash ... ok
+test numbers_missing_from_the_hash_at_the_base_now_move_it ... ok
+test every_spawn_rule_moves_the_content_hash ... ok
+test the_formerly_inline_numbers_are_used_by_name ... ok
+test every_const_in_the_source_tree_is_registered_or_explained ... ok
+test every_registry_row_perturbs_the_hash ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+

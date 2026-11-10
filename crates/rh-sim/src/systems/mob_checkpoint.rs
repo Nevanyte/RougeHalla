@@ -6,6 +6,90 @@ use crate::{
     statics::MatchStatic,
     WeaponId,
 };
+/// The real Card producer's retained Hemorrhage bleed shape (`cards/on_hit.rs`): a no-ability Dot tagged with the
+/// canonical `bleed:{application_tick}` text, a finite nonnegative producer-computed value, physical-only shares and
+/// the default remaining payload, plus the retained player source snapshot (roster label, no owner). The producer tags
+/// the application `world.tick` and `status_runtime::apply` stores `world.server_time` plus the Hemorrhage row's
+/// duration with the ordinary binary64 addition (`until = started_at + ms`); the reader's accepted clock domain does
+/// not equate `server_time` with `tick * TICK_MS`, so no such equality is required here — only the canonical tag tick
+/// is bounded by the current tick. Immutable producer facts are compared; the source need not be present, alive or
+/// still own the card, and generic status/time validation plus known-actor provenance remain authoritative.
+fn earned_hemorrhage_bleed(w: &World, st: &crate::status_runtime::StatusInstance) -> bool {
+    if st.kind != crate::status_runtime::StatusKind::Dot || st.ability.is_some() {
+        return false;
+    }
+    let Some(tick) = canonical_bleed_tag_tick(st) else {
+        return false;
+    };
+    let Some(ms) = hemorrhage_bleed_ms() else {
+        return false;
+    };
+    if tick == 0
+        || tick > w.tick
+        // The producer computes `until = started_at + ms` with ordinary binary64 addition. Compare that operation
+        // directly instead of assuming `until - started_at == ms` is equivalent for every accepted clock; no epsilon
+        // or extra range cap is added, and generic time validation stays authoritative.
+        || st.until != st.started_at + ms
+        // The producer's `!(raw > 0.)` gate and its `raw / (ms / 1000.)` materialization can only persist a finite
+        // nonnegative value (an underflowing raw may still round the stored scalar to zero). No magnitude bound is
+        // added here: numeric admission is a separate decision, and the generic validator owns finiteness.
+        || !(st.value.is_finite() && st.value >= 0.)
+        || st.reveal_from.is_some()
+        || st.taken.is_some()
+        || st.data != hemorrhage_bleed_payload()
+        || st.source.owner_id.is_some()
+    {
+        return false;
+    }
+    let Some(source) = st.source.id else {
+        return false;
+    };
+    if !matches!(w.actor_origin(source), Some(ActorOrigin::Player { .. })) {
+        return false;
+    }
+    w.roster
+        .label(source)
+        .is_some_and(|label| label == &st.source.name)
+}
+
+/// The producer formats the tag from the application tick; parse it back and require its canonical decimal spelling.
+fn canonical_bleed_tag_tick(st: &crate::status_runtime::StatusInstance) -> Option<u32> {
+    let tag = st.tag.as_ref()?.as_str();
+    let rest = tag.strip_prefix(BLEED_TAG_PREFIX)?;
+    let tick = rest.parse::<u32>().ok()?;
+    (format!("{BLEED_TAG_PREFIX}{tick}") == tag).then_some(tick)
+}
+
+/// The duration comes from the existing Hemorrhage card row, never from a new tuning constant.
+fn hemorrhage_bleed_ms() -> Option<f64> {
+    crate::cards::CardId::Hemorrhage
+        .definition()
+        .rows
+        .iter()
+        .find_map(|row| match row {
+            crate::cards::CardRow::OnHit(hit)
+                if hit.status == crate::status_runtime::StatusKind::Dot =>
+            {
+                Some(hit.ms)
+            }
+            _ => None,
+        })
+}
+
+/// The producer's fixed persisted payload for the bleed: physical-only shares, every other field defaulted.
+fn hemorrhage_bleed_payload() -> crate::status_runtime::Payload {
+    crate::status_runtime::Payload {
+        shares: Some(crate::content::DamageShares {
+            phys: 1.,
+            magic: 0.,
+            true_: 0.,
+        }),
+        ..Default::default()
+    }
+}
+
+const BLEED_TAG_PREFIX: &str = "bleed:";
+
 pub(crate) fn validate(
     k: &MatchStatic,
     w: &World,
@@ -412,7 +496,8 @@ pub(crate) fn validate(
                 s.kind.rule().players_only
                     || (s.kind == crate::status_runtime::StatusKind::Dot
                         && !(k.config.abilities == crate::abilities::Mode::Full
-                            && crate::abilities::checkpoint::blaze_dot(w, s)))
+                            && crate::abilities::checkpoint::blaze_dot(w, s))
+                        && !earned_hemorrhage_bleed(w, s))
             })
         {
             return Err("unsupported mob status domain".into());
@@ -437,3 +522,6 @@ pub(crate) fn validate(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod bleed_tests;

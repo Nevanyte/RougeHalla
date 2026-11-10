@@ -1,0 +1,52 @@
+{
+  "format": "demo-final-ci-cleanup-review/1",
+  "observedUTC": "2026-11-10 03:04:37 UTC",
+  "runs": [
+    {
+      "id": 42743407229,
+      "name": "Rust foundation",
+      "branch": "optimization_port",
+      "source": "02551405894895baa26b3fb91876dd7e153f9155",
+      "status": "completed",
+      "conclusion": "success",
+      "updatedUTC": "2026-11-10T03:04:26Z",
+      "attempt": 1,
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42743407229"
+    },
+    {
+      "id": 42743407160,
+      "name": "Latency report checks",
+      "branch": "optimization_port",
+      "source": "02551405894895baa26b3fb91876dd7e153f9155",
+      "status": "completed",
+      "conclusion": "success",
+      "updatedUTC": "2026-11-10T02:32:41Z",
+      "attempt": 1,
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42743407160"
+    },
+    {
+      "id": 42739863259,
+      "name": "Rust foundation",
+      "branch": "optimization_port",
+      "source": "388e35572f05f41e7cf0a16fb3d403a2fe4502ca",
+      "status": "completed",
+      "conclusion": "success",
+      "updatedUTC": "2026-11-10T02:29:21Z",
+      "attempt": 1,
+      "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42739863259"
+    }
+  ],
+  "changedResult": "02551405 normal Rust foundation transitioned from in_progress to completed/success; latency and prior 388e3557 foundation remain success.",
+  "cleanup": {
+    "planDirectory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/calgary-demo-cleanup-plan-01",
+    "planSnapshotUTC": "2026-11-10T02:36Z",
+    "expiryUTC": "2026-11-10T03:50:21Z",
+    "assessment": "No additional material cleanup prerequisite identified in the frozen plan. This is a document/artifact review, not live AWS/DNS verification.",
+    "existingRequiredActions": "Root must perform the already specified exact account/resource recheck, termination verification/fallback, delete only the manifest-pinned bucket object after confirming unchanged bucket state, delete/wait/verify stack resources, and remove only matching test DNS. Automatic expiry terminates only the guest, not every remaining stack/DNS resource.",
+    "retainedPrerequisite": "Complete any needed guest-only proof/export before expiry: root disk DeleteOnTermination is true. The plan explicitly promises no retained-data recovery.",
+    "cloudOrDnsActionsPerformed": false,
+    "verifiedManifestPayloads": 11,
+    "planManifestSha256": "d1ef90e8cd51dc1aaa00789a0e4fb78397201d5ffe803698e90982d1ed8964ea"
+  },
+  "operations": "GitHub GET and read-only local artifact review only; no tests, services, UI, process launches for workloads, dispatches or Git mutations."
+}

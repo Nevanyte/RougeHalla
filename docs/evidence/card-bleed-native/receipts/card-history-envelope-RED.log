@@ -1,0 +1,15 @@
+running 1 test
+test systems::card_bleed_feedback::tests::a_restored_historical_card_report_over_the_legacy_event_cap_flushes_without_refusing_a_fresh_viewer ... FAILED
+
+failures:
+--
+thread 'systems::card_bleed_feedback::tests::a_restored_historical_card_report_over_the_legacy_event_cap_flushes_without_refusing_a_fresh_viewer' (73102615) panicked at crates/rh-sim/src/systems/card_bleed_feedback/tests.rs:1752:5:
+assertion `left == right` failed: a valid >512 historical flush must not refuse a fresh viewer with UnsupportedBounds
+  left: Err(UnsupportedBounds)
+ right: Ok(Advanced)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+--
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 894 filtered out; finished in 0.20s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

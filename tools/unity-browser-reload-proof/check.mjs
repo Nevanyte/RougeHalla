@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 export const CLIENT_SOURCE = '57e166f46b35fb703e5f3c76914fcc4e8bf3191c';
 export const NATIVE_REFERENCE = 'c52e41a633c91f8402e3f68724e9202351d1cdb3';
 export const BROWSER_ORIGIN = 'http://localhost:8888';
-export const CONTENT = '7c6a633f68c2cc72';
+export const CONTENT = 'a2d1022ebe713382';
 export const CASES = ['arena-reload', 'training-reload', 'stale-owner', 'stale-mode-config', 'expired-seat'];
 const HEX64 = /^[a-f0-9]{64}$/, HEX40 = /^[a-f0-9]{40}$/, ID = /^[A-Za-z0-9_-]{1,100}$/;
 const STEP_NAMES = new Set(['mode-verified', 'reload-request', 'load-current-owner', 'resume-arena',
@@ -63,8 +63,8 @@ function documentRow(row) {
     requireValue(Number.isInteger(e.connection) && e.connection > 0 && e.connection <= 16);
     clocks(e); requireValue(e.timeOriginMs === o.page.timeOriginMs);
     requireValue(e.performanceNowMs <= o.capturedAt.performanceNowMs);
-    if (e.event === 'hello-send-returned') requireValue(e.protocol === 14 && typeof e.resumePresent === 'boolean' && e.wholeFrameValidated === false);
-    if (e.event === 'welcome-public-prefix') requireValue(e.protocol === 14 && /^[a-f0-9]{16}$/.test(e.contentHash) &&
+    if (e.event === 'hello-send-returned') requireValue(e.protocol === 16 && typeof e.resumePresent === 'boolean' && e.wholeFrameValidated === false);
+    if (e.event === 'welcome-public-prefix') requireValue(e.protocol === 16 && /^[a-f0-9]{16}$/.test(e.contentHash) &&
       /^[a-f0-9]{32}$/.test(e.matchId) && Number.isInteger(e.playerId) && e.playerId > 0 && e.playerId <= 0xffffffff && e.wholeFrameValidated === false);
   }
 }
@@ -99,7 +99,7 @@ export function evaluate(bundle) {
       object(a, [...hashes, 'protocol', 'contentHash', 'arenaInfoContentHash', 'trainingInfoContentHash',
         'tickHz', 'graceMs', 'clockMode', 'cacheCondition']);
       if (!hashes.every(k => HEX64.test(a[k] ?? ''))) open.push('one or more prerequisite receipts absent');
-      if (a.protocol !== 14 || a.contentHash !== CONTENT || a.arenaInfoContentHash !== CONTENT ||
+      if (a.protocol !== 16 || a.contentHash !== CONTENT || a.arenaInfoContentHash !== CONTENT ||
           a.trainingInfoContentHash !== CONTENT) failures.push('artifact/server/public identity mismatch');
       if (a.tickHz !== 20 || a.graceMs !== 10000 || a.clockMode !== 'real-wall-clock') failures.push('runtime timing changed');
       if (a.cacheCondition !== 'ordinary-warm-reload') open.push('reload cache condition is outside the bounded plan');

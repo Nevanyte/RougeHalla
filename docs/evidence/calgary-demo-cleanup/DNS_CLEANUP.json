@@ -1,0 +1,16 @@
+{
+  "recordedUtc": "2026-11-10T03:57:12.550666+00:00",
+  "domain": "rougehalla.com",
+  "deletedRecord": {
+    "type": "A",
+    "name": "play.rougehalla.com",
+    "value": "40.177.243.128"
+  },
+  "scope": "Only the temporary test record created for this demo; production zone was not opened/edited.",
+  "verification": "After Delete, reload and completed dashboard load: used0of200 records; table No DNS records. Root visually inspected the persisted screenshot.",
+  "screenshotLocalPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/coordination/reports/calgary-demo-cleanup-execution-01/dns-cleanup-persisted.png",
+  "screenshotSha256": "3d40d08a8a59838555247d109fb6d4b000d7935e01158772aac4279232afc0fd",
+  "screenshotBytes": 99064,
+  "screenshotFileModifiedUtc": "2026-11-10T03:52:00.709090+00:00",
+  "screenshotNotCommitted": "Cloudflare account header is unnecessary for the public source repo; image remains local for owner proof."
+}

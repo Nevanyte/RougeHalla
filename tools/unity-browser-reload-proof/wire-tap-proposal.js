@@ -46,17 +46,17 @@ export function proposeWireTap(NativeWebSocket, documentId, clock) {
       const value = parseWireMetadata(direction, original);
       // Hard projection: never spread arbitrary parser output, reader errors or frame values.
       if (value.status === 'ignored' || value.status === 'unrelated') return;
-      if (direction === 'client' && value.kind === 'hello' && value.protocol === 14 &&
+      if (direction === 'client' && value.kind === 'hello' && value.protocol === 16 &&
           value.status === 'metadata' && typeof value.resumePresent === 'boolean' && !hello) {
         hello = true;
-        append(id, 'hello-send-returned', {protocol:14, resumePresent:value.resumePresent,
+        append(id, 'hello-send-returned', {protocol:16, resumePresent:value.resumePresent,
           wholeFrameValidated:false});
       } else if (direction === 'server' && value.kind === 'welcome' &&
-          value.status === 'public-prefix' && value.protocol === 14 && hello && !welcome &&
+          value.status === 'public-prefix' && value.protocol === 16 && hello && !welcome &&
           PUBLIC_HEX.test(value.matchId) && CONTENT_HEX.test(value.contentHash) &&
           Number.isInteger(value.playerId) && value.playerId > 0 && value.playerId <= 0xffffffff) {
         welcome = true;
-        append(id, 'welcome-public-prefix', {protocol:14, contentHash:value.contentHash,
+        append(id, 'welcome-public-prefix', {protocol:16, contentHash:value.contentHash,
           matchId:value.matchId, playerId:value.playerId, wholeFrameValidated:false});
       } else reject();
     }

@@ -1,0 +1,62 @@
+=== focused-memory
+sourceHead=4151b3af597cc06d1b3b77f4e3e21cc9906b6a86
+cwd=/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-memory
+target=/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-memory
+command=cargo test -p rh-policy --lib memory --locked --offline -- --nocapture
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling libm v0.2.16
+   Compiling serde_derive v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling itoa v1.0.18
+   Compiling ryu-js v1.0.3
+   Compiling memchr v2.8.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-memory/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-memory/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-memory/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 46.96s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-memory/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 27 tests
+test bots::memory_prefix::tests::unseen_disappearance_retains_prior_facts_and_npc_refs_never_enter_player_memory ... ok
+test bots::memory_prefix::tests::hidden_and_off_camera_rows_cannot_change_memory_or_consume_record_capacity ... ok
+test bots::memory_prefix::tests::lifecycle_and_capacity_refusals_are_atomic_and_explicit_reset_clears_memory ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_death_event_time_control ... ok
+test bots::temporal_percept::memory::source_tests::memory_expected_map_decoder_is_strict ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_hit_clock_control ... ok
+test bots::memory_prefix::tests::actual_source_memory_subset_reproduces_all_48_declared_frames ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_refusal_exact_matrix ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_pickup_state_positive_and_negative ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_synthetic_note_sent_and_whereabouts_controls ... ok
+test bots::temporal_percept::memory::source_tests::synthetic_memory_api_controls_are_labelled ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_visible_never_dotted_mob_initializes_aux_positive ... ok
+test bots::fair_percept14::tests::real_hidden_world_pair_has_equal_public_samples_and_player_memory ... ok
+test bots::fair_percept14::tests::complete_owned_current14_sample_keeps_all_leaves_and_feeds_real_player_memory ... ok
+test bots::bot::connected_tests::raw_or_unavailable_owner_inputs_refuse_before_any_memory_brain_or_rng_advance ... ok
+test bots::fair_percept14::tests::declared_neutral_actor_keeps_unarmed_current_row_without_joining_player_memory ... ok
+test bots::bot::connected_tests::rejected_duplicate_scene_does_not_advance_the_live_brain_memory_or_random_streams ... ok
+test bots::fair_percept14::tests::unpublished_requirements_and_memory_limit_refuse_atomically_from_reached_state ... ok
+test bots::fair_percept14::tests::connected::real_sync_accepted_intake_runs_memory_humanizer_and_normal_submit_without_fallback ... ok
+test bots::memory_prefix::tests::actual_source_note_sent_records_only_emitted_orders_and_casts_and_reset_clears_them ... ok
+test bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences ... ok
+test bots::fight::source_tests::unavailable_facts_and_epoch_refuse_before_memory_or_rng_then_reset_drops_identity ... ok
+npc-continuity memory: rows=773 nonnull=771 nulls=2
+test bots::temporal_percept::memory::source_tests::actual_npc_continuity_memory_773_supported ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict has been running for over 60 seconds
+test bots::temporal_percept::memory::source_tests::memory_percept_reader_refuses_malformed_inputs ... ok
+test bots::temporal_percept::memory::source_tests::review_repair_reader_controls_are_strict ... ok
+protection-cues memory: rows=2112 nonnull=2046 nulls=66 maps=10560 undefined=82
+test bots::temporal_percept::memory::source_tests::memory_container_undefined_is_not_null_over_real_rows ... ok
+test bots::temporal_percept::memory::source_tests::actual_protection_cues_memory_2112_complete ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 171 filtered out; finished in 167.97s
+
+EXIT=0

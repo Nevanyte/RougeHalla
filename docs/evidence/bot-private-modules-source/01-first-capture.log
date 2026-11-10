@@ -1,0 +1,22 @@
+{"mode":"--write","file":"source.json","bytes":11323986,"sha256":"f96ab684b76a47b7f90b08ac7bb09e62277471c2e2ee9990d5dbdc2994c46957","cases":237,"operations":2952}
+{"mode":"--write","file":"coverage.json","bytes":1048133,"sha256":"5f9c0558fe3b0648aabff73eda91ce62ac053767fa3ffbaa268296241a5220ec","cases":237,"operations":2952}
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: source.json: exact bytes
++ actual - expected
+
++ 'f96ab684b76a47b7f90b08ac7bb09e62277471c2e2ee9990d5dbdc2994c46957'
+- '847d43817426ad5c5a2c0f0a797e70318741b52deb9ac4cae47bc71b2c0b204c'
+
+    at <anonymous> (/capture/capture.mts:42:193) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'f96ab684b76a47b7f90b08ac7bb09e62277471c2e2ee9990d5dbdc2994c46957',
+  expected: '847d43817426ad5c5a2c0f0a797e70318741b52deb9ac4cae47bc71b2c0b204c',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4

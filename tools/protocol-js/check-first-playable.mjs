@@ -30,7 +30,7 @@ const next=tracker.decode(buf(delta));ok(()=>assert.equal(next.actors[0].mobType
 console.log(`first-playable focused JS checks passed: ${checks}`);
 
 const projectileFrame=new W();projectileFrame.u8(0x88);v(projectileFrame,1);v(projectileFrame,1);v(projectileFrame,7);v(projectileFrame,2);
-for(let i=0;i<2;i++){projectileFrame.u8(0);projectileFrame.u16(800);projectileFrame.u16(900);projectileFrame.u16(12345);projectileFrame.u8(1);v(projectileFrame,1);}
-const projectiles=decode(buf(projectileFrame)).items[0].value;ok(()=>assert.equal(projectiles.length,2));ok(()=>assert.deepEqual(projectiles[0],projectiles[1]));
+for(let i=0;i<2;i++){projectileFrame.u8(0);projectileFrame.u16(800);projectileFrame.u16(900);projectileFrame.u16(12345);projectileFrame.u8(1);v(projectileFrame,1);projectileFrame.u8(3);}
+const projectiles=decode(buf(projectileFrame)).items[0].value;ok(()=>assert.equal(projectiles.length,2));ok(()=>assert.deepEqual(projectiles[0],projectiles[1]));ok(()=>assert.equal(projectiles[0].height,3));ok(()=>assert.throws(()=>decode(buf(projectileFrame).slice(0,-1))));
 for(const offset of [5,12]){const malformed=projectileFrame.out();malformed[offset]=2;ok(()=>assert.throws(()=>decode(malformed.buffer)));}
 console.log(`with projectiles: ${checks}`);

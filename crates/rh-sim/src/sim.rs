@@ -55,6 +55,8 @@ impl Clone for Sim {
         crate::systems::sentenced::prepare(&k, &mut w, &mut s).expect("validated Mark edge budget");
         let mut projection = self.projection.clone();
         projection.prepare_mobs(w.mobs.len());
+        crate::systems::card_bleed_feedback::prepare(&k, &mut w, &mut s, &mut projection)
+            .expect("validated Card source budget");
         Self {
             projection,
             k,
@@ -138,6 +140,15 @@ impl Sim {
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
         initialize(&mut sim.k, &mut sim.w)?;
         crate::systems::sentenced::prepare(&sim.k, &mut sim.w, &mut sim.s)?;
+        // Cold Card preparation: the trusted report index/sidecar/public bounds for a fresh accepted world.
+        // A state the admitted representation cannot prepare is refused at construction, not grown warm.
+        crate::systems::card_bleed_feedback::prepare(
+            &sim.k,
+            &mut sim.w,
+            &mut sim.s,
+            &mut sim.projection,
+        )
+        .map_err(|_| "unsupported Card bleed representation")?;
         Ok(sim)
     }
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
@@ -243,6 +254,13 @@ impl Sim {
         // Trusted placement overrides happen after the synthetic bootstrap step. No report
         // from that earlier geometry is a completed observation of this new session.
         sim.projection = crate::fx_report::Projection::empty_at(sim.tick());
+        crate::systems::card_bleed_feedback::prepare(
+            &sim.k,
+            &mut sim.w,
+            &mut sim.s,
+            &mut sim.projection,
+        )
+        .expect("validated Card source budget");
         sim
     }
 

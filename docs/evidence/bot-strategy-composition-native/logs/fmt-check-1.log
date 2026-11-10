@@ -1,0 +1,60 @@
+=== FMT CHECK 2026-11-10T10:23:48Z ===
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1020:
+             .lock()
+             .expect("attack log lock poisoned")
+             .clone();
+-        let logs = probe
+-            .logs
+-            .lock()
+-            .expect("log lock poisoned")
+-            .clone();
++        let logs = probe.logs.lock().expect("log lock poisoned").clone();
+         (records, attacks, logs)
+     };
+ 
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1128:
+         "the false instance never inherits the other instance's attacking callback"
+     );
+     assert_eq!(
+-        probe_false
+-            .logs
+-            .lock()
+-            .expect("log lock poisoned")
+-            .clone(),
++        probe_false.logs.lock().expect("log lock poisoned").clone(),
+         logs_false,
+         "the false instance keeps its independent log transcript"
+     );
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1139:
+     assert_eq!(
+-        probe_true
+-            .logs
+-            .lock()
+-            .expect("log lock poisoned")
+-            .clone(),
++        probe_true.logs.lock().expect("log lock poisoned").clone(),
+         logs_true,
+         "the true instance keeps its independent log transcript"
+     );
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1175:
+     // The source recorder's persisted callbacks still share one allocation and one ordered transcript: arguments,
+     // invocation order and returned values are unchanged, and `Arc::clone` is the only storage path.
+     use super::source_trace::{
+-        arr, b, compare_callback_values, n, obj, options_attacking, options_log, s, undefined, TraceLog,
++        arr, b, compare_callback_values, n, obj, options_attacking, options_log, s, undefined,
++        TraceLog,
+     };
+     let trace = TraceLog::new_handle();
+     let log = options_log(&trace);
+Diff in /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy-composition/crates/rh-policy/src/bots/temporal_percept/strategy/private_strategy_tests.rs:1305:
+     let trace = TraceLog::new_handle();
+     // Declared overrides make the hook's own draw identifiable inside the shared ordered transcript: only a draw made
+     // through this same caller-owned decide stream returns an override value and records it there.
+-    let overrides = (0..512).map(|index| 9000.0 + index as f64).collect::<Vec<_>>();
++    let overrides = (0..512)
++        .map(|index| 9000.0 + index as f64)
++        .collect::<Vec<_>>();
+     let mut decide = TraceRng::new(11, overrides, "forward-decide", &trace);
+     let mut lapse = TraceRng::new(12, Vec::new(), "forward-lapse", &trace);
+     let mut paths = FakePaths::default();
+=== FMT EXIT: 1 ===

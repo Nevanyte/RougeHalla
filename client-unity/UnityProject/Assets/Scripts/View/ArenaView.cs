@@ -43,6 +43,8 @@ namespace Roguehalla.Client
         WorldIndicators _worldIndicators; HurtVignette _vignette;
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
         public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
+        /// <summary>Scenario probe counters (diagnostics): Windup fx received and drawn, critical hits, remote fighters carrying a top-stat mark.</summary>
+        public static int DiagWindupFx, DiagWindupDrawn, DiagCritFx, DiagTopStat;
         public float DiagVignetteStrength => _vignette != null ? _vignette.Strength : 0f;
         public int DiagFlashes => _flashes.Count;
         uint _hoverId; uint? _huntTarget; float _selfMaxHp = 100f, _localX, _localY; bool _haveLocal; int _wishState; byte _wishAbility;
@@ -393,7 +395,7 @@ namespace Roguehalla.Client
         void RemoteIndicators(InterpActor a, bool locked)
         {
             _actors.PresentMarks(a.Id, LegacyFacts.Of(a, a.Kind == ActorKind.Player ? LegacyFacts.NameOf(_visionSession, a.Id) : null));
-            bool player = a.Kind == ActorKind.Player;
+            bool player = a.Kind == ActorKind.Player; if (player && a.TopStat1.HasValue) DiagTopStat++;
             _actors.PresentIndicators(a.Id, a.Bounty, player, a.OffhandWeapon ?? WeaponId.Fists, locked, -1, a.Id == _hoverId, _huntTarget.HasValue && _huntTarget.Value == a.Id,
                 LegacyFacts.RemoteWish(a), a.Faction.HasValue ? (byte)Indicators.WishOf(a.Faction.Value) : (byte)0);
         }
@@ -552,9 +554,10 @@ namespace Roguehalla.Client
                     continue;
                 }
                 // Protocol 16 fx (ADR0026): the wind-up telegraph and its end; the rest are numbers drawn by PresentFx.
-                if (f.Kind == FxKind.Windup) { _hitZones?.Windup(f.By, f.Weapon, f.A, f.Ms, Time.unscaledTime); continue; }
+                if (f.Kind == FxKind.Windup) { DiagWindupFx++; _hitZones?.Windup(f.By, f.Weapon, f.A, f.Ms, Time.unscaledTime); DiagWindupDrawn = HitZonePresenter.DiagWindupsStarted; continue; }
                 if (f.Kind == FxKind.Cancel) { _hitZones?.CancelWindup(f.Id); continue; }
                 if (f.Kind == FxKind.Stagger) _hitZones?.CancelWindup(f.Id);
+                if (f.Kind == FxKind.Hit && f.Critical) DiagCritFx++;
                 if (f.Kind == FxKind.Hit) { DiagHitFx++; if (f.Victim == _localId) { DiagHitFxOnMe++; DiagLastAmountOnMe = f.Amount; DiagLastPassiveOnMe = f.Passive; } } // scenario probe counters
                 if (f.Kind == FxKind.Hit && f.Victim == _localId && _localId != 0 && !f.Passive) _vignette.Hit(f.Amount, _selfMaxHp, Time.unscaledTime); // legacy screenFeedback: real hits only
                 uint subject = f.Kind == FxKind.Hit || f.Kind == FxKind.SigHit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block || f.Kind == FxKind.Heal ? f.Id : f.By;

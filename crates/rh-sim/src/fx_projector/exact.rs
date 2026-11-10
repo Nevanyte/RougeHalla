@@ -34,6 +34,23 @@ impl ExactSum {
         }
         Ok(())
     }
+    /// Crate-private exact merge: add another exact sum's integer limbs with checked carries and no
+    /// intermediate binary64 rounding. Used by the Card projection to fold sealed per-tick raw-pair rows into
+    /// one viewer bucket; `Overflow` means the checked limb/carry domain was exceeded.
+    pub(crate) fn merge(&mut self, other: &ExactSum) -> Result<(), SumError> {
+        let mut carry = 0u64;
+        for (slot, &word) in self.words.iter_mut().zip(other.words.iter()) {
+            let (sum, carry_a) = slot.overflowing_add(word);
+            let (sum, carry_b) = sum.overflowing_add(carry);
+            debug_assert!(!(carry_a && carry_b), "two carries out of one limb add");
+            *slot = sum;
+            carry = u64::from(carry_a) | u64::from(carry_b);
+        }
+        if carry != 0 {
+            return Err(SumError::Overflow);
+        }
+        Ok(())
+    }
     fn add_word(&mut self, mut index: usize, mut word: u64) -> Result<(), SumError> {
         while word != 0 {
             let Some(slot) = self.words.get_mut(index) else {
@@ -111,6 +128,53 @@ mod tests {
         assert_eq!(a.rounded(), Ok(1.));
         a.add(1.0 / (1u64 << 54) as f64).unwrap();
         assert_eq!(a.rounded(), Ok(f64::from_bits(1f64.to_bits() + 1)));
+    }
+    #[test]
+    fn checked_merge_is_the_exact_sum_of_its_parts_and_detects_carry_overflow() {
+        // Merge partitions/permutations equal direct exact additions.
+        let values = [
+            0.1,
+            1.0 / (1u64 << 53) as f64,
+            f64::MIN_POSITIVE,
+            f64::from_bits(1),
+            f64::MAX,
+            1.0,
+            0.3,
+        ];
+        let mut direct = ExactSum::default();
+        for &v in &values {
+            direct.add(v).unwrap();
+        }
+        let mut left = ExactSum::default();
+        let mut right = ExactSum::default();
+        for (i, &v) in values.iter().enumerate() {
+            if i % 2 == 0 {
+                left.add(v).unwrap();
+            } else {
+                right.add(v).unwrap();
+            }
+        }
+        left.merge(&right).unwrap();
+        assert_eq!(left.rounded(), direct.rounded());
+        // Carries cross limb boundaries and the merge performs no intermediate rounding.
+        let mut half = ExactSum::default();
+        half.add(f64::MAX).unwrap();
+        let mut sum = half.clone();
+        sum.merge(&half).unwrap();
+        assert_eq!(sum.rounded(), Err(SumError::Overflow));
+        // A full limb domain plus one cannot wrap: it is a typed carry overflow.
+        let mut full = ExactSum {
+            words: [u64::MAX; 34],
+        };
+        assert_eq!(full.merge(&half), Err(SumError::Overflow));
+        // Merging zeros is the identity.
+        let mut zero = ExactSum::default();
+        zero.merge(&ExactSum::default()).unwrap();
+        assert_eq!(zero.rounded(), Ok(0.0));
+        let mut exact = ExactSum::default();
+        exact.add(2.0).unwrap();
+        exact.merge(&half).unwrap();
+        assert_eq!(exact.rounded(), Ok(2.0 + f64::MAX));
     }
     #[test]
     fn invalid_inputs_and_overflow_are_explicit() {

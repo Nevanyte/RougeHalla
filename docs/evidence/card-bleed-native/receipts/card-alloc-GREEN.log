@@ -1,0 +1,8 @@
+test systems::card_bleed_feedback::tests::card_bleed_alloc ... card cold allocations (blocks): construct=98 clone=66 restore=1022 rebind=6; cold sims constructed 0 1 1
+card past-prepared-bound growth blocks: 2
+card allocation witness: first_pair tick 3 allocs 0, second_pair tick 43 allocs 0, repeated 20 steps allocs 0, prepared Q=64 index=64 K=64
+dhat: Total:     3,508,605 bytes in 1,435 blocks
+dhat: At t-gmax: 2,728,788 bytes in 377 blocks
+--
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 895 filtered out; finished in 1.66s
+

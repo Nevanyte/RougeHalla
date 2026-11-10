@@ -1,0 +1,159 @@
+{
+  "utc": "2026-11-10T03:53:13.228501+00:00",
+  "stackDeleteWaitExit": 0,
+  "allPassed": true,
+  "checks": [
+    {
+      "name": "instance",
+      "args": [
+        "ec2",
+        "describe-instances",
+        "--instance-ids",
+        "i-00b97e48b4e5c4f31",
+        "--query",
+        "Reservations[].Instances[].State.Name"
+      ],
+      "exit": 0,
+      "expectedError": null,
+      "result": [
+        "terminated"
+      ],
+      "pass": true
+    },
+    {
+      "name": "volume",
+      "args": [
+        "ec2",
+        "describe-volumes",
+        "--volume-ids",
+        "vol-02b80c76cca4d1be7"
+      ],
+      "exit": 254,
+      "expectedError": "InvalidVolume.NotFound",
+      "errorCode": "InvalidVolume.NotFound",
+      "pass": true
+    },
+    {
+      "name": "eni",
+      "args": [
+        "ec2",
+        "describe-network-interfaces",
+        "--network-interface-ids",
+        "eni-0ecafd8fae9a5e854"
+      ],
+      "exit": 254,
+      "expectedError": "InvalidNetworkInterfaceID.NotFound",
+      "errorCode": "InvalidNetworkInterfaceID.NotFound",
+      "pass": true
+    },
+    {
+      "name": "eip",
+      "args": [
+        "ec2",
+        "describe-addresses",
+        "--filters",
+        "Name=instance-id,Values=i-00b97e48b4e5c4f31"
+      ],
+      "exit": 0,
+      "expectedError": null,
+      "result": {
+        "Addresses": []
+      },
+      "pass": true
+    },
+    {
+      "name": "bucket",
+      "args": [
+        "s3api",
+        "head-bucket",
+        "--bucket",
+        "rougehalla-demo-048226733033-20261110-002345"
+      ],
+      "exit": 254,
+      "expectedError": "404",
+      "errorCode": "404",
+      "pass": true
+    },
+    {
+      "name": "schedule",
+      "args": [
+        "scheduler",
+        "get-schedule",
+        "--group-name",
+        "default",
+        "--name",
+        "rougehalla-demo-20261110-002345-ExpirySchedule-YE6HHV8YPBES"
+      ],
+      "exit": 254,
+      "expectedError": "ResourceNotFoundException",
+      "errorCode": "ResourceNotFoundException",
+      "pass": true
+    },
+    {
+      "name": "securityGroup",
+      "args": [
+        "ec2",
+        "describe-security-groups",
+        "--group-ids",
+        "sg-09efff57af48ba4f8"
+      ],
+      "exit": 254,
+      "expectedError": "InvalidGroup.NotFound",
+      "errorCode": "InvalidGroup.NotFound",
+      "pass": true
+    },
+    {
+      "name": "instanceProfile",
+      "args": [
+        "iam",
+        "get-instance-profile",
+        "--instance-profile-name",
+        "rougehalla-demo-20261110-002345-HostProfile-A3sECyk1557D"
+      ],
+      "exit": 254,
+      "expectedError": "NoSuchEntity",
+      "errorCode": "NoSuchEntity",
+      "pass": true
+    },
+    {
+      "name": "hostRole",
+      "args": [
+        "iam",
+        "get-role",
+        "--role-name",
+        "rougehalla-demo-20261110-002345-HostRole-slDuhaf3A01r"
+      ],
+      "exit": 254,
+      "expectedError": "NoSuchEntity",
+      "errorCode": "NoSuchEntity",
+      "pass": true
+    },
+    {
+      "name": "expiryRole",
+      "args": [
+        "iam",
+        "get-role",
+        "--role-name",
+        "rougehalla-demo-20261110-002345-ExpiryRole-YPaZY8p7rTPj"
+      ],
+      "exit": 254,
+      "expectedError": "NoSuchEntity",
+      "errorCode": "NoSuchEntity",
+      "pass": true
+    },
+    {
+      "name": "stack",
+      "args": [
+        "cloudformation",
+        "describe-stacks",
+        "--stack-name",
+        "rougehalla-demo-20261110-002345"
+      ],
+      "exit": 254,
+      "expectedError": "ValidationError",
+      "errorCode": "ValidationError",
+      "pass": true,
+      "missingStackTextConfirmed": true
+    }
+  ]
+}

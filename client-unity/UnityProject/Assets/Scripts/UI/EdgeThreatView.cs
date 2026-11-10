@@ -35,7 +35,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class EdgeThreatView
     {
-        public const float GlowSize = 180f, Margin = 28f, NearDistance = 150f;
+        public const float GlowSize = 22f, Margin = 28f, NearDistance = 150f;
         static Sprite _glow;
         readonly RectTransform _root;
         readonly List<Image> _pool = new List<Image>();
@@ -67,7 +67,7 @@ namespace Roguehalla.Client
                     rect.anchorMin = rect.anchorMax = Vector2.zero; rect.anchoredPosition = new Vector2(t.X + Margin / 2f, t.Y + Margin / 2f);
                     float r = t.Remoteness(NearDistance);
                     Color c = r < .5f ? Color.Lerp(theme.Danger, theme.Warning, r * 2f) : Color.Lerp(theme.Warning, theme.Success, (r - .5f) * 2f);
-                    c.a = .55f; glow.color = c;
+                    c.a = .9f; glow.color = c;
                 }
             for (; n < _pool.Count; n++) _pool[n].gameObject.SetActive(false);
         }
@@ -95,7 +95,7 @@ namespace Roguehalla.Client
                 for (int x = 0; x < size; x++)
                 {
                     float d = Mathf.Sqrt((x + .5f - size / 2f) * (x + .5f - size / 2f) + (y + .5f - size / 2f) * (y + .5f - size / 2f)) / (size / 2f);
-                    float a = GlowAlpha(d);
+                    float a = d < .72f ? 1f : GlowAlpha((d - .72f) / .28f);       // a small solid dot with a soft rim: one per visible enemy, never a blob
                     pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
                 }
             texture.SetPixels32(pixels); texture.Apply(false, true);
