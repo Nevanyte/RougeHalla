@@ -19,8 +19,9 @@ The new-source Linux artifact run 42729941646 at `d265ab95` passes; its strict v
 `dd7a208cc2b183268740a910d07db6aa7002260d6d1f9511cfaccf3e4791ce6d`. The temporary workflow trigger is removed at
 `bac4820f`. The first actual Calgary guest `i-0b2f4485d0491740e` failed `rh-demo-isolation.service` and terminated through
 the intended failure/poweroff path. CloudFormation completion did not establish readiness; no public hosted demo is
-claimed. Stage-specific diagnostics pass 17 offline checks, while the exact host failure remains unproved. Practice-domain
-DNS/TLS, hosted play, actual performance measurements and final release checks remain open. Deferred content remains
+claimed. The diagnostic replacement proves an NFT parser error between the chain/table closing braces; a multiline
+repair is in progress. The owner specified **play.rougehalla.com** for staging, while **play.roguehalla.com** remains
+untouched production. DNS/TLS, hosted play, actual performance measurements and final release checks remain open. Deferred content remains
 outside the demo critical path.
 
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and

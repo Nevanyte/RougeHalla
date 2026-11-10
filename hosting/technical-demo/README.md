@@ -1,10 +1,16 @@
-# Ephemeral technical demo preparation — NOT DEPLOYED
+# Ephemeral technical demo host
 
 This new preparation is for one **fresh x86-64 Ubuntu 24.04 instance in
-ca-west-1**, practice `rougehalla.com`, and an original absolute UTC deadline no
-more than three hours ahead. No installer, package manager, AWS SDK, host probe,
-service, or cloud operation has been executed by preparing these files. Ten stdlib bootstrap controls and seven PyYAML stack controls pass; this is not
-a tested Ubuntu installation.
+ca-west-1**, practice `play.rougehalla.com`, and an original absolute UTC deadline no
+more than three hours ahead. Eleven stdlib bootstrap controls and seven PyYAML
+stack controls pass. The first two actual guests terminated before application
+readiness; the second guest proves the NFT syntax error documented below. The
+corrected rules now pass an actual Ubuntu NFT parser check. Complete installation,
+TLS and browser readiness still require a fresh actual guest.
+
+The root URL redirects to `index.html` with the ordinary same-origin Training
+endpoint selected, so both Arena and Practice are available without operator setup.
+No diagnostic mode or synthetic join is enabled by this URL.
 
 `bootstrap.py` intentionally avoids the older host executor's custom AMI,
 retained preformatted volume, backup bucket, age tools and recovery contracts.
@@ -154,7 +160,7 @@ ceiling; reboot does not renew TTL. Actual kernel/ENI shaping remains unrun.
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s hosting/technical-demo -p test_offline.py -v
 ```
 
-Ten bootstrap tests cover expiry boundaries, config refusal, real tar good/exclusive write,
+Eleven bootstrap tests cover expiry boundaries, config refusal, real tar good/exclusive write,
 traversal/link/FIFO/unknown/duplicate refusal, wrong hash, the exact TBF argv and route/ordering refusals, and critical rendered
 ordering/route/unit properties. They do not emulate a host or claim cloud-ready
 activation. Root should independently review first, then own the single bounded
@@ -188,9 +194,31 @@ Old launch receipts are never overwritten or relabeled. Root reviews/commits
 this patch and owns all host/cloud actions; no replacement launch occurred in
 these offline checks.
 
-`test_offline.py` now has10 controls (the previous7 plus three diagnostics
-controls), and unchanged `test_stack.py` has7: **17 offline PASS**. These include
+`test_offline.py` now has11 controls (the previous7 plus three diagnostics
+controls and one NFT render control), and unchanged `test_stack.py` has7:
+**18 offline PASS**. These include
 mocked real helper call order, NFT failure preventing later work, parent/route
 refusals, numeric missing-executable/timeout status, stderr/control-byte bounds,
 no stdout/error-argument leaks, and rejection of unsupported diagnostic commands.
 They do not execute nft/ip/tc, package installation, Linux services or cloud APIs.
+
+## Confirmed NFT grammar repair and corrected demo origin
+
+Replacement `i-026f8ad9c4923a16c` produced `nft-load` exit1 with actual NFT
+`unexpected '}', expecting newline or semicolon`: the old one-line producer
+closed its chain and table as `} }` without a separator. Pure
+`isolation_rules((app_uid, postgres_uid, caddy_uid))` now renders real newlines
+between both closing blocks. Both exact service-UID sets, output hook/policy,
+and IPv4/IPv6 IMDS reject rules remain unchanged. The diagnostic stage/failure
+poweroff, original absolute expiry and TBF/fq_codel argv are unchanged. The
+focused test binds the full actual render and preserves both rejection terms;
+no NFT/kernel invocation or successful replacement host is claimed offline.
+The two failed-instance receipts, user data, gzip and console remain immutable.
+
+The only demo hostname/origin is now **https://play.rougehalla.com**. Config
+rejects the old apex `rougehalla.com` and official production
+`play.roguehalla.com` (also `roguehalla.com`). Caddy's site and both native CORS
+origins match the corrected test subdomain. No production DNS/TLS/service,
+account data or cloud resource was changed by this source edit. Root must
+regenerate/pin new nonsecret config/userdata and bind the exact Web endpoint
+before a separately authorized guest; earlier origin receipts stay historical.

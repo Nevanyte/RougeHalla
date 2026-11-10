@@ -11,11 +11,14 @@ to complete every original gameplay/content/production feature before delivering
 2. An ordinary networked core match: join, movement, combat against players and mobs, representative loot/rewards,
    end of match/results and another join. Show at least two connected players; a three-seat normal game can also
    exercise the existing Trophy path. Training remains available for repeatable local checks.
-3. Serve the same reviewed Rust and Unity build on practice **rougehalla.com**, using the approved staging account
+3. Serve the same reviewed Rust and Unity build on practice **play.rougehalla.com**, using the approved staging account
    **048226733033 / ca-west-1**, within **CAD20 total gross spend**. Keep production play.roguehalla.com unchanged.
    Use existing staging resources where practical, TLS, a bounded lifetime and reliable cleanup. Both AWS Core
    connections rejected authentication, but Root has now renewed the local `rougehalla-staging` CLI profile through
    the in-app browser and verified STS account3033. The CLI can support the staging work.
+
+   Owner hostname correction (2026-11-10): use **play.rougehalla.com** for the test build; official production is
+   **play.roguehalla.com**. The apex test domain is not the delivery URL. Keep production DNS and services untouched.
 4. Measure the actual M5 Pro client and server: frame time/FPS, Rust tick time/deadline misses, round-trip latency,
    memory and bandwidth. Record build identities, resolution, quality, renderer, browser/display limits, scenario and
    active player/mob count. Separate local from Calgary results, server tick rate from compute capacity, and displayed

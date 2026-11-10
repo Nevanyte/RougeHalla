@@ -4,6 +4,6 @@
   "sha256": "ROOT-REPLACE-EXACT-64-LOWERCASE-HEX",
   "region": "ca-west-1",
   "expires_at": "ROOT-REPLACE-ABSOLUTE-UTC",
-  "domain": "rougehalla.com",
+  "domain": "play.rougehalla.com",
   "run_id": "root-replace"
 }

@@ -15,7 +15,7 @@ from bootstrap import config, unpack, caddy_config, app_unit, shaper_command, is
 from render import render
 
 NOW = dt.datetime(2026, 11, 9, tzinfo=dt.timezone.utc)
-C = dict(bucket='demo-private', key='one.tar', sha256='0'*64, region='ca-west-1', expires_at='2026-11-09T03:00:00Z', domain='rougehalla.com', run_id='demo-1')
+C = dict(bucket='demo-private', key='one.tar', sha256='0'*64, region='ca-west-1', expires_at='2026-11-09T03:00:00Z', domain='play.rougehalla.com', run_id='demo-1')
 
 
 def archive(path, extras=(), edit=None):
@@ -41,7 +41,8 @@ class Offline(unittest.TestCase):
                 config(json.dumps(dict(C, expires_at=stamp)), NOW)
 
     def test_config_boundary(self):
-        for key, value in [('domain', 'other.com'), ('region', 'us-east-1'), ('run_id', 'x;bad'), ('sha256', False), ('key', '../bad')]:
+        for key, value in [('domain', 'other.com'), ('domain', 'rougehalla.com'),
+                           ('domain', 'roguehalla.com'), ('domain', 'play.roguehalla.com'), ('region', 'us-east-1'), ('run_id', 'x;bad'), ('sha256', False), ('key', '../bad')]:
             with self.subTest(key=key), self.assertRaises(ValueError):
                 config(json.dumps(dict(C, **{key: value})), NOW)
 
@@ -72,6 +73,21 @@ class Offline(unittest.TestCase):
             archive(p/'a.tar', edit=lambda m: m.update({'web/index.html': '0'*64}))
             with self.assertRaises(ValueError):
                 unpack(p/'a.tar', p/'out')
+
+    def test_nft_rules_have_real_block_separators_and_exact_rejections(self):
+        rules = bootstrap.isolation_rules((997, 111, 999))
+        expected = ('table inet rh_demo {\n'
+                    '    chain output {\n'
+                    '        type filter hook output priority 0; policy accept;\n'
+                    '        meta skuid { 997, 111, 999 } ip daddr 169.254.169.254 reject;\n'
+                    '        meta skuid { 997, 111, 999 } ip6 daddr fd00:ec2::254 reject;\n'
+                    '    }\n}\n')
+        self.assertEqual(rules, expected)
+        self.assertNotIn('} }', rules)  # Actual failed one-line producer lacked this block separator.
+        self.assertEqual(rules.count('reject;'), 2)
+        for bad in ((997, 111), (997, 111, '999; accept'), (997, False, 999)):
+            with self.subTest(uids=bad), self.assertRaises(ValueError):
+                bootstrap.isolation_rules(bad)
 
     def test_egress_shaper(self):
         v4 = [{'dst': 'default', 'gateway': '10.0.0.1', 'dev': 'ens5'}]
@@ -173,6 +189,8 @@ class Offline(unittest.TestCase):
         self.assertIn('Persistent=true', text)
         self.assertNotIn('apt-get', text)
         caddy = caddy_config()
+        self.assertTrue(caddy.startswith('play.rougehalla.com {\n'))
+        self.assertNotIn('play.roguehalla.com', caddy)
         self.assertIn('/control*', caddy)
         self.assertIn('encode zstd gzip', caddy)
         self.assertIn('header_up X-Forwarded-For {remote_host}', caddy)
@@ -181,6 +199,9 @@ class Offline(unittest.TestCase):
             self.assertIn('ExecStartPre=+/usr/bin/python3', unit)
             self.assertIn('Restart=no', unit)
             self.assertIn('127.0.0.1:', unit)
+            self.assertIn('--api-cors-origins https://play.rougehalla.com ', unit)
+            self.assertNotIn('--api-cors-origins https://rougehalla.com ', unit)
+            self.assertNotIn('play.roguehalla.com', unit)
             self.assertNotIn('password', unit)
 
 

@@ -32,7 +32,7 @@ def config(raw, now=None):
     require(re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]', c['bucket']), 'bucket')
     require(re.fullmatch(r'[A-Za-z0-9_./-]{1,1024}', c['key']) and '..' not in c['key'].split('/'), 'key')
     require(re.fullmatch(r'[a-f0-9]{64}', c['sha256']), 'sha256')
-    require(c['region'] == 'ca-west-1' and c['domain'] == 'rougehalla.com', 'fixed demo boundary')
+    require(c['region'] == 'ca-west-1' and c['domain'] == 'play.rougehalla.com', 'fixed demo boundary')
     require(re.fullmatch(r'[a-z0-9-]{1,40}', c['run_id']), 'run id')
     require(re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', c['expires_at']), 'UTC expiry')
     end = dt.datetime.strptime(c['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc)
@@ -174,6 +174,21 @@ def isolate():
     shape()
 
 
+def isolation_rules(uids):
+    """Exact service-UID IMDS rejection rules, with real block separators for nft."""
+    require(type(uids) is tuple and len(uids) == 3
+            and all(type(uid) is int and uid >= 0 for uid in uids), 'service UIDs')
+    owners = ', '.join(str(uid) for uid in uids)
+    return f'''table inet rh_demo {{
+    chain output {{
+        type filter hook output priority 0; policy accept;
+        meta skuid {{ {owners} }} ip daddr 169.254.169.254 reject;
+        meta skuid {{ {owners} }} ip6 daddr fd00:ec2::254 reject;
+    }}
+}}
+'''
+
+
 def isolation_unit():
     return '[Unit]\nWants=network-online.target\nAfter=network-online.target rh-demo-expiry.timer\nRequires=rh-demo-expiry.timer\nBefore=rh-demo-source.service rh-demo-training.service caddy.service\nOnFailure=rh-demo-poweroff.service\n[Service]\nType=oneshot\nExecStart=/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py isolate\nStandardOutput=journal+console\nStandardError=journal+console\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\n'
 
@@ -204,7 +219,7 @@ OnFailure=rh-demo-poweroff.service
 User=rougehalla
 Group=rougehalla
 ExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard
-ExecStart={ROOT}/rh-server --runtime {mode} --bind 127.0.0.1:{port} --instance-id {c['run_id']}-{mode} {options} --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
+ExecStart={ROOT}/rh-server --runtime {mode} --bind 127.0.0.1:{port} --instance-id {c['run_id']}-{mode} {options} --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
 Restart=no
 NoNewPrivileges=yes
 PrivateTmp=yes
@@ -220,9 +235,10 @@ WantedBy=multi-user.target
 
 
 def caddy_config():
-    return '''rougehalla.com {
+    return '''play.rougehalla.com {
     encode zstd gzip
     root * /opt/rougehalla-demo/web
+    redir / /index.html?trainingServer=wss%3A%2F%2Fplay.rougehalla.com%2Ftraining%2Fws 302
     @blocked path /control* /probe* /training/api* /training/control* /training/probe* /training/readyz*
     handle @blocked {
         respond 404
@@ -307,9 +323,8 @@ def install():
     run('/usr/sbin/useradd', '--system', '--home-dir', '/nonexistent', '--shell', '/usr/sbin/nologin', 'rougehalla')
     # Block instance-role credentials from every service UID, before running app code.
     import pwd
-    uids = ', '.join(str(pwd.getpwnam(n).pw_uid) for n in ('rougehalla', 'postgres', 'caddy'))
-    rules = f'table inet rh_demo {{ chain output {{ type filter hook output priority 0; policy accept; meta skuid {{ {uids} }} ip daddr 169.254.169.254 reject; meta skuid {{ {uids} }} ip6 daddr fd00:ec2::254 reject; }} }}\n'
-    write(Path('/etc/rh-demo.nft'), rules, 0o600)
+    uids = tuple(pwd.getpwnam(n).pw_uid for n in ('rougehalla', 'postgres', 'caddy'))
+    write(Path('/etc/rh-demo.nft'), isolation_rules(uids), 0o600)
     unit('rh-demo-isolation.service', isolation_unit())
     run('/usr/bin/systemctl', 'daemon-reload')
     run('/usr/bin/systemctl', 'enable', '--now', 'rh-demo-isolation.service')
