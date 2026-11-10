@@ -266,11 +266,19 @@ mod tests {
         assert_eq!(LIVE_DEFAULT_HITBOXES, live);
         let args = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
         for profile in ["--runtime source-arena --map x", "--runtime training"] {
-            assert_eq!(parse(profile).unwrap().unwrap().sim().hitboxes, live, "{profile}");
+            assert_eq!(
+                parse(profile).unwrap().unwrap().sim().hitboxes,
+                live,
+                "{profile}"
+            );
         }
         assert_eq!(core_hitboxes(&args("--first-playable")), Ok(live));
         for dev in ["", "--runtime core"] {
-            assert_eq!(core_hitboxes(&args(dev)), Ok(HitboxMode::LegacyCircle), "{dev}");
+            assert_eq!(
+                core_hitboxes(&args(dev)),
+                Ok(HitboxMode::LegacyCircle),
+                "{dev}"
+            );
         }
     }
     #[test]
@@ -279,7 +287,11 @@ mod tests {
         let args = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
         for base in ["", "--runtime core", "--first-playable"] {
             assert!(parse(base).unwrap().is_none(), "{base}: the core path");
-            assert_eq!(core_hitboxes(&args(base)), Ok(HitboxMode::LegacyCircle), "{base}");
+            assert_eq!(
+                core_hitboxes(&args(base)),
+                Ok(HitboxMode::LegacyCircle),
+                "{base}"
+            );
             assert_eq!(
                 core_hitboxes(&args(&format!("{base} --hitboxes archetypes"))),
                 Ok(HitboxMode::Archetypes),
@@ -291,7 +303,10 @@ mod tests {
                 "{base}"
             );
             for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
-                assert!(core_hitboxes(&args(&format!("{base} {bad}"))).is_err(), "{base} {bad}");
+                assert!(
+                    core_hitboxes(&args(&format!("{base} {bad}"))).is_err(),
+                    "{base} {bad}"
+                );
             }
         }
     }
@@ -305,7 +320,9 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!(opted.sim().hitboxes, HitboxMode::Archetypes, "{args}");
-            let legacy = parse(&format!("{args} --hitboxes legacy")).unwrap().unwrap();
+            let legacy = parse(&format!("{args} --hitboxes legacy"))
+                .unwrap()
+                .unwrap();
             assert_eq!(legacy.sim().hitboxes, HitboxMode::LegacyCircle, "{args}");
             for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
                 assert!(parse(&format!("{args} {bad}")).is_err(), "{args} {bad}");

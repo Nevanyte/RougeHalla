@@ -544,7 +544,12 @@ fn a_lateral_sweep_through_the_start_inside_zone_has_no_single_unit_flip() {
 fn restore_refuses_a_projectile_height_the_mode_cannot_launch() {
     let at = east_lane(&practice_arena().map);
     for (mode, own, good, bad) in [
-        (HitboxMode::LegacyCircle, 0.0, &[][..], &[30.0, -0.0, 0.5, 300.0][..]),
+        (
+            HitboxMode::LegacyCircle,
+            0.0,
+            &[][..],
+            &[30.0, -0.0, 0.5, 300.0][..],
+        ),
         (
             HitboxMode::Archetypes,
             30.0,
@@ -590,7 +595,10 @@ fn restore_refuses_a_projectile_height_the_mode_cannot_launch() {
             assert!(Sim::restore(with_height(h)).is_ok(), "{mode:?} height {h}");
         }
         for &h in bad {
-            assert!(Sim::restore(with_height(h)).is_err(), "{mode:?} height {h} is refused");
+            assert!(
+                Sim::restore(with_height(h)).is_err(),
+                "{mode:?} height {h} is refused"
+            );
         }
     }
 }

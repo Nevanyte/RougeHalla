@@ -431,8 +431,20 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
     assert!(!cached.matches_slices(2, 1, &tiles, Some(&[0, 5]), None));
     assert!(!cached.matches_slices(2, 1, &[0, 1], Some(&terrain), None));
 
-    let off = encode_welcome(&welcome_header(), &[], &rh_protocol::WireVision::default(), &cached, GroundMode::Off);
-    let all = encode_welcome(&welcome_header(), &[], &rh_protocol::WireVision::default(), &cached, GroundMode::All);
+    let off = encode_welcome(
+        &welcome_header(),
+        &[],
+        &rh_protocol::WireVision::default(),
+        &cached,
+        GroundMode::Off,
+    );
+    let all = encode_welcome(
+        &welcome_header(),
+        &[],
+        &rh_protocol::WireVision::default(),
+        &cached,
+        GroundMode::All,
+    );
     let ServerMsg::Welcome { map: off_map, .. } = ServerMsg::decode(&off).unwrap() else {
         panic!("welcome")
     };
@@ -597,7 +609,13 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
     use rh_protocol::{WireArchetype, WireHull};
     let good = rh_protocol::samples::sample_archetypes();
     let pre = MapBlob::new(1, 1, vec![2]).pre_encode().unwrap();
-    let bytes = encode_welcome(&welcome_header(), &good, &rh_protocol::WireVision::default(), &pre, GroundMode::Off);
+    let bytes = encode_welcome(
+        &welcome_header(),
+        &good,
+        &rh_protocol::WireVision::default(),
+        &pre,
+        GroundMode::Off,
+    );
     let ServerMsg::Welcome { archetypes, .. } = ServerMsg::decode(&bytes).unwrap() else {
         panic!("welcome")
     };
@@ -625,11 +643,23 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
         .collect();
     for bad in [unordered, empty_key, zero_box, too_many] {
         let mut out = Vec::new();
-        assert!(
-            encode_welcome_into(&welcome_header(), &bad, &rh_protocol::WireVision::default(), &pre, GroundMode::Off, &mut out).is_err()
-        );
+        assert!(encode_welcome_into(
+            &welcome_header(),
+            &bad,
+            &rh_protocol::WireVision::default(),
+            &pre,
+            GroundMode::Off,
+            &mut out
+        )
+        .is_err());
         // Forge the frame: the decoder refuses it too.
-        let mut forged = encode_welcome(&welcome_header(), &[], &rh_protocol::WireVision::default(), &pre, GroundMode::Off);
+        let mut forged = encode_welcome(
+            &welcome_header(),
+            &[],
+            &rh_protocol::WireVision::default(),
+            &pre,
+            GroundMode::Off,
+        );
         let mut table = Writer::default();
         rh_protocol::samples::write_archetype_table_for_tests(&mut table, &bad);
         let table = table.finish();
@@ -649,7 +679,12 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
     let map = MapBlob::new(4, 3, vec![0; 12]);
     let pre = map.pre_encode().unwrap();
     let good = WireVision {
-        coliseum: Some(WireRect { x: 1, y: 1, w: 3, h: 2 }),
+        coliseum: Some(WireRect {
+            x: 1,
+            y: 1,
+            w: 3,
+            h: 2,
+        }),
         ..WireVision::default()
     };
     let bytes = encode_welcome(&welcome_header(), &[], &good, &pre, GroundMode::Off);
@@ -661,18 +696,44 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
     let rect = |x, y, w, h| Some(WireRect { x, y, w, h });
     for bad in [
         WireVision { version: 0, ..d },
-        WireVision { tile: f64::NAN, ..d },
+        WireVision {
+            tile: f64::NAN,
+            ..d
+        },
         WireVision { radius: 0.0, ..d },
-        WireVision { trail_ms: -1.0, ..d },
-        WireVision { update_ms: f64::INFINITY, ..d },
+        WireVision {
+            trail_ms: -1.0,
+            ..d
+        },
+        WireVision {
+            update_ms: f64::INFINITY,
+            ..d
+        },
         WireVision { sight_mask: 0, ..d },
-        WireVision { coliseum: rect(0, 0, 1, 0), ..d },
-        WireVision { coliseum: rect(2, 0, 3, 1), ..d },
-        WireVision { coliseum: rect(0, 2, 1, 2), ..d },
+        WireVision {
+            coliseum: rect(0, 0, 1, 0),
+            ..d
+        },
+        WireVision {
+            coliseum: rect(2, 0, 3, 1),
+            ..d
+        },
+        WireVision {
+            coliseum: rect(0, 2, 1, 2),
+            ..d
+        },
     ] {
         let mut out = Vec::new();
         assert!(
-            encode_welcome_into(&welcome_header(), &[], &bad, &pre, GroundMode::Off, &mut out).is_err(),
+            encode_welcome_into(
+                &welcome_header(),
+                &[],
+                &bad,
+                &pre,
+                GroundMode::Off,
+                &mut out
+            )
+            .is_err(),
             "{bad:?}"
         );
         let msg = ServerMsg::Welcome {
@@ -694,7 +755,10 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
         let mut block = Writer::default();
         rh_protocol::vision::write_vision_for_tests(&mut block, &bad);
         let at = rh_protocol::WELCOME_HEADER_LEN + 1;
-        forged.splice(at..at + rh_protocol::vision::VISION_BLOCK_LEN, block.finish());
+        forged.splice(
+            at..at + rh_protocol::vision::VISION_BLOCK_LEN,
+            block.finish(),
+        );
         assert!(ServerMsg::decode(&forged).is_err(), "{bad:?}");
     }
 }

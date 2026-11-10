@@ -494,24 +494,51 @@ mod vision_block_tests {
     /// `rh_sim::vision` reveals (the seed-1 source map has a coliseum; the practice arena has no layers).
     #[test]
     fn the_wire_vision_block_is_the_sim_rule() {
-        use rh_sim::constants::{MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS};
+        use rh_sim::constants::{
+            MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS,
+        };
         let practice = super::wire_vision(&rh_sim::arenas::practice_arena().map);
         assert_eq!(practice.fault(), None);
         assert_eq!(practice.coliseum, None);
         assert_eq!(
-            (practice.version, practice.tile, practice.radius, practice.trail_ms, practice.update_ms, practice.sight_mask),
-            (1, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS, MASK_SIGHT)
+            (
+                practice.version,
+                practice.tile,
+                practice.radius,
+                practice.trail_ms,
+                practice.update_ms,
+                practice.sight_mask
+            ),
+            (
+                1,
+                TILE,
+                VISION_RADIUS,
+                VISION_TRAIL_MS,
+                VISION_UPDATE_MS,
+                MASK_SIGHT
+            )
         );
         let doc: serde_json::Value =
             serde_json::from_slice(include_bytes!("../../../../parity/arena/source.json")).unwrap();
-        let export: rh_sim::mapdata::MapExport = serde_json::from_value(doc["map"]["export"].clone()).unwrap();
+        let export: rh_sim::mapdata::MapExport =
+            serde_json::from_value(doc["map"]["export"].clone()).unwrap();
         let arena = export.validate().unwrap().into_arena().unwrap();
         let v = super::wire_vision(&arena.map);
         let rect = arena.map.layers().unwrap().coliseum().rect;
         let r = v.coliseum.expect("the source map has a coliseum");
         assert_eq!(
-            (i64::from(r.x), i64::from(r.y), i64::from(r.w), i64::from(r.h)),
-            (i64::from(rect.x), i64::from(rect.y), i64::from(rect.w), i64::from(rect.h))
+            (
+                i64::from(r.x),
+                i64::from(r.y),
+                i64::from(r.w),
+                i64::from(r.h)
+            ),
+            (
+                i64::from(rect.x),
+                i64::from(rect.y),
+                i64::from(rect.w),
+                i64::from(rect.h)
+            )
         );
         assert!(v.fits(arena.map.w as u16, arena.map.h as u16));
         assert_eq!(v.fault(), None);

@@ -2290,24 +2290,60 @@ fn malformed_vision() -> Vec<(&'static str, Vec<u8>)> {
     crate::vision::write_vision_for_tests(&mut cut, &d);
     let cut = cut.finish();
     vec![
-        ("welcome_vision_version_zero", welcome_vision(WireVision { version: 0, ..d })),
-        ("welcome_vision_tile_zero", welcome_vision(WireVision { tile: 0.0, ..d })),
-        ("welcome_vision_radius_nan", welcome_vision(WireVision { radius: f64::NAN, ..d })),
-        ("welcome_vision_radius_negative", welcome_vision(WireVision { radius: -900.0, ..d })),
-        ("welcome_vision_trail_negative", welcome_vision(WireVision { trail_ms: -1.0, ..d })),
+        (
+            "welcome_vision_version_zero",
+            welcome_vision(WireVision { version: 0, ..d }),
+        ),
+        (
+            "welcome_vision_tile_zero",
+            welcome_vision(WireVision { tile: 0.0, ..d }),
+        ),
+        (
+            "welcome_vision_radius_nan",
+            welcome_vision(WireVision {
+                radius: f64::NAN,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_radius_negative",
+            welcome_vision(WireVision {
+                radius: -900.0,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_trail_negative",
+            welcome_vision(WireVision {
+                trail_ms: -1.0,
+                ..d
+            }),
+        ),
         (
             "welcome_vision_update_infinite",
-            welcome_vision(WireVision { update_ms: f64::INFINITY, ..d }),
+            welcome_vision(WireVision {
+                update_ms: f64::INFINITY,
+                ..d
+            }),
         ),
-        ("welcome_vision_mask_zero", welcome_vision(WireVision { sight_mask: 0, ..d })),
+        (
+            "welcome_vision_mask_zero",
+            welcome_vision(WireVision { sight_mask: 0, ..d }),
+        ),
         ("welcome_vision_coliseum_flag", welcome_vision_bytes(&flag)),
         (
             "welcome_vision_coliseum_empty",
-            welcome_vision(WireVision { coliseum: rect(0, 0, 0, 1), ..d }),
+            welcome_vision(WireVision {
+                coliseum: rect(0, 0, 0, 1),
+                ..d
+            }),
         ),
         (
             "welcome_vision_coliseum_outside",
-            welcome_vision(WireVision { coliseum: rect(1, 0, 2, 1), ..d }),
+            welcome_vision(WireVision {
+                coliseum: rect(1, 0, 2, 1),
+                ..d
+            }),
         ),
         ("welcome_vision_truncated", {
             let good = welcome_map(2, 2, None, &[(1, 4)]);
@@ -3712,7 +3748,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "welcome_archetype_key_long",
             welcome_archetype_key(&"k".repeat(crate::archetype::MAX_ARCHETYPE_KEY + 1)),
         ),
-        ("welcome_archetype_key_ascii", welcome_archetype_key("h\u{e9}ro")),
+        (
+            "welcome_archetype_key_ascii",
+            welcome_archetype_key("h\u{e9}ro"),
+        ),
         ("welcome_archetype_truncated", {
             // Two rows promised, the second cut off after its id: the frame ends inside the table.
             let good = welcome_map(1, 1, None, &[(1, 1)]);
@@ -5217,7 +5256,12 @@ fn decoded_map_json(m: &ServerMsg) -> String {
     };
     let coliseum = vision.coliseum.map_or_else(
         || "null".to_string(),
-        |r| format!("{{\"x\":{},\"y\":{},\"w\":{},\"h\":{}}}", r.x, r.y, r.w, r.h),
+        |r| {
+            format!(
+                "{{\"x\":{},\"y\":{},\"w\":{},\"h\":{}}}",
+                r.x, r.y, r.w, r.h
+            )
+        },
     );
     let vision = format!(
         "{{\"version\":{},\"tile\":{},\"radius\":{},\"trailMs\":{},\"updateMs\":{},\"sightMask\":{},\"coliseum\":{coliseum}}}",

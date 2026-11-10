@@ -120,7 +120,14 @@ const fn player(id: u8, key: &'static str, bx: f64, by: f64, centre: f64) -> Arc
     with_chest(id, key, bx, by, centre, PLAYER_CHEST)
 }
 
-const fn with_chest(id: u8, key: &'static str, bx: f64, by: f64, centre: f64, chest: f64) -> Archetype {
+const fn with_chest(
+    id: u8,
+    key: &'static str,
+    bx: f64,
+    by: f64,
+    centre: f64,
+    chest: f64,
+) -> Archetype {
     Archetype {
         id: ArchetypeId(id),
         key,
@@ -412,7 +419,11 @@ mod tests {
         assert_eq!(b.centre(), Vec2::new(100.0, 200.0 - hero.chest));
         let mage = ArchetypeId::MAGE.row();
         let m = mage.body_box(Vec2::new(100.0, 200.0)).unwrap();
-        assert_eq!(m.centre(), Vec2::new(100.0, 175.0), "the mage box is centred on its measured 25");
+        assert_eq!(
+            m.centre(),
+            Vec2::new(100.0, 175.0),
+            "the mage box is centred on its measured 25"
+        );
         assert_eq!(mage.chest, PLAYER_CHEST);
         assert_eq!(
             ArchetypeId::LEGACY_CIRCLE

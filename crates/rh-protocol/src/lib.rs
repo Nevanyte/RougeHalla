@@ -141,10 +141,10 @@
 //! than [`MAX_ACTORS`] actors, an oversized frame, a bad map): the codec never clamps or drops what the observation chose.
 
 pub mod archetype;
-pub mod vision;
 pub mod codec;
 mod encode;
 pub mod ground;
+pub mod vision;
 pub use encode::delta;
 pub mod map;
 pub mod quant;
@@ -163,7 +163,6 @@ pub use state::{
 };
 
 pub use archetype::{WireArchetype, WireHull};
-pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
 pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
@@ -171,6 +170,7 @@ pub use delta::{
 };
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
 pub use ground::GroundMode;
+pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
 pub const PROTOCOL_VERSION: u16 = 16;

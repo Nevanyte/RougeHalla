@@ -215,7 +215,9 @@ fn run(arena: &rh_sim::Arena, mode: HitboxMode, seed: u64, max_ticks: u32, out: 
                 Event::ProjectileEnded { launch, reason, .. } => {
                     if let Some(key) = pending.remove(&launch.id) {
                         let h = homing.remove(&launch.id).unwrap_or(false);
-                        *out.ends.entry((key.0, key.3, h, format!("{reason:?}"))).or_default() += 1;
+                        *out.ends
+                            .entry((key.0, key.3, h, format!("{reason:?}")))
+                            .or_default() += 1;
                         let hit = matches!(
                             reason,
                             ProjectileEnd::Hit | ProjectileEnd::Reflected | ProjectileEnd::Blocked
@@ -311,10 +313,20 @@ fn main() {
             m.mob_deaths
         );
         for ((class, w), t) in &m.ranged_total {
-            println!("ranged {class:<4} {w:<6} shots {:>6} hits {:>6} rate {:.3}", t.shots, t.hits, rate(t));
+            println!(
+                "ranged {class:<4} {w:<6} shots {:>6} hits {:>6} rate {:.3}",
+                t.shots,
+                t.hits,
+                rate(t)
+            );
         }
         for ((class, w), t) in &m.melee {
-            println!("melee  {class:<4} {w:<6} swings {:>6} landed {:>6} rate {:.3}", t.shots, t.hits, rate(t));
+            println!(
+                "melee  {class:<4} {w:<6} swings {:>6} landed {:>6} rate {:.3}",
+                t.shots,
+                t.hits,
+                rate(t)
+            );
         }
         for ((class, w, h, why), n) in &m.ends {
             println!("end    {class:<4} {w:<6} homing {h:<5} {why:<10} {n}");

@@ -384,9 +384,21 @@ fn non_finite_input_never_touches_a_box() {
         assert_eq!(segment_box_entry(ok, far, Aabb { x0: bad, ..bx }), None);
         assert_eq!(segment_box_entry(ok, far, Aabb { y1: bad, ..bx }), None);
         assert!(!arc_hits_box(Vec2::new(bad, 0.0), 0.0, 112.0, PI / 4.0, bx));
-        assert!(!arc_hits_box(Vec2::new(-50.0, bad), 0.0, 112.0, PI / 4.0, bx));
+        assert!(!arc_hits_box(
+            Vec2::new(-50.0, bad),
+            0.0,
+            112.0,
+            PI / 4.0,
+            bx
+        ));
         assert!(!arc_hits_box(ok, bad, 112.0, PI / 4.0, bx));
-        assert!(!arc_hits_box(ok, 0.0, 112.0, PI / 4.0, Aabb { x1: bad, ..bx }));
+        assert!(!arc_hits_box(
+            ok,
+            0.0,
+            112.0,
+            PI / 4.0,
+            Aabb { x1: bad, ..bx }
+        ));
     }
     assert!(arc_hits_box(ok, 0.0, 112.0, PI / 4.0, bx));
 }
