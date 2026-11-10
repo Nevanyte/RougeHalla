@@ -16,6 +16,10 @@ interface Case {
   /** max hp as a multiple of the faction's base hp. */
   hpScale: number;
   killStats?: Record<string, number>;
+  /** Kill stacks per mob type (legacy `mobStats`, the Rust farm rows). */
+  mobStats?: Record<string, number>;
+  /** Eligible camp clears (legacy Holy camp lifesteal; not ported to the Rust sim, see `withoutCampClears`). */
+  campClears?: number;
 }
 
 const cases: Case[] = [
@@ -27,6 +31,8 @@ const cases: Case[] = [
   { name: "below_threshold", faction: "fire", cards: {}, mirrors: { adBonus: 0.1, armorBonus: 0.1 }, hpScale: 1 },
   { name: "attack_speed_soul_defense", faction: "holy", cards: { haste2: 1, committed: 1 }, mirrors: { asMult: 1.45, shieldBonus: 40 }, hpScale: 1.05 },
   { name: "kill_stats", faction: "sentenced", cards: {}, mirrors: { apBonus: 6 }, hpScale: 1, killStats: { damage: 0.05, lifesteal: 0.02 } },
+  { name: "mob_stats_farm_rows", faction: "sentenced", cards: { leech1: 1 }, mirrors: { armorBonus: 5 }, hpScale: 1, mobStats: { emberImp: 9, acolyte: 6, rotMonk: 4, plagueRat: 2 } },
+  { name: "holy_camp_clears", faction: "holy", cards: { leech1: 1 }, mirrors: { adBonus: 18 }, hpScale: 1, campClears: 20 },
   { name: "negative_mirrors_ignored", faction: "plague", cards: {}, mirrors: { armorBonus: -30, asMult: 0.8, speedMult: 0.9 }, hpScale: 0.5 },
 ];
 
@@ -46,7 +52,10 @@ const out = cases.map((c) => {
     build: c.cards,
     extra: killStats ? { killStats } : undefined,
   };
-  const r = combatReadability(p);
+  const r = combatReadability({ ...p, mobStats: c.mobStats, campClears: c.campClears ?? 0 });
+  // The same fighter with no camp clears: the Rust sim has no Holy camp-lifesteal passive (a recorded deviation), so its
+  // marks are compared with this variant.
+  const without = combatReadability({ ...p, mobStats: c.mobStats, campClears: 0 });
   return {
     name: c.name,
     faction: c.faction,
@@ -56,8 +65,14 @@ const out = cases.map((c) => {
     wire,
     maxHp,
     killStats: c.killStats ?? {},
+    mobStats: c.mobStats ?? {},
+    campClears: c.campClears ?? 0,
     invested: r.investedStats.map((s) => ({ key: s.key, score: s.score })),
     marks: r.investedStats.slice(0, 2).map((s) => s.key),
+    withoutCampClears: {
+      invested: without.investedStats.map((s) => ({ key: s.key, score: s.score })),
+      marks: without.investedStats.slice(0, 2).map((s) => s.key),
+    },
   };
 });
 

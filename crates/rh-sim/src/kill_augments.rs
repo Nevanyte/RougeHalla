@@ -4,9 +4,9 @@
 //! factor). The trophy rides the chest `choose` action (`sim/chests.ts` delegates the owner check here).
 //!
 //! Two source-only inputs remain explicitly out of this slice and are recorded in
-//! `docs/evidence/stage2-cards-3/README.md`: the `campsCleared` counter (P-MOBS-2's camp-clear heal owns it; it contributes
-//! 0 to the readability leech score until then) and the public transport of trophy/kill-stat facts (coordinator-owned; the
-//! wire projection filters kill-augment options).
+//! `docs/evidence/stage2-cards-3/README.md`: Holy's camp-lifesteal term of the readability leech score (the sim counts
+//! camp clears but has no such passive, so the term is 0; ADR0026 records the deviation) and the public transport of
+//! trophy/kill-stat facts (coordinator-owned; the wire projection filters kill-augment options).
 use crate::cards::CardRow;
 use crate::stat_fold::{EffectKind, EffectRow, EffectStat, FlatStat};
 
@@ -209,8 +209,10 @@ pub fn text(a: KillAugment) -> (String, String) {
 }
 
 /// The victim's readable investment scores (source `combatReadability(...).investedStats` with `lasting: true`, the
-/// one scoring mode the trophy roll reads). `campsCleared` is 0 here until P-MOBS-2 ports the camp-clear counter; it only
-/// feeds Holy's camp-lifesteal term, which is 0 at 0 clears.
+/// one scoring mode the trophy roll reads). Legacy's leech term also adds Holy's camp lifesteal
+/// (`holyCampLifestealOf(campClears)`); the Rust sim counts camp clears (`Player.camps_cleared`) but has no Holy
+/// camp-lifesteal passive, so that term is 0 here and in [`build_marks`] (a known deviation, pinned by
+/// `build_marks_tests`).
 pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
     let (farm_rows, farm_len) = p.farm.rows();
     let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len]), true);

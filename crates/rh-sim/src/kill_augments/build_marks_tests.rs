@@ -1,7 +1,11 @@
 //! The overhead build marks (ADR0026, B2) against the legacy formula: `parity/build-marks/legacy.json`, written by
 //! `parity/legacy-capture/build-marks.ts` from `packages/shared/src/combatReadability.ts` (display mode). Each case gives
-//! the public inputs (faction, cards, decoded mirrors, max hp, kill stats); the Rust scores must equal the legacy
-//! `investedStats` bit for bit and the marks must be its first two keys.
+//! the public inputs (faction, cards, decoded mirrors, max hp, kill stats, mob kill stacks as farm rows); the Rust scores
+//! must equal the legacy `investedStats` bit for bit and the marks must be its first two keys.
+//!
+//! Known deviation (proposed DEVIATIONS row): legacy `cardLeech` adds Holy's camp lifesteal (`holyCampLifestealOf`,
+//! 0.005 per eligible camp clear). The Rust sim has no such passive, so a Holy case with camp clears is compared with the
+//! legacy result at zero clears (`withoutCampClears`), and the test pins that the legacy marks differ.
 use super::{invested_scores, top_two, KillStatKey, KillStats, Readable};
 use crate::cards::{Build, CardId};
 use crate::stat_fold::StatMirrors;
@@ -60,17 +64,37 @@ fn build_marks_match_the_legacy_readability_formula() {
         for (k, v) in case["killStats"].as_object().unwrap() {
             kill.add(key(k), v.as_f64().unwrap());
         }
-        // No mob stats in the capture: the farm rows are empty (kill stats are read as stored values, as in the source).
+        // Mob kill stacks fold as farm rows (legacy `mobStatRows`); kill stats are read as stored values, as in the source.
+        let mut farm = crate::modifiers::Farm::default();
+        for (mob, n) in case["mobStats"].as_object().unwrap() {
+            let id = crate::mob_catalog::MobTypeId::ALL
+                .into_iter()
+                .find(|m| m.as_str() == mob)
+                .unwrap_or_else(|| panic!("{name}: mob {mob}"));
+            farm.set(id, n.as_u64().unwrap());
+        }
+        let (farm_rows, farm_len) = farm.rows();
         let r = Readable {
             build: &build,
             faction: faction(case["faction"].as_str().unwrap()),
             mirrors,
             max_hp: case["maxHp"].as_f64().unwrap(),
-            farm_rows: &[],
+            farm_rows: &farm_rows[..farm_len],
             kill: &kill,
         };
         let scores = invested_scores(&r, false);
-        let want: Vec<(KillStatKey, f64)> = case["invested"]
+        let camp_clears = case["campClears"].as_u64().unwrap();
+        // The Rust sim has no Holy camp-lifesteal passive: compare with legacy at zero clears, and pin the gap.
+        let expected = if camp_clears > 0 {
+            assert_ne!(
+                case["marks"], case["withoutCampClears"]["marks"],
+                "{name}: the camp-clear case shows the deviation"
+            );
+            &case["withoutCampClears"]
+        } else {
+            case
+        };
+        let want: Vec<(KillStatKey, f64)> = expected["invested"]
             .as_array()
             .unwrap()
             .iter()
@@ -97,7 +121,7 @@ fn build_marks_match_the_legacy_readability_formula() {
                 );
             }
         }
-        let marks: Vec<KillStatKey> = case["marks"]
+        let marks: Vec<KillStatKey> = expected["marks"]
             .as_array()
             .unwrap()
             .iter()

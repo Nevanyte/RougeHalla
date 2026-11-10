@@ -26,8 +26,14 @@
       },
       "maxHp": 950,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [],
-      "marks": []
+      "marks": [],
+      "withoutCampClears": {
+        "invested": [],
+        "marks": []
+      }
     },
     {
       "name": "offense_and_defense",
@@ -55,6 +61,8 @@
       },
       "maxHp": 1085,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "ad",
@@ -68,7 +76,23 @@
       "marks": [
         "ad",
         "armor"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "ad",
+            "score": 2
+          },
+          {
+            "key": "armor",
+            "score": 1
+          }
+        ],
+        "marks": [
+          "ad",
+          "armor"
+        ]
+      }
     },
     {
       "name": "tie_keeps_key_order",
@@ -97,6 +121,8 @@
       },
       "maxHp": 1020,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "ad",
@@ -110,7 +136,23 @@
       "marks": [
         "ad",
         "ap"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "ad",
+            "score": 1
+          },
+          {
+            "key": "ap",
+            "score": 1
+          }
+        ],
+        "marks": [
+          "ad",
+          "ap"
+        ]
+      }
     },
     {
       "name": "damage_and_leech_cards",
@@ -140,6 +182,8 @@
       },
       "maxHp": 858.75,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "damage",
@@ -161,7 +205,31 @@
       "marks": [
         "damage",
         "leech"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "damage",
+            "score": 35
+          },
+          {
+            "key": "leech",
+            "score": 5
+          },
+          {
+            "key": "speed",
+            "score": 2.0000000000000018
+          },
+          {
+            "key": "attackSpeed",
+            "score": 1.9999999999999993
+          }
+        ],
+        "marks": [
+          "damage",
+          "leech"
+        ]
+      }
     },
     {
       "name": "health_speed",
@@ -190,6 +258,8 @@
       },
       "maxHp": 1162.3,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "speed",
@@ -203,7 +273,23 @@
       "marks": [
         "speed",
         "health"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "speed",
+            "score": 5.000000000000001
+          },
+          {
+            "key": "health",
+            "score": 1.9999999999999993
+          }
+        ],
+        "marks": [
+          "speed",
+          "health"
+        ]
+      }
     },
     {
       "name": "below_threshold",
@@ -229,8 +315,14 @@
       },
       "maxHp": 950,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [],
-      "marks": []
+      "marks": [],
+      "withoutCampClears": {
+        "invested": [],
+        "marks": []
+      }
     },
     {
       "name": "attack_speed_soul_defense",
@@ -259,6 +351,8 @@
       },
       "maxHp": 1202.25,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "damage",
@@ -280,7 +374,31 @@
       "marks": [
         "damage",
         "attackSpeed"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "damage",
+            "score": 20
+          },
+          {
+            "key": "attackSpeed",
+            "score": 5
+          },
+          {
+            "key": "mr",
+            "score": 2.6666666666666665
+          },
+          {
+            "key": "health",
+            "score": 0.555555555555556
+          }
+        ],
+        "marks": [
+          "damage",
+          "attackSpeed"
+        ]
+      }
     },
     {
       "name": "kill_stats",
@@ -309,6 +427,8 @@
         "damage": 0.05,
         "lifesteal": 0.02
       },
+      "mobStats": {},
+      "campClears": 0,
       "invested": [
         {
           "key": "damage",
@@ -326,7 +446,158 @@
       "marks": [
         "damage",
         "ap"
-      ]
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "damage",
+            "score": 5
+          },
+          {
+            "key": "ap",
+            "score": 0.5
+          },
+          {
+            "key": "leech",
+            "score": 0.39999999999999997
+          }
+        ],
+        "marks": [
+          "damage",
+          "ap"
+        ]
+      }
+    },
+    {
+      "name": "mob_stats_farm_rows",
+      "faction": "sentenced",
+      "cards": {
+        "leech1": 1
+      },
+      "mirrors": {
+        "asMult": 1,
+        "windupMult": 1,
+        "speedMult": 1,
+        "armorBonus": 5,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+      },
+      "wire": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 50,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+      },
+      "maxHp": 1085,
+      "killStats": {},
+      "mobStats": {
+        "emberImp": 9,
+        "acolyte": 6,
+        "rotMonk": 4,
+        "plagueRat": 2
+      },
+      "campClears": 0,
+      "invested": [
+        {
+          "key": "damage",
+          "score": 9
+        },
+        {
+          "key": "leech",
+          "score": 1.5000000000000002
+        },
+        {
+          "key": "armor",
+          "score": 0.3333333333333333
+        }
+      ],
+      "marks": [
+        "damage",
+        "leech"
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "damage",
+            "score": 9
+          },
+          {
+            "key": "leech",
+            "score": 1.5000000000000002
+          },
+          {
+            "key": "armor",
+            "score": 0.3333333333333333
+          }
+        ],
+        "marks": [
+          "damage",
+          "leech"
+        ]
+      }
+    },
+    {
+      "name": "holy_camp_clears",
+      "faction": "holy",
+      "cards": {
+        "leech1": 1
+      },
+      "mirrors": {
+        "asMult": 1,
+        "windupMult": 1,
+        "speedMult": 1,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 18,
+        "apBonus": 0
+      },
+      "wire": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 180,
+        "apBonus": 0
+      },
+      "maxHp": 1145,
+      "killStats": {},
+      "mobStats": {},
+      "campClears": 20,
+      "invested": [
+        {
+          "key": "leech",
+          "score": 3.0000000000000004
+        },
+        {
+          "key": "ad",
+          "score": 1.5
+        }
+      ],
+      "marks": [
+        "leech",
+        "ad"
+      ],
+      "withoutCampClears": {
+        "invested": [
+          {
+            "key": "ad",
+            "score": 1.5
+          },
+          {
+            "key": "leech",
+            "score": 1
+          }
+        ],
+        "marks": [
+          "ad",
+          "leech"
+        ]
+      }
     },
     {
       "name": "negative_mirrors_ignored",
@@ -352,8 +623,14 @@
       },
       "maxHp": 510,
       "killStats": {},
+      "mobStats": {},
+      "campClears": 0,
       "invested": [],
-      "marks": []
+      "marks": [],
+      "withoutCampClears": {
+        "invested": [],
+        "marks": []
+      }
     }
   ]
 }
