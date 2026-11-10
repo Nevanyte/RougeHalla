@@ -104,14 +104,14 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Sentenced: // the one muted zone: hazy harvest dusk
                     row.Name = "Sentenced";
-                    p.SunColor = Tint(key, .22f); p.LightScale = .8f; p.SunStrength = .2f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .5f;
+                    p.SunColor = Tint(key, .22f); p.LightScale = 1.25f; p.SunStrength = .24f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .5f) * .9f;
                     p.LightColor = Tint(Mix(amb, key, .55f), .15f);
-                    p.PostExposure = .08f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
+                    p.PostExposure = .6f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(amb, .2f); p.SplitBalance = -20f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .3f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .4f);
                     p.VignetteIntensity = .22f; p.Haze = A(fog, .13f);
                     row.Particles = ParticlePresetId.Dust; row.Music = "music_sentenced"; row.Ambience = "amb_sentenced";
-                    row.Accent = new AccentLightSpec { Lantern = true, Color = Mix(Tint(key, .8f), Tint(accent, .8f), .3f), Intensity = 1.7f, Radius = 4.6f, Flicker = .35f };   // iron lanterns: soft warm-cold pools of light
+                    row.Accent = new AccentLightSpec { Lantern = true, Color = Mix(Tint(key, .8f), Tint(accent, .8f), .3f), Intensity = 2.4f, Radius = 5.4f, Flicker = .35f };   // iron lanterns: soft warm-cold pools of light
                     break;
                 case RegionId.Plague:    // sickly teal-green, dim green-filtered light; spores
                     row.Name = "Plague";

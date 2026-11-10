@@ -1,0 +1,37 @@
+[
+ {
+  "url": "StreamingAssets/Audio/music_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 186
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 186
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.mp3",
+  "status": 200,
+  "afterMatchStartMs": 197
+ },
+ {
+  "url": "StreamingAssets/Audio/music_sentenced.mp3",
+  "status": 200,
+  "afterMatchStartMs": 383
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_sentenced.mp3",
+  "status": 200,
+  "afterMatchStartMs": 383
+ },
+ {
+  "url": "StreamingAssets/Audio/music_holy.mp3",
+  "status": 200,
+  "afterMatchStartMs": 13330
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_holy.mp3",
+  "status": 200,
+  "afterMatchStartMs": 13331
+ }
+]
