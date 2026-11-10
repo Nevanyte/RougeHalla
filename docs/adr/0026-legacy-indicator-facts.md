@@ -31,7 +31,9 @@ block and weapon table were added the same way).
   declared `IfSeen(by)`, exactly as its swing.
 - Owner-only facts go only into the owner's own `SelfView` / head bits.
 - The roster (B3) is the one match-wide fact: names and bot flags of seated players, the same for every viewer, with no
-  position, faction, health or sight fact.
+  position, faction, health or sight fact. It does name a seated player who is hidden or out of sight (legacy's player
+  list and kill feed did too); two sim tests that compared a hidden player with an absent one now compare the scene
+  without the roster.
 
 ### 2. The facts
 

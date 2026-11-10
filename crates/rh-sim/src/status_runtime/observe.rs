@@ -220,10 +220,12 @@ mod tests {
         crate::status_runtime::apply(&mut hidden.w.players[1].statuses, now, apply);
         let mut absent = hidden.clone();
         absent.w.players.remove(PlayerId(2));
-        assert_eq!(
-            crate::observe(&hidden, PlayerId(1), &[]),
-            crate::observe(&absent, PlayerId(1), &[])
-        );
+        // A hidden player stays seated (the match-wide roster, ADR0026, names it); everything else equals its absence.
+        let scene = |s: &crate::Sim| crate::Observation {
+            roster: Vec::new(),
+            ..crate::observe(s, PlayerId(1), &[])
+        };
+        assert_eq!(scene(&hidden), scene(&absent));
         crate::status_runtime::reveal(&mut hidden.w.players[1].statuses, now, now + 500.);
         hidden.w.server_time += crate::constants::TICK_MS;
         hidden.w.tick += 1;

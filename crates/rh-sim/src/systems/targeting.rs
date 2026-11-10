@@ -423,10 +423,12 @@ mod tests {
                 b.player(viewer).unwrap().vision,
                 "tick {tick}"
             );
-            assert_eq!(
-                crate::observe(&a, viewer, &[]),
-                crate::observe(&b, viewer, &[])
-            );
+            // The two worlds seat different players, so only the match-wide roster (ADR0026) may differ.
+            let scene = |s: &Sim| crate::Observation {
+                roster: Vec::new(),
+                ..crate::observe(s, viewer, &[])
+            };
+            assert_eq!(scene(&a), scene(&b));
             if tick == 604 {
                 assert!(!a.can_see_point(viewer, Vec2::new(1712., 48.)));
                 for y in 0..52 {
