@@ -61,6 +61,16 @@ namespace Roguehalla.Net
         /// <summary>The single switch. False draws exactly what <see cref="SnapshotBuffer.Sample"/> returns and leaves attack times alone.</summary>
         public bool Enabled;
 
+        /// <summary>
+        /// The target pose (before the speed-capped follower) of a remote player at the last <see cref="Sample"/>: the interpolated,
+        /// held or extrapolated pose the follower chases. False for an actor that was not drawn then. Test and diagnostic read only.
+        /// </summary>
+        internal bool TryGetTarget(uint id, out float x, out float y)
+        {
+            if (_state.TryGetValue(id, out State s) && s.Frame == _frame) { x = s.TX; y = s.TY; return true; }
+            x = y = 0; return false;
+        }
+
         sealed class State
         {
             public float X, Y, TX, TY;
@@ -77,12 +87,12 @@ namespace Roguehalla.Net
         readonly List<Walk> _walk = new List<Walk>();
         readonly List<uint> _stale = new List<uint>();
         double _walkFor = double.NaN, _lastRender = double.NaN;
-        int _frame;
+        int _frame, _walkRev = -1;
 
         public RemoteDraw(SnapshotBuffer snaps) { _snaps = snaps; }
 
         /// <summary>Forget all per-actor state (new match, source-clock cut).</summary>
-        public void Reset() { _state.Clear(); _walk.Clear(); _walkFor = double.NaN; _lastRender = double.NaN; }
+        public void Reset() { _state.Clear(); _walk.Clear(); _walkFor = double.NaN; _walkRev = -1; _lastRender = double.NaN; }
 
         /// <summary>
         /// The render time attacks report (the aiming policy): the time remote players are drawn at. Inside the buffer that is
@@ -182,12 +192,13 @@ namespace Roguehalla.Net
             return true;
         }
 
-        // Last-segment velocity per player, recomputed only when a new snapshot arrived. The three samples are the newest pose and
+        // Last-segment velocity per player, recomputed only when the buffer changed (a new snapshot, or a replacement at the same time). The three samples are the newest pose and
         // the poses one and two ticks earlier; a displaced actor is held at its new pose by Sample, so its step is zero (no lead).
         void RefreshWalk(double newest)
         {
-            if (newest == _walkFor) return;
-            _walkFor = newest;
+            // Keyed on the buffer's revision as well as the time: a same-time replacement (a requested Full) changes the poses.
+            if (newest == _walkFor && _snaps.Revision == _walkRev) return;
+            _walkFor = newest; _walkRev = _snaps.Revision;
             _walk.Clear();
             _snaps.Sample(newest, _n0);
             // A hair before the tick so the pose and its status come from the earlier snapshot of the pair, not the newest.

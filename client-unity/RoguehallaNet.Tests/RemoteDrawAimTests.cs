@@ -123,11 +123,11 @@ namespace Roguehalla.Net.Tests
             var buf = new SnapshotBuffer();
             var rd = new RemoteDraw(buf) { Enabled = true };
             for (int k = 0; k <= 20; k++) buf.Add(Snap(k, Walk(k * 50.0).x, 50));
+            Assert.LessOrEqual(RemoteDraw.LeadMs, Wire.TickMs, "one lead is at most one tick, the server's least distance from a snapshot to its apply time");
             foreach (double r in new[] { 0.0, 900, 949.9, 950, 980, 1000, 1200, 5000 })
             {
                 double t = rd.AttackTime(r);
-                Assert.LessOrEqual(t, buf.NewestMs + RemoteDraw.LeadMs, "at most one lead past the newest snapshot");
-                Assert.LessOrEqual(t, buf.NewestMs + Wire.TickMs, "so never past now_apply (no future-edge clamp)");
+                Assert.LessOrEqual(t, buf.NewestMs + Wire.TickMs, "at most one lead past the newest snapshot, so never past now_apply (no future-edge clamp)");
                 Assert.GreaterOrEqual(t, Math.Min(r, buf.NewestMs), "never older than what is drawn");
             }
         }
@@ -155,10 +155,10 @@ namespace Roguehalla.Net.Tests
         }
 
         /// <summary>Snapshot k (server 50k) reaches the client at 50k + down + jitter; the press reaches the server up ms later.</summary>
-        static (double mean, double max, double oldMean, double maxDt) Replay(Path truth, double up, double down, double jitter)
+        static (double mean, double max, double oldMean, double maxDt, double targetMax) Replay(Path truth, double up, double down, double jitter)
         {
             var buf = new SnapshotBuffer(); var rd = new RemoteDraw(buf) { Enabled = true }; var o = new List<InterpActor>();
-            var rng = new Random(3); int next = 0; double sum = 0, max = 0, oldSum = 0, maxDt = 0; int n = 0;
+            var rng = new Random(3); int next = 0; double sum = 0, max = 0, oldSum = 0, maxDt = 0, targetMax = 0; int n = 0;
             var lag = new double[200]; for (int i = 0; i < lag.Length; i++) lag[i] = down + rng.NextDouble() * jitter;
             for (double now = 0; now < 6000; now += Frame)
             {
@@ -170,11 +170,15 @@ namespace Roguehalla.Net.Tests
                 double nowApply = Math.Floor((now + up) / 50.0) * 50 + 50;
                 double rewind = ServerRewind(rd.AttackTime(render), nowApply);
                 double e = Dist(o[0], Judged(truth, rewind));
+                // The pose the follower chases (before its speed cap) against the pose the server would judge.
+                if (!rd.TryGetTarget(o[0].Id, out float tgx, out float tgy)) throw new InvalidOperationException("no target for the drawn player");
+                var jp = Judged(truth, rewind);
+                targetMax = Math.Max(targetMax, Math.Sqrt(Math.Pow(tgx - jp.x, 2) + Math.Pow(tgy - jp.y, 2)));
                 double old = Dist(o[0], Judged(truth, ServerRewind(Math.Max(render, Math.Min(render + RemoteDraw.LeadMs, buf.NewestMs)), nowApply)));
                 sum += e; oldSum += old; max = Math.Max(max, e); n++;
                 maxDt = Math.Max(maxDt, Math.Abs(rewind - buf.NewestMs) > RemoteDraw.LeadMs ? Math.Abs(rewind - (render + RemoteDraw.LeadMs)) : 0);
             }
-            return (sum / n, max, oldSum / n, maxDt);
+            return (sum / n, max, oldSum / n, maxDt, targetMax);
         }
 
         [Test]
@@ -188,7 +192,8 @@ namespace Roguehalla.Net.Tests
                 foreach (var tr in new (string, Path)[] { ("walk", Walk), ("stop", stop), ("reverse", reverse), ("circle", circle), ("zigzag", zigzag) })
                 {
                     var r = Replay(tr.Item2, link.Item1, link.Item2, link.Item3);
-                    TestContext.Out.WriteLine($"{tr.Item1,-8} up {link.Item1} down {link.Item2} jitter {link.Item3}: mean {r.mean:F2} max {r.max:F2} (stamp capped at newest: mean {r.oldMean:F2})");
+                    TestContext.Out.WriteLine($"{tr.Item1,-8} up {link.Item1} down {link.Item2} jitter {link.Item3}: mean {r.mean:F2} max {r.max:F2} target-only max {r.targetMax:F2} (stamp capped at newest: mean {r.oldMean:F2})");
+                    Assert.LessOrEqual(r.targetMax, RemoteDraw.AimTargetErrorBound((float)Speed) + 1e-3, tr.Item1 + ": pre-follower target vs judged pose");
                     Assert.LessOrEqual(r.max, TargetBoundAtWalk + FollowLag, tr.Item1);
                     Assert.LessOrEqual(r.mean, r.oldMean + 1e-6, tr.Item1 + ": never worse on average than the newest-capped stamp");
                     if (link.Item1 > 0 && (tr.Item1 == "walk" || tr.Item1 == "circle")) Assert.Less(r.mean, 0.5, tr.Item1 + ": judged where drawn");

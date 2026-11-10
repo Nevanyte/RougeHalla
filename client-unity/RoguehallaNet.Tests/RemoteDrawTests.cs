@@ -113,6 +113,27 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void ReplacingTheNewestSnapshotAtTheSameTimeRecomputesTheWalk()
+        {
+            // A requested Full repairs the current tick (Session passes replaceCurrentTick): same Tick, same ServerMs, other content.
+            var buf = new SnapshotBuffer();
+            var rd = new RemoteDraw(buf) { Enabled = true };
+            for (int k = 0; k <= 20; k++) buf.Add(Snap(k, Act(7, 100 + 8.5f * k, 50)));
+            var o = new List<InterpActor>();
+            rd.Sample(980, o);
+            Assert.True(rd.TryGetTarget(7, out float tx, out _));
+            Assert.AreEqual(100 + 8.5f * 20 + 170 * 0.030f, tx, 1e-3, "a steady walk is extrapolated 30 ms past the newest snapshot");
+            double newest = buf.NewestMs;
+            // The repaired newest pose turns the walker 90 degrees: no lead may be drawn from the old direction.
+            Assert.True(buf.Add(Snap(20, Act(7, 100 + 8.5f * 19, 50 + 8.5f)), true));
+            Assert.AreEqual(newest, buf.NewestMs);
+            rd.Sample(985, o);
+            Assert.True(rd.TryGetTarget(7, out tx, out float ty));
+            Assert.AreEqual(100 + 8.5f * 19, tx, 1e-3, "held at the replaced pose, not led along the old walk");
+            Assert.AreEqual(50 + 8.5f, ty, 1e-3);
+        }
+
+        [Test]
         public void ASharpTurnGetsNoExtrapolation()
         {
             var buf = new SnapshotBuffer();

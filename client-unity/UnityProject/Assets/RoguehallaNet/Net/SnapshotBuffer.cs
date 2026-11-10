@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Roguehalla.Net.Protocol;
+
+[assembly: InternalsVisibleTo("RoguehallaNet.Tests")]
 
 namespace Roguehalla.Net
 {
@@ -44,7 +47,10 @@ namespace Roguehalla.Net
         public double NewestMs { get { return _snaps.Count == 0 ? double.NaN : _snaps[_snaps.Count - 1].ServerMs; } }
         public double OldestMs { get { return _snaps.Count == 0 ? double.NaN : _snaps[0].ServerMs; } }
 
-        public void Clear() { _snaps.Clear(); }
+        /// <summary>Bumped by every change to the buffer's contents, including a same-time replacement, so caches keyed on time can tell.</summary>
+        internal int Revision { get; private set; }
+
+        public void Clear() { _snaps.Clear(); Revision++; }
 
         /// <summary>Adds a snapshot; one that is not newer than the newest (duplicate or reordered) is ignored.</summary>
         public bool Add(ServerMsg.Snapshot s)
@@ -53,6 +59,13 @@ namespace Roguehalla.Net
         }
 
         internal bool Add(ServerMsg.Snapshot s, bool replaceCurrentTick)
+        {
+            bool added = AddCore(s, replaceCurrentTick);
+            if (added) Revision++;
+            return added;
+        }
+
+        bool AddCore(ServerMsg.Snapshot s, bool replaceCurrentTick)
         {
             if (replaceCurrentTick && Newest != null && Newest.Tick == s.Tick)
             {
