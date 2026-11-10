@@ -36,6 +36,26 @@ async function lumaStats(page, buf) {
   }, buf.toString('base64'));
 }
 
+// Character separation check at full resolution: the local player is drawn at the screen centre (feet near 960,630 at 1920x1080), its hp bar
+// and faction mark just above. For a sprite window and a marker window, compare the darkest and brightest 5% of the window (outline and light
+// rim included) with the median of the ground ring around it; report the WCAG ratio of the better of the two.
+async function contrastStats(page, buf) {
+  return page.evaluate(async b64 => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const sx = img.width / 1920, sy = img.height / 1080;
+    const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lum = (r, gg, b) => 0.2126 * lin(r) + 0.7152 * lin(gg) + 0.0722 * lin(b);
+    const win = (x0, y0, x1, y1) => { const X0 = Math.round(x0 * sx), Y0 = Math.round(y0 * sy), W = Math.round((x1 - x0) * sx), H = Math.round((y1 - y0) * sy); const d = g.getImageData(X0, Y0, W, H).data, o = []; for (let i = 0; i < d.length; i += 4) o.push(lum(d[i], d[i + 1], d[i + 2])); return o; };
+    const ring = (x0, y0, x1, y1, a, b) => { const o = []; const full = win(x0 - b, y0 - b, x1 + b, y1 + b), W = Math.round((x1 - x0 + 2 * b) * sx);
+      for (let i = 0; i < full.length; i++) { const x = (i % W) / sx - b + x0, y = Math.floor(i / W) / sy - b + y0; if (x < x0 - a || x > x1 + a || y < y0 - a || y > y1 + a) o.push(full[i]); } return o; };
+    const measure = (r) => { const inner = win(...r).sort((p, q) => p - q), ground = ring(...r, 14, 60).sort((p, q) => p - q); const med = ground[Math.floor(ground.length / 2)];
+      const dark = inner[Math.floor(inner.length * 0.05)], light = inner[Math.floor(inner.length * 0.95)];
+      const rd = (med + 0.05) / (dark + 0.05), rl = (light + 0.05) / (med + 0.05); return { ground: +med.toFixed(3), darkEdge: +rd.toFixed(2), lightEdge: +rl.toFixed(2), contrast: +Math.max(rd, rl).toFixed(2) }; };
+    return { sprite: measure([928, 540, 992, 640]), bar: measure([922, 492, 998, 508]) };
+  }, buf.toString('base64'));
+}
+
 async function session(faction, label, body) {
   const browser = await chromium.launch({ headless: false, args: ['--use-gl=angle', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
@@ -60,8 +80,8 @@ async function session(faction, label, body) {
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
   const shot = async name => {
     const f = path.join(outDir, `${tag}${regionNow}-${name}.png`); const buf = await page.screenshot({ path: f });
-    const st = await lumaStats(page, buf); lumas.push({ shot: `${tag}${regionNow}-${name}`, region: regionNow, ...st });
-    console.log('  wrote', path.relative(repo, f), `luma mean=${st.mean} p95=${st.p95} clipped(>0.9)=${st.clipped}%`);
+    const st = await lumaStats(page, buf); const ct = await contrastStats(page, buf); st.contrast = ct; lumas.push({ shot: `${tag}${regionNow}-${name}`, region: regionNow, ...st });
+    console.log('  wrote', path.relative(repo, f), `luma mean=${st.mean} p95=${st.p95} clipped(>0.9)=${st.clipped}% sprite-contrast=${ct.sprite.contrast} bar-contrast=${ct.bar.contrast}`);
   };
   await body(page, shot);
   fs.writeFileSync(path.join(outDir, `${label}-network-audio.json`), JSON.stringify(audio, null, 1));

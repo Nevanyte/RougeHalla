@@ -21,6 +21,23 @@ namespace Roguehalla.Client
             return ContactLength + ActorHeight * .85f * Mathf.Clamp01(sunStrength) * Mathf.Max(0f, lengthFactor);
         }
 
+        /// <summary>Pure: rim opacity for a ground of the given relative luminance (0 black .. 1 white): strong on dark ground, faint on light ground.</summary>
+        public static float RimAlpha(float groundLuma) { return Mathf.Lerp(.16f, .78f, 1f - Mathf.Clamp01(groundLuma * 1.5f)); }
+
+        /// <summary>Character separation: the soft light rim outside the dark outline, tuned to the ground under the actor (palette base luminance blended by region weights).</summary>
+        public static void ApplyRim(SpriteRenderer rim, float tileX, float tileY, float scale)
+        {
+            if (rim == null) return;
+            float luma = .5f;
+            if (Field != null && Field.Ready)
+            {
+                Field.Sample(tileX, tileY, W); luma = 0f;
+                for (int k = 0; k < RegionField.Regions; k++)
+                { var c = RegionPaletteGenerated.Srgb[k + 1][RegionPaletteGenerated.Base]; luma += W[k] * (.2126f * c.r + .7152f * c.g + .0722f * c.b) / 255f; }
+            }
+            rim.color = new Color(.92f, .94f, 1f, RimAlpha(luma) * Mathf.Clamp01(scale));
+        }
+
         public static void ApplyActor(SpriteRenderer shadow, float tileX, float tileY)
         {
             if (shadow == null) return;

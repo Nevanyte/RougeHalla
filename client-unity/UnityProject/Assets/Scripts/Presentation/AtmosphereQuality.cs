@@ -47,7 +47,7 @@ namespace Roguehalla.Client
         /// <summary>Light shafts (god rays) in Holy and Plague: cheap pre-baked soft quads aligned with the one sun direction. Off for reduced motion with the other particles.</summary>
         public static bool Rays = true;
         /// <summary>Single world-brightness scalar (1 = as authored): multiplies the global light, so ground, walls, props and actors move together. Clamped 0.4 to 1.6; <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>, <c>?fx.quality=high</c>.</summary>
-        public static float WorldBrightness = 1f;
+        public static float WorldBrightness = .9f;   // the browser build renders a little brighter than the editor: tuned against web screenshots
         public const float MinBrightness = .4f, MaxBrightness = 1.6f;
 
         /// <summary>Raised after any change made through this class, so effects re-read the switchboard (not per frame).</summary>

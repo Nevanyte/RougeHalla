@@ -32,17 +32,17 @@ namespace Roguehalla.Client
                 new[] { 0.52f, 0.09f, 45f }, // Fog
             },
             new[] { // 2 sentenced
-                new[] { 0.58f, 0.028f, 292f }, // Base
-                new[] { 0.36f, 0.036f, 70f }, // Secondary
-                new[] { 0.38f, 0.13f, 300f }, // Accent
+                new[] { 0.36f, 0.022f, 292f }, // Base
+                new[] { 0.22f, 0.03f, 70f }, // Secondary
+                new[] { 0.62f, 0.13f, 300f }, // Accent
                 new[] { 0.84f, 0.07f, 72f }, // Key
                 new[] { 0.55f, 0.035f, 290f }, // Ambient
                 new[] { 0.32f, 0.05f, 305f }, // Shadow
                 new[] { 0.7f, 0.03f, 80f }, // Fog
             },
             new[] { // 3 plague
-                new[] { 0.58f, 0.085f, 170f }, // Base
-                new[] { 0.36f, 0.09f, 150f }, // Secondary
+                new[] { 0.52f, 0.085f, 170f }, // Base
+                new[] { 0.3f, 0.07f, 150f }, // Secondary
                 new[] { 0.86f, 0.2f, 128f }, // Accent
                 new[] { 0.9f, 0.1f, 150f }, // Key
                 new[] { 0.55f, 0.07f, 185f }, // Ambient
@@ -99,17 +99,17 @@ namespace Roguehalla.Client
                 new Color32(147, 87, 59, 255), // Fog
             },
             new[] { // 2 sentenced
-                new Color32(122, 120, 138, 255), // Base
-                new Color32(73, 58, 40, 255), // Secondary
-                new Color32(78, 44, 124, 255), // Accent
+                new Color32(61, 59, 72, 255), // Base
+                new Color32(36, 24, 10, 255), // Secondary
+                new Color32(147, 114, 200, 255), // Accent
                 new Color32(231, 196, 153, 255), // Key
                 new Color32(113, 110, 133, 255), // Ambient
                 new Color32(57, 44, 71, 255), // Shadow
                 new Color32(168, 157, 138, 255), // Fog
             },
             new[] { // 3 plague
-                new Color32(62, 139, 115, 255), // Base
-                new Color32(13, 74, 34, 255), // Secondary
+                new Color32(42, 121, 97, 255), // Base
+                new Color32(13, 55, 26, 255), // Secondary
                 new Color32(171, 232, 65, 255), // Accent
                 new Color32(174, 241, 187, 255), // Key
                 new Color32(59, 127, 119, 255), // Ambient

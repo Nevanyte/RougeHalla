@@ -114,6 +114,19 @@ namespace Roguehalla.Client.Tests
             AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, true); Assert.AreEqual(0, ParticlePresets.Budget(ParticlePresetId.Pollen, AtmosphereQuality.ParticleDensity), "reduced motion: no rays");
         }
 
+        [Test] public void CharacterRimIsStrongOnDarkGroundAndFaintOnLight()
+        {
+            float dark = AtmosphereShadows.RimAlpha(.05f), light = AtmosphereShadows.RimAlpha(.85f);
+            Assert.Greater(dark, light); Assert.GreaterOrEqual(dark, .6f); Assert.LessOrEqual(light, .3f);
+            float prev = 2f; for (float l = 0; l <= 1f; l += .1f) { float a = AtmosphereShadows.RimAlpha(l); Assert.LessOrEqual(a, prev + 1e-5f); prev = a; }
+            foreach (int r in new[] { 1, 2, 3, 4, 5, 6 })
+            {
+                var c = RegionPaletteGenerated.Srgb[r][RegionPaletteGenerated.Base]; float luma = (.2126f * c.r + .7152f * c.g + .0722f * c.b) / 255f;
+                Assert.Greater(AtmosphereShadows.RimAlpha(luma), .1f, "region " + r);
+            }
+            Assert.Greater(AtmosphereShadows.RimAlpha((.2126f * RegionPaletteGenerated.Srgb[2][0].r + .7152f * RegionPaletteGenerated.Srgb[2][0].g + .0722f * RegionPaletteGenerated.Srgb[2][0].b) / 255f), .5f, "sentenced charcoal ground gets a strong light rim");
+        }
+
         [Test] public void LanternsAreCullableLightSites()
         {
             var pl = new AccentLightPlanner(); for (int i = 0; i < 40; i++) pl.AddLantern(10 + (i % 8) * 18, 10 + (i / 8) * 30, 1f);
