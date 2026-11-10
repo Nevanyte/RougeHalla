@@ -1212,8 +1212,9 @@ pub(crate) struct ReplayedOp {
     pub(crate) services: Vec<(String, BVal)>,
     pub(crate) trace: BVal,
     pub(crate) expected: ExpectedOp,
-    /// True when [`compare_trace`] matched the frozen transcript exactly; false only for the declared motor/lapse
-    /// intra-hand-call ordering limitation, whose per-lane order/counts were still compared exactly.
+    /// True when the comparator matched the frozen transcript exactly: one exact global ordered transcript, with no
+    /// per-lane reordering allowance. The only declared non-exact surface is [`DECLARED_OBJECT_ORDER_LIMITATION`]
+    /// (plain-object property-order), reported through [`ReplayedCase::limitations`].
     pub(crate) trace_exact: bool,
     /// The first genuine transcript mismatch (empty trace compare passes are `None`).
     trace_mismatch: Option<String>,
