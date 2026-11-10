@@ -123,11 +123,11 @@ const CASES: &[Case] = &[
     },
     Case {
         name: "wand-weapon-swap",
-        description: "a weapon swap during the cast cancels it without any cancel fx: only the self block's weapon changes",
+        description: "a weapon swap while the release pause is running cancels the cast without any cancel fx: only the self block's weapon changes",
         walk: "corner-a",
         weapon: WeaponId::Wand,
         other: Some(WeaponId::Sword),
-        script: &[(12, Cmd::Attack), (13, Cmd::Release), (16, Cmd::Swap)],
+        script: &[(12, Cmd::Attack), (13, Cmd::Release), (19, Cmd::Swap)],
         foe: None,
         rows: 60,
     },

@@ -5595,11 +5595,11 @@
           "kind": "release"
         },
         {
-          "afterRow": 16,
+          "afterRow": 19,
           "kind": "swap"
         }
       ],
-      "description": "a weapon swap during the cast cancels it without any cancel fx: only the self block's weapon changes",
+      "description": "a weapon swap while the release pause is running cancels the cast without any cancel fx: only the self block's weapon changes",
       "goal": [
         2068.4722370514646,
         848.5485591022298
@@ -5893,48 +5893,48 @@
           "fx": [],
           "moveMult": 1,
           "moveSeq": 1,
-          "readyInMs": 1060.1010101010102,
+          "readyInMs": 810.1010101010102,
           "row": 17,
           "step": 8.499999999999982,
           "t": 900.0,
           "tick": 18,
-          "truthAction": null,
-          "truthLandsAt": null,
-          "weapon": 0,
+          "truthAction": "Cast",
+          "truthLandsAt": 1150.0,
+          "weapon": 2,
           "x": 2068.8044630912045,
           "y": 1026.7154945378466
         },
         {
           "effects": 0,
           "fx": [],
-          "moveMult": 1,
+          "moveMult": 0,
           "moveSeq": 1,
-          "readyInMs": 1010.1010101010102,
+          "readyInMs": 760.1010101010102,
           "row": 18,
-          "step": 8.49999999999996,
+          "step": 0.0,
           "t": 950.0,
           "tick": 19,
-          "truthAction": null,
-          "truthLandsAt": null,
-          "weapon": 0,
-          "x": 2077.2622973644466,
-          "y": 1025.8698945104272
+          "truthAction": "Cast",
+          "truthLandsAt": 1150.0,
+          "weapon": 2,
+          "x": 2068.8044630912045,
+          "y": 1026.7154945378466
         },
         {
           "effects": 0,
           "fx": [],
-          "moveMult": 1,
+          "moveMult": 0,
           "moveSeq": 1,
-          "readyInMs": 960.1010101010102,
+          "readyInMs": 710.1010101010102,
           "row": 19,
-          "step": 8.499999999999982,
+          "step": 0.0,
           "t": 1000.0,
           "tick": 20,
-          "truthAction": null,
-          "truthLandsAt": null,
-          "weapon": 0,
-          "x": 2085.7201316376886,
-          "y": 1025.0242944830077
+          "truthAction": "Cast",
+          "truthLandsAt": 1150.0,
+          "weapon": 2,
+          "x": 2068.8044630912045,
+          "y": 1026.7154945378466
         },
         {
           "effects": 0,
@@ -5949,8 +5949,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2094.1779659109307,
-          "y": 1024.1786944555884
+          "x": 2077.2622973644466,
+          "y": 1025.8698945104272
         },
         {
           "effects": 0,
@@ -5959,14 +5959,14 @@
           "moveSeq": 1,
           "readyInMs": 860.1010101010102,
           "row": 21,
-          "step": 8.499999999999972,
+          "step": 8.499999999999982,
           "t": 1100.0,
           "tick": 22,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2102.6358001841727,
-          "y": 1023.3330944281689
+          "x": 2085.7201316376886,
+          "y": 1025.0242944830077
         },
         {
           "effects": 0,
@@ -5975,14 +5975,14 @@
           "moveSeq": 1,
           "readyInMs": 810.1010101010102,
           "row": 22,
-          "step": 8.499999999999972,
+          "step": 8.49999999999996,
           "t": 1150.0,
           "tick": 23,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2111.0936344574147,
-          "y": 1022.4874944007495
+          "x": 2094.1779659109307,
+          "y": 1024.1786944555884
         },
         {
           "effects": 0,
@@ -5997,8 +5997,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2119.551468730657,
-          "y": 1021.64189437333
+          "x": 2102.6358001841727,
+          "y": 1023.3330944281689
         },
         {
           "effects": 0,
@@ -6013,8 +6013,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2128.009303003899,
-          "y": 1020.7962943459106
+          "x": 2111.0936344574147,
+          "y": 1022.4874944007495
         },
         {
           "effects": 0,
@@ -6029,8 +6029,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2136.467137277141,
-          "y": 1019.9506943184912
+          "x": 2119.551468730657,
+          "y": 1021.64189437333
         },
         {
           "effects": 0,
@@ -6045,8 +6045,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2144.924971550383,
-          "y": 1019.1050942910717
+          "x": 2128.009303003899,
+          "y": 1020.7962943459106
         },
         {
           "effects": 0,
@@ -6061,8 +6061,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2153.382805823625,
-          "y": 1018.2594942636523
+          "x": 2136.467137277141,
+          "y": 1019.9506943184912
         },
         {
           "effects": 0,
@@ -6077,8 +6077,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2161.840640096867,
-          "y": 1017.4138942362329
+          "x": 2144.924971550383,
+          "y": 1019.1050942910717
         },
         {
           "effects": 0,
@@ -6093,8 +6093,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2170.298474370109,
-          "y": 1016.5682942088134
+          "x": 2153.382805823625,
+          "y": 1018.2594942636523
         },
         {
           "effects": 0,
@@ -6109,8 +6109,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2178.756308643351,
-          "y": 1015.722694181394
+          "x": 2161.840640096867,
+          "y": 1017.4138942362329
         },
         {
           "effects": 0,
@@ -6125,8 +6125,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2187.214142916593,
-          "y": 1014.8770941539746
+          "x": 2170.298474370109,
+          "y": 1016.5682942088134
         },
         {
           "effects": 0,
@@ -6141,8 +6141,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2195.671977189835,
-          "y": 1014.0314941265551
+          "x": 2178.756308643351,
+          "y": 1015.722694181394
         },
         {
           "effects": 0,
@@ -6157,8 +6157,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2204.129811463077,
-          "y": 1013.1858940991357
+          "x": 2187.214142916593,
+          "y": 1014.8770941539746
         },
         {
           "effects": 0,
@@ -6173,8 +6173,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2212.5876457363192,
-          "y": 1012.3402940717162
+          "x": 2195.671977189835,
+          "y": 1014.0314941265551
         },
         {
           "effects": 0,
@@ -6189,8 +6189,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2221.0454800095613,
-          "y": 1011.4946940442968
+          "x": 2204.129811463077,
+          "y": 1013.1858940991357
         },
         {
           "effects": 0,
@@ -6205,8 +6205,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2229.5033142828033,
-          "y": 1010.6490940168774
+          "x": 2212.5876457363192,
+          "y": 1012.3402940717162
         },
         {
           "effects": 0,
@@ -6221,8 +6221,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2237.9611485560454,
-          "y": 1009.8034939894579
+          "x": 2221.0454800095613,
+          "y": 1011.4946940442968
         },
         {
           "effects": 0,
@@ -6237,8 +6237,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2246.4189828292874,
-          "y": 1008.9578939620385
+          "x": 2229.5033142828033,
+          "y": 1010.6490940168774
         },
         {
           "effects": 0,
@@ -6253,6 +6253,38 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
+          "x": 2237.9611485560454,
+          "y": 1009.8034939894579
+        },
+        {
+          "effects": 0,
+          "fx": [],
+          "moveMult": 1,
+          "moveSeq": 1,
+          "readyInMs": 0.0,
+          "row": 40,
+          "step": 8.499999999999972,
+          "t": 2050.0,
+          "tick": 41,
+          "truthAction": null,
+          "truthLandsAt": null,
+          "weapon": 0,
+          "x": 2246.4189828292874,
+          "y": 1008.9578939620385
+        },
+        {
+          "effects": 0,
+          "fx": [],
+          "moveMult": 1,
+          "moveSeq": 1,
+          "readyInMs": 0.0,
+          "row": 41,
+          "step": 8.499999999999972,
+          "t": 2100.0,
+          "tick": 42,
+          "truthAction": null,
+          "truthLandsAt": null,
+          "weapon": 0,
           "x": 2254.8768171025295,
           "y": 1008.1122939346191
         },
@@ -6262,47 +6294,15 @@
           "moveMult": 1,
           "moveSeq": 1,
           "readyInMs": 0.0,
-          "row": 40,
-          "step": 7.567330072689278,
-          "t": 2050.0,
-          "tick": 41,
-          "truthAction": null,
-          "truthLandsAt": null,
-          "weapon": 0,
-          "x": 2256.0,
-          "y": 1000.6287824187692
-        },
-        {
-          "effects": 0,
-          "fx": [],
-          "moveMult": 1,
-          "moveSeq": 1,
-          "readyInMs": 0.0,
-          "row": 41,
-          "step": 8.5,
-          "t": 2100.0,
-          "tick": 42,
-          "truthAction": null,
-          "truthLandsAt": null,
-          "weapon": 0,
-          "x": 2256.0,
-          "y": 992.1287824187692
-        },
-        {
-          "effects": 0,
-          "fx": [],
-          "moveMult": 1,
-          "moveSeq": 1,
-          "readyInMs": 0.0,
           "row": 42,
-          "step": 8.5,
+          "step": 7.567330072689278,
           "t": 2150.0,
           "tick": 43,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 983.6287824187692
+          "y": 1000.6287824187692
         },
         {
           "effects": 0,
@@ -6318,7 +6318,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 975.1287824187692
+          "y": 992.1287824187692
         },
         {
           "effects": 0,
@@ -6334,7 +6334,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 966.6287824187692
+          "y": 983.6287824187692
         },
         {
           "effects": 0,
@@ -6350,7 +6350,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 958.1287824187692
+          "y": 975.1287824187692
         },
         {
           "effects": 0,
@@ -6366,7 +6366,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 949.6287824187692
+          "y": 966.6287824187692
         },
         {
           "effects": 0,
@@ -6382,7 +6382,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 941.1287824187692
+          "y": 958.1287824187692
         },
         {
           "effects": 0,
@@ -6398,7 +6398,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 932.6287824187692
+          "y": 949.6287824187692
         },
         {
           "effects": 0,
@@ -6414,7 +6414,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 924.1287824187692
+          "y": 941.1287824187692
         },
         {
           "effects": 0,
@@ -6430,7 +6430,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 915.6287824187692
+          "y": 932.6287824187692
         },
         {
           "effects": 0,
@@ -6446,7 +6446,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 907.1287824187692
+          "y": 924.1287824187692
         },
         {
           "effects": 0,
@@ -6462,7 +6462,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 898.6287824187692
+          "y": 915.6287824187692
         },
         {
           "effects": 0,
@@ -6478,7 +6478,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 890.1287824187692
+          "y": 907.1287824187692
         },
         {
           "effects": 0,
@@ -6494,7 +6494,7 @@
           "truthLandsAt": null,
           "weapon": 0,
           "x": 2256.0,
-          "y": 881.6287824187692
+          "y": 898.6287824187692
         },
         {
           "effects": 0,
@@ -6503,14 +6503,14 @@
           "moveSeq": 1,
           "readyInMs": 0.0,
           "row": 55,
-          "step": 7.319079019940503,
+          "step": 8.5,
           "t": 2800.0,
           "tick": 56,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2249.2234295797566,
-          "y": 878.8634594648241
+          "x": 2256.0,
+          "y": 890.1287824187692
         },
         {
           "effects": 0,
@@ -6519,14 +6519,14 @@
           "moveSeq": 1,
           "readyInMs": 0.0,
           "row": 56,
-          "step": 8.49999999999991,
+          "step": 8.5,
           "t": 2850.0,
           "tick": 57,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2240.840512303289,
-          "y": 877.4575085638683
+          "x": 2256.0,
+          "y": 881.6287824187692
         },
         {
           "effects": 0,
@@ -6535,14 +6535,14 @@
           "moveSeq": 1,
           "readyInMs": 0.0,
           "row": 57,
-          "step": 8.49999999999989,
+          "step": 7.319079019940503,
           "t": 2900.0,
           "tick": 58,
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2232.4575950268213,
-          "y": 876.0515576629125
+          "x": 2249.2234295797566,
+          "y": 878.8634594648241
         },
         {
           "effects": 0,
@@ -6557,8 +6557,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2224.0746777503537,
-          "y": 874.6456067619566
+          "x": 2240.840512303289,
+          "y": 877.4575085638683
         },
         {
           "effects": 0,
@@ -6573,8 +6573,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2215.691760473886,
-          "y": 873.2396558610009
+          "x": 2232.4575950268213,
+          "y": 876.0515576629125
         },
         {
           "effects": 0,
@@ -6589,8 +6589,8 @@
           "truthAction": null,
           "truthLandsAt": null,
           "weapon": 0,
-          "x": 2207.3088431974184,
-          "y": 871.833704960045
+          "x": 2224.0746777503537,
+          "y": 874.6456067619566
         }
       ],
       "start": [

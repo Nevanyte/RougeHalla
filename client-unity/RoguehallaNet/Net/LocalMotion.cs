@@ -35,7 +35,19 @@ namespace Roguehalla.Net
     /// <para>
     /// Authoritative displacement, death and revival immediately discard the predicted path, even with an order pending.
     /// Only the local walk is predicted. Attacks, HP, deaths, other actors and mobs are never predicted; hidden speed modifiers
-    /// (windup, roots, slows, terrain) are deliberately not guessed, so a server correction owns them (see <see cref="SpeedModifier"/>).
+    /// (roots, slows, terrain) are deliberately not guessed, so a server correction owns them (see <see cref="SpeedModifier"/>).
+    /// </para>
+    /// <para>
+    /// The one attack fact the walk mirrors is the server's attack pause (ADR 0008 amendment 2026-11-10; rh-sim
+    /// <c>move_multiplier</c>): the owner's walk stops for the whole wind-up of a swing and for the last
+    /// <see cref="RangedReleasePauseMs"/> before a bow or wand shot lands. The client never times an attack from a key press. It
+    /// places the pause from what the server delivers to the owner: the owner's <c>Windup</c> fx (<see cref="NoteOwnWindup"/>, the
+    /// tick it was sent in plus its wait is the landing), and ends it early on the owner's <c>Stagger</c>/<c>Cancel</c> fx
+    /// (<see cref="NoteOwnStagger"/>, <see cref="NoteOwnCancel"/>) or a stun or weapon change in the self block. The window is placed
+    /// on the server's 50 ms step grid (the walk of the step ending at tick T is stopped when T is inside the pause), stored in
+    /// server time and mapped onto the model clock through the same sample stamp and measured delay reconciliation uses, so the
+    /// pause moves with the delay estimate rather than with a second clock. A bow draw is not announced by any fx, so a bow release
+    /// stays unpredicted (see <see cref="NoteOwnWindup"/>). Proved against <c>protocol/fixtures/ranged_pause_v1.json</c>.
     /// </para>
     /// <para>Single-threaded; no allocation per frame (the pathfinder reuses one scratch instance per <see cref="LocalMotion"/>; an
     /// order allocates only the waypoint array it keeps).</para>
@@ -65,6 +77,10 @@ namespace Roguehalla.Net
         public const double CorrectSpeedRestMax = 1.5 * PlayerSpeed;
         /// <summary>rh-sim <c>MOVE_MULT_FLOOR</c>: a walk multiplier above 0 is never below this.</summary>
         public const double MoveMultFloor = 0.35;
+        /// <summary>rh-sim <c>RANGED_RELEASE_PAUSE_MS</c>: the walk stops for this long before a bow or wand shot lands. Pinned to the Rust value by <c>ranged_pause_v1.json</c>.</summary>
+        public const double RangedReleasePauseMs = 200.0;
+        /// <summary>rh-sim <c>TIE_EPS_MS</c>: a landing within this of a step counts as that step's. Pinned by <c>ranged_pause_v1.json</c>.</summary>
+        public const double TieEpsMs = 1e-6;
 
         /// <summary>A stalled frame walks at most this much (legacy <c>MAX_FRAME_MS</c>); it can never tunnel through a wall.</summary>
         const double MaxStepMs = 100.0;
@@ -115,6 +131,13 @@ namespace Roguehalla.Net
         // The owner's published move-speed mirror (speed_milli / 1000, floored), 1.0 without an owner block.
         double _speedMult = 1.0;
 
+        // Attack pause windows in SERVER ms: the walk of the server step ending at T is stopped when (from, until] covers it.
+        // At most one attack is in flight; a few slots keep a window whose shot just landed while the next is announced.
+        const int PauseSlots = 4;
+        readonly double[] _pauseFrom = new double[PauseSlots], _pauseUntil = new double[PauseSlots];
+        int _pauseCount;
+        int _lastWeapon = -1;
+
         // Model pose history (local ms, x, y), oldest first in a fixed ring: where the model was, for delay alignment.
         readonly double[] _histT = new double[HistorySize], _histX = new double[HistorySize], _histY = new double[HistorySize];
         int _histStart, _histCount;
@@ -134,6 +157,15 @@ namespace Roguehalla.Net
         const double MaxStampLagMs = 150;
 
         public bool Initialized { get; private set; }
+
+        /// <summary>
+        /// Whether the walk mirrors the server's attack pause (default on). Off reproduces the unpredicted walk, which is how the
+        /// tests measure the pull-back the mirror removes; a presentation never turns it off.
+        /// </summary>
+        public bool PredictAttackPause { get; set; } = true;
+
+        /// <summary>Attack pause windows currently held (diagnostic).</summary>
+        public int AttackPauseWindows { get { return _pauseCount; } }
 
         /// <summary>The last accepted authoritative self position (the server's x; updated on every snapshot).</summary>
         public float SimX { get { return (float)_simX; } }
@@ -323,6 +355,7 @@ namespace Roguehalla.Net
             _lastStepMs = nowMs;
             _stepClock = true;
             _hasStamp = false; // the source clock was cut: the next sample re-anchors the sample time base
+            _pauseCount = 0;   // and server-time windows from the old clock mean nothing
         }
 
         /// <summary>
@@ -359,6 +392,8 @@ namespace Roguehalla.Net
             double stamp = SampleStamp(nowMs, serverMs);
             NoteEcho(me.MoveSeq, stamp, ackInput);
             bool alive = me.Status == 1;
+            if (!alive) _pauseCount = 0;
+            NoteSelfAttackFacts(me, serverMs);
             bool hardCut = Initialized && (me.DisplaceSeq != _displaceSeq || !alive || !_alive);
             // Echo before advancing the clock: an acknowledgement at the expiry boundary is not a lost order.
             bool castAck = ackInput.HasValue && _nonMovementAcks[me.MoveSeq] != null && _sentNonMovementAcks[me.MoveSeq] &&
@@ -406,6 +441,19 @@ namespace Roguehalla.Net
             Reconcile(stamp, nowMs);
         }
 
+        /// <summary>
+        /// A stun or a weapon change in the self block ends the attack pause: both cancel the pending action in the input or status
+        /// phase, before that tick's multiplier, and neither has an fx of its own. They apply at this sample's tick, and the earlier
+        /// step is the last one the pause covers.
+        /// </summary>
+        void NoteSelfAttackFacts(WireSelf me, double? serverMs)
+        {
+            bool stunned = (me.Effects & 1) != 0;
+            bool changed = _lastWeapon >= 0 && _lastWeapon != me.Weapon;
+            _lastWeapon = me.Weapon;
+            if ((stunned || changed) && _pauseCount > 0 && serverMs.HasValue && PredictAttackPause) EndPauseAt(serverMs.Value - TickMs);
+        }
+
         /// <summary>Clears the presented self, any pending order and the walk (a snapshot without this player, or a fresh Welcome).</summary>
         public void Clear()
         {
@@ -432,6 +480,8 @@ namespace Roguehalla.Net
             _ordCount = 0;
             _align = 0;
             _hasStamp = false;
+            _pauseCount = 0;
+            _lastWeapon = -1;
             Snaps = 0;
             ExpiredOrders = 0;
             ConsecutiveOutOfToleranceSamples = 0;
@@ -444,6 +494,94 @@ namespace Roguehalla.Net
         /// callers should go through <see cref="Step"/>.
         /// </summary>
         public static double SpeedModifier(double nowMs) { return 1.0; }
+
+        // ----------------------------------------------------------------------------------------------------------------
+        // Attack pause (the one attack fact the walk mirrors; see the type)
+
+        /// <summary>
+        /// The owner's <c>Windup</c> fx: the server started an attack at server time <paramref name="tickMs"/> (the tick the fx was
+        /// sent in) that lands <paramref name="waitMs"/> later (whole ms, the wire's rounding). A swing stops the walk for its whole
+        /// wind-up; a bow or wand shot stops it from <see cref="RangedReleasePauseMs"/> before it lands (rh-sim
+        /// <c>move_multiplier</c>, evaluated once per 50 ms step: the step ending at T is stopped when T is at least
+        /// <c>landsAt - RangedReleasePauseMs</c> and the shot has not landed by T). Nothing here reads a key press or a weapon
+        /// timing: with no fx there is no window. The sim announces no wind-up for a bow draw, so a bow release is not covered.
+        /// A landing off the step grid by under 0.5 ms (the wire rounds the wait) can place a window one step early or late.
+        /// </summary>
+        public void NoteOwnWindup(double tickMs, double waitMs, byte weapon)
+        {
+            if (!PredictAttackPause || !_hasStamp || double.IsNaN(tickMs) || double.IsNaN(waitMs) || waitMs < 0) return;
+            double landsAt = tickMs + waitMs;
+            double landStep = CeilStep(landsAt);            // the first step whose tick has the shot landed (weapons run before movement)
+            bool release = weapon == (byte)WeaponId.Bow || weapon == (byte)WeaponId.Wand;
+            double firstStep = release ? Math.Max(tickMs, CeilStep(landsAt - RangedReleasePauseMs)) : tickMs;
+            double from = firstStep - TickMs, until = landStep - TickMs;
+            if (!(until > from)) return;
+            if (_pauseCount == PauseSlots) DropPauseSlot(0);
+            _pauseFrom[_pauseCount] = from;
+            _pauseUntil[_pauseCount] = until;
+            _pauseCount++;
+        }
+
+        /// <summary>
+        /// The owner's <c>Stagger</c> fx at server time <paramref name="tickMs"/>: the cast or swing is cancelled by the ledger, after
+        /// that tick's movement multiplier was read, so the step ending at the stagger's own tick is still stopped.
+        /// </summary>
+        public void NoteOwnStagger(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs); }
+
+        /// <summary>
+        /// The owner's <c>Cancel</c> fx at server time <paramref name="tickMs"/>: the order that cancelled the attack ran in the
+        /// input phase, before that tick's multiplier was read, so the step ending at the cancel's tick walks.
+        /// </summary>
+        public void NoteOwnCancel(double tickMs) { if (PredictAttackPause) EndPauseAt(tickMs - TickMs); }
+
+        void EndPauseAt(double untilMs)
+        {
+            for (int i = _pauseCount - 1; i >= 0; i--)
+            {
+                if (_pauseUntil[i] > untilMs) _pauseUntil[i] = untilMs;
+                if (!(_pauseUntil[i] > _pauseFrom[i])) DropPauseSlot(i);
+            }
+        }
+
+        void DropPauseSlot(int i)
+        {
+            for (int j = i + 1; j < _pauseCount; j++) { _pauseFrom[j - 1] = _pauseFrom[j]; _pauseUntil[j - 1] = _pauseUntil[j]; }
+            _pauseCount--;
+        }
+
+        /// <summary>
+        /// Whether the mirror stops the server step that ends at server time <paramref name="tickMs"/> (diagnostic and test seam: the
+        /// step walks only when no held window covers it).
+        /// </summary>
+        public bool AttackPauseStops(double tickMs)
+        {
+            for (int i = 0; i < _pauseCount; i++)
+                if (_pauseFrom[i] + TickMs <= tickMs + TieEpsMs && tickMs <= _pauseUntil[i] + TieEpsMs) return true;
+            return false;
+        }
+
+        /// <summary>Drops every held attack pause (death, a cut source clock, a new Welcome).</summary>
+        public void ClearAttackPause() { _pauseCount = 0; }
+
+        static double CeilStep(double ms) { return Math.Ceiling((ms - TieEpsMs) / TickMs) * TickMs; }
+
+        /// <summary>The model-clock time of server time <paramref name="serverMs"/> (the sample stamp, minus the measured delay).</summary>
+        double ModelClock(double serverMs) { return serverMs + _stampMs - _stampServerMs - _align; }
+
+        /// <summary>Seconds of the model-clock span [t0, t1] (whose length is <paramref name="spanSeconds"/>) not covered by an attack pause.</summary>
+        double MovingSeconds(double t0, double t1, double spanSeconds)
+        {
+            if (_pauseCount == 0 || !_hasStamp || !PredictAttackPause) return spanSeconds;
+            double paused = 0;
+            for (int i = 0; i < _pauseCount; i++)
+            {
+                double a = Math.Max(t0, ModelClock(_pauseFrom[i]));
+                double b = Math.Min(t1, ModelClock(_pauseUntil[i]));
+                if (b > a) paused += b - a;
+            }
+            double moving = spanSeconds - paused / 1000.0;
+            return moving > 0 ? moving : 0;
+        }
 
         /// <summary>
         /// The render time to stamp on an attack or release. There is no draw-ahead in this packet, so it is the identity; the hook
@@ -459,7 +597,7 @@ namespace Roguehalla.Net
         {
             // Mirrors rh-sim systems/movement.rs advance_along_path: a budget spent waypoint by waypoint, landing exactly on a
             // waypoint when the budget covers it. All arithmetic is double, as on the server.
-            double budget = PlayerSpeed * _speedMult * SpeedModifier(nowMs) * seconds;
+            double budget = PlayerSpeed * _speedMult * SpeedModifier(nowMs) * MovingSeconds(nowMs - seconds * 1000.0, nowMs, seconds);
             while (budget > 0.0 && _pathIndex < _path.Length)
             {
                 PathPoint target = _path[_pathIndex];
@@ -634,7 +772,7 @@ namespace Roguehalla.Net
         /// <summary>The <see cref="Walk"/> arithmetic on copies: how far the path carries the model in <paramref name="seconds"/>.</summary>
         void WalkAhead(double seconds, ref double x, ref double y)
         {
-            double budget = PlayerSpeed * _speedMult * SpeedModifier(_lastStepMs) * seconds;
+            double budget = PlayerSpeed * _speedMult * SpeedModifier(_lastStepMs) * MovingSeconds(_lastStepMs, _lastStepMs + seconds * 1000.0, seconds);
             for (int i = _pathIndex; budget > 0.0 && i < _path.Length; i++)
             {
                 double dx = _path[i].X - x, dy = _path[i].Y - y;

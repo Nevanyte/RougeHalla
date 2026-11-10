@@ -526,7 +526,29 @@ namespace Roguehalla.Net
                 return;
             }
             var fx = msg as ServerMsg.Fx;
-            if (fx != null && FxReceived != null) FxReceived(fx);
+            if (fx != null)
+            {
+                if (Motion != null) NoteOwnAttackFx(fx);
+                if (FxReceived != null) FxReceived(fx);
+            }
+        }
+
+        /// <summary>
+        /// The owner's own attack telegraph facts feed the walk mirror's attack pause (<see cref="LocalMotion.NoteOwnWindup"/>). Only
+        /// fx whose actor is this seat count; the tick an fx was sent in is its server time.
+        /// </summary>
+        void NoteOwnAttackFx(ServerMsg.Fx fx)
+        {
+            uint me = PlayerId;
+            if (me == 0) return;
+            double tickMs = fx.Tick * (double)Wire.TickMs;
+            for (int i = 0; i < fx.List.Count; i++)
+            {
+                var f = fx.List[i];
+                if (f.Kind == FxKind.Windup && f.By == me) Motion.NoteOwnWindup(tickMs, f.Ms, f.Weapon);
+                else if (f.Kind == FxKind.Stagger && f.Id == me) Motion.NoteOwnStagger(tickMs);
+                else if (f.Kind == FxKind.Cancel && f.Id == me) Motion.NoteOwnCancel(tickMs);
+            }
         }
 
         /// <summary>
