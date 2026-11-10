@@ -539,7 +539,7 @@ pub(crate) fn apply_exposures(cx: &mut crate::systems::Cx) {
     }
 }
 
-/// Derived cache for scanning many props in one viewer's complete observation. A cached cell needs
+/// Derived cache for scanning many observation points in one viewer's complete observation. A cached cell needs
 /// to check only reveal origins added since it was last tested. Direct point sight is always exact
 /// and outside this table. A map change or a different observer history discards all cached cells.
 #[derive(Default)]
@@ -627,7 +627,7 @@ impl TileVisionCache {
         wards: WardSight<'_>,
     ) -> bool {
         let map = map.into();
-        if self.tick != Some(tick) {
+        if self.tick != Some(tick) || !(point.x + point.y).is_finite() {
             return point_visible(map, viewer, point, tick, wards);
         }
         if viewer.status != Status::Alive {
@@ -1035,3 +1035,7 @@ impl VisionTrail {
         json!({"lastUpdate":f64::from(last.tick)*TICK_MS,"lastX":last.origin.x,"lastY":last.origin.y,"lastRadius":VISION_RADIUS,"lastTtl":VISION_TRAIL_MS,"lastMapVariant":if last.variant==Variant::Open{"open"}else if view.variant==last.variant{"active"}else{"other"},"expiresAt":expires})
     }
 }
+
+#[cfg(test)]
+#[path = "vision/npc_cache_tests.rs"]
+mod npc_cache_tests;

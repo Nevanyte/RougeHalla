@@ -1,0 +1,72 @@
+[
+  {
+    "path": "README.md",
+    "bytes": 2532,
+    "sha256": "c44717ce12cc68d1a2f928a6c89a81b318f9e08d79e4baf19f6ae6d678602096"
+  },
+  {
+    "path": "REGRESSIONS.json",
+    "bytes": 1682,
+    "sha256": "bc8a3aeacced39d7c220c5752f421498f1f6070064538d5a82f982f78ac5b38f"
+  },
+  {
+    "path": "SOURCE_PINS.json",
+    "bytes": 555,
+    "sha256": "f3bffeb1cda53aa305c9859798ccb8522c04d23dc98773dab6784dc5488be577"
+  },
+  {
+    "path": "clippy.txt",
+    "bytes": 214,
+    "sha256": "372665713d33e418f0f5cd02e545bb176910f25e9ae87d184ef960be77fa622a"
+  },
+  {
+    "path": "content.txt",
+    "bytes": 1614,
+    "sha256": "318dd5c95f10ecc13d44484a7912d37e4b2173db1f351ddf6ea363ef677988ab",
+    "derivation": "Repository copy omits trailing empty lines; exact original log retained outsideGit at npc-tile-memo-checks-01/content.txt"
+  },
+  {
+    "path": "focused-tests-02.json",
+    "bytes": 332,
+    "sha256": "c0672d32d177ae39a6fcb3ecf1212f1361e380178ae4042a097a4535a72f5858"
+  },
+  {
+    "path": "focused-tests-02.txt",
+    "bytes": 895,
+    "sha256": "71fe22c3cad2461bdfff8bb82b06ea83546f4b6bde89b808a74f9b79ac91aad2",
+    "derivation": "Repository copy omits trailing empty lines; exact original log retained outsideGit at npc-tile-memo-checks-01/focused-tests-02.txt"
+  },
+  {
+    "path": "focused-tests.json",
+    "bytes": 224,
+    "sha256": "4ff7359f140fb7e0edbac92ec2553faa33411657bd324dbc0715ba1f92eb73c8"
+  },
+  {
+    "path": "focused-tests.txt",
+    "bytes": 613,
+    "sha256": "e81fb3c26b54a289ec010e4dd999ff5442848144fada20df19beaedf451be3ed"
+  },
+  {
+    "path": "format.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "headless-pve.txt",
+    "bytes": 1017,
+    "sha256": "7d6d767b0765b6f74b81afbc1018beb44e64f82145599f86a7274dd125391f1f",
+    "derivation": "Repository copy omits trailing empty lines; exact original log retained outsideGit at npc-tile-memo-checks-01/headless-pve.txt"
+  },
+  {
+    "path": "vision-pressure.txt",
+    "bytes": 527,
+    "sha256": "528b254c9f67cf7744dd37b7ff10060fe313405ee7ec8a0b022d8d287bcbbf15",
+    "derivation": "Repository copy omits trailing empty lines; exact original log retained outsideGit at npc-tile-memo-checks-01/vision-pressure.txt"
+  },
+  {
+    "path": "vision.txt",
+    "bytes": 2288,
+    "sha256": "377ab892a13bc97b03fd838c3f43a25ad760aa855b7363a444a3ae015298c3e9",
+    "derivation": "Repository copy omits trailing empty lines; exact original log retained outsideGit at npc-tile-memo-checks-01/vision.txt"
+  }
+]
