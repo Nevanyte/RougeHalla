@@ -24,7 +24,7 @@ namespace Roguehalla.Client
         public static readonly HouseInfo[] Houses =
         {
             new HouseInfo("Fire", "Volcanic wastes", "Axes", MythicGlyph.Axe, MapGlyph.Triangle),
-            new HouseInfo("Sentenced", "Harvest fields", "Swords", MythicGlyph.Sword, MapGlyph.Diamond),
+            new HouseInfo("Sentenced", "Gothic graveyard", "Swords", MythicGlyph.Sword, MapGlyph.Diamond),
             new HouseInfo("Plague", "Forgotten city", "Bows", MythicGlyph.Bow, MapGlyph.Trefoil),
             new HouseInfo("Frost", "Frozen plains", "Shields", MythicGlyph.Shield, MapGlyph.Asterisk),
             new HouseInfo("Holy", "Desert oasis", "Wands", MythicGlyph.Wand, MapGlyph.Ring),
