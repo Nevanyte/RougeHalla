@@ -300,8 +300,21 @@ namespace Roguehalla.Client
             _stationLabels[index].color = _available[index] ? ShowcasePalette.Text : ShowcasePalette.MutedText;
             _directoryLabels[index].text = Names[index].ToUpperInvariant() + "\n" + state;
             _directoryLabels[index].color = _available[index] ? ShowcasePalette.Text : ShowcasePalette.MutedText;
-            _stationButtons[index].GetComponent<Image>().color = _available[index] ? ShowcasePalette.PanelRaised : ShowcasePalette.Panel;
-            _directoryButtons[index].GetComponent<Image>().color = _available[index] ? ShowcasePalette.PanelRaised : ShowcasePalette.Panel;
+            SetCell(_stationButtons[index], _available[index]);
+            SetCell(_directoryButtons[index], _available[index]);
+        }
+
+        /// <summary>
+        /// The cell fill lives in the Button's colour block, which multiplies the Image colour; tinting the Image as well squared the two
+        /// dark fills into near-black. The Image stays white and the colour block carries the open / coming-soon fill.
+        /// </summary>
+        static void SetCell(Button button, bool open)
+        {
+            var theme = UiTheme.Current;
+            button.GetComponent<Image>().color = Color.white;
+            var colors = button.colors;
+            colors.normalColor = open ? theme.SurfaceRaised : theme.SurfaceDisabled;
+            button.colors = colors;
         }
 
         void UpdateAvatarPosition()

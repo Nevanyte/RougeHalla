@@ -267,7 +267,6 @@ namespace Roguehalla.Client
             }
             else
             {
-                Put((RectTransform)_planningRail, L.Right);
                 float f = Mathf.Clamp(L.Right.H / 520f, .72f, 1f);
                 float y = 12f;
                 HudUi.Place(_ready.GetComponent<RectTransform>(), HudAnchor.TopLeft, 12f, y, 316f, 46f * f); y += 46f * f + 12f;
@@ -280,7 +279,10 @@ namespace Roguehalla.Client
                 HudUi.Place(_undo.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Right.X + 12f, L.Right.Y + y, bw, 28f);
                 HudUi.Place(_clear.GetComponent<RectTransform>(), HudAnchor.TopLeft, L.Right.X + 12f + bw + 8f, L.Right.Y + y, bw, 28f);
                 y += 38f;
-                Put(_status.rectTransform, new MapRect(L.Right.X + 12f, L.Right.Y + y, 316f, Mathf.Max(30f, L.Right.H - y - 10f)));
+                // The card hugs its content (legacy side column), never a tall empty panel.
+                float cardH = Mathf.Min(L.Right.H, y + 76f);
+                Put((RectTransform)_planningRail, new MapRect(L.Right.X, L.Right.Y, L.Right.W, cardH));
+                Put(_status.rectTransform, new MapRect(L.Right.X + 12f, L.Right.Y + y, 316f, Mathf.Max(30f, cardH - y - 10f)));
                 _status.gameObject.SetActive(true);
                 Put((RectTransform)_routeText.transform, L.Legend);
             }

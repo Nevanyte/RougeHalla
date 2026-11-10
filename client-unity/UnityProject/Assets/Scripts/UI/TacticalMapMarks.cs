@@ -135,7 +135,7 @@ namespace Roguehalla.Client
                 if (text.gameObject.activeSelf != on) text.gameObject.SetActive(on);
                 if (!on) continue;
                 // Sits just under the zone icon.
-                text.rectTransform.anchoredPosition = ZoneAt(region) + new Vector2(0f, -17f);
+                text.rectTransform.anchoredPosition = ZoneAt(region) + new Vector2(0f, -24f);
             }
         }
 
@@ -156,7 +156,7 @@ namespace Roguehalla.Client
                 if (Large)
                 {
                     // A soft dark plate behind icon and name keeps them readable on the zone tint.
-                    GlyphXY(vh, p + new Vector2(0f, -8f), 96f, 44f, MapGlyph.Disc, Alpha(ink, .62f));
+                    GlyphXY(vh, p + new Vector2(0f, -12f), 104f, 56f, MapGlyph.Disc, Alpha(ink, .6f));
                 }
                 Glyph(vh, p, size + 4f, glyph, Alpha(ink, Large ? 1f : .8f));
                 Glyph(vh, p, size, glyph, Alpha(zone, Large ? 1f : .9f));

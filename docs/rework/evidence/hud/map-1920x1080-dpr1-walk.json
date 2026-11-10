@@ -1,0 +1,38 @@
+{
+  "minimap": {
+    "clickedAt": {
+      "x": 1648.6499999999999,
+      "y": 918
+    },
+    "expectedWorld": {
+      "x": 1536,
+      "y": 3072
+    },
+    "ordersSent": 0,
+    "lastOrder": null,
+    "orderMatches": false,
+    "selfMarkerBefore": null,
+    "selfMarkerAfter": null,
+    "movedPx": null,
+    "contextMenuEvents": 1,
+    "contextMenuLeftOpen": 0
+  },
+  "tab": {
+    "clickedAt": {
+      "x": 1143.45,
+      "y": 359.1
+    },
+    "expectedWorld": {
+      "x": 3584,
+      "y": 1536
+    },
+    "ordersSent": 0,
+    "lastOrder": null,
+    "orderMatches": false,
+    "selfMarkerBefore": null,
+    "selfMarkerAfter": null,
+    "movedPx": null,
+    "contextMenuEvents": 1,
+    "contextMenuLeftOpen": 0
+  }
+}

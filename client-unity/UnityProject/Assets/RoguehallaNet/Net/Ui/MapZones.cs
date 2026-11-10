@@ -25,7 +25,7 @@ namespace Roguehalla.Net.Ui
         public static float TintAlpha(int region, bool largeMap)
         {
             if (!IsZone(region)) return 0f;
-            float a = region == Coliseum ? .26f : region == Sentenced ? .30f : .24f;
+            float a = region == Coliseum ? .22f : region == Sentenced ? .26f : .20f;
             return largeMap ? a : a * .9f;
         }
 
