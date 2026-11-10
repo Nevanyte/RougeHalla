@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
@@ -26,6 +27,8 @@ namespace Roguehalla.Client
         /// <summary>Cloud shadow amount per wire id 0..7 (sunny zones only: frost, holy, plague clearings, coliseum).</summary>
         static readonly Vector4[] CloudAmt = { Vector4.zero, Vector4.zero, Vector4.zero, new Vector4(.30f, 0, 0, 0), new Vector4(.62f, 0, 0, 0), new Vector4(.55f, 0, 0, 0), new Vector4(.35f, 0, 0, 0), Vector4.zero };
         static readonly int IdWind = Shader.PropertyToID("_RhWind"), IdCloud = Shader.PropertyToID("_RhCloud"), IdActorN = Shader.PropertyToID("_RhActorN"), IdFx = Shader.PropertyToID("_RhFx");
+        readonly SurfaceFx.RippleInfo[] _ripples = new SurfaceFx.RippleInfo[16]; readonly Vector4[] _ripP = new Vector4[6], _ripB = new Vector4[6];
+        static readonly int IdRip = Shader.PropertyToID("_RhRip"), IdRipB = Shader.PropertyToID("_RhRipB");
         public WallSdf WallSdf { get { return _sdf; } }
         readonly float[] _w = new float[RegionField.Regions];
         AtmosphereParams _cur; bool _hasCur; float _ambientBase = .36f;
@@ -178,7 +181,18 @@ namespace Roguehalla.Client
             Shader.SetGlobalVectorArray(IdCloud, CloudAmt);
             int n = ActorField.Push(tx, ty);
             Shader.SetGlobalVector(IdActorN, new Vector4(n, AtmosphereQuality.Clouds ? 1f : 0f, 0, 0));
-            Shader.SetGlobalVector(IdFx, new Vector4(AtmosphereQuality.Water ? 1f : 0f, 0, 0, 0));
+            int nr = 0;
+            if (AtmosphereQuality.Water && SurfaceFx.Current != null)
+            {
+                int n = SurfaceFx.Current.CopyRipples(_ripples);
+                for (int i = 0; i < n && nr < 6; i++)
+                {
+                    var r = _ripples[i]; if (r.Reaction != WaterReaction.Shallow) continue;
+                    _ripP[nr] = new Vector4(r.World.x, -r.World.y / ArenaView.GroundSquash, r.Birth, r.Life); _ripB[nr] = new Vector4(r.Diameter, 0, 0, 0); nr++;
+                }
+                if (nr > 0) { Shader.SetGlobalVectorArray(IdRip, _ripP); Shader.SetGlobalVectorArray(IdRipB, _ripB); }
+            }
+            Shader.SetGlobalVector(IdFx, new Vector4(AtmosphereQuality.Water ? 1f : 0f, nr, 0, 0));
         }
 
         void Update()

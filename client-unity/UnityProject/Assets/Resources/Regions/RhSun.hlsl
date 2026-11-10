@@ -18,7 +18,10 @@ float4 _RhActors[8];    // xy = tile position of each presented (server-delivere
 float4 _RhActorN;       // x actor count, y cloud shadows on (1/0), z unused, w unused
 float4 _RhCloud[8];     // per wire region id: x cloud shadow amount (0..1; cold/sunny zones only)
 float4 _RhWind;         // xy unit wind direction (tile space), z sway strength (0 = off), w gust speed
-float4 _RhFx;           // x water effects on (refraction, caustics, ripple glints), y/z/w reserved
+float4 _RhFx;           // x water effects on (refraction, caustics, ripple glints), y = live wade ripples (SurfaceFx), z/w reserved
+float4 _RhRip[6];       // live wade ripples: xy tile position, z birth, w life (seconds, the SurfaceFx clock _RhFxNow)
+float4 _RhRipB[6];      // x final diameter (tiles)
+float _RhFxNow;         // SurfaceFx clock
 
 float RhLNoise(float2 p)
 {

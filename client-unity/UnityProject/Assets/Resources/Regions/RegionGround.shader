@@ -216,6 +216,18 @@ Shader "Roguehalla/RegionGround"
                         float2 w1 = Worley(cq), w2 = Worley(cq * 1.65 + 4.0 - time * 0.07);
                         float caus = pow(saturate(1.0 - w1.y * 4.5), 2.0) * 0.75 + pow(saturate(1.0 - w2.y * 4.5), 2.0) * 0.55;
                         water += keyC * caus * 0.34 * (1.0 - depthT * 0.55);
+                        // Wade ripples from SurfaceFx (delivered actors only): expanding rings bend the surface, so lights and the sun glint on them.
+                        int nr = (int)_RhFx.y;
+                        [loop] for (int q = 0; q < 6; q++)
+                        {
+                            if (q >= nr) break;
+                            float4 rp = _RhRip[q]; float age = _RhFxNow - rp.z;
+                            if (age < 0.0 || age > rp.w) continue;
+                            float rad = _RhRipB[q].x * 0.5 * saturate(age / (rp.w * 0.6)), dd = distance(t, rp.xy), fdr = 1.0 - age / rp.w;
+                            float ringw = exp(-pow((dd - rad) * 4.5, 2.0)) * fdr;
+                            thv += sin((dd - rad) * 20.0) * ringw * 0.06;
+                            water += keyC * ringw * 0.10;
+                        }
                     }
                     water *= 0.92 + 0.12 * rip;
                     water += keyC * 0.11 * rip * depthT;                                                    // faint sky sheen
