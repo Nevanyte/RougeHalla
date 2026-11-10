@@ -65,7 +65,7 @@ namespace Roguehalla.Client.Tests
             Invoke("RefreshOwnerPresentation", me, 1000d);
             Assert.That(((TMP_Text)GetField("_damageWeapon")).text, Is.EqualTo("Bow"));
             Assert.That(((TMP_Text)GetField("_damageHit")).text, Is.EqualTo("—"), "no combat projection is delivered yet");
-            Assert.That(((TMP_Text)GetField("_damageRate")).text, Is.EqualTo("not delivered"));
+            Assert.That(((TMP_Text)GetField("_damageRate")).text, Is.EqualTo(""), "no developer wording on the HUD: with nothing delivered the line is empty");
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
             Assert.That(((TMP_Text)GetField("_damageWeapon")).text, Is.EqualTo("—"), "the previous owner's weapon is removed");

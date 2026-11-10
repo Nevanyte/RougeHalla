@@ -16,7 +16,7 @@ namespace Roguehalla.Client
     public sealed class LaunchScreenView : MonoBehaviour
     {
         // Panel metrics (HUD units).
-        public const float PanelX = 12f, PanelY = 12f, PanelW = 330f, PanelH = 612f, Pad = 14f, Inner = PanelW - 2f * Pad;
+        public const float PanelX = 12f, PanelY = 12f, PanelW = 330f, PanelH = 640f, Pad = 14f, Inner = PanelW - 2f * Pad;
         public const float Gutter = 12f, HeroH = 104f;
 
         public RectTransform Root { get; private set; }
@@ -160,8 +160,21 @@ namespace Roguehalla.Client
 
             Guide = Pill(Panel, "OpenGuide", Pad, y, 196f, "CHAMPIONS & WEAPONS", LaunchIcon.Guide, () => GuideRequested?.Invoke(), 11.5f);
             SignIn = Pill(Panel, "SignInOptions", Pad + 204f, y, Inner - 204f, "SIGN-IN", LaunchIcon.Key, () => SignInRequested?.Invoke(), 11.5f);
+            // Attribution (CC BY and licence notices ship under Licenses/ in the build): a quiet link under the last row.
+            Credits = LaunchUi.Button(Panel, "CreditsAndLicences", Pad, 600f, Inner, 28f, LaunchUi.Look.Quiet, () => OpenCredits());
+            LaunchUi.Text(Credits.transform, "Label", 0f, 0f, Inner, 28f, "Credits and licences", 11f, theme.TextSecondary, TextAlignmentOptions.Center, false, UiFontRole.Body, true);
             SetFaction(_house);
         }
+
+        public Button Credits { get; private set; }
+        public const string CreditsPath = "Licenses/Third-Party-Assets.md";
+        /// <summary>The credits file next to the page (relative to the page address); the plain relative path when there is no page (Editor).</summary>
+        public static string CreditsUrl(string pageUrl)
+        {
+            Uri page; if (string.IsNullOrEmpty(pageUrl) || !Uri.TryCreate(pageUrl, UriKind.Absolute, out page)) return CreditsPath;
+            return new Uri(page, CreditsPath).ToString();
+        }
+        static void OpenCredits() { Application.OpenURL(CreditsUrl(Application.absoluteURL)); }
 
         void BuildRecord(UiTheme theme, float y)
         {

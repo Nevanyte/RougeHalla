@@ -294,6 +294,10 @@ impl Sim {
     }
 
     /// Runs `f` over a [`Cx`] outside a step (a leave): its events wait in the world for the next step, in order.
+    ///
+    /// Invariant: `f` must not change any input of a seated player's build marks (cards, mob stats, kill stats, folds):
+    /// the marks cache ([`crate::fx_report::BuildMarkCache`]) is refreshed at the end of each step and read until the
+    /// next, and `BuildMarkCache::of` debug-asserts it still equals a direct computation.
     pub(crate) fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
         self.s.reserve_actors(self.w.fighter_count());
         let mut ev = std::mem::take(&mut self.w.pending_events);

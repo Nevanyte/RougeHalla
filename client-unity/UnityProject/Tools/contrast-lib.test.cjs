@@ -224,3 +224,8 @@ test('parseArgs rejects bad input', () => {
   assert.throws(() => L.parseArgs(['--bogus']), /unknown option/);
   assert.throws(() => L.parseArgs(['--url']), /needs a value/);
 });
+
+test('cellKind separates plain ground, props, edges and seams', () => {
+  assert.equal(L.cellKind(''), 'ground'); assert.equal(L.cellKind(null), 'ground'); assert.equal(L.cellKind('fire.rocks'), 'props');
+  assert.equal(L.cellKind('edge:Basalt|Lava'), 'edge'); assert.equal(L.cellKind('seam:fire|sentenced'), 'seam');
+});

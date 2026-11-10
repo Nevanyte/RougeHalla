@@ -714,6 +714,78 @@ mod weapon_table_tests {
         assert_eq!(radius(WeaponId::Bow), rh_sim::constants::ARROW_RADIUS);
         assert_eq!(radius(WeaponId::Wand), rh_sim::constants::RANGED_SLACK);
     }
+
+    /// The golden-vector sample table hand-copies content values: it must stay equal to the server's real table for the six
+    /// weapons (plus its reserved no-shape row), so a content change cannot leave `protocol/fixtures` stale.
+    #[test]
+    fn the_sample_weapon_table_is_the_servers_table() {
+        let real = super::wire_weapons();
+        let sample = rh_protocol::samples::sample_weapons();
+        assert_eq!(real.len(), 6);
+        assert_eq!(sample.len(), real.len() + 1);
+        assert_eq!(sample[..real.len()], real[..]);
+        assert_eq!(sample[real.len()].kind, rh_protocol::WEAPON_KIND_NONE);
+    }
+
+    /// `projectile_contact_radius` mirrors a rule private to the sim (`systems::projectiles::spawn` picks the flight kind
+    /// from the weapon, `first_body` the slack from the kind). Fire every projectile weapon in a real sim and check the
+    /// launched kind against the radius the wire table advertises.
+    #[test]
+    fn the_contact_radius_agrees_with_the_kind_the_sim_launches() {
+        use rh_sim::constants::{ARROW_RADIUS, RANGED_SLACK};
+        use rh_sim::content::{weapon, Shape};
+        use rh_sim::{Event, ProjectileKind, WeaponId};
+        let mut fired = 0;
+        for w in WeaponId::ALL {
+            if !matches!(weapon(w).shape, Shape::Projectile { .. }) {
+                continue;
+            }
+            let mut sim = rh_sim::Sim::reset_active(
+                rh_sim::SimConfig {
+                    quests: false,
+                    weapon_specials: false,
+                    ..Default::default()
+                },
+                rh_sim::arenas::practice_arena(),
+                rh_sim::Secrets::from_seed(24),
+                &[rh_sim::Placement {
+                    profile: "p1".into(),
+                    faction: rh_sim::FactionId::Holy,
+                    bot: false,
+                    at: rh_sim::Vec2::new(100., 272.),
+                    hp: Some(10_000.0),
+                    weapon0: Some(w),
+                    weapon1: None,
+                }],
+            );
+            let id = rh_sim::PlayerId(1);
+            let cmd = |c| rh_sim::validate(c).unwrap();
+            sim.submit(id, cmd(rh_sim::RawCommand::Attack { a: 0., t: None }))
+                .unwrap();
+            let mut kinds = Vec::new();
+            for i in 0..40 {
+                if i == 20 {
+                    sim.submit(id, cmd(rh_sim::RawCommand::Release { a: 0., t: None }))
+                        .unwrap();
+                }
+                for e in sim.step() {
+                    if let Event::ProjectileLaunched(l) = e {
+                        kinds.push(l.kind);
+                    }
+                }
+            }
+            // Holding the attack through the release may loose more than one flight; they all share the weapon's kind.
+            assert!(!kinds.is_empty(), "{w:?} launches a flight");
+            assert!(kinds.iter().all(|k| *k == kinds[0]), "{w:?}: {kinds:?}");
+            let want = match kinds[0] {
+                ProjectileKind::Arrow => ARROW_RADIUS,
+                ProjectileKind::Ball => RANGED_SLACK,
+            };
+            assert_eq!(super::projectile_contact_radius(w), want, "{w:?}");
+            fired += 1;
+        }
+        assert_eq!(fired, 2, "the bow and the wand are the projectile weapons");
+    }
 }
 
 #[cfg(test)]

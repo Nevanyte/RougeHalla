@@ -18,6 +18,14 @@
 //! `skip_serializing_if` or `flatten` (a missing or map-shaped field would be ambiguous), and may not hold a non-finite
 //! float (JSON would write it as `null`, so a checkpoint could not restore it): represent a sentinel as an `Option`.
 //!
+//! One deliberate exception, and it is in the config, not the World: `MobSpacing::Auto` in `SimConfig` serializes as a unit
+//! variant and so adds no word of its own to the digest (the digest folds `(&config, &*arena)`, see `statics.rs`). That is
+//! what keeps every pre-existing match hash unchanged when the field was added (`Off` serializes as the string "off", so
+//! it still changes the digest). It is safe only because `Auto` is the default and the one other value is a tagged
+//! string; the World rules above do not cover config. Do not copy this for a
+//! new field: a new World field must be tagged (an `Option`, or a variant index), and a new config field must say in
+//! its own doc whether its default adds a word to the digest.
+//!
 //! Mixer: one `(h ^ word) * K` and a rotate per word (a bijection of the running state for every word, so a single changed
 //! word always changes the result), then a splitmix64 finalizer.
 

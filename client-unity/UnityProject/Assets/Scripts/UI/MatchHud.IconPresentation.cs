@@ -31,20 +31,28 @@ namespace Roguehalla.Client
             // combat mirrors, scaling, critical hits or weapon rules from build IDs in the client.
             Set(_damageWeapon, me == null ? "—" : me.Weapon.ToString());
             // The server delivers the owner's combat multipliers in milli (attack speed, windup, move speed); per-hit damage and the passive's
-            // numbers are not delivered, so those stay "not delivered" (docs/rework/LEGACY_INDICATORS.md, H3).
+            // numbers are not delivered, so the panel shows only the multipliers and the strongest stats (docs/rework/LEGACY_INDICATORS.md, H3).
             bool mult = me != null && me.OwnerCombat.HasValue;
             if (_championValue[0] != null)
             {
                 Set(_championValue[0], mult ? "Atk speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.AsMilli) : "—");
-                Set(_championScaling[0], mult ? "Windup " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.WindupMilli) + " · per-hit damage not delivered" : "not delivered");
+                Set(_championScaling[0], mult ? "Windup " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.WindupMilli) : "");
             }
             if (_championValue[1] != null)
             {
                 Set(_championValue[1], mult ? "Move speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.SpeedMilli) : "—");
-                Set(_championScaling[1], mult ? "passive numbers not delivered" : "not delivered");
+                Set(_championScaling[1], TopStatsLine(me));
             }
             if (_championScaling[2] != null && me == null) { Set(_championValue[2], "—"); Set(_championScaling[2], ""); }
             if (_damageHint != null) _damageHint.Text = DamageUnavailable;
+        }
+
+        /// <summary>The delivered top two invested stats ("Strongest: Attack damage, Armor"), empty when none.</summary>
+        static string TopStatsLine(SelfView me)
+        {
+            if (me == null || (!me.TopStat1.HasValue && !me.TopStat2.HasValue)) return "";
+            string a = me.TopStat1.HasValue ? Roguehalla.Net.Ui.Indicators.StatLabel(me.TopStat1.Value) : null, b = me.TopStat2.HasValue ? Roguehalla.Net.Ui.Indicators.StatLabel(me.TopStat2.Value) : null;
+            return "Strongest: " + (a != null && b != null ? a + ", " + b : a ?? b);
         }
 
         static string WishIconText(WishView? wish, double serverTimeMs)

@@ -33,7 +33,10 @@ namespace Roguehalla.Client
         // Own-fighter extras.
         public byte WishAbility = 255; public bool WishReady = true; public WeaponId? Second = null; public bool NoInventory;
         public float Hp = 100f, Barrier;
-        public bool HitOnMe;                              // a Hit fx lands on this (own) actor at HitAge
+        public bool HitOnMe;
+        // Protocol 16 indicator facts (ADR0026).
+        public string Name; public bool Bot; public StatKey? Top1, Top2; public byte Tier, Brand, Tax; public bool Immune, Roam, Engaged, RemoteWishReady, RemoteWish;
+        public float SwingAge = -1, WindupAge = -1, WindupMs = 1200, HealAge = -1, HealAmount = 18; public byte SwingWeapon; public bool HitCrit; public byte SigKind;                              // a Hit fx lands on this (own) actor at HitAge
     }
 
     public sealed class UiLabProp
@@ -58,7 +61,7 @@ namespace Roguehalla.Client
         public bool EdgeGlows;                            // W15: the HUD edge threat glows (screen shot)
         public float Age = -1;                            // largest time-based age in the cell (negative = a still cell)
         public string Id { get { return (Variant.Length == 0 ? Row : Row + "." + Variant).Replace('+', '_'); } }
-        public UiLabCell A(UiLabActor a) { Actors.Add(a); if (a.AppearAge > Age) Age = a.AppearAge; if (a.LeaveAge > Age) Age = a.LeaveAge; if (a.DieAge > Age) Age = a.DieAge; if (a.HitAge > Age) Age = a.HitAge; return this; }
+        public UiLabCell A(UiLabActor a) { Actors.Add(a); if (a.AppearAge > Age) Age = a.AppearAge; if (a.LeaveAge > Age) Age = a.LeaveAge; if (a.DieAge > Age) Age = a.DieAge; if (a.HitAge > Age) Age = a.HitAge; if (a.SwingAge > Age) Age = a.SwingAge; if (a.WindupAge > Age) Age = a.WindupAge; if (a.HealAge > Age) Age = a.HealAge; return this; }
         public bool NeedsMe { get { foreach (var a in Actors) if (a.Own || a.Hover || a.Lock || a.Hunt || a.HitByMe) return true; return Chests.Count > 0 && Near; } }
         public bool Near;                                 // the chest is meant to be within reach of the local fighter (seconds text shown)
         public bool Fades;                                // the cell needs vision exit fades enabled
@@ -251,6 +254,44 @@ namespace Roguehalla.Client
             var w9 = Cell("W9", "", "W9 Plague corpse puddle", "green puddle ellipses and pale bones"); w9.Props.Add(new UiLabProp { Kind = PropAppearance.Corpse, CorpseLabel = "Corpse" }); grid.Add(w9);
             var w9b = Cell("W9", "label", "W9 corpse focused", "corpse label when highlighted"); w9b.Props.Add(new UiLabProp { Kind = PropAppearance.Corpse, CorpseLabel = "Corpse", Focused = true }); grid.Add(w9b);
 
+            // ---- protocol 16 facts (ADR0026): names, off-hand and stat marks, Wish ready, mark plate, immunity, roam, engaged ------------------------------------
+            grid.Add(Cell("P2", "name", "P2/B3 player name (roster)", "11 px name, #eceff1 with a black stroke, centred over the bar").A(Player(a => a.Name = "Ash")));
+            grid.Add(Cell("P2", "bot", "P2/B3 bot name", "[BOT] name for bots (displayName.ts)").A(Player(a => { a.Name = "Rook"; a.Bot = true; })));
+            grid.Add(Cell("B1+B2", "bow-ad-armor", "B1/B2 off-hand Bow + top stats Ad, Armor", "18 px squares: secondary at -18, stats at 0 and +18, stat colours").A(Player(a => { a.Second = WeaponId.Bow; a.Top1 = StatKey.Ad; a.Top2 = StatKey.Armor; })));
+            grid.Add(Cell("B1+B2", "fists-speed", "B1/B2 empty off-hand (fists) + Speed", "an empty second slot reads as fists").A(Player(a => { a.Second = null; a.Top1 = StatKey.Speed; })));
+            grid.Add(Cell("B1+B2", "wand-all", "B1/B2 Wand + Leech, Health", "all three marks").A(Player(a => { a.Second = WeaponId.Wand; a.Top1 = StatKey.Leech; a.Top2 = StatKey.Health; a.Bounty = 60; })));
+            grid.Add(Cell("P6", "remote-ready", "P6/B4 remote Wish ready", "colour glyph when ready").A(Player(a => { a.RemoteWish = true; a.RemoteWishReady = true; })));
+            grid.Add(Cell("P6", "remote-recharging", "P6/B4 remote Wish recharging", "grey glyph while recharging").A(Player(a => { a.RemoteWish = true; a.RemoteWishReady = false; })));
+            grid.Add(Cell("P8", "tier1", "P8/B5 mark tier 1", "4 pips, lit up to the tier: 9e9e9e ffb300 e53935 171717").A(Player(a => a.Tier = 1)));
+            grid.Add(CellSpan2("P8", "tier3-tax", "P8/B5 tier 3 + AS -20%", "top lit pip outlined; AS -N% text").A(Player(a => { a.Tier = 3; a.Tax = 20; a.Sig = 16; })));
+            grid.Add(CellSpan2("P8", "tier4-sup", "P8/B5 tier 4 + DMG -15%", "tier 4 black pip").A(Player(a => { a.Tier = 4; a.Tax = 15; a.Sig = 32; })));
+            grid.Add(Cell("G7", "brand60", "G7/B5 brand 60", "violet floor ring growing with the brand").A(Player(a => { a.Tier = 2; a.Brand = 60; })));
+            grid.Add(Cell("G7", "brand100", "G7/B5 brand 100 (full)", "full brand pulses").A(Player(a => { a.Tier = 4; a.Brand = 100; })));
+            grid.Add(Cell("P13", "immune", "P13/B7 teleport immunity ring", "4fc3f7 ring round the fighter").A(Player(a => a.Immune = true)));
+            grid.Add(Cell("P14", "roam", "P14/B8 Fire roam ready", "pulsing orange double ring").A(Player(a => { a.Faction = FactionId.Fire; a.Roam = true; })));
+            grid.Add(Cell("M2", "engaged", "M2/B10 engaged mob: bar at full hp", "the bar of a fighting mob shows").A(Mob(MobTypeId.Zealot, a => a.Engaged = true)));
+            grid.Add(Cell("M2", "calm100", "M2 calm mob, full hp: no bar", "no bar while calm").A(Mob(MobTypeId.Zealot)));
+
+            // ---- melee hit zone (the server's weapon shapes, drawn on a swing) and the wind-up telegraph --------------------------------------------------
+            string[] hzNames = { "sword", "bow", "wand", "shield", "axe", "fists" }; byte[] hzWeapons = { 0, 3, 4, 5 };
+            foreach (byte w in hzWeapons)
+            {
+                var hz = CellSpan2("HZ", hzNames[w], "HZ hit zone: " + hzNames[w] + " swing +0.10s", "weapon-coloured sector, 180 ms swing sweep");
+                hz.A(Player(a => { a.Dx = -1.7f; a.Facing = 0f; a.Weapon = (WeaponId)w; a.SwingWeapon = w; a.SwingAge = .1f; })); timed.Add(hz);
+            }
+            var wu1 = CellSpan2("F4", "enemy-sword", "F4/B13 enemy wind-up: sword", "telegraph sector until the swing lands");
+            wu1.A(Mob(MobTypeId.Zealot, a => { a.Dx = -1.7f; a.Facing = 0f; a.Weapon = WeaponId.Sword; a.SwingWeapon = 0; a.WindupAge = .35f; a.WindupMs = 1400; a.HpPct = 80; })); timed.Add(wu1);
+            var wu2 = CellSpan2("F4", "enemy-axe-late", "F4/B13 enemy wind-up: axe, late", "the sweep nears the far edge as the swing comes");
+            wu2.A(Player(a => { a.Dx = -1.7f; a.Facing = 0f; a.Weapon = WeaponId.Axe; a.SwingWeapon = 4; a.WindupAge = 1.0f; a.WindupMs = 1400; })); timed.Add(wu2);
+
+            // ---- crit, kind-coloured damage over time numbers, heals ------------------------------------------------------------------------------------
+            timed.Add(Cell("F1", "crit", "F1/B11 critical hit 62!", "N! and 5 px bigger").A(Player(a => { a.HitAge = .2f; a.HitAmount = 62; a.HitCrit = true; })));
+            timed.Add(Cell("F2", "burn", "F2/B11 burn chunk (ffa040)", "11 px in the signature colour").A(Player(a => { a.HitAge = .2f; a.HitAmount = 6; a.SigKind = 1; })));
+            timed.Add(Cell("F2", "disease", "F2/B11 disease chunk (b2d96c)", "").A(Player(a => { a.HitAge = .2f; a.HitAmount = 6; a.SigKind = 2; })));
+            timed.Add(Cell("F2", "mark", "F2/B11 mark damage (d1a8ff)", "").A(Player(a => { a.HitAge = .2f; a.HitAmount = 9; a.SigKind = 4; })));
+            timed.Add(Cell("F2", "backlash", "F2/B11 backlash (ff7043)", "").A(Player(a => { a.HitAge = .2f; a.HitAmount = 12; a.SigKind = 3; })));
+            timed.Add(Cell("F3", "heal", "F3/B12 heal +18 (81f78b)", "800 ms, starts higher").A(Player(a => { a.HealAge = .3f; a.HealAmount = 18; a.HpPct = 70; })));
+
             // ---- time-based cells (ages at the freeze) ---------------------------------------------------------------------------
             foreach (float age in new[] { .04f, .12f, .2f })
                 timed.Add(Cell("P16", "a" + AgeText(age), "P16 hit flash +" + age.ToString("0.00") + "s", "body white 120 ms on a landed hit (the Hit clip)").A(Player(a => { a.HitAge = age; a.HitAmount = 34; })));
@@ -305,6 +346,10 @@ namespace Roguehalla.Client
             pages.Add(meD);
 
             // me E: the attack lock on a creature (one lock target per local fighter, so it has its own page).
+            var meF = new UiLabPage { Name = "me-windup", HasMe = true, StartSlot = UiLabGrid.Cols + 2 };
+            var ownWu = CellSpan2("F4", "own", "F4 own wind-up: sword", "own wind-up uses the same path");
+            ownWu.A(new UiLabActor { Own = true, Dx = -1.7f, Facing = 0f, Faction = FactionId.Holy, Weapon = WeaponId.Sword, SwingWeapon = 0, WindupAge = .5f, WindupMs = 1400, NoInventory = true }); meF.Cells.Add(ownWu);
+            pages.Add(meF);
             var meE = new UiLabPage { Name = "me-lock-creature", HasMe = true, StartSlot = UiLabGrid.Cols + 3 };
             meE.Cells.Add(Cell("P1", "plain", "P1 own ring (no extras)", "white local ring on the ground, nothing above").A(new UiLabActor { Own = true, Faction = FactionId.Sentenced, Weapon = WeaponId.Bow, WishAbility = 255, NoInventory = true }));
             meE.Cells.Add(Cell("P17", "lockmob", "P17 lock ring on a creature", "ring under a locked creature").A(Mob(MobTypeId.CinderHound, a => a.Lock = true)));

@@ -169,6 +169,12 @@ namespace Roguehalla.Client
             var arena = _session.Collections.Arena;
             double elapsed = arena.HasValue ? System.Math.Max(0, (_session.ServerTimeMs - arena.Value.RaidStartedAt) / 1000) : 0;
             _phaseStrip.text = _session.Collections.Plan != null ? "PLANNING" : _session.Phase == MatchPhase.Active ? "RAID · " + ((int)elapsed / 60).ToString("00") + ":" + ((int)elapsed % 60).ToString("00") : "FORMING MATCH";
+            // The legacy arena line (hud.ts:259): "Coliseum m:ss", warn while the gates are locked, red "sudden death" after the deadline.
+            if (_session.Phase == MatchPhase.Active && arena.HasValue && _session.Collections.Plan == null)
+            {
+                var line = Roguehalla.Net.Ui.Indicators.ArenaLine(_session.ServerTimeMs, arena.Value.SuddenDeathAt, arena.Value.GatesLocked, arena.Value.PatienceEndsAt, out var lineTone);
+                if (line != null) _phaseStrip.text += " · <color=" + (lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffca28" : "#eceff1") + ">" + line + "</color>";
+            }
         }
         void ToggleBuild()
         {
@@ -290,7 +296,7 @@ namespace Roguehalla.Client
             _map?.Tick();
             RefreshWorldHudVisibility();
             SyncTopCentre();
-            UpdateEdgeThreatsStub();
+            UpdateEdgeThreats();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
         }
         void RefreshWorldHudVisibility()

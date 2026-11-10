@@ -25,6 +25,8 @@ namespace Roguehalla.Client
         Session _presentationSession;
         Func<ITransport> _transportFactory = TransportFactory.Create;
         readonly List<InterpActor> _actors = new List<InterpActor>();
+        /// <summary>The remote actors drawn this frame (the render-time sample); read-only for HUD overlays such as the edge threat glows.</summary>
+        public IReadOnlyList<InterpActor> Actors { get { return _actors; } }
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
         Vector2 _lastDir;

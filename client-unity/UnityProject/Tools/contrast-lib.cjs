@@ -230,7 +230,7 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
   for (let i = 0; i < r.ring.length; i++) { if (r.ring[i]) { ringVals.push(ln[i]); ringGround.push(lg[i]); } if (rc.interior[i]) interiorVals.push(ln[i]); }
   if (!edge.valid || ringVals.length < 30) { result.reason = `no measurable sectors (${edge.valid} valid, ${ringVals.length} ring px)`; return result; }
   result.valid = true;
-  if (opts.debug) result.debug = { contour: r.contour, ring: r.ring, interior: r.interior, centroid: c, sectors: o.sectors, sectorRatios: edge.ratios };
+  if (opts.debug) result.debug = { contour: r.contour, ring: r.ring, interior: r.interior, centroid: c, sectors: o.sectors, sectorRatios: edge.ratios, sectorContour: edge.contourMed, sectorRing: edge.ringMed };
   const rimPx = sil.n - core.n;
   result.edge = { p10: edge.p10, min: edge.min, median: edge.median, sectors: edge.valid, ratios: edge.ratios,
     ground: { p10: ground.p10, min: ground.min, median: ground.median }, contourMedian: median(Float64Array.from(edge.contourMed.filter(Number.isFinite))), ringMedian: median(ringVals),
@@ -269,6 +269,16 @@ function frameConsistency(lumNormal, lumGround, mask, w, h, margin = 30) {
   return { far: far.length ? median(far) : 0, inside: inN ? inSum / inN : 0, farPx: far.length * 5, insidePx: inN };
 }
 
+// ---- Cell kinds -------------------------------------------------------------------------------------------------------------------
+
+/** 'ground' (plain surface), 'props' (in front of / beside a prop), 'edge' (straddling a surface change) or 'seam' (straddling two zones). */
+function cellKind(prop) {
+  if (!prop) return 'ground';
+  if (String(prop).startsWith('edge:')) return 'edge';
+  if (String(prop).startsWith('seam:')) return 'seam';
+  return 'props';
+}
+
 // ---- Arguments -------------------------------------------------------------------------------------------------------------------
 
 const ZONES = ['fire', 'sentenced', 'plague', 'frost', 'holy', 'coliseum'];
@@ -278,9 +288,15 @@ function parseSizes(text) {
     return { width: +m[1], height: +m[2] };
   });
 }
+/** `Ember:1,Bog` -> Map(surface or page kind -> max pages (0 = all)): the gate then visits only those pages (quick tuning runs). */
+function parseOnly(text) {
+  const m = new Map();
+  for (const part of text.split(',').map(s => s.trim()).filter(Boolean)) { const [k, n] = part.split(':'); m.set(k.toLowerCase(), n === undefined ? 0 : Number(n)); }
+  return m;
+}
 function parseArgs(argv) {
   const o = { url: 'http://127.0.0.1:8187/', out: 'contrast-gate-out', zones: ZONES.slice(), sizes: parseSizes('1920x1080,2560x1440'), quality: ['high', 'ultra'], edge: 3.0, marker: 4.5, query: '',
-    frames: 4, groundFrames: 3, maxFar: 0.30, minInside: 0.15, maxPages: 0, allowSoftware: false, help: false, raw: '' };
+    frames: 4, groundFrames: 3, maxFar: 0.30, minInside: 0.15, maxPages: 0, only: null, allowSoftware: false, help: false, raw: '' };
   const need = (i, name) => { if (i + 1 >= argv.length) throw new Error(`--${name} needs a value`); return argv[i + 1]; };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -296,6 +312,7 @@ function parseArgs(argv) {
       case '--frames': o.frames = Number(need(i++, 'frames')); break;
       case '--ground-frames': o.groundFrames = Number(need(i++, 'ground-frames')); break;
       case '--max-pages': o.maxPages = Number(need(i++, 'max-pages')); break;
+      case '--only': o.only = parseOnly(need(i++, 'only')); break;
       case '--raw': o.raw = require('node:path').resolve(need(i++, 'raw')); break;
       case '--allow-software': o.allowSoftware = true; break;
       case '--help': case '-h': o.help = true; break;
@@ -312,5 +329,5 @@ function parseArgs(argv) {
 
 module.exports = {
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
-  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, parseArgs, parseSizes, ZONES, DEFAULTS,
+  distanceTo, erode, dilate, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseOnly, parseArgs, parseSizes, ZONES, DEFAULTS,
 };
