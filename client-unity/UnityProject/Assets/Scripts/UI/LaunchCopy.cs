@@ -40,7 +40,7 @@ namespace Roguehalla.Client
             switch (target.Kind)
             {
                 case LaunchUnavailableKind.OtherSite:
-                    return "This link points at a game server on another site, so your profile can't go with you. Open the game from its main address to play.";
+                    return "This link points at a game server on another site. Open the game from its main address to play.";
                 case LaunchUnavailableKind.NoAccountService:
                     return "Accounts aren't reachable from this page, so a run can't start. Reload, or open the game from its main address.";
                 case LaunchUnavailableKind.BadAddress:
