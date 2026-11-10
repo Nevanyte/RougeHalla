@@ -8,6 +8,9 @@ runner's consumed predicate `healingUntil > now` can be represented by accepted 
 `potions_healing > 0` in the validated non-Ended domain at exactly the frame's source time. Sol independently reviewed
 the static producer/validator reasoning; preserve any actual counterexample rather than repair production unilaterally.
 
+Dispatched in isolated `backend-bot-potion-fact`, branch `codex/deepseek-potion-fact`, at clean `3e2d9028`.
+The independent review's one mid-HOT restore boundary below was delivered to the active worker at approximately09:41UTC.
+
 ## Dependencies
 
 Start from the current Root backend integration containing admitted NPC/quest repairs and the protocol14 delivery
@@ -67,6 +70,8 @@ Use a small finite set of genuine trajectories, combining compatible checks:
    accepted checkpoint, clearly distinguishing declared baseline from earned continuation. Do not reject valid restore.
 6. The assertion/comparator must reject a meaningful wrong count or wrong sample-time pairing; the control must not
    mutate gameplay state or become an expected-answer input. Missing Inventory must be refused/unavailable.
+7. One real mid-HOT accepted checkpoint/restore continuation must preserve the producer/accepted-frame predicate.
+   This is a finite restore boundary, not a new Clone/hash or full checkpoint campaign.
 
 If the chosen public APIs cannot reach a boundary, report that concrete limitation with the exact available API before
 inventing a test seam or expanding the lease. No broad campaign or full workspace run is needed for this proof.
