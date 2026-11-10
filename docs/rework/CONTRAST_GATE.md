@@ -212,3 +212,8 @@ The baseline above is the state before this branch. What changed in the game (ow
 ### What the lab gained
 
 `edge` pages (a figure straddling every straight run of a surface change that exists in a zone, in both orientations: lava edge, ember edge, ice edge, temple threshold and sand/holy light, mud, grass and bog), `seam` pages (a figure on each border of two zone blocks, where their light and ground blend), the conditions `?cond=fog` (fog of war on, every figure in its own clearing), `?cond=fade` (frozen half way through the vision fade-in) and `?cond=flash` (a confirmed hit: flash, damage number, Hit clip, refreshed until the freeze), `--only Ember:1,Bog` (visit only those surfaces or page kinds), the columns `ringLum` and `contourLum` (median luminance of the ring and of the contour), the sector medians in the debug view, and the tuning switches `ol.cross`, `ol.dead`, `ol.light`, `ol.dark`, `ol.halo`, `ol.gain`, `ol.r`, `ol.down`, `ol.flip`, `ol.debug` (1 polarity, 2 ground luminance, 4 the grab seen through the quad). The strict EDGE statistic is untouched.
+
+### Result on the merged tree (2026-11-10)
+
+Full matrix (1920x1080 and 2560x1440, High and Ultra): **EDGE 3,339 / 3,724 cells, plain ground 2,384 / 2,472, markers 3,204 / 3,724; the gate exits 1.** Baseline: 0 / 2,808. Failures are Fire ember (68 plain cells), Plague bog and shallow water (19), one Holy sand cell, figures behind props, and surface boundaries and seams.
+Tables, before and after worst-cell sheets, the ghost-figure filmstrips, the conditions (fog, fade, hit flash), the measured cost and what each remaining lever would cost: [evidence/contrast/README.md](evidence/contrast/README.md).
