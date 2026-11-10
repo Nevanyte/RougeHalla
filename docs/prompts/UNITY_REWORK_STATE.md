@@ -57,6 +57,14 @@ After these merge: P-HB-7 (C# foot-box prediction) and P-HB-8 (Unity chest aim, 
 - 2026-11-09: `ccf05e05` adds a file under `packages/`; that file is skipped (packages is read-only).
 - 2026-11-09: the unmerged protocol-15 netcode WIP (`claude/peaceful-babbage-rtsgq6`) is not part of this effort; our bump is taken from 14 on this branch and the number clash is flagged at Gate 1.
 
+## Owner direction received mid-run (2026-11-09, after seeing the Frost screenshot)
+Liked Frost. Asked for a real lighting system, now part of the atmosphere scope (sent to the atmosphere agent):
+- One consistent sun across the map whose hue and brightness grade gradually by position as you cross zones (Frost bright white, Holy golden, Plague dim green, Sentenced little sun, Fire low to none).
+- Environment shadows from props, walls and actors along the sun direction.
+- Light-emitting terrain: lava lighting Fire, glowing bogs in Plague, Holy light zones.
+- Slightly translucent lake ice in Frost.
+- Other zone-specific touches where cheap.
+
 ## Facts found while orienting (differ from the prompt's section 3)
 - The full five-region map is **160 x 160**, not 136 x 136: `crates/rh-sim/src/mapdata/fixtures/seed1.map.json` and `seed2.map.json` (rh-map/2, 4,936 tiles per region, 50 camps, terrain kinds 1-7, 86 features). Serve with `rh-server --runtime source-arena --map <file>`.
 - `--first-playable` (48 x 40) has only 4 Frost and 4 Sentenced tiles, so it cannot show Frost. Region playtests use the seed maps.
