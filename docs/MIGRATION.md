@@ -47,7 +47,7 @@ composition bridge is dispatched from `bed245bd` in `backend-bot-strategy-compos
 released at `cdf5b70f` and integrated as `df62934a`; [follow-up review](evidence/bot-private-tactics-admission-review/follow-up.md)
 clears same-entrypoint intake/nonadvance, specialized tagged-object order and direct-endpoint exactness. Author18 focused,
 154/720 source plus recreate/compatibility and238 full library pass with final lint/format. Root's integrated focused
-check is running. The accepted real private full-tier Reflexes variance preserves the old68-row overlap; the old
+check also passes18, including the full154/720 replay and repaired controls. The accepted real private full-tier Reflexes variance preserves the old68-row overlap; the old
 TierId-only component cannot represent resolved source overrides. Modules and Card continue
 under their existing leases. The test-only potion-fact proof `aa05af1c` is independently admitted as `ae29dc1b`;
 [Root's integrated focused check](evidence/bot-potion-fact-admission-review/README.md) passes5. It verifies same-sample

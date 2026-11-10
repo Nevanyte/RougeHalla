@@ -66,3 +66,14 @@ Final receipt SHA-256: private18 `24be54448a729b55dacb197144ee77132facf5c40dc735
 Source remains exactly the admitted candidate: source 11656923 bytes/SHA256 `5d27d1b4522d386d4ede5f3064a28660dedff43e32a24ade264f4512e30fcfa8`; coverage 1069183 bytes/`b43c64fea6c6da17faaccf578a1e4d6614c96e352f5f951fefafcca95ae68f77`; manifest 37387 bytes/`9f76406016d0ebc498b0a3a3ec7cad677fc43ecd40b530a963a57a7f3d6eb957`.
 
 **Final disposition: RELEASE cdf5b70f for finite complete private Tactics/component consumption.** No remaining concrete admission blocker in this packet. It does not activate Brain, public HumanBot, accepted-frame composition, live/headless driver, protocol/Unity or deployment. Root alone integrates and grants downstream scopes.
+
+## Root integration verification
+
+Root integrated the exact seal as `df62934acca0663d0c7420c5a53317f0e10321d9`, then ran
+`cargo test -p rh-policy --lib private_tactics --locked --offline -j 1 -- --nocapture` on the combined backend.
+**18 passed, 0 failed, 235 filtered**, exit0; test4.53s, wall39.40s including compile. The adjacent
+`root-integrated-test.log` binds exact command/cwd/HEAD/environment and raw counts, including154/720 source and
+recreate, the three repaired control groups and unchanged compatibility overlaps. It uses pinned Rust1.97,
+incremental0, no RUSTFLAGS and existing Root target `target/root-strategy-notice-admission/build`. Only docs
+advanced while the check ran. This verifies composition with the admitted path bridge, Hand and potion proof;
+it does not claim another full238 execution or a live Brain.
