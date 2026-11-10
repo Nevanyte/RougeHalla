@@ -44,6 +44,49 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void ShippedSkinMeetsWcagAndKeepsFactionsApartByLightness()
+        {
+            var t = UiTheme.Skin();
+            foreach (var surface in new[] { t.Surface, t.SurfaceRaised, t.SurfaceHover, t.SurfaceSelected })
+            {
+                Assert.That(ShowcasePalette.ContrastRatio(t.TextPrimary, surface), Is.GreaterThanOrEqualTo(4.5f));
+                Assert.That(ShowcasePalette.ContrastRatio(t.TextSecondary, surface), Is.GreaterThanOrEqualTo(4.5f));
+                Assert.That(ShowcasePalette.ContrastRatio(t.Accent, surface), Is.GreaterThanOrEqualTo(4.5f));
+                Assert.That(ShowcasePalette.ContrastRatio(t.Danger, surface), Is.GreaterThanOrEqualTo(4.5f));
+            }
+            Assert.That(ShowcasePalette.ContrastRatio(t.OutlineDark, t.AccentDim), Is.GreaterThanOrEqualTo(4.5f), "primary button ink");
+            Assert.That(ShowcasePalette.ContrastRatio(t.Border, t.Surface), Is.GreaterThanOrEqualTo(3f), "panel edges");
+            Assert.That(t.Owns(t.OutlineDark) && t.Owns(t.OutlineLight));
+        }
+
+        [Test]
+        public void GeneratedSlicedSpritesDrawTheirBordersInHudUnits()
+        {
+            // Regression: a sprite with pixelsPerUnit 1 makes a UI Image scale the 9-slice border by 100, which collapses every panel to a stretched blob.
+            var theme = UiTheme.Skin();
+            var host = new GameObject("Slice host", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                foreach (float radius in new[] { 3f, 6f, 8f, 14f })
+                {
+                    var go = new GameObject("img", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+                    go.transform.SetParent(host.transform, false);
+                    var image = go.GetComponent<UnityEngine.UI.Image>();
+                    image.type = UnityEngine.UI.Image.Type.Sliced;
+                    foreach (var sprite in new[] { UiSprites.Panel(theme, radius), UiSprites.Frame(theme, radius), UiSprites.Gloss(theme, radius) })
+                    {
+                        image.sprite = sprite;
+                        Assert.That(image.hasBorder, sprite.name);
+                        Assert.That(sprite.border.x / image.pixelsPerUnit, Is.EqualTo(radius).Within(.01f), sprite.name + " border in HUD units equals the corner radius");
+                        Assert.That(sprite.rect.width, Is.GreaterThan(sprite.border.x * 2f), sprite.name + " keeps a stretchable centre");
+                        Assert.That(sprite.texture.mipmapCount, Is.GreaterThan(1), sprite.name + " is mip-mapped so it stays sharp when minified");
+                    }
+                }
+            }
+            finally { Object.DestroyImmediate(host); }
+        }
+
+        [Test]
         public void GeneratedPanelSpritesAreNineSlicedAndThemeIndependent()
         {
             var theme = UiTheme.Placeholder();

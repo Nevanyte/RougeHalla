@@ -68,14 +68,29 @@ namespace Roguehalla.Client
             return Box(parent, name, HudAnchor.TopLeft, x, y, width, height);
         }
 
-        /// <summary>Fills a rect with a themed rounded surface and an optional hairline frame drawn on top.</summary>
-        public static Image Surface(RectTransform rect, Color fill, float radius, Color? border = null, bool raycast = true)
+        /// <summary>
+        /// Fills a rect with a themed rounded surface and an optional hairline frame drawn on top. A <paramref name="raised"/> surface
+        /// (buttons, plates, cards) also gets a 2 unit drop shadow and a one unit inner highlight along its top edge.
+        /// </summary>
+        public static Image Surface(RectTransform rect, Color fill, float radius, Color? border = null, bool raycast = true, bool raised = false)
         {
             var theme = UiTheme.Current;
             var image = rect.GetComponent<Image>() ?? rect.gameObject.AddComponent<Image>();
             image.sprite = UiSprites.Panel(theme, radius); image.type = Image.Type.Sliced; image.color = fill; image.raycastTarget = raycast;
-            var existing = rect.Find("Frame");
-            if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            foreach (string stale in new[] { "Gloss", "Frame" })
+            {
+                var existing = rect.Find(stale);
+                if (existing != null) Object.DestroyImmediate(existing.gameObject);
+            }
+            var shadow = rect.GetComponent<Shadow>();
+            if (raised)
+            {
+                if (shadow == null) shadow = rect.gameObject.AddComponent<Shadow>();
+                shadow.effectColor = new Color(0f, 0f, 0f, .38f); shadow.effectDistance = new Vector2(0f, -2f); shadow.useGraphicAlpha = true;
+                var gloss = Inset(rect, "Gloss", 0, 0, 0, 0).gameObject.AddComponent<Image>();
+                gloss.sprite = UiSprites.Gloss(theme, radius); gloss.type = Image.Type.Sliced; gloss.color = new Color(1f, 1f, 1f, .16f); gloss.raycastTarget = false;
+            }
+            else if (shadow != null) Object.DestroyImmediate(shadow);
             if (border.HasValue && theme.BorderWidth > 0f)
             {
                 var frame = Inset(rect, "Frame", 0, 0, 0, 0);
@@ -120,6 +135,16 @@ namespace Roguehalla.Client
             label.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.margin = Vector4.zero;
+            // TextMeshPro hides a line that is taller than its rect when the overflow mode is Ellipsis. Nunito's line box is about 1.36 em,
+            // so a rect sized for a 1.2 em legacy line (a 12 to 15 unit row for 10 to 11 px text) would blank the text. Grow the rect
+            // vertically, away from the aligned edge, so the line always fits and the text keeps its visual position.
+            float lineGrow = Mathf.Ceil(size * .45f);
+            switch (label.verticalAlignment)
+            {
+                case VerticalAlignmentOptions.Top: rect.offsetMin = new Vector2(0f, -lineGrow * 2f); break;
+                case VerticalAlignmentOptions.Bottom: case VerticalAlignmentOptions.Baseline: rect.offsetMax = new Vector2(0f, lineGrow * 2f); break;
+                default: rect.offsetMin = new Vector2(0f, -lineGrow); rect.offsetMax = new Vector2(0f, lineGrow); break;
+            }
             var scale = rect.gameObject.AddComponent<MythicTextScale>(); scale.BaseSize = size;
             scale.Apply(ShowcaseSettings.Current != null ? ShowcaseSettings.Current.TextScale : 1f);
             return label;
@@ -131,7 +156,7 @@ namespace Roguehalla.Client
         {
             var theme = UiTheme.Current;
             var rect = Box(parent, name, anchor, x, y, width, height);
-            var image = Surface(rect, Color.white, radius < 0f ? theme.CornerRadius : radius, theme.Border);
+            var image = Surface(rect, Color.white, radius < 0f ? theme.CornerRadius : radius, theme.Border, true, true);
             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
             ApplyColors(button, theme.SurfaceRaised);
             if (onClick != null) button.onClick.AddListener(onClick);

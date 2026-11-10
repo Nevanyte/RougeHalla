@@ -84,17 +84,17 @@ namespace Roguehalla.Client
         {
             var theme = UiTheme.Current;
             _bannerPill = HudUi.Box(_stage, "ConnectionBanner", HudAnchor.TopCenter, 0, BannerTop, 380, 28);
-            HudUi.Surface(_bannerPill, Tone(theme.Surface, .96f), 14f, theme.BorderStrong, false);
+            HudUi.Surface(_bannerPill, Tone(theme.Surface, .96f), 14f, theme.BorderStrong, false, true);
             _banner = HudUi.Label(_bannerPill, "Connection", "Choose a faction and join", theme.SizeBody, theme.TextPrimary, TextAlignmentOptions.Center, true);
             _banner.rectTransform.offsetMin = new Vector2(12, 0); _banner.rectTransform.offsetMax = new Vector2(-12, 0);
 
             _phasePill = HudUi.Box(_stage, "PhaseTimerPill", HudAnchor.TopCenter, 0, BannerTop, 220, 26);
-            HudUi.Surface(_phasePill, Tone(theme.Surface, .86f), theme.CornerRadius, theme.Border, false);
+            HudUi.Surface(_phasePill, Tone(theme.Surface, .94f), theme.CornerRadius, theme.Border, false, true);
             _phaseStrip = HudUi.Label(_phasePill, "PhaseTimer", "", theme.SizeBody, theme.TextPrimary, TextAlignmentOptions.Center, true);
             _phasePill.gameObject.SetActive(false);
 
             _noticePill = HudUi.Box(_stage, "ToastStack", HudAnchor.BottomCenter, 0, ToastBottom, 480, 30);
-            HudUi.Surface(_noticePill, Tone(theme.Surface, .97f), theme.CornerRadius, theme.BorderStrong, false);
+            HudUi.Surface(_noticePill, Tone(theme.Surface, .97f), theme.CornerRadius, theme.BorderStrong, false, true);
             _notice = HudUi.Label(_noticePill, "Notice", "", theme.SizeBody, theme.Accent, TextAlignmentOptions.Center, true);
             _notice.rectTransform.offsetMin = new Vector2(14, 0); _notice.rectTransform.offsetMax = new Vector2(-14, 0);
             _noticePill.gameObject.SetActive(false);
@@ -129,7 +129,7 @@ namespace Roguehalla.Client
         {
             var theme = UiTheme.Current;
             _vitalsPanel = HudUi.Box(_hud, "VitalsPanel", HudAnchor.TopLeft, PlateLeft, PlateTop, 240f, 60f);
-            HudUi.Surface(_vitalsPanel, Tone(theme.Surface, .88f), theme.CornerRadius, theme.Border, false);
+            HudUi.Surface(_vitalsPanel, Tone(theme.Surface, .94f), theme.CornerRadius, theme.Border, false, true);
             _plateBody = HudUi.Inset(_vitalsPanel, "PlateBody", 8, 5, 8, 6);
 
             // Not active: status line (600) and vitals line, plus the kills / GV line Unity already received.
@@ -241,7 +241,7 @@ namespace Roguehalla.Client
         {
             var theme = UiTheme.Current;
             _championHud = _damagePanel = HudUi.Box(_hud, "ChampionCombatHud", HudAnchor.BottomLeft, ChampionLeft, ChampionBottom, 250f, ChampionHeight);
-            HudUi.Surface(_championHud, Tone(theme.Surface, .92f), 7f, theme.Border, true);
+            HudUi.Surface(_championHud, Tone(theme.Surface, .94f), 7f, theme.Border, true, true);
             _championName = HudUi.Label(HudUi.At(_championHud, "Head", 8, 6, 150, 16), "Champion", "Champion", 12f, theme.TextPrimary, bold: true);
             _damageWeapon = HudUi.Label(HudUi.At(_championHud, "Weapon", 150, 8, 92, 14), "Weapon", "—", theme.SizeTiny, theme.Accent, TextAlignmentOptions.MidlineRight);
             string[] labels = { "Attack", "Passive", "Wish" };
@@ -294,7 +294,7 @@ namespace Roguehalla.Client
             {
                 byte slot = (byte)i;
                 var rect = HudUi.Box(_weaponBar, "Slot" + (i + 1), HudAnchor.BottomLeft, RowSlot(i * 2).X, rowBottom, SlotWidth, SlotHeight);
-                var image = HudUi.Surface(rect, Color.white, theme.CornerRadius, theme.Border, true);
+                var image = HudUi.Surface(rect, Color.white, theme.CornerRadius, theme.Border, true, true);
                 var button = _slots[i] = rect.gameObject.AddComponent<UnityEngine.UI.Button>();
                 button.targetGraphic = image; button.onClick.AddListener(() => Swap(slot));
                 HudUi.ApplyColors(button, theme.SurfaceRaised);
@@ -305,8 +305,9 @@ namespace Roguehalla.Client
                 _weaponIcons[i].rectTransform.pivot = new Vector2(.5f, 1f); _weaponIcons[i].rectTransform.anchoredPosition = new Vector2(0, -12);
                 _slotNames[i] = HudUi.Label(HudUi.At(rect, "Name", 4, 42, SlotWidth - 8, 14), "Label", "Empty", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.Center);
                 HudUi.Label(HudUi.At(rect, "Scaling", 4, 59, SlotWidth - 8, 11), "Label", "", theme.SizeMicro, theme.TextSecondary, TextAlignmentOptions.Center);
-                var sweep = HudUi.Fill(rect, "CooldownSweep", Tone(theme.TextPrimary, .45f));
-                sweep.sprite = UiSprites.Panel(theme); sweep.type = UnityEngine.UI.Image.Type.Filled;
+                var sweep = HudUi.Fill(rect, "CooldownSweep", Tone(theme.OutlineDark, .62f));
+                sweep.rectTransform.offsetMin = new Vector2(1f, 1f); sweep.rectTransform.offsetMax = new Vector2(-1f, -1f);
+                sweep.sprite = UiSprites.Flat(); sweep.type = UnityEngine.UI.Image.Type.Filled;
                 sweep.fillMethod = UnityEngine.UI.Image.FillMethod.Radial360; sweep.fillOrigin = 2; sweep.fillClockwise = false; sweep.fillAmount = 0f;
                 _slotSweeps[i] = sweep; sweep.enabled = false;
                 var active = HudUi.Fill(rect, "ActiveWeapon", theme.BorderStrong);
@@ -317,7 +318,7 @@ namespace Roguehalla.Client
 
             // Q swap chip between the slots.
             var chip = HudUi.Box(_weaponBar, "QSwap", HudAnchor.BottomLeft, RowSlot(1).X, rowBottom + (SlotHeight - 40f) / 2f, SwapWidth, 40f);
-            var chipImage = HudUi.Surface(chip, Color.white, theme.CornerRadius, theme.Border, true);
+            var chipImage = HudUi.Surface(chip, Color.white, theme.CornerRadius, theme.Border, true, true);
             _swapChip = chip.gameObject.AddComponent<UnityEngine.UI.Button>(); _swapChip.targetGraphic = chipImage;
             HudUi.ApplyColors(_swapChip, theme.SurfaceRaised);
             _swapChip.onClick.AddListener(() => { if (_inventoryShown.HasValue) Swap((byte)(_inventoryShown.Value.ActiveSlot == 0 ? 1 : 0)); });
@@ -335,7 +336,7 @@ namespace Roguehalla.Client
         void CreateWishTile(UiTheme theme, float rowBottom)
         {
             _wishTile = HudUi.Box(_weaponBar, "WishTile", HudAnchor.BottomLeft, RowSlot(3).X, rowBottom + (SlotHeight - WishSize) / 2f, WishSize, WishSize);
-            var image = HudUi.Surface(_wishTile, Color.white, theme.CornerRadius, theme.Border, true);
+            var image = HudUi.Surface(_wishTile, Color.white, theme.CornerRadius, theme.Border, true, true);
             var wishInfo = _wishTile.gameObject.AddComponent<UnityEngine.UI.Button>(); wishInfo.targetGraphic = image;
             HudUi.ApplyColors(wishInfo, theme.SurfaceRaised);
             HudUi.Label(HudUi.At(_wishTile, "Key", 5, 4, 14, 12), "Label", "R", theme.SizeTiny, theme.TextSecondary);
@@ -345,8 +346,9 @@ namespace Roguehalla.Client
             _wishSeconds = HudUi.Label(HudUi.At(_wishTile, "Seconds", 0, 6, WishSize, 24), "Label", "", 15f, theme.TextPrimary, TextAlignmentOptions.Center, true);
             _wishSummary = HudUi.Label(HudUi.At(_wishTile, "Name", 2, 36, WishSize - 4, 12), "Label", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.Center);
             _wishCharges = HudUi.Label(HudUi.At(_wishTile, "Charges", WishSize - 22, WishSize - 20, 20, 14), "Label", "", theme.SizeSmall, theme.Accent, TextAlignmentOptions.Center, true);
-            _wishSweep = HudUi.Fill(_wishTile, "CooldownSweep", Tone(theme.TextPrimary, .45f));
-            _wishSweep.sprite = UiSprites.Panel(theme); _wishSweep.type = UnityEngine.UI.Image.Type.Filled;
+            _wishSweep = HudUi.Fill(_wishTile, "CooldownSweep", Tone(theme.OutlineDark, .62f));
+            _wishSweep.rectTransform.offsetMin = new Vector2(1f, 1f); _wishSweep.rectTransform.offsetMax = new Vector2(-1f, -1f);
+            _wishSweep.sprite = UiSprites.Flat(); _wishSweep.type = UnityEngine.UI.Image.Type.Filled;
             _wishSweep.fillMethod = UnityEngine.UI.Image.FillMethod.Radial360; _wishSweep.fillOrigin = 2; _wishSweep.fillClockwise = false; _wishSweep.fillAmount = 0f; _wishSweep.enabled = false;
             var cast = HudUi.Box(_wishTile, "CastBar", HudAnchor.BottomLeft, 0, 0, WishSize, 3);
             _wishCastBar = cast.gameObject.AddComponent<UnityEngine.UI.Image>(); _wishCastBar.color = theme.Accent; _wishCastBar.raycastTarget = false;
@@ -376,7 +378,7 @@ namespace Roguehalla.Client
             _potionHint = HudIconHint.Attach(_potionButton, _root, "E · Drink potion\nAwaiting inventory");
             // Wind chip: delivered facts do not include the boost timer, so it only names the emblem.
             var wind = HudUi.Box(row, "Wind", HudAnchor.BottomRight, 0, 0, 146f, ConsumablesHeight);
-            HudUi.Surface(wind, Tone(theme.SurfaceRaised, .9f), 5f, theme.Border, false);
+            HudUi.Surface(wind, Tone(theme.SurfaceRaised, .94f), 5f, theme.Border, false, true);
             HudUi.Label(HudUi.At(wind, "Name", 8, 7, 30, 14), "Label", "Wind", theme.SizeSmall, theme.Info, bold: true);
             _windText = HudUi.Label(HudUi.At(wind, "Text", 42, 7, 100, 14), "Label", "Walk over emblems", theme.SizeSmall, theme.TextPrimary);
         }
@@ -453,7 +455,7 @@ namespace Roguehalla.Client
             }
             if (_championName != null)
             {
-                Set(_championName, ShowcasePalette.GetFactionName((int)me.Faction));
+                Set(_championName, ShowcasePalette.GetFactionMark((int)me.Faction) + " " + ShowcasePalette.GetFactionName((int)me.Faction));
                 _championName.color = theme.FactionColor((int)me.Faction);
             }
             // Wish row of the champion HUD: the ability name and stock the server delivered.
