@@ -182,10 +182,10 @@ namespace Roguehalla.Client
                 if (_bounty != f.Bounty) { _bounty = f.Bounty; _number.text = f.Bounty.ToString(System.Globalization.CultureInfo.InvariantCulture); }
                 _numberBase = (Color)theme.Accent; var c = _numberBase; c.a *= _textFade; _number.color = c;
                 _number.gameObject.SetActive(true);
-                _number.transform.localPosition = new Vector3(0, cursor + 22f * Px * s + .02f, 0);
+                _number.transform.localPosition = new Vector3(0, cursor + 22f * Px * s + .04f, 0);
                 _number.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .02f + .13f, 0), _number.preferredWidth + .12f, .24f, f.Order + 11, theme);
-                cursor += 22f * Px * s + .3f;
+                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .02f + .16f, 0), _number.preferredWidth + .14f, .31f, f.Order + 11, theme);
+                cursor += 22f * Px * s + .44f;
             }
             else { _number.gameObject.SetActive(false); _numberBack.enabled = false; _bounty = -1; }
 
