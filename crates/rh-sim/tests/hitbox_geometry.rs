@@ -363,3 +363,30 @@ fn arc_hits_box_edge_cases() {
     let a = atan2(-1.0, -0.2);
     assert!(arc_hits_box(o, a, 60.0, 0.4, bx));
 }
+
+/// Review finding 5: a non-finite segment or box never touches (legacy `contact` returns `None` for NaN input), and a
+/// non-finite melee origin, aim or box never hits (legacy `in_arc` is false for NaN).
+#[test]
+fn non_finite_input_never_touches_a_box() {
+    let bx = Aabb::centred(Vec2::new(0.0, 0.0), 16.0, 35.0);
+    let ok = Vec2::new(-50.0, 0.0);
+    let far = Vec2::new(50.0, 0.0);
+    assert_eq!(segment_box_entry(ok, far, bx), Some((50.0 - 16.0) / 100.0));
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        for (a, b) in [
+            (Vec2::new(bad, 0.0), far),
+            (Vec2::new(0.0, bad), far),
+            (ok, Vec2::new(bad, 0.0)),
+            (ok, Vec2::new(0.0, bad)),
+        ] {
+            assert_eq!(segment_box_entry(a, b, bx), None, "{a:?} -> {b:?}");
+        }
+        assert_eq!(segment_box_entry(ok, far, Aabb { x0: bad, ..bx }), None);
+        assert_eq!(segment_box_entry(ok, far, Aabb { y1: bad, ..bx }), None);
+        assert!(!arc_hits_box(Vec2::new(bad, 0.0), 0.0, 112.0, PI / 4.0, bx));
+        assert!(!arc_hits_box(Vec2::new(-50.0, bad), 0.0, 112.0, PI / 4.0, bx));
+        assert!(!arc_hits_box(ok, bad, 112.0, PI / 4.0, bx));
+        assert!(!arc_hits_box(ok, 0.0, 112.0, PI / 4.0, Aabb { x1: bad, ..bx }));
+    }
+    assert!(arc_hits_box(ok, 0.0, 112.0, PI / 4.0, bx));
+}

@@ -548,8 +548,12 @@ impl Aabb {
 
 /// The first `u` in `[0, 1]` at which the segment `a + u (b - a)` is in the closed box (slab test, no square root), or
 /// `None`. A start inside the box counts as `u = 0` only when the segment is not moving away from the box centre, which
-/// mirrors the disc `contact` of the projectile sweep (a shot leaving a body it starts in does not hit it again).
+/// mirrors the disc `contact` of the projectile sweep (a shot leaving a body it starts in does not hit it again). Any
+/// non-finite input is `None`, as the disc `contact` is for NaN.
 pub fn segment_box_entry(a: Vec2, b: Vec2, bx: Aabb) -> Option<f64> {
+    if !(a.x + a.y + b.x + b.y + bx.x0 + bx.y0 + bx.x1 + bx.y1).is_finite() {
+        return None;
+    }
     let dx = b.x - a.x;
     let dy = b.y - a.y;
     if bx.contains(a) {
@@ -587,10 +591,15 @@ pub fn segment_box_entry(a: Vec2, b: Vec2, bx: Aabb) -> Option<f64> {
 /// point of the box closest to `o`, (1) `o` inside the box hits; (2) `|p - o| > reach` misses; (3) `p`'s bearing within
 /// `half_arc + ARC_EPS` of `a` hits; (4) otherwise it hits only if one of the two boundary rays
 /// `o + [0, reach] * dir(a +/- half_arc)` crosses the box. Proof of (4): the box intersected with the disc is convex, so a
-/// part of it inside the wedge, with `p` outside the wedge, must cross the wedge boundary inside the disc.
+/// part of it inside the wedge, with `p` outside the wedge, must cross the wedge boundary inside the disc. Any non-finite
+/// input misses (as the legacy `in_arc` does for NaN). The melee system resolves an origin inside the box with the legacy
+/// disc test instead (ADR0024 Decision 5), so step (1) is the geometric answer, not the rule a swing uses.
 pub fn arc_hits_box(o: Vec2, a: f64, reach: f64, half_arc: f64, bx: Aabb) -> bool {
     use crate::constants::ARC_EPS;
     use crate::math::{angle_between, atan2, cos, sin};
+    if !(o.x + o.y + a + half_arc + bx.x0 + bx.y0 + bx.x1 + bx.y1).is_finite() {
+        return false;
+    }
     if bx.contains(o) {
         return true;
     }
