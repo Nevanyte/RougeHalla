@@ -135,10 +135,13 @@ namespace Roguehalla.Client.Tests
             _now += VisionFade.EnterSeconds * 0.5f; Present(9);
             Assert.That(shadow.color.a, Is.InRange(0.1f, 0.95f));
             _now += VisionFade.EnterSeconds; Present(9);
-            Assert.That(shadow.color.a, Is.EqualTo(1f).Within(0.01f));
+            // Fully faded in means the shadow's own base alpha, which the sun-driven actor shadow sets between 0.85 and 1
+            // (AtmosphereShadows), not necessarily 1: the fade only ever multiplies the base.
+            float full = shadow.color.a;
+            Assert.That(full, Is.InRange(0.84f, 1.0f), "no fade attenuation left");
             Leave(); _now += 1f; _presenter.StepFades();       // fade out, release to the pool
             Present(10); _now += 1f; Present(10);              // the pool hands the same art to a new actor
-            Assert.That(Find("Contact shadow").color.a, Is.EqualTo(1f).Within(0.01f), "colours restored when pooled");
+            Assert.That(Find("Contact shadow").color.a, Is.EqualTo(full).Within(0.01f), "colours restored when pooled");
         }
 
         [Test]
