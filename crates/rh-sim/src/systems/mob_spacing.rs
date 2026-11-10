@@ -590,7 +590,10 @@ mod tests {
         // guard stops spacing from carrying out a partial retreat the policy refused.
         let t = Vec2::new(1000., 1000.);
         let from = Vec2::new(1000., 1000. - 223.);
-        let ix = sorted(vec![entry(1, from.x, from.y), entry(2, from.x, from.y + 10.)]);
+        let ix = sorted(vec![
+            entry(1, from.x, from.y),
+            entry(2, from.x, from.y + 10.),
+        ]);
         let band = Band { lo: 228., hi: 392. };
         assert_eq!(at(&ix, 1, from, t, band), None);
     }
@@ -602,7 +605,10 @@ mod tests {
         // sidestep along the circle, which lowers the squared overlap by only about 0.04 < GAIN_MIN: no order.
         let t = Vec2::new(1000., 1000.);
         let from = Vec2::new(1000., 900.);
-        let ix = sorted(vec![entry(1, from.x, from.y), entry(2, from.x, from.y + 38.9)]);
+        let ix = sorted(vec![
+            entry(1, from.x, from.y),
+            entry(2, from.x, from.y + 38.9),
+        ]);
         let band = Band { lo: 0., hi: 100. };
         assert_eq!(at(&ix, 1, from, t, band), None);
     }
