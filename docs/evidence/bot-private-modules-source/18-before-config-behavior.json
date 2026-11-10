@@ -1,0 +1,8 @@
+{
+  "kind": "before-explicit-config-expansion",
+  "sourceSha256": "0237d6fd7fa786b7ba14801b7411ce1db37138f885fa9faefbd765eb29443e70",
+  "expectedPreviousSha256": "0237d6fd7fa786b7ba14801b7411ce1db37138f885fa9faefbd765eb29443e70",
+  "behaviorProjectionSha256": "e66054836d9a2e235a93139bb21a27fa8647a32c57b6c43f47c04a43335bd2db",
+  "cases": 254,
+  "operations": 3255
+}
