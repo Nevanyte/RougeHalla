@@ -19,6 +19,8 @@ document's creation.
 
 ## Source and admitted components
 
+**Source release (2026-11-10):** candidate `54ff01a2` is released for finite native consumption by [Root's admission](../../evidence/bot-private-tactics-source-review/ADMISSION.md), after independent reproduction `c8d0a5e6`. All154 cases/720 methods and every captured channel remain required. That decision fixes the narrow derived-geometry whitelist and maps the exceptional World empty-route case to a typed native error with equivalent pre-error effects; it neither omits the case nor requires a panic. Native dispatch still waits for private strategy admission and an exact branch/visibility allocation.
+
 Actual code wins over older documentation. Read AGENTS.md, current backend checkpoint, REQUIREMENTS/CONTRACTS,
 ADR0005/0007 and P-BOT-STRATEGY-1. Preserve C-OBS/C-RNG/C-INPUT/C-DET/C-NUM/C-PARITY/C-POLICY.
 
