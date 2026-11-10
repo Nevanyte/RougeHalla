@@ -47,6 +47,8 @@ namespace Roguehalla.Client
         public Color32 OutlineLight;     // outline ink over a dark world
         // The five faction accents (Fire, Sentenced, Plague, Frost, Holy). Used as text on Surface, so they hold 4.5:1.
         public Color32[] Faction = new Color32[5];
+        // The sixth map zone (the coliseum): a neutral stone from the region palette, since it belongs to no faction.
+        public Color32 Coliseum;
         // Build stat tints: Offense, Soul, Defense, Soul defense, Health, Attack speed, Move speed, Life steal.
         public Color32[] Stat = new Color32[8];
 
@@ -89,6 +91,13 @@ namespace Roguehalla.Client
             return faction >= 0 && faction < Faction.Length ? Faction[faction] : TextSecondary;
         }
 
+        /// <summary>The tint colour of a map zone by wire region id (1 Fire .. 5 Holy, 6 Coliseum); the neutral text colour for none.</summary>
+        public Color32 ZoneColor(int region)
+        {
+            if (region == 6) return Coliseum;
+            return region >= 1 && region <= 5 ? Faction[region - 1] : TextSecondary;
+        }
+
         public Color32 StatColor(int stat)
         {
             return stat >= 0 && stat < Stat.Length ? Stat[stat] : TextPrimary;
@@ -102,6 +111,7 @@ namespace Roguehalla.Client
             yield return Scrim; yield return TextPrimary; yield return TextSecondary; yield return Accent; yield return AccentDim;
             yield return Danger; yield return Success; yield return Warning; yield return Info; yield return OutlineDark; yield return OutlineLight;
             foreach (var c in Faction) yield return c;
+            yield return Coliseum;
             foreach (var c in Stat) yield return c;
         }
 
@@ -145,6 +155,7 @@ namespace Roguehalla.Client
                 OutlineDark = UiPaletteTokens.OutlineDark,
                 OutlineLight = UiPaletteTokens.OutlineLight,
                 Faction = (Color32[])UiPaletteTokens.Faction.Clone(),
+                Coliseum = RegionPaletteGenerated.Srgb[(int)RegionId.Coliseum][RegionPaletteGenerated.Base],
                 Stat = (Color32[])UiPaletteTokens.Stat.Clone(),
             };
             return t;

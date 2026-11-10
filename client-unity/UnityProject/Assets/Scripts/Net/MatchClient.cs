@@ -415,6 +415,15 @@ namespace Roguehalla.Client
             if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
         }
 
+        /// <summary>A move order from a map pixel: the same path as a world right-click. A repeat (held drag) is dropped when over the order budget.</summary>
+        public bool OrderMapMove(float x, float y, bool repeat)
+        {
+            if (Session == null || Session.State != SessionState.InMatch) return false;
+            if (repeat && !_orderBudget.TryTake(NowMs())) return false;
+            OrderMove(x, y, repeat);
+            return true;
+        }
+
         void OrderStop(bool fresh = true)
         {
             double now = NowMs();

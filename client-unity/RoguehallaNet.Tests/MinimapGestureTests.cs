@@ -92,5 +92,21 @@ namespace Roguehalla.Net.Tests
             gesture.Drag(MinimapButton.Left, P(100, 0));
             Assert.AreEqual(P(100, 0), gesture.PeekPoint);
         }
-    }
+    
+        [Test]
+        public void RefusedRepeatIsOfferedAgainAndAPressIsNeverLost()
+        {
+            var gesture = new MinimapGesture();
+            gesture.Press(MinimapButton.Right, P(0, 0), 0);
+            gesture.Drag(MinimapButton.Right, P(7, 9));
+            var first = gesture.Tick(100);
+            Assert.AreEqual(P(7, 9), first);
+            gesture.Unsend(); // the order budget refused it
+            Assert.AreEqual(P(7, 9), gesture.Tick(200), "offered again at the next interval");
+            Assert.IsNull(gesture.Tick(400), "accepted this time: not resent");
+            gesture.Drag(MinimapButton.Right, P(8, 9));
+            gesture.Tick(500); gesture.Unsend();
+            Assert.AreEqual(P(8, 9), gesture.Release(MinimapButton.Right, 510), "a release still flushes the refused final point");
+        }
+}
 }
