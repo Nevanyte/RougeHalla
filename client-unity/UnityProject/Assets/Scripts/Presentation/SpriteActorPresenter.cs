@@ -43,6 +43,8 @@ namespace Roguehalla.Client
         readonly ShowcaseCatalog _catalog;
         int _stamp;
         const float ActorVisualScale = 1.2f;
+        /// <summary>The faction footprint outline sits at this fraction of the sprite's half-size (FactionIndicators textures).</summary>
+        const float FootprintOutline = .72f;
         const byte KnownSignatureMask = 1 | 2 | 4 | 8 | 64;
         static readonly byte[] SignatureBits = { 1, 2, 4, 8, 64 };
         static readonly string[] SignatureSpriteKeys = { "sigil3", "spark", "sigil2", "weapon0", "sigil4" };
@@ -189,7 +191,7 @@ namespace Roguehalla.Client
         }
 
         public void Present(uint id, float x, float y, float facing, float hp, FactionId? faction, ActorStatus status, WeaponId? weapon,
-            ActorKind kind, MobTypeId? mob, ushort effects, byte signature, bool local, float barrierPct = 0f, byte barrierRingStep = 0)
+            ActorKind kind, MobTypeId? mob, ushort effects, byte signature, bool local, float barrierPct = 0f, byte barrierRingStep = 0, string archetypeKey = null, float footHx = 0f, float footHy = 0f)
         {
             if (!_active.TryGetValue(id, out var a))
             {
@@ -221,8 +223,11 @@ namespace Roguehalla.Client
             a.Dead=dead;a.WeaponId=weapon; a.Faction=faction; a.Kind=kind; a.MobType=mob;
             if (!weapon.HasValue) a.AttackUntil = 0;
             bool isMob = kind != ActorKind.Player;
-            string key = ShowcaseActorLook.AppearanceKey(kind, faction, mob);
+            // The server's archetype key (catalog key) picks the look; a key the catalog lacks falls back to the faction/type mapping.
+            string key = ShowcaseActorLook.AppearanceKey(kind, faction, mob, archetypeKey);
             a.Appearance = !neutral && _catalog != null ? _catalog.Find(key) : null;
+            if (a.Appearance == null && !neutral && _catalog != null && ShowcaseActorLook.IsArchetypeLook(archetypeKey))
+                a.Appearance = _catalog.Find(ShowcaseActorLook.AppearanceKey(kind, faction, mob));
             if (a.Appearance == null && _catalog != null && kind == ActorKind.Player) a.Appearance = _catalog.Find("hero");
             if (a.Appearance == null && _catalog != null && !neutral) a.Appearance = _catalog.Find("knight");
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
@@ -287,7 +292,11 @@ namespace Roguehalla.Client
             a.Shadow.sortingOrder = order - 8;
             AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
-            a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
+            // The ground mark is the foot box when the server delivered one (ADR0024): its outline spans the box, drawn on the squashed
+            // ground inside the 1.2 actor scale. Without a box (legacy or no table) it keeps the old fixed size.
+            a.Halo.transform.localScale = footHx > 0f && footHy > 0f
+                ? new Vector3(2f * footHx * ArenaView.Scale / (ActorVisualScale * FootprintOutline), 2f * footHy * ArenaView.Scale * ArenaView.GroundSquash / (ActorVisualScale * FootprintOutline), 1)
+                : new Vector3(local ? 1.05f : .9f, .48f, 1);
             a.Halo.sprite = FactionIndicators.GetFootprint(factionArt);
             a.Halo.color = color;
             a.Halo.enabled = true;

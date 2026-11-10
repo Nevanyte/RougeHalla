@@ -154,6 +154,19 @@ namespace Roguehalla.Net
         public int Snaps { get; private set; }
         /// <summary>Orders forgotten after <see cref="OrderExpireMs"/> without a matching echo.</summary>
         public int ExpiredOrders { get; private set; }
+        /// <summary>Reconciliation samples compared with the server (those not masked by an unapplied order), diagnostic only.</summary>
+        public int ReconSamples { get; private set; }
+        /// <summary>Samples whose model-versus-server error exceeded <see cref="ReconCorrectionU"/>: a visible correction was queued.</summary>
+        public int ReconCorrections { get; private set; }
+        /// <summary>Samples whose error exceeded <see cref="ReconBigU"/> (a correction a player could notice).</summary>
+        public int ReconBig { get; private set; }
+        /// <summary>Largest and summed model-versus-server error over <see cref="ReconSamples"/> (sim units).</summary>
+        public double ReconMaxErr { get; private set; }
+        public double ReconErrSum { get; private set; }
+        public const double ReconCorrectionU = 0.5, ReconBigU = 4.0;
+        /// <summary>Clears the reconciliation counters (a proof run starts them at the moment it begins walking).</summary>
+        public void ResetReconStats() { ReconSamples = ReconCorrections = ReconBig = 0; ReconMaxErr = ReconErrSum = 0; }
+
         /// <summary>Samples in a row more than <see cref="DivergeErr"/> from the model while reconciliation was active.</summary>
         public int ConsecutiveOutOfToleranceSamples { get; private set; }
 
@@ -670,6 +683,11 @@ namespace Roguehalla.Net
                 if (err > SnapDistance + lead) SnapToSim();
                 return;
             }
+            ReconSamples++;
+            ReconErrSum += err;
+            if (err > ReconMaxErr) ReconMaxErr = err;
+            if (err > ReconCorrectionU) ReconCorrections++;
+            if (err > ReconBigU) ReconBig++;
             double drawEx = ex + _corrX;
             double drawEy = ey + _corrY;
             // Multiple accepted samples can arrive in one Poll with no intervening decay. Bound the composed correction,
