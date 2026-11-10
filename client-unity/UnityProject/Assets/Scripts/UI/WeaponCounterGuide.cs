@@ -96,11 +96,11 @@ namespace Roguehalla.Client
                 var button = MythicUi.Button(_artRoot, "Weapon_" + id, Labels[id], new Vector2(x, y), new Vector2(x, y), () => Select(RingData[index]));
                 button.GetComponent<RectTransform>().sizeDelta = new Vector2(84, 56);
                 // A generated weapon icon over the label and a state mark in the corner replace the old "[ ]" text prefix.
-                var iconRect = MythicUi.Rect(button.transform, "WeaponIcon", new Vector2(.5f, 1), new Vector2(.5f, 1));
-                iconRect.sizeDelta = new Vector2(26, 26); iconRect.anchoredPosition = new Vector2(0, -16);
+                // Anchored by fraction (icon in the top half, label in the bottom half) so it holds at any node size.
+                var iconRect = MythicUi.Rect(button.transform, "WeaponIcon", new Vector2(.25f, .46f), new Vector2(.75f, .98f));
                 var iconImage = iconRect.gameObject.AddComponent<Image>(); iconImage.sprite = ShowcaseSprites.Get("weapon" + WeaponSpriteIndex(id)); iconImage.preserveAspect = true; iconImage.raycastTarget = false;
-                var label0 = button.GetComponentInChildren<TMPro.TMP_Text>(); label0.rectTransform.offsetMin = new Vector2(2, 1); label0.rectTransform.offsetMax = new Vector2(-2, -31);
-                label0.alignment = TMPro.TextAlignmentOptions.Center; label0.enableWordWrapping = false; label0.enableAutoSizing = true; label0.fontSizeMin = 9; label0.fontSizeMax = 13;
+                var label0 = button.GetComponentInChildren<TMPro.TMP_Text>(); label0.rectTransform.anchorMin = new Vector2(0, 0); label0.rectTransform.anchorMax = new Vector2(1, .5f); label0.rectTransform.offsetMin = new Vector2(1, 1); label0.rectTransform.offsetMax = new Vector2(-1, 0);
+                label0.alignment = TMPro.TextAlignmentOptions.Center; label0.enableWordWrapping = false; label0.enableAutoSizing = true; label0.fontSizeMin = 8; label0.fontSizeMax = 13;
                 var markRect = MythicUi.Rect(button.transform, "StateMark", new Vector2(1, 1), new Vector2(1, 1));
                 markRect.sizeDelta = new Vector2(18, 18); markRect.anchoredPosition = new Vector2(-10, -10);
                 var markText = markRect.gameObject.AddComponent<TMPro.TextMeshProUGUI>(); markText.font = UiTheme.Current.Font(UiFontRole.Body); markText.fontSize = 16; markText.fontStyle = TMPro.FontStyles.Bold; markText.alignment = TMPro.TextAlignmentOptions.Center; markText.raycastTarget = false;

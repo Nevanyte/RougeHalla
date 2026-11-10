@@ -175,6 +175,11 @@ async function launchFlow(cfg, browser, errors, logs) {
   const diag = (extra = '') => `?server=${encodeURIComponent(wsUrl)}&profile=${profile()}&faction=3&diagnostic=1&token=t1&auto=0${extra}`;
   console.log(cfg.id, 'launch flow, scale', geo.s.toFixed(3), 'room scale', geo.k.toFixed(3));
 
+  if (process.env.RH_SHOTS_LAUNCH_SHORT === 'hub') {
+    const hubPage = await open(diag()); await shot(hubPage, 'hub'); await hubPage.context().close();
+    return;
+  }
+
   // 1. The normal player path: no query at all, then the same with a custom server (the owner-reported "unavailable" wording).
   let page = await open('');
   if (steps.has('launch-plain') || steps.has('launch')) await shot(page, 'first-visit');
