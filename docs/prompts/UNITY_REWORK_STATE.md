@@ -59,6 +59,13 @@ Legacy mode clean; all tests and decoders pass; crash fixes correct, no DEVIATIO
 8. Projectile height revealed the shooter's faction (per-faction chest heights 30/25/33/27) -> coordinator ruling: one chest height (30) for all players. Flag at Gate 2.
 10. Bot/mob shots predicted to miss short targets -> measure, then apply the chest correction in archetype mode only.
 
+## Owner pre-approvals before an 8-hour absence (2026-11-10)
+1. **Gate 3 / merge:** "Also merge locally if green": finish everything; merge `optimization_port` into our branch when the backend lands and re-verify; run the Opus final review on the combined tree; if every check and the final review pass, merge our branch into `optimization_port` LOCALLY (squash). NO push, NO deploy. If the backend has not made its final merges, the combined final review cannot happen: stop at a merge-ready, fully verified branch and say so.
+2. **Hitboxes live:** yes, balance shift accepted as risk (owner signs the DEVIATIONS rule 3 escape valve). Flip the live default to archetypes once client prediction and chest aim are verified; run and report the legacy-versus-archetypes comparison, but it does not block.
+3. **Contrast last resort:** NOT approved. If an edge still fails 3:1 after ground tuning, contact shadow and the neutral outline, do not add faction-coloured outlines: report the failing combinations with numbers.
+4. **Hitbox review rulings accepted:** melee cannot hit behind the attacker; point-blank shots use the legacy ground rule; one chest height for all players.
+Keep-awake is on for the session (idle sleep only; a closed lid still sleeps).
+
 ## Launch readiness checklist (owner, 2026-11-10: "all planned work and visuals done here; everything perfected and verified here before the beta")
 Nothing is called done until the coordinator has seen it in a real browser build of the merged branch and the numbers below exist. Tick only with evidence.
 - [ ] Hitboxes: review fixes merged; client foot-box prediction matches Rust v2 vectors; chest aim; archetype mode live by default; balance comparison both modes; no snap-back worse than legacy (browser numbers).
