@@ -35,7 +35,7 @@ The immutable [primary source witness](evidence/bot-private-strategy-source/READ
 all nine goal families and19 semantic controls. [Independent fresh-checkout reproduction](evidence/bot-private-strategy-source-review/README.md)
 passes exact source/coverage bytes and the pinned-runtime verifier; all17 files remain unchanged. Root transferred it as
 `36a3b2b9` to `codex/deepseek-private-strategy`; strict reader/native replay work is active. A separate four-case module
-JSON-key supplement `1d06f752` is sealed and awaits independent reproduction; it does not alter the primary corpus.
+JSON-key supplement `1d06f752` also passes [independent fresh reproduction](evidence/bot-module-goal-key-source-review/README.md) of all4 histories/48 calls and all26 protected file hashes. It is transferred as `d629e174`; neither source corpus changes. The next [complete private tactics packet](backlog/packets/P-BOT-TACTICS-1.md) is prepared, with source-shaped private Fight/OrbWalk/Retreat and real existing Reflex reuse; source capture and Rust dispatch remain separate next steps.
 
 Card feedback has a prepared source harness and retained [unadmitted diagnostic attempts](evidence/card-bleed-source-preparation/ATTEMPT-4.md).
 Actual card/Fire contributions are reached, but the corrected classification guard is not rerun and canonical capture/
