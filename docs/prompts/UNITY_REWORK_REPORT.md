@@ -128,3 +128,94 @@ From the unmerged branches I am taking only the minimap mouse-capture fix and te
 3. **In parallel with 2:** region ground from the existing region plane (Frost first); lighting and snow particles on the existing light and post-processing setup; placeholder music per region; the Ultra preset and the profiler's protocol update.
 4. **Gate 2:** Frost slice playable in the browser with screenshots, an input-delay measurement and a frame-time log at 2560 x 1440 and 144 Hz.
 5. **Then:** the other four regions, hub and remaining screens, audio pass, performance report, Gate 3.
+
+---
+
+## Gate 2: vertical slice (2026-11-10)
+
+Report-and-continue. The slice is playable in the browser from one merged branch (`feature/unity-rework`, still unmerged and unpushed) with fixed controls, the new hitboxes live, the legacy-layout HUD in the new skin, and all five zones lit, not only Frost. Work continues on the items listed at the end. Purchases requested: none. Running total: $0 of $100 / $150.
+
+### Decisions and facts that need your attention
+
+| # | Item | What I did | Change it by |
+|---|---|---|---|
+| 1 | **New hitboxes are the live default.** | You approved this as an accepted risk. Parity tests still run the old circle and all match. | Saying "back to legacy by default"; `--hitboxes legacy` already exists. |
+| 2 | **Three hitbox rulings, which you accepted.** | Melee cannot hit a target behind the attacker; a point-blank shot that starts inside someone's body box uses the old ground rule; all players share one chest height (30 units) so a shot's height does not give away the shooter's faction. | n/a (recorded in ADR 0024). |
+| 3 | **Known edge cases when two characters overlap.** | Two rules meet at the edge of a body box, so a melee hit can flip over about 2 units (a target 34 units to the side misses, 36 hits) and a point-blank shot flips once along its flight line. Recorded in ADR 0024, changes 14 and 15. | Asking for a single blended rule; it needs design work. |
+| 4 | **No balance harness exists.** | The harness the project rules call for (P-BALANCE-1) was never written, so duel outcomes and time-to-kill per faction are unmeasured. The comparison below is from 40 bot matches per mode. | Commissioning the harness. |
+| 5 | **Plague fails your 3:1 contrast rule in my captures.** | A Plague character on Plague grass measured 2.8 to 2.9:1 at the silhouette edge (the rule is 3:1). Every other zone I captured passed (5.8 to 9.6). You ruled out faction-coloured outlines, so this stays open until ground tuning fixes it. The contrast lab that measures every character on every surface is still being built. | n/a (open). |
+| 6 | **Performance on the merged build is not measured.** | Six agents were building at once, so any frame-time number taken now would be meaningless. The only numbers are the pre-rework baseline from Gate 1 work. | n/a (scheduled when the machine is idle). |
+| 7 | **Mobs still pop out of sight.** | Players fade out and in. Mobs do not, because the server gives each mob a new identity almost every update. | n/a (follow-up: match mobs by position on the client). |
+| 8 | **Audio defects found.** | The client requests the Fire and coliseum tracks at match start whatever zone you spawn in, and the music code floods the console with audio warnings in some runs. Nobody has listened to any track. | n/a (fix scheduled). |
+| 9 | **Backend still lacks the second crash fix.** | `optimization_port` has only my first patch. Commit `a1f1d129` (with tests in `406279b3`) is needed there before any launch. Details in `docs/coordination/CLAUDE_UNITY_REWORK_HANDBACK.md`. | n/a (for Codex). |
+
+### What is in the slice
+
+- **Controls:** WASD slides along walls, the backward walk plays reversed, the camera follows before input is read, right-click hold re-issues the move, the swing animation starts on click.
+- **Hitboxes (ADR 0024):** foot box for walls, body box for hits, projectiles simulated from the chest, archetype table and vision settings delivered in the protocol 16 welcome message. The client predicts with the foot box and aims from the chest.
+- **HUD and screens:** in-match HUD at the legacy layout, Tab map with zone tint and right-click to walk, launch screen and hub.
+- **Zones:** Frost (snow, pines, translucent lake ice, long shadows, snowfall), Fire (dark basalt lit by lava), Sentenced (charcoal square tiles, wrought-iron fences, tombstones, lanterns), Plague (mud, deep grass, shallow water distinct from bog, light shafts), Holy (one temple interior on the pillar hall, sand outside), Coliseum (props).
+- **Lighting:** one sun whose colour and strength grade by position, cast shadows, a passive light floor in every zone, lights and shadows only where the camera looks.
+- **Vision:** fog of war that mirrors the Rust sight rule, and fades for players entering and leaving sight.
+- **Wishes:** all five animated from server data.
+- **Audio:** music and ambience per zone, loaded after the match starts.
+- **Server fix:** the two room-killing panics found during this work.
+
+### Verification on the merged branch
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` (with Postgres) | 2,136 passed, 0 failed |
+| `cargo run -p rh-parity --bin parity-report` | 109 scenarios + 13 capture-only + 300 pathfinding queries, all MATCH |
+| `cargo clippy --workspace --all-targets --all-features` | clean |
+| `dotnet test client-unity/RoguehallaNet.Tests` | 1,096 passed, 0 failed |
+| JS decoder against `v16.json` | agrees (65 server vectors, 220 malformed, 24 chains) |
+| `node tools/browser-proof/proof.mjs` | PASS |
+| Unity EditMode | 444 of 444 |
+| `rh-server` tests after the live-default switch | 225 of 225 |
+| WebGL build | succeeds; 112.6 MB raw, 57.2 MB compressed against the 150 MB budget |
+
+Run before the live-default switch and the vision-settings hookup except where stated; the switch changed one constant and three tests, and the hookup changed C# only (its own run: 1,096 C# and 444 EditMode). The full suite will be re-run on the final tree.
+
+Browser checks by me on this build (headed Chromium, 1920 x 1080, High): all five zones entered; no room crash; hitbox overlay boxes sit on the sprites; minimap fog visible. Not yet done by me: a 2560 x 1440 pass, input-delay measurement, and listening to audio (not possible).
+
+### Hitbox numbers
+
+Client, archetype server against `--hitboxes legacy` (from the client agent's browser runs):
+
+| | New boxes | Old circle |
+|---|---|---|
+| Feet stop this far from a wall | 6 units | 12 to 20 units |
+| Server corrections over 0.5 units | 125 of 1,855 samples | 148 of 1,700 |
+| Largest correction | 9.8 units | 36.6 units |
+| Hard snaps | 0 | 0 |
+
+The client's foot-box pathfinding agrees with all 300 Rust-generated queries and the three wall walks. Chest aim: the flight line passes within 0.08 units of the cursor.
+
+Bots, 40 matches per mode, same seeds (old to new): bot bow hit rate 54% to 60%; mob bow 84% to 92%; mob wand 34% to 49%; bot sword 91% to 93%; bot axe 92% to 98%; player deaths 269 to 270; mob deaths 819 to 758; average match 4,196 to 4,326 ticks.
+
+### Brightness and contrast in my captures of this build
+
+| Zone | Mean brightness | Near-white pixels | Character edge | Health bar |
+|---|---|---|---|---|
+| Holy (temple) | 0.52 | 0.04% | 6.1 to 8.2 | 7.9 to 8.1 |
+| Frost | 0.59 to 0.62 | 0.04 to 0.3% | 8.7 to 9.2 | 9.3 to 9.7 |
+| Plague | 0.22 to 0.24 | 0.03% | **2.8 to 7.5** | 4.7 to 7.6 |
+| Fire | 0.19 to 0.28 | 0.04 to 0.09% | 5.8 to 8.0 | 5.2 to 7.8 |
+| Sentenced | 0.13 to 0.15 | 0.04% | 8.8 to 9.6 | 9.6 to 10.8 |
+
+One character per capture, so this is a spot check, not the gate.
+
+### Screenshots (this build)
+
+[Frost](../rework/evidence/gate2/slice-frost.jpg), [Holy temple](../rework/evidence/gate2/slice-holy-temple.jpg), [Plague](../rework/evidence/gate2/slice-plague.jpg), [Fire with hitbox overlay](../rework/evidence/gate2/slice-fire-hitbox-overlay.jpg), [Sentenced with hitbox overlay](../rework/evidence/gate2/slice-sentenced-hitbox-overlay.jpg). Per-pass evidence: `docs/rework/evidence/` (`hud`, `launch`, `atmosphere`, `regions2`, `regions3`, `vision`, `wish`, `hitbox`).
+
+### Frame-time log
+
+Not available for this build (see item 6). The pre-rework baseline, display verified at 2560 x 1440 and 144 Hz: High and Ultra both p50 6.90 ms, p95 7.50 ms, p99 7.80 ms, worst 1% at 127.8 fps, 0 dropped frames. The pass rule I proposed (95th percentile at or under 6.94 ms) cannot be met under vsync because browser frame timestamps jitter about 1.5 ms around the interval; I will judge pacing by dropped frames at 144 Hz plus an uncapped headroom measurement, unless you prefer otherwise.
+
+### Still to do before Gate 3
+
+In progress: the rendering-features pass (Breath of the Wild reference); footprints with 10-second tracks, ripples and footstep sounds; the contrast lab; the final UI pass against legacy with the weapon hit-zone indicator; mob spacing and the weapon table in Rust (then an independent review).
+
+Queued: contrast tuning until the gate passes; station panels, results, chest and trader screens in the skin; audio fixes; mob fades; ranged-pause prediction; performance at 2560 x 1440 with an Opus efficiency pass before anything is cut; MIGRATION and CONTRACTS status rows (held until the backend merge to avoid conflicts); merging `optimization_port` in and re-verifying; the Gate 3 report; the Opus final review.

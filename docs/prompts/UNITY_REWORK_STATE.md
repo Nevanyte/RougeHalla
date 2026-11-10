@@ -3,7 +3,7 @@
 Read this first after any context reset. Direction: [UNITY_REWORK_FABLE.md](UNITY_REWORK_FABLE.md). Gate reports: `UNITY_REWORK_REPORT.md`.
 
 ## Now
-- **Phase:** between Gate 1 (report written 2026-11-09, commit `0975ac0a`) and Gate 2 (Frost vertical slice).
+- **Phase:** between Gate 2 (report written 2026-11-10; new hitboxes live by default at `e438c100`) and Gate 3.
 - **Feature branch:** `feature/unity-rework`, cut from `optimization_port` at `61f9f15f`. Never push, never merge.
 - **Toolchain PATH:** `export PATH="$HOME/.cargo/bin:$HOME/.dotnet:$PATH"` (neither is on the default shell PATH).
 - **Display:** confirmed 2560 x 1440 @ 144 Hz (`system_profiler SPDisplaysDataType`), plus a second 1080p/100 Hz panel.
@@ -30,7 +30,7 @@ Merged and removed since the last table: `rework/hitbox` (merge of review fixes:
 
 Hitbox numbers (40 bot matches per mode, same seeds, legacy -> archetypes; NO balance harness exists, P-BALANCE-1 was never written): hits 44875 -> 43896; player deaths 269 -> 270; mob deaths 819 -> 758; mean match 4196 -> 4326 ticks; bot bow hit rate .541 -> .600, bot wand .958 -> .966, mob bow .837 -> .924, mob wand .336 -> .488; bot sword .910 -> .930, bot axe .923 -> .977. Bot/mob aim unchanged (no pair measurably misses). Known edge behaviour at overlap range (ADR changes 14, 15): melee flips for a target beside the attacker around the box boundary (34 u north misses, 36 u hits); a shot flips once along the flight line; a body walking onto an arrow between steps is decided by the ground test.
 
-NEXT ACTIONS for the coordinator, in order:
+NEXT ACTIONS for the coordinator, in order (1 is DONE: verification green, browser check done, default flipped at `e438c100`, Gate 2 written):
 1. When the background verification finishes: read results; check the merged build in the browser with `?hitboxes=1` (wall approach, chest aim) and all zones; then FLIP `LIVE_DEFAULT_HITBOXES` to `Archetypes` in `crates/rh-server/src/runtime.rs` plus the pinned expectation in `tests::which_runtimes_default_to_which_hitbox_mode` (owner approved), rebuild, re-verify.
 2. Update MIGRATION checkpoint and CONTRACTS status rows (C-OBS: projectile height reveals only player-look vs mob look; C-NET: protocol 16 Welcome carries archetype table and vision block; C-PARITY: parity runs LegacyCircle; C-DET: checkpoint 30, replay 24). `tools/unity-browser-reload-proof` still pins protocol 14.
 3. Start the UI final pass (legacy indicators) when a worktree slot frees.
@@ -93,6 +93,13 @@ Nothing is called done until the coordinator has seen it in a real browser build
 - [ ] Tests on the final merged tree: cargo workspace (with Postgres), parity-report, dotnet, JS vectors, browser proof, Unity EditMode, node tool tests; zero failures.
 - [ ] Licences: ledger complete; every notice in the build; EmojiOne resolved; audio attributions shipped.
 - [ ] Gate 2 and Gate 3 reports written; `optimization_port` merged into the branch and re-verified; owner approves Gate 3; merge (squash); Opus final review of the combined tree against the real deploy command.
+
+## Defects found by the coordinator on the merged build (not yet assigned unless stated)
+- Audio: match start always requests `music_fire.mp3`, `amb_fire.mp3`, `music_coliseum.mp3` whatever the spawn zone (initial region defaults before `LocalRegion` is known); the region audio code (`AtmosphereAudio.cs`: `clip.length` on a clip still loading, `Play()` retried while not playing) produces repeated `FMOD returns error code 78 ... getSystemObject / getSoftwareFormat` and "Trying to get length of sound which is not loaded yet" log lines (103 triples in one 25 s run).
+- Contrast: Plague-faction character on Plague grass measured 2.83 to 2.89:1 at the edge (`d-plague-plague` capture); `f-plague-border-03` 2.91. Gate is 3:1.
+- Sentenced capture shows a bright haze in the bottom-left screen corner behind the champion HUD (a light or fog-edge artefact).
+- Spawn offers vary per match; Frost was not offered to any faction in the test match (not a defect, but captures must walk there: `atmosphere-shots.cjs --walk 2:d:16 --spawn 2` crosses Plague, Frost and Sentenced).
+- `LIVE_DEFAULT_HITBOXES` flip needed three test edits, not the promised one.
 
 ## Evidence policy (set 2026-11-10)
 Committed screenshots had reached 370 MB. Pruned to about 28 MB at `fc67e123` (JPEG, 1600 px max, one resolution per screen). From now on: evidence in the repo is JPEG only, a curated handful per pass (aim under 5 MB per folder); raw captures stay outside the repo; bulky agent branches are squash-merged and trimmed. Branch history still holds the old PNG blobs: at Gate 3 recommend a squash merge so they never reach the public repo.
