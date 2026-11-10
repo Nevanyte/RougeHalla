@@ -1428,6 +1428,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.projectiles.*.launch.kind", "flight kind and catalog speed agree"),
     ("world.projectiles.*.launch.id","run entity ids are allocated, distinct and monotone"),
     ("world.projectiles.*.launch.reflected", "reflected requires a return count and a shield arrow"),
+    ("world.projectiles.*.launch.height", "ADR0024: exactly 0 under LegacyCircle, a table chest value under Archetypes (archetype::valid_height)"),
     ("world.projectiles.*.reflections", "return count agrees with the launch"),
     ("world.projectiles.*.halved","only a ball can be intercepted by a sword"),
     ("world.projectiles.*.time","settled projectiles end exactly at the simulation clock"),
