@@ -1,0 +1,44 @@
+{
+ "format": "rh-bot-module-goal-key-manifest/1",
+ "primarySeal": "5ec31212b0082d650cbe15d58877e82ac2793060",
+ "sourceOnly": true,
+ "primary17": "UNCHANGED",
+ "files": {
+  "tools/bot-module-goal-key-fixtures/README.md": {
+   "bytes": 4164,
+   "sha256": "a9aaae860ebf66448b772d55115b968578622c7e69a55c40080a33ad003e4a84"
+  },
+  "tools/bot-module-goal-key-fixtures/capture.mts": {
+   "bytes": 6766,
+   "sha256": "2c830d85d76af013c2475637620d6f62da6eae9414d4b0c9530d650a006be892"
+  },
+  "tools/bot-module-goal-key-fixtures/capture.sh": {
+   "bytes": 1224,
+   "sha256": "aeda6f3b82013a443b1015468f9c99ce1a4fbb4d2fcbc5a907c58219c210373d"
+  },
+  "tools/bot-module-goal-key-fixtures/cases.mts": {
+   "bytes": 2913,
+   "sha256": "ccdca51617193678d7ca0f350724e2086b62b87c9063692139d67c9a794e8745"
+  },
+  "tools/bot-module-goal-key-fixtures/controls.mjs": {
+   "bytes": 4814,
+   "sha256": "39a0403689fa628089ce7f10c33fbff21ee477106e8494fca069469febfb2856"
+  },
+  "tools/bot-module-goal-key-fixtures/controls.sh": {
+   "bytes": 1026,
+   "sha256": "f0abc7eee4b3c0a86e537084aecaa8a74262a3355975f4f449567c4e4dfd3ec4"
+  },
+  "tools/bot-module-goal-key-fixtures/verify.mjs": {
+   "bytes": 1716,
+   "sha256": "24b421e850675d43193476d7843b43d037fa22a55d38030cf85237e859383be3"
+  },
+  "parity/policy/bot-module-goal-key/source.json": {
+   "bytes": 1004072,
+   "sha256": "32836e03d47993fceec22fc7fb648e937d01b3e9b221da9499ea9e99d31efc0c"
+  },
+  "parity/policy/bot-module-goal-key/controls.json": {
+   "bytes": 2121,
+   "sha256": "363d55cec2c42233249e920545863f0e749f5ddb2e0fc9b7e58816c4f6c81f4e"
+  }
+ }
+}

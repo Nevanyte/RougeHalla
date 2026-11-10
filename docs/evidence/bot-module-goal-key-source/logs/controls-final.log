@@ -1,0 +1,9 @@
+command: bash tools/bot-module-goal-key-fixtures/controls.sh --write
+cwd: /Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-gameplay-quests
+exit: 0
+raw stdout/stderr:
+{"id":"preserve-negative-zero-miskey","result":"KILL","case":"negative-zero-positive-zero-collision","source":1,"mutant":2,"sourceSha256":"edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116","mutantSha256":"a173ca634963d27956252a28272c62d957bd0e0d3b4fc18b1ed46767a3ae968c"}
+{"id":"nonfinite-string-miskey","result":"KILL","case":"nonfinite-null-collision-and-current-reuse","source":1,"mutant":4,"sourceSha256":"edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116","mutantSha256":"b1cd87b4f58af082b0202b724c4835ead470a2b2995cfd00e76d1219b6b99c72"}
+{"id":"non-ecmascript-exponent-format","result":"KILL","case":"ecmascript-exponent-boundaries","source":["module:key:{\"v\":1e-7}","module:key:{\"v\":0.000001}","module:key:{\"v\":100000000000000000000}","module:key:{\"v\":1e+21}"],"mutant":["module:key:{\"v\":1e-7}","module:key:{\"v\":1e-6}","module:key:{\"v\":1e20}","module:key:{\"v\":1e21}"],"sourceSha256":"edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116","mutantSha256":"5ce7473e10cae2d01526b4520436f16b1dfc067236932d8013f0d7a3db657e93"}
+{"id":"undefined-object-value-becomes-null","result":"KILL","case":"undefined-object-array-distinction","source":5,"mutant":7,"sourceSha256":"edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116","mutantSha256":"664ee533890063f89c69845dd622530a6fb1575634c2fa898cb27d206bb85b18"}
+{"semanticControls":4,"comment":"NONKILL","restored":"PASS","primary17":"UNCHANGED","bytes":2121,"sha256":"363d55cec2c42233249e920545863f0e749f5ddb2e0fc9b7e58816c4f6c81f4e"}
