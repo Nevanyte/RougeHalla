@@ -21,7 +21,7 @@ namespace Roguehalla.Client
             public readonly Vector2 Min, Max;
             public Cell(Vector2 min, Vector2 max) { Min = min; Max = max; }
         }
-        public sealed class Set { public Cell[] Top = new Cell[TopVariants], Face = new Cell[FaceVariants], Low = new Cell[LowVariants]; public Cell Rim; }
+        public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants]; public Cell Rim; }
 
         static Texture2D _atlas; static Set[] _sets; static Cell _contact;
         public static Texture2D Atlas { get { Ensure(); return _atlas; } }
@@ -52,7 +52,7 @@ namespace Roguehalla.Client
             for (int s = 0; s < styles; s++)
             {
                 var style = (WallStyle)s; var th = ThemeOf(style); var set = new Set();
-                for (int v = 0; v < TopVariants; v++) set.Top[v] = Place(PaintTop(style, th, v), ref x, ref y, ref rowH);
+                for (int v = 0; v < (style == WallStyle.Temple ? 9 : TopVariants); v++) set.Top[v] = Place(PaintTop(style, th, v), ref x, ref y, ref rowH);
                 for (int v = 0; v < FaceVariants; v++) set.Face[v] = Place(PaintFace(style, th, v), ref x, ref y, ref rowH);
                 if (style == WallStyle.Temple) { set.Low = _sets[(int)WallStyle.Sandstone].Low; set.Rim = _sets[(int)WallStyle.Sandstone].Rim; }   // low walls and rims reuse the sandstone cells
                 else
@@ -143,20 +143,37 @@ namespace Roguehalla.Client
                         c = Shade(c, 1f + grain * .05f);
                         break;
                     }
-                    case WallStyle.Temple:      // pillar-block cap: polished golden stone, gilded coping, a rosette on the centre tile
+                    case WallStyle.Temple:      // pier cap, 3 x 3 cells: cut ashlar masonry with a coping, arch springers (voussoir fans) at the middle of each side and the engaged columns' tops at the corners
                     {
-                        Color sandC = RegionPaletteSrgb(5, 0), keyC = RegionPaletteSrgb(5, 3), goldC = RegionPaletteSrgb(5, 2), grn = RegionPaletteSrgb(5, 1);
-                        Color stone = Mix(sandC, keyC, .5f), gilt = Mix(goldC, keyC, .55f);
-                        c = Shade(stone, .96f + soft * .1f + grain * .04f);
-                        float ed = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
-                        c = Mix(c, gilt, (1f - SmoothU(ed, 0f, .05f)) * .9f);
-                        c = Mix(c, Shade(stone, .7f), (1f - SmoothU(Mathf.Abs(ed - .09f), 0f, .012f)) * .6f);
-                        if (variant == 1)
+                        Color stone = TempleStyle.Stone, light = TempleStyle.StoneLight, dark = TempleStyle.StoneDark, gilt = TempleStyle.Gilt;
+                        int pc = variant % 3, pr = variant / 3; float U = (pc + u) / 3f, V = (2 - pr + v) / 3f;
+                        float e = Mathf.Min(Mathf.Min(U, 1f - U), Mathf.Min(V, 1f - V));
+                        float rv = V * 6f; int rrow = (int)Mathf.Floor(rv); float fy = rv - rrow;
+                        float ru = U * 3f + (rrow % 2 == 0 ? 0f : .5f); int ccol = (int)Mathf.Floor(ru); float fx = ru - ccol;
+                        float tone = RegionNoise.Hash01(ccol + rrow * 7, 3, 11);
+                        c = Mix(stone, Shade(stone, .93f), tone) ; c = Shade(c, .98f + soft * .05f + grain * .02f);
+                        float joint = 1f - SmoothU(Mathf.Min(Mathf.Min(fx, 1f - fx) * .6f, Mathf.Min(fy, 1f - fy)), 0f, .05f);
+                        c = Mix(c, dark, joint * .28f);
+                        c = Mix(c, light, (1f - SmoothU(e, 0f, .042f)) * .8f);                       // coping
+                        c = Mix(c, dark, (1f - SmoothU(Mathf.Abs(e - .062f), 0f, .007f)) * .45f);     // shadow groove under it
+                        for (int sd = 0; sd < 4; sd++)                                               // springers: a fan of voussoirs on each side
                         {
-                            float rr = Mathf.Sqrt((u - .5f) * (u - .5f) + (v - .5f) * (v - .5f));
-                            c = Mix(c, gilt, 1f - SmoothU(Mathf.Abs(rr - .30f), 0f, .02f));
-                            c = Mix(c, grn, (1f - SmoothU(rr, .12f, .22f)) * .8f);
-                            c = Mix(c, gilt, 1f - SmoothU(rr, 0f, .06f));
+                            float la = sd < 2 ? U - .5f : V - .5f, lb = sd == 0 ? 1f - V : sd == 1 ? V : sd == 2 ? U : 1f - U;
+                            float rr2 = Mathf.Sqrt(la * la + lb * lb);
+                            if (rr2 < .085f || rr2 > .2f) continue;
+                            float th2 = Mathf.Atan2(lb, la) * 7f / Mathf.PI, jf = Mathf.Abs(th2 - Mathf.Round(th2));
+                            c = Mix(c, light, .5f);
+                            c = Mix(c, dark, (1f - SmoothU(jf, 0f, .09f)) * .4f);
+                            c = Mix(c, dark, (1f - SmoothU(Mathf.Abs(rr2 - .085f), 0f, .006f)) * .55f);
+                            c = Mix(c, dark, (1f - SmoothU(Mathf.Abs(rr2 - .2f), 0f, .006f)) * .45f);
+                        }
+                        float cu = Mathf.Min(U, 1f - U), cvv = Mathf.Min(V, 1f - V);                 // engaged column tops at the corners
+                        float rc = Mathf.Sqrt((cu - .1f) * (cu - .1f) + (cvv - .1f) * (cvv - .1f));
+                        if (cu < .2f && cvv < .2f)
+                        {
+                            c = Mix(c, light, (1f - SmoothU(rc, .05f, .056f)) * .85f);
+                            c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(rc - .04f), 0f, .006f)) * .55f);
+                            c = Mix(c, dark, (1f - SmoothU(Mathf.Abs(rc - .056f), 0f, .005f)) * .5f);
                         }
                         break;
                     }
@@ -283,29 +300,32 @@ namespace Roguehalla.Client
                         c = Mix(c, Shade(mossC, .75f), strand * .85f);
                         break;
                     }
-                    case WallStyle.Temple:      // three cells = one 3-tile elevation: pointed arch between two fluted engaged columns with capitals
+                    case WallStyle.Temple:      // pier face, 3 cells = one 3 tile elevation: base plinth, engaged fluted columns at the corners with bases and capitals, a blind pointed arch springing from impost blocks, a cornice
                     {
-                        Color sandC = RegionPaletteSrgb(5, 0), keyC = RegionPaletteSrgb(5, 3), goldC = RegionPaletteSrgb(5, 2), grn = RegionPaletteSrgb(5, 1);
-                        Color stone = Mix(sandC, keyC, .45f), gilt = Mix(goldC, keyC, .55f);
+                        Color stone = TempleStyle.Stone, light = TempleStyle.StoneLight, dark = TempleStyle.StoneDark, gilt = TempleStyle.Gilt;
                         float U = (variant + u) / 3f, dx = Mathf.Abs(U - .5f);
-                        c = Shade(Mix(Shade(stone, .93f), Shade(stone, 1.08f), RegionNoise.Hash01((int)(U * 12f), (int)(v * 4f), seed)), vert + grain * .04f);
-                        float archTop = .42f + (.28f - dx) * 1.5f;
-                        bool recess = dx < .28f && v < archTop;
-                        float rimD = Mathf.Min(.28f - dx, (archTop - v) * .6f);
-                        if (recess) c = Mix(Shade(Mix(grn, stone, .25f), .55f + v * .25f), c, .15f);
-                        if (dx < .30f && v < archTop + .05f) c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(rimD), 0f, .02f)) * .9f);
-                        // engaged columns at the two outer edges of the 3-tile elevation
-                        float cd = Mathf.Abs(U - (U < .5f ? .075f : .925f)), colW = .052f;
+                        c = Shade(Mix(Shade(stone, .95f), Shade(stone, 1.05f), RegionNoise.Hash01((int)(U * 9f), (int)(v * 5f), seed)), vert + grain * .03f);
+                        float rowsT = 5f, rvT = v * rowsT; float fyT = rvT - Mathf.Floor(rvT);
+                        float ruT = U * 9f + ((int)Mathf.Floor(rvT) % 2 == 0 ? 0f : .5f); float fxT = ruT - Mathf.Floor(ruT);
+                        c = Mix(c, dark, (1f - SmoothU(Mathf.Min(Mathf.Min(fxT, 1f - fxT) * .5f, Mathf.Min(fyT, 1f - fyT)), 0f, .05f)) * .22f);
+                        float springV = .50f, archTop = springV + (.27f - dx) * 1.15f;
+                        bool recess = dx < .27f && v > .13f && v < archTop;
+                        if (recess) c = Mix(c, Shade(dark, 1.05f), .5f + (1f - v) * .15f);
+                        float rimD = Mathf.Min(.27f - dx, (archTop - v) * .7f);
+                        if (dx < .29f && v > .13f && v < archTop + .04f) c = Mix(c, light, (1f - SmoothU(Mathf.Abs(rimD + .012f), 0f, .012f)) * .7f);
+                        if (dx > .25f && dx < .31f && v > .45f && v < .55f) c = Mix(c, light, .6f);          // impost blocks
+                        float cd = Mathf.Abs(U - (U < .5f ? .07f : .93f)), colW = .05f;
                         if (cd < colW)
                         {
-                            float t2 = cd / colW, flute = .78f + .3f * Mathf.Cos(t2 * 3.14159f * 3f) * .5f;
-                            Color col = Shade(Mix(stone, Color.white, .15f), flute * (U < .5f ? 1.08f - t2 * .25f : .85f + t2 * .2f));
-                            c = Mix(c, col, 1f);
-                            if (v > .80f) c = Mix(c, gilt, .85f);                                   // capital
-                            if (v < .10f) c = Mix(c, Shade(gilt, .85f), .8f);                       // base
+                            float t2 = cd / colW, flute = .8f + .26f * Mathf.Cos(t2 * Mathf.PI * 3f) * .5f;
+                            c = Shade(Mix(stone, Color.white, .12f), flute * (U < .5f ? 1.06f - t2 * .22f : .86f + t2 * .18f));
+                            if (v > .80f && v < .90f) c = Mix(c, gilt, .55f);                                   // capital
+                            if (v < .13f) c = Mix(c, dark, .35f);                                               // base
                         }
-                        else if (cd < colW + .012f) c = Mix(c, Shade(stone, .4f), .6f);
-                        c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(v - .86f), 0f, .02f)) * .8f);
+                        else if (cd < colW + .012f) c = Mix(c, dark, .5f);
+                        if (v < .13f) { c = Mix(c, dark, .22f); if (v > .11f) c = Mix(c, light, .6f); }          // plinth with a lit moulding
+                        if (v > .90f) c = Mix(c, light, .6f);                                                   // cornice
+                        c = Mix(c, gilt, (1f - SmoothU(Mathf.Abs(v - .895f), 0f, .014f)) * .55f);
                         break;
                     }
                     case WallStyle.Sandstone:

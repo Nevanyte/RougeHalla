@@ -91,7 +91,8 @@ namespace Roguehalla.Client
                     if (kind == (int)TerrainKind.Lava || kind == (int)TerrainKind.Crevasse) continue;   // the ground shader draws the hazard
                     var style = kind == (int)TerrainKind.Fence ? WallStyle.Timber : RegionThemes.Get(RegionOf(x, y)).Wall;
                     bool inBlock = temple.TryBlock(x, y, out int bcol, out int brow);   // pillar block of the generated temple: columns, arches, gilded cap
-                    if (inBlock) style = WallStyle.Temple;
+                    bool templeWall = !inBlock && tile == MapBlob.Wall && temple.Contains(x, y);   // a real wall inside the footprint: dressed as solid temple wall (blind arcade), never a pier
+                    if (inBlock || templeWall) style = WallStyle.Temple;
                     var set = RegionWallAtlas.SetFor(style);
                     float hash = RegionNoise.Hash01(x, y, 5); float tint = .92f + hash * .08f;
                     var col = new Color32((byte)(255 * tint), (byte)(255 * tint), (byte)(255 * tint), 255);
@@ -107,7 +108,7 @@ namespace Roguehalla.Client
                             set.Low[v % RegionWallAtlas.LowVariants], col);
                         _kind = 0f; continue;
                     }
-                    int faceV = inBlock ? bcol : v % RegionWallAtlas.FaceVariants, topV = inBlock ? (bcol == 1 && brow == 1 ? 1 : 0) : (v / 3) % RegionWallAtlas.TopVariants;
+                    int faceV = inBlock ? bcol : templeWall ? ((x % 3) + 3) % 3 : v % RegionWallAtlas.FaceVariants, topV = inBlock ? bcol + 3 * brow : templeWall ? 4 : (v / 3) % RegionWallAtlas.TopVariants;
                     bool southSolid = Solid(x, y + 1);
                     if (!southSolid)
                     {
