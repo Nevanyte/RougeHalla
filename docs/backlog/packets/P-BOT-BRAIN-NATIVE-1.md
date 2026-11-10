@@ -306,3 +306,29 @@ Do not edit any other existing implementation, test helper, source tool/fixture,
 shared status, Unity/network branch or live caller. For a concrete missing interface/compile obstruction, preserve the
 exact diagnostic and return its smallest function/signature hunk to Root; continue independent allowed work meanwhile.
 Do not contact Claude before10:30am Edmonton November10 (17:30UTC), and do not merge/push/deploy from this worker.
+
+
+## Root additional bridge allocation (2026-11-10, after concrete worker obstruction)
+
+Root approves the independently reviewed [draw/path bridge](../../evidence/bot-brain-composition-interfaces/brain-live-bridge-review.md),
+SHA256 `3f2cc11b2253789dbe67ff2d2cec624ef5260a55e2fffdd6231717517a9b4294`, in the existing Brain worktree.
+This extends the prior exact four-file lease only as follows: the existing `strategy.rs` may add the one
+parent-visible `HuntMobLike` reexport, and `crates/rh-policy/src/bots/random.rs` may add the reviewed `cfg(test)`
+scoped observer plumbing, one notification of the already-computed value at `next_f64`, and an additive test module
+declaration. The optional NEW `crates/rh-policy/src/bots/random/draw_trace_tests.rs` is allocated for its focused
+bridge controls. No production RNG representation, recurrence, traits, cloning, concrete Hand API or component
+algorithm changes. No unsafe code or persistent non-Send state.
+
+In already-owned new Brain files, use the actual typed rich-mob override and the same caller path service/allowance;
+record actual Hand motor/lapse draws synchronously into the existing global recorder. Keep actual borrowed instances
+in place, release registry borrows before recording, isolate per-thread/nested/parallel scopes, and restore prior
+registration on return and unwind. Never dereference stored pointer identities. Remove state-delta reconstruction,
+its finite4096 search and all per-lane regrouping/sorting. Exact global callback/RNG sequence remains mandatory.
+Previously relaxed passes are historical/partial and may not be relabelled final. Frozen source/tools/expectations
+stay unchanged. No Humanizer/clicks/Strategy-engine or other new file lease is granted.
+
+Required focused additions: rich four Hunt callback rows; exact31/855 and Hand6/12 global traces; reject a comparator
+control swapping different-lane draws while preserving per-lane values/counts; observed/unobserved real Hand/RNG
+outputs, final states and draw counts equal; no hook leakage after return/unwind or across concurrent/nested tests.
+Retain all other original packet gates, actual Send proof and strict default/all-feature lint. DeepSeek implements;
+Root reviews/seals. No early Claude communication, activation, merge, push or deployment.
