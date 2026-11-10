@@ -24,27 +24,35 @@ function guarded(length, fields, forbidden) {
     publicHex:n=>{assert.equal(n,16);return read(n);},skip:n=>{need(n);},end:()=>assert.equal(at,length),
     reads,get denied(){return denied;}};
 }
-function helloReader(resume = true, length = resume ? 46 : 30, protocol = 14) {
+function helloReader(resume = true, length = resume ? 46 : 30, protocol = 16) {
   return guarded(length, new Map([[0,1],[1,protocol],[11,3],[15,5],[21,4],[27,1],[29,resume?1:0]]),
     [[3,11],[12,15],[16,21],[23,27],[28,29],[30,46]]);
 }
-function welcomeReader(length = 90, protocol = 14) {
+// Protocol 16 Welcome: 60-byte header (encode.rs WELCOME_HEADER_LEN), archetype table 60..78 (count u8 + row0 6 bytes
+// [id,keylen=1,key,hull=0,r,chest] + row1 11 bytes [id,keylen=1,key,hull=1,fx,fy,bx,by,ox,oy,chest]), vision 78..113
+// (34 bytes + coliseum flag 0 at 112; vision.rs VISION_BLOCK_LEN = 35), weapon table 113..148 (count 1 + one 34-byte
+// row; weapon.rs WEAPON_ROW_LEN), then the old map block shifted by 88: width/height 148/150, collision hash 152..156,
+// runs 156, pair 160..163, extension length 163, version 167, flags 168, semantic hash 169..173, mode 173, context 174..178.
+const WELCOME_LEN = 178;
+function welcomeReader(length = WELCOME_LEN, protocol = 16) {
   return guarded(length,new Map([[0,0x81],[1,protocol],[3,BigInt('0x'+CONTENT)],[11,match],[27,7],
-    [60,2],[62,2],[68,1],[75,11],[79,1],[80,0],[85,0]]),
-    [[31,60],[64,68],[72,75],[81,85],[86,90]]);
+    [60,2],[62,1],[64,0],[68,1],[70,1],[112,0],[113,1],
+    [148,2],[150,2],[156,1],[163,11],[167,1],[168,0],[173,0]]),
+    [[31,60],[61,62],[63,64],[65,68],[69,70],[71,78],[78,112],[114,148],[152,156],[160,163],[169,173],[174,178]]);
 }
 function syntheticHello() {
   // Private ranges remain zero-filled, have no real capability/credential, and are never inspected.
   const bytes = new Uint8Array(46), view = new DataView(bytes.buffer);
-  bytes[0]=1;view.setUint16(1,14,true);bytes[11]=3;bytes[15]=5;
+  bytes[0]=1;view.setUint16(1,16,true);bytes[11]=3;bytes[15]=5;
   view.setUint16(21,4,true);bytes[27]=1;bytes[29]=1;return bytes;
 }
 function syntheticWelcome() {
-  const bytes=new Uint8Array(90),view=new DataView(bytes.buffer);
-  bytes[0]=0x81;view.setUint16(1,14,true);view.setBigUint64(3,BigInt('0x'+CONTENT),true);
+  const bytes=new Uint8Array(WELCOME_LEN),view=new DataView(bytes.buffer);
+  bytes[0]=0x81;view.setUint16(1,16,true);view.setBigUint64(3,BigInt('0x'+CONTENT),true);
   for(let i=0;i<16;i++)bytes[11+i]=parseInt(match.slice(i*2,i*2+2),16);
-  view.setUint32(27,7,true);view.setUint16(60,2,true);view.setUint16(62,2,true);
-  view.setUint32(68,1,true);view.setUint32(75,11,true);bytes[79]=1;
+  view.setUint32(27,7,true);bytes[60]=2;bytes[62]=1;bytes[64]=0;bytes[68]=1;bytes[70]=1;bytes[113]=1;
+  view.setUint16(148,2,true);view.setUint16(150,2,true);
+  view.setUint32(156,1,true);view.setUint32(163,11,true);bytes[167]=1;
   return bytes; // RLE payload intentionally unvalidated: a prefix is not an accepted map.
 }
 
@@ -60,17 +68,17 @@ test('Welcome reads exact public identity/structural headers and skips session p
   const r=welcomeReader(),got=parseServerWelcome(r);
   assert.equal(got.status,'public-prefix');assert.equal(got.matchId,match);assert.equal(got.playerId,7);
   assert.equal(got.contentHash,CONTENT);assert.equal(got.mapPayloadValidated,false);assert.equal(got.wholeFrameValidated,false);
-  assert.equal(r.denied,0);assert.equal(r.offset,90);
-  assert.deepEqual(r.reads,[[0,1],[1,2],[3,8],[11,16],[27,4],[60,2],[62,2],[68,4],[75,4],[79,1],[80,1],[85,1]]);
+  assert.equal(r.denied,0);assert.equal(r.offset,WELCOME_LEN);
+  assert.deepEqual(r.reads,[[0,1],[1,2],[3,8],[11,16],[27,4],[60,1],[62,1],[64,1],[68,1],[70,1],[112,1],[113,1],[148,2],[150,2],[156,4],[163,4],[167,1],[168,1],[173,1]]);
 });
 test('All structural prefixes refuse; unknown versions do not inspect later fields',()=>{
   for(let n=0;n<46;n++)assert.equal(parseClientHello(helloReader(true,n)).status,'unavailable');
-  for(let n=0;n<90;n++)assert.equal(parseServerWelcome(welcomeReader(n)).status,'unavailable');
-  for(const [r,parse] of [[helloReader(true,46,15),parseClientHello],[welcomeReader(90,15),parseServerWelcome]]){
+  for(let n=0;n<WELCOME_LEN;n++)assert.equal(parseServerWelcome(welcomeReader(n)).status,'unavailable');
+  for(const [r,parse] of [[helloReader(true,46,15),parseClientHello],[welcomeReader(WELCOME_LEN,15),parseServerWelcome]]){
     assert.equal(parse(r).status,'unavailable');assert.deepEqual(r.reads,[[0,1],[1,2]]);
   }
   assert.equal(parseClientHello(helloReader(true,47)).status,'unavailable');
-  assert.equal(parseServerWelcome(welcomeReader(91)).status,'unavailable');
+  assert.equal(parseServerWelcome(welcomeReader(WELCOME_LEN+1)).status,'unavailable');
   assert.equal(parseClientHello(helloReader(true,1025)).status,'unavailable');
   assert.equal(parseServerWelcome(welcomeReader(262145)).status,'unavailable');
 });
@@ -167,8 +175,8 @@ function safeDoc(id,timeOrigin,execution,resume){
       userAgent:'synthetic-offline',viewport:{width:1280,height:720,devicePixelRatio:1},topLevel:true,navigationType:'reload'},
       capturedAt:clocks(1000),events:[{kind:'pointerup',trusted:true,...clocks(200)}],overflow:false,stopped:false},
     wire:{schema:'unity-browser-reload-wire/1',documentId:id,records:[row('game-socket-created',201),
-      row('hello-send-returned',205,{protocol:14,resumePresent:resume,wholeFrameValidated:false}),
-      row('welcome-public-prefix',300,{protocol:14,contentHash:CONTENT,matchId:match,playerId:7,wholeFrameValidated:false})],overflow:false}};
+      row('hello-send-returned',205,{protocol:16,resumePresent:resume,wholeFrameValidated:false}),
+      row('welcome-public-prefix',300,{protocol:16,contentHash:CONTENT,matchId:match,playerId:7,wholeFrameValidated:false})],overflow:false}};
 }
 function syntheticCase(){
   const before=safeDoc('synthetic-before',1000000,'exec-1',false),after=safeDoc('synthetic-after',1002000,'exec-2',true);
@@ -224,4 +232,16 @@ test('A resumed mode label before Welcome cannot be reused as accepted gameplay 
   const b=bundle(),c=b.cases[0],after=c.documents[1];
   c.steps.find(s=>s.kind==='mode-verified'&&s.documentId===after.observer.documentId).wallTimeMs=1002250;
   assert.equal(evaluate(b).status,'FAIL');
+});
+
+test('Real protocol 16 golden Hello and Welcome frames parse with the same metadata parsers',()=>{
+  const vectors=JSON.parse(readFileSync(new URL('../../protocol/fixtures/v16.json',import.meta.url),'utf8'));
+  const bytes=hex=>Uint8Array.from(hex.match(/../g),b=>Number.parseInt(b,16));
+  const server=vectors.server.filter(v=>v.name==='welcome'||v.name.startsWith('welcome_ground_'));
+  assert(server.length>=6);
+  for(const v of server)assert.equal(parseWireMetadata('server',bytes(v.hex)).status,'public-prefix',v.name);
+  for(const [name,present] of [['hello',false],['hello_resume',true],['hello_ticket_max',true]]){
+    const got=parseWireMetadata('client',bytes(vectors.client.find(v=>v.name===name).hex));
+    assert.equal(got.status,'metadata',name);assert.equal(got.resumePresent,present,name);
+  }
 });

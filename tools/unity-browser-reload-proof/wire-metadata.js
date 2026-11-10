@@ -1,5 +1,5 @@
 /*
- * Credential-blind v14 wire metadata parser. It is intentionally inert: importing or pasting
+ * Credential-blind v16 wire metadata parser. It is intentionally inert: importing or pasting
  * this file does not patch WebSocket, inspect application globals, read storage, or install hooks.
  * A caller may provide an already-observed frame to parseClientHello / parseServerWelcome.
  * The Welcome result is a recognized public-prefix observation, not proof the whole frame or
@@ -12,7 +12,8 @@ const SERVER_MAX = 256 * 1024;
 const MAX_TICKET = 448;
 const MAX_MAP_TILES = 1024 * 1024;
 const MAX_MAP_RUNS = 3 * MAX_MAP_TILES;
-const PROTOCOL = 14;
+const PROTOCOL = 16;
+const MAX_ARCHETYPES = 32, MAX_ARCHETYPE_KEY = 24, MAX_WEAPONS = 32, WEAPON_ROW_LEN = 34;
 const CLIENT_TAGS = new Set([1, 2, 3, 4, 5]);
 const SERVER_TAGS = new Set([0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88]);
 
@@ -61,7 +62,7 @@ function checkReader(r, maxBytes) {
   if (r.length > maxBytes) throw new RangeError('frame bound');
 }
 
-/** Parse only the v14 Hello's public protocol and the presence bit for the private resume capability. */
+/** Parse only the v16 Hello's public protocol and the presence bit for the private resume capability. */
 export function parseClientHello(reader) {
   let protocol = null;
   try {
@@ -92,7 +93,7 @@ export function parseClientHello(reader) {
   }
 }
 
-/** Parse only the v14 Welcome's public identity prefix; session and all later bytes are skipped. */
+/** Parse only the v16 Welcome's public identity prefix; session and all later bytes are skipped. */
 export function parseServerWelcome(reader) {
   let protocol = null;
   try {
@@ -109,6 +110,28 @@ export function parseServerWelcome(reader) {
     reader.skip(16); // private session capability: bytes never read.
     reader.skip(13); // tick rate, tick, and server clock; not needed for reload readiness.
     if (reader.length < 60) return fail('server','truncated-welcome-prefix',protocol);
+    // Protocol 16 puts three public tables between this header and the map, in this order (crates/rh-protocol:
+    // archetype.rs, vision.rs, weapon.rs). Only counts, key lengths and flags are read to find the map; values are skipped.
+    const archetypes = reader.u8();
+    if (archetypes > MAX_ARCHETYPES) return fail('server','archetype-table',protocol);
+    for (let i = 0; i < archetypes; i++) {
+      reader.skip(1); // archetype id
+      const key = reader.u8();
+      if (key > MAX_ARCHETYPE_KEY) return fail('server','archetype-table',protocol);
+      reader.skip(key); // appearance key bytes
+      const hull = reader.u8();
+      if (hull === 0) reader.skip(1); // circle radius
+      else if (hull === 1) reader.skip(6); // foot and body boxes
+      else return fail('server','archetype-table',protocol);
+      reader.skip(1); // chest
+    }
+    reader.skip(34); // vision: version u8, four f64, sight mask u8
+    const coliseum = reader.u8();
+    if (coliseum === 1) reader.skip(8); // coliseum rectangle: four u16
+    else if (coliseum !== 0) return fail('server','vision-block',protocol);
+    const weapons = reader.u8();
+    if (weapons > MAX_WEAPONS) return fail('server','weapon-table',protocol);
+    reader.skip(weapons * WEAPON_ROW_LEN);
     // Bound the map's byte layout using only dimensions, extension length, and RLE run counts.
     // Tile/terrain/region values and all hashes are skipped unread; this is not map validation.
     const width = reader.u16(), height = reader.u16();
