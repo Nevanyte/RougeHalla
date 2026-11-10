@@ -90,7 +90,7 @@ When DeepSeek seals Stage0, inspect exact allowed-file diff and verify:
 ## Current disposition
 
 Source witness: **accepted for this bounded regression, with additive attribution clarification**. Native Stage0:
-**final-profile red/green accepted; final pin/gates/seal pending**, as detailed below. Stage1: **not released**. Further source execution is not needed
+**Stage0 RELEASE at `36564c333d56beb8d47a9962cec033eea85b1921`**, as detailed in the final section below. Stage1 remains a separate coordinator dispatch. Further source execution is not needed
 solely to repeat the immutable receipts reviewed here; any actual discrepancy must retain its own evidence.
 
 ## Unsealed native consumer review checkpoint
@@ -250,3 +250,57 @@ These selected guards plus the changed content identity cover the rule-version r
 perturbation test is warranted for this no-layout-change repair. Require terminal raw receipts, the final exact seal,
 the pin-only diff and unchanged source/tool hashes before Stage0 RELEASE. Stage1 remains gated. Shared checkpoint,
 source corpus/tools and other production paths have no review authorization to change.
+
+## Final Stage0 admission: RELEASE
+
+**RELEASE `36564c333d56beb8d47a9962cec033eea85b1921`**, clean native worktree, directly atop reviewed
+`4fb5714e93386b6e7daa08ab3bf405888331c263`. This closes the bounded Stage0 stored-tour-mask repair and its two
+actual-source regressions, not a whole-quest migration or live bot/publication claim. Root may integrate and separately
+dispatch Stage1. There is no remaining Stage0 gate identified by this review. Reviewer performed read-only byte/source/
+receipt inspection; no native tests or source recaptures were run for this admission.
+
+Final follow-up scope is exactly the allocated two pins, mechanical new-consumer cleanup, and new/updated native
+evidence. `extend(pending.drain(..))` becomes `append(pending)` with the same event ordering/draining behavior. The
+unregistered test-only FRAME_REGIONS const is replaced in its three uses by the identical ordered five-region literals.
+No constructor, expected value, comparison, source input, production predicate or catalog marker changed in the follow-up.
+The existing source-profile red remains meaningful without repeating it for these mechanical changes; final exact
+consumer passes both directions again. All twelve files of source transfer `a3d8e8d4` were independently compared
+byte-for-byte against that commit and remain unchanged, including frozen corpus/tools/provenance/evidence.
+
+| Final file | Bytes | SHA-256 |
+|---|---:|---|
+| `crates/rh-sim/src/quests/live.rs` |35593|`296c6511ba6f82ba41de86181dedb7c9518568a5052cb8d5cbf3c77c0fa0890c`|
+| `crates/rh-sim/src/quests/catalog.rs` |15522|`f643669b656958c36ac0950f46fd0b764ab96a2dab68d1c081b57076c2f90153`|
+| `crates/rh-sim/src/quests/mod.rs` |1195|`3c635b9b920ed6b9e0178deefb0b31c0806aaab6db45a7091e6b3e3e12cd7afe`|
+| `crates/rh-sim/src/quests/tour_supply_source_tests.rs` |33259|`49d52fe6e354e4c07add25f4be6fa112cc9c8f1c59a5483e70ded82b2eeec264`|
+| `crates/rh-sim/tests/content.rs` |57502|`5e8c9de391b2d5b5a21ec1e3acb80dd4ede7b8c547847a73415573abf874e190`|
+| `parity/abilities/hash-tape.json` |7002|`9df7ffb87d81062d513257f17efe6e003fab047fc62d0177e7f8396e1ca3d4c4`|
+
+Both pins were independently proved to be literal-only substitutions against `4fb5714e`: JSON contentHash and the
+existing `tests/content.rs:522` GOLDEN_CONTENT_HASH now name `8edd862f48ffa100`; all63 fold/tick rows and every other
+byte in those two files are preserved. No tape recorder or new hash case expectation is involved. The existing full
+content test target proves the golden/registry/perturbation guards with21 passes. The unchanged checkpoint/replay
+ContentMismatch guards pass, completing the approved semantic content identity boundary without a layout/schema bump.
+
+All recorded hashes/lengths for frozen source, changed consumer, both pins/diffs, final gates and preserved failure
+receipts in final `STAGE0-RECEIPTS.json` were independently checked and match actual sealed files. Terminal gates read:
+
+| Author-run gate and raw log | Actual result |
+|---|---|
+| `stage0-profile-red-original-predicate.log` |Both intended opposite status REDs with final source profile, preserved from the reviewed Stage0 code.|
+| `stage0-profile-green-final.log` |Final consumer2 passed,0 failed,1.08s.|
+| `stage0-final-quest-gate.log` |34 passed,0 failed,1 ignored; unchanged broader quest gate from reviewed Stage0.|
+| `stage0-pin-hash-tape.log` |Ordinary checker1 passed; executes and checks all63 unchanged folds/ticks,7.76s.|
+| `stage0-content-full-gate.log` |21 passed,0 failed,0.80s.|
+| `stage0-quest-view-gate.log` |26 passed,0 failed,4.25s; actual default-feature test command, not an all-features execution claim.|
+| `stage0-checkpoint-content-mismatch.log` |Selected existing test1 passed,0.03s.|
+| `stage0-replay-content-mismatch.log` |Selected existing test1 passed,0.03s.|
+| `stage0-clippy-all.log` |Strict all-target/all-feature Clippy exit0,32.50s.|
+| `stage0-fmt-check.log` |Scoped `cargo fmt -p rh-sim -- --check` exit0, empty output.|
+
+Final evidence honestly preserves available failed runs, including transient FRAME_REGIONS compile and formatting
+failures, plus original old-pin failures. The first extend_with_drain lint failure and first unregistered-const content
+failure raw logs were overwritten; `STAGE0-PIN-GATES.md` and final receipt explicitly document this history and do not
+reconstruct fabricated raw output. The earlier final-green version is recoverable from `4fb5714e`. These administrative
+limits do not replace either meaningful gameplay RED and do not weaken a semantic assertion. Production, source and
+allocated content boundaries are satisfied for this exact Stage0 seal; broader work remains outside this admission.
