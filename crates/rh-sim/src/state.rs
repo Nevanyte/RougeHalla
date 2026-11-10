@@ -241,13 +241,14 @@ impl Path {
         map: &crate::TileMap,
         from: Vec2,
         goal: Vec2,
+        foot: crate::geometry::Footprint,
     ) {
         self.generation = self
             .generation
             .checked_add(1)
             .expect("path generation exhausted");
         self.cursor = 0;
-        crate::pathfind::plan_path_into(pf, map, from, goal, &mut self.pts);
+        crate::pathfind::plan_foot_path_into(pf, map, from, goal, foot, &mut self.pts);
     }
     pub(crate) fn replan_in_place(
         &mut self,
@@ -255,10 +256,10 @@ impl Path {
         map: &crate::TileMap,
         from: Vec2,
         goal: Vec2,
-        radius: f64,
+        foot: crate::geometry::Footprint,
     ) {
         self.cursor = 0;
-        pf.find_path_into(map, from, goal, radius, &mut self.pts);
+        pf.find_path_into(map, from, goal, foot, &mut self.pts);
     }
     /// Replaces the path with `pts` (compacting: the cursor restarts at 0); the buffer keeps its capacity.
     pub fn set_from(&mut self, pts: &[Vec2]) {

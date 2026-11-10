@@ -148,7 +148,7 @@ fn terrain_shared_walk_matches_all_actual_source_frames() {
                 n(a, "cap"),
                 |x, y| terrain::at(&map, x, y, Some(crate::FactionId::Fire)).accel,
                 n(a, "now"),
-                n(input, "radius"),
+                crate::geometry::Footprint::Disc(n(input, "radius")),
                 &mut pf,
             );
             let frame = &case["frames"][i + 1];
@@ -206,7 +206,14 @@ fn terrain_surface_and_sweep_match_actual_source() {
             (n(i, "x"), n(i, "y"))
         };
         close(
-            walk::sweep(&map, x, y, n(i, "delta"), n(i, "radius"), swap),
+            walk::sweep(
+                &map,
+                x,
+                y,
+                n(i, "delta"),
+                crate::geometry::Footprint::Disc(n(i, "radius")),
+                swap,
+            ),
             case["expected"].as_f64().unwrap(),
             "sweep",
         );
@@ -221,6 +228,7 @@ fn terrain_surface_and_sweep_match_actual_source() {
             point(&i["body"]),
             &mut path,
             &mut Pathfinder::default(),
+            crate::geometry::Footprint::Disc(crate::constants::PLAYER_RADIUS),
         );
         compare(
             &json!({"path":path.as_slice(),"sameArray":generation==path.generation}),

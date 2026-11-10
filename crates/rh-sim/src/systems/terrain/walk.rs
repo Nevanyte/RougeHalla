@@ -8,9 +8,9 @@ pub(crate) use crate::constants::TERRAIN_STUCK_REPLANS as STUCK_REPLANS;
 pub(crate) use crate::constants::TERRAIN_STUCK_WINDOW_MS as STUCK_WINDOW_MS;
 pub(crate) use crate::constants::TERRAIN_V_EPS as V_EPS;
 use crate::{
-    constants::{PLAYER_RADIUS, TICK_MS, TILE},
+    constants::{TICK_MS, TILE},
     fighter::SlipState,
-    geometry::segment_clear,
+    geometry::Footprint,
     map::MASK_MOVE,
     pathfind::Pathfinder,
     state::Path,
@@ -52,8 +52,71 @@ pub(crate) fn new_slip(p: Vec2, v: Vec2) -> SlipState {
         grip_until: None,
     }
 }
-/// X or Y source sweep; argument/lookup transposition is the only axis difference.
-pub(crate) fn sweep(map: &TileMap, x: f64, y: f64, delta: f64, r: f64, swap: bool) -> f64 {
+/// X or Y source sweep of the mover's footprint; argument/lookup transposition is the only axis difference. A disc is the
+/// legacy swept-disc contact exactly; a foot box (ADR0024) stops its leading face on the first solid tile face it would
+/// cross in a row that openly overlaps the box.
+pub(crate) fn sweep(map: &TileMap, x: f64, y: f64, delta: f64, foot: Footprint, swap: bool) -> f64 {
+    match foot {
+        Footprint::Disc(r) => sweep_disc(map, x, y, delta, r, swap),
+        Footprint::Box { hx, hy } => {
+            let (along, across) = if swap { (hy, hx) } else { (hx, hy) };
+            sweep_box(map, x, y, delta, along, across, swap)
+        }
+    }
+}
+fn sweep_box(
+    map: &TileMap,
+    x: f64,
+    y: f64,
+    delta: f64,
+    along: f64,
+    across: f64,
+    swap: bool,
+) -> f64 {
+    if delta == 0. {
+        return x;
+    }
+    let nx = x + delta;
+    // Rows that overlap the open interval (y - across, y + across): touching a row's edge is not contact.
+    let j0 = ((y - across) / TILE).floor() as i64;
+    let j1 = ((y + across) / TILE).ceil() as i64 - 1;
+    let mut best = nx;
+    let (i0, i1) = if delta > 0. {
+        ((x / TILE).floor() as i64, ((nx + along) / TILE).floor() as i64)
+    } else {
+        (((nx - along) / TILE).floor() as i64, (x / TILE).floor() as i64)
+    };
+    for i in i0..=i1 {
+        let face = if delta > 0. {
+            i as f64 * TILE
+        } else {
+            (i + 1) as f64 * TILE
+        };
+        if (delta > 0. && face < x - EPS) || (delta < 0. && face > x + EPS) {
+            continue;
+        }
+        for j in j0..=j1 {
+            if !(if swap {
+                map.is_solid(j, i)
+            } else {
+                map.is_solid(i, j)
+            }) {
+                continue;
+            }
+            if delta > 0. {
+                best = best.min(face - along);
+            } else {
+                best = best.max(face + along);
+            }
+        }
+    }
+    if delta > 0. {
+        x.max(best)
+    } else {
+        x.min(best)
+    }
+}
+fn sweep_disc(map: &TileMap, x: f64, y: f64, delta: f64, r: f64, swap: bool) -> f64 {
     if delta == 0. {
         return x;
     }
@@ -104,7 +167,14 @@ pub(crate) fn sweep(map: &TileMap, x: f64, y: f64, delta: f64, r: f64, swap: boo
         x.min(best)
     }
 }
-fn move_disc(map: &TileMap, p: &mut Vec2, s: &mut SlipState, mx: f64, my: f64, r: f64) -> bool {
+fn move_disc(
+    map: &TileMap,
+    p: &mut Vec2,
+    s: &mut SlipState,
+    mx: f64,
+    my: f64,
+    r: Footprint,
+) -> bool {
     let mut hit = false;
     let nx = sweep(map, p.x, p.y, mx, r, false);
     if (nx - (p.x + mx)).abs() > EPS {
@@ -129,7 +199,7 @@ pub(crate) fn step(
     dt: f64,
     cap: f64,
     accel: f64,
-    r: f64,
+    r: Footprint,
 ) -> Result {
     let mut res = Result::default();
     if s.path != Some(path.generation) {
@@ -222,10 +292,17 @@ pub(crate) fn step(
     res.moved = (bx * bx + by * by).sqrt();
     res
 }
-fn clear(map: &TileMap, p: Vec2, target: Vec2, r: f64) -> bool {
-    segment_clear(map, p, target, r, MASK_MOVE)
+fn clear(map: &TileMap, p: Vec2, target: Vec2, r: Footprint) -> bool {
+    r.segment_clear(map, p, target, MASK_MOVE)
 }
-fn replan(pf: &mut Pathfinder, map: &TileMap, p: Vec2, path: &mut Path, s: &mut SlipState, r: f64) {
+fn replan(
+    pf: &mut Pathfinder,
+    map: &TileMap,
+    p: Vec2,
+    path: &mut Path,
+    s: &mut SlipState,
+    r: Footprint,
+) {
     let goal = *path.as_slice().last().unwrap();
     path.replan_in_place(pf, map, p, goal, r);
     s.ax = p.x;
@@ -264,7 +341,7 @@ fn grip_step(
     path: &mut Path,
     dt: f64,
     cap: f64,
-    r: f64,
+    r: Footprint,
     out: &mut Result,
     pf: &mut Pathfinder,
 ) {
@@ -313,7 +390,7 @@ pub(crate) fn walk(
     cap: f64,
     slip_at: impl Fn(f64, f64) -> f64,
     now: f64,
-    r: f64,
+    r: Footprint,
     pf: &mut Pathfinder,
 ) -> Result {
     let mut out = Result::default();
@@ -348,12 +425,41 @@ pub(crate) fn walk(
     }
     out
 }
-pub(crate) fn regrip(map: &TileMap, p: Vec2, path: &mut Path, pf: &mut Pathfinder) {
-    if path
-        .first()
-        .is_some_and(|w| !clear(map, p, w, PLAYER_RADIUS))
-    {
+pub(crate) fn regrip(map: &TileMap, p: Vec2, path: &mut Path, pf: &mut Pathfinder, foot: Footprint) {
+    if path.first().is_some_and(|w| !clear(map, p, w, foot)) {
         let goal = *path.as_slice().last().unwrap();
-        path.replan(pf, map, p, goal);
+        path.replan(pf, map, p, goal, foot);
+    }
+}
+#[cfg(test)]
+mod box_sweep_tests {
+    use super::*;
+
+    /// ADR0024: on ice the foot box's leading face stops on a wall face (the disc stops its centre `r` away).
+    #[test]
+    fn a_foot_box_sweep_stops_its_leading_face_on_the_wall() {
+        let map = crate::arenas::practice_arena().map;
+        let (w, h) = (map.w as i64, map.h as i64);
+        let (tx, ty) = (1..h - 1)
+            .flat_map(|ty| (1..w - 1).map(move |tx| (tx, ty)))
+            .find(|&(tx, ty)| {
+                map.is_solid(tx + 1, ty)
+                    && !map.is_solid(tx, ty)
+                    && !map.is_solid(tx, ty - 1)
+                    && !map.is_solid(tx, ty + 1)
+                    && !map.is_solid(tx - 1, ty)
+            })
+            .expect("a floor tile with a wall to its east");
+        let face = (tx + 1) as f64 * TILE;
+        let y = ty as f64 * TILE + TILE / 2.0;
+        let x = tx as f64 * TILE + 4.0;
+        let foot = Footprint::Box { hx: 10.0, hy: 6.0 };
+        assert_eq!(sweep(&map, x, y, 100.0, foot, false), face - 10.0);
+        assert_eq!(sweep(&map, x, y, 5.0, foot, false), x + 5.0);
+        let disc = sweep(&map, x, y, 100.0, Footprint::Disc(12.0), false);
+        assert_eq!(disc, face - 12.0);
+        // Moving north-south along x, the box's half-height leads instead (swap transposes the axes).
+        let ny = sweep(&map, y, x, 0.0, foot, true);
+        assert_eq!(ny, y);
     }
 }

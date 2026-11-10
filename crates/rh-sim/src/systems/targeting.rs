@@ -7,7 +7,7 @@ use crate::fighter::{FighterCore, FighterIx};
 use crate::geometry::has_line_of_sight;
 use crate::input::ActionCmd;
 use crate::math::{hypot, wrap_angle, Vec2};
-use crate::pathfind::plan_path_into;
+use crate::pathfind::plan_foot_path_into;
 use crate::{PlayerId, TileMap};
 
 fn distance(a: Vec2, b: Vec2) -> f64 {
@@ -89,11 +89,12 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
 }
 
 fn plan(cx: &mut Cx, i: usize, goal: Vec2) -> bool {
-    plan_path_into(
+    plan_foot_path_into(
         cx.pf,
         cx.k.collision_map(cx.w.rt.gates_locked),
         cx.w.players[i].pos(),
         goal,
+        cx.w.players[i].foot(),
         &mut cx.s.path,
     );
     !cx.s.path.is_empty()
