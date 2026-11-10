@@ -40,6 +40,8 @@ namespace Roguehalla.Client
         double _lastSteer;
         bool _steering;
         float _aimAngle;
+        float _nextReconLog;
+        int _fxSwings, _fxHits;
         bool _attackHeld;
         bool _traceLatency;
         MatchLaunchTarget _sessionTarget;
@@ -265,6 +267,12 @@ namespace Roguehalla.Client
             // Fx of tick T happened in step T: interpolated remote poses reach it when render time reaches snapshot T's
             // source time. Anchor on the newest snapshot so a source-time override (epoch cut) is respected.
             var s = _presentationSession ?? Session;
+            if (s != null && InputLatencyProbe.Enabled)
+                foreach (var f in fx.List)
+                {   // Dev flag ?inputlat=1: confirmed swings and hits by the local player (shots versus hits for the aim proof).
+                    if (f.By != s.PlayerId) continue;
+                    if (f.Kind == FxKind.Swing) _fxSwings++; else if (f.Kind == FxKind.Hit) _fxHits++;
+                }
             if (s == null) { Arena.ConfirmedFx(fx); return; }
             var latest = s.Latest;
             double dueMs = latest != null ? latest.ServerMs + ((double)fx.Tick - latest.Tick) * Wire.TickMs : double.NaN;
@@ -298,6 +306,19 @@ namespace Roguehalla.Client
                 Session.FlushInput();
             }
             Present();
+            if (probe)
+            {
+                // Dev flag ?inputlat=1: the prediction reconciliation counters, once a second (how often and how far the server moved us).
+                var motion = Session.Motion;
+                if (Time.unscaledTime >= _nextReconLog && motion.ReconSamples > 0)
+                {
+                    _nextReconLog = Time.unscaledTime + 1f;
+                    Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "[recon] samples={0} corrections(>{1}u)={2} big(>{3}u)={4} maxErr={5:F3} meanErr={6:F4} snaps={7} foot={8} swings={9} hits={10}",
+                        motion.ReconSamples, LocalMotion.ReconCorrectionU, motion.ReconCorrections, LocalMotion.ReconBigU, motion.ReconBig,
+                        motion.ReconMaxErr, motion.ReconErrSum / motion.ReconSamples, motion.Snaps, motion.Foot, _fxSwings, _fxHits));
+                }
+            }
             if (probe) InputLatencyProbe.EndFrame(NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
         }
 
@@ -333,7 +354,12 @@ namespace Roguehalla.Client
             bool haveCursor = !blocked && mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
             if (haveCursor)
             {
-                _aimAngle = Mathf.Atan2(sy - myY, sx - myX);
+                // Projectiles are simulated on the ground and drawn raised by the shooter's chest: aim at the cursor's ground point
+                // shifted that far toward screen-down so the drawn shot leaves the chest and passes through the cursor (ChestAim).
+                _aimAngle = (float)ChestAim.Angle(myX, myY, sx, sy, Session.OwnChest);
+                if (HitboxOverlay.Enabled && mouse.leftButton.wasPressedThisFrame)
+                    Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[aim] t={0:F1} from={1:F2},{2:F2} cursor={3:F2},{4:F2} chest={5} angle={6:F5}",
+                        Time.realtimeSinceStartup * 1000f, myX, myY, sx, sy, Session.OwnChest, _aimAngle));
                 Session.Input.Aim(_aimAngle);
                 if (mouse.leftButton.wasPressedThisFrame)
                 {
@@ -393,7 +419,7 @@ namespace Roguehalla.Client
             if (keyX != 0 || keyY != 0)
             {
                 var dir = new Vector2(keyX, keyY);
-                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, out _steerGoalX, out _steerGoalY);
+                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, Session.OwnFoot, out _steerGoalX, out _steerGoalY);
                 if (have)
                 {
                     if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
@@ -458,7 +484,7 @@ namespace Roguehalla.Client
 
         uint VisibleActorAt(Vector2 pointer)
         {
-            uint id = 0; float best = 22f * 22f;
+            uint id = 0; float best = float.PositiveInfinity;
             // Use the newest delivered membership: observer refs can change between snapshots.
             Session.Snapshots.Sample(Session.Snapshots.NewestMs, _targetActors);
             foreach (var actor in _targetActors)
@@ -467,8 +493,17 @@ namespace Roguehalla.Client
                 DrawnPosition(actor, out float x, out float y);
                 var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(x, y));
                 if (screen.z <= 0) continue;
-                float d = ((Vector2)screen - pointer).sqrMagnitude;
-                if (d < best) { best = d; id = actor.Id; }
+                // The drawn body stands above the feet: with a delivered body box the whole box is clickable (ADR0024).
+                var row = Roguehalla.Net.Protocol.WireArchetype.Find(Session.Archetypes, actor.Archetype);
+                bool body = row != null && row.Hull == 1;
+                Vector2 a = default, b = default;
+                if (body)
+                {
+                    a = Cam.WorldToScreenPoint(ArenaView.WorldPoint(x + row.Ox - row.Bx, y + row.Oy - row.By));
+                    b = Cam.WorldToScreenPoint(ArenaView.WorldPoint(x + row.Ox + row.Bx, y + row.Oy + row.By));
+                }
+                float d = ActorPick.Score(pointer, screen, body, a, b);
+                if (d >= 0f && d < best) { best = d; id = actor.Id; }
             }
             return id;
         }

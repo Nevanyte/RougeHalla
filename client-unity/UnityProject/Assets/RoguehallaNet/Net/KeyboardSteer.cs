@@ -6,7 +6,7 @@ namespace Roguehalla.Net
     /// <summary>
     /// Chooses the destination for keyboard steering (port of legacy <c>keyboardMoveGoal</c>). It only picks which point to send:
     /// the first body-clear straight goal, trying the held heading and, on a diagonal, each single axis, from 64 down to 8
-    /// units. Collision truth stays in Rust; the server still validates and plans the order.
+    /// units (a box foot then finishes with 1 u steps, ADR0024). Collision truth stays in Rust; the server still validates and plans the order.
     /// </summary>
     public static class KeyboardSteer
     {
@@ -17,6 +17,13 @@ namespace Roguehalla.Net
         /// clear, or no key is held: the caller then sends no new order (and stops if it was moving).
         /// </summary>
         public static bool TryGoal(Pathfinder pf, MapBlob map, double originX, double originY, int keyX, int keyY,
+            out double goalX, out double goalY)
+        {
+            return TryGoal(pf, map, originX, originY, keyX, keyY, Footprint.Legacy, out goalX, out goalY);
+        }
+
+        /// <summary>As above for the mover's own footprint (its archetype's foot box, ADR0024).</summary>
+        public static bool TryGoal(Pathfinder pf, MapBlob map, double originX, double originY, int keyX, int keyY, Footprint foot,
             out double goalX, out double goalY)
         {
             goalX = originX; goalY = originY;
@@ -31,8 +38,16 @@ namespace Roguehalla.Net
                 for (double d = AheadMax; d >= AheadMin; d -= AheadStep)
                 {
                     double gx = originX + hx * d, gy = originY + hy * d;
-                    if (pf.SegmentClear(map, originX, originY, gx, gy, Pathfinder.PlayerRadius)) { goalX = gx; goalY = gy; return true; }
+                    if (pf.SegmentClear(map, originX, originY, gx, gy, foot)) { goalX = gx; goalY = gy; return true; }
                 }
+                // ADR0024: the box foot touches a wall face where the old 12 u disc stopped short, and a whole 8 u step would leave
+                // it up to 8 u from the face. For a box only, finish the approach with 1 u steps (the disc path is unchanged).
+                if (foot.IsBox)
+                    for (double d = AheadMin - 1.0; d >= 1.0; d -= 1.0)
+                    {
+                        double gx = originX + hx * d, gy = originY + hy * d;
+                        if (pf.SegmentClear(map, originX, originY, gx, gy, foot)) { goalX = gx; goalY = gy; return true; }
+                    }
             }
             return false;
         }

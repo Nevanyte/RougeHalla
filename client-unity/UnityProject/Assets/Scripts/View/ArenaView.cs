@@ -35,6 +35,20 @@ namespace Roguehalla.Client
         // Diagnostics only (url flag vision.fadeDemo=1): every 6 s the nearest remote player is withheld for 2.5 s, as if the server stopped
         // sending it, so the exit and entry fades can be captured on screen. It goes through the real departure path; it never runs by default.
         bool _fadeDemo; uint _demoId; float _demoNext = 8f, _demoUntil;
+        HitboxOverlay _overlay;
+        WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
+        /// <summary>True when the <c>?hitboxes=1</c> debug overlay exists (never otherwise).</summary>
+        public bool HitboxOverlayActive { get { return _overlay != null; } }
+        /// <summary>The hitbox archetype table of the joined match (empty before a Welcome, or from a server that sends none).</summary>
+        public WireArchetype[] Archetypes { get { return _archetypes; } }
+        string ArchetypeKey(byte id)
+        {
+            var row = WireArchetype.Find(_archetypes, id);
+            return row == null ? null : row.Key;
+        }
+        /// <summary>Foot box half-extents (sim units) of an archetype, 0 for a circle hull, an unknown id or no table.</summary>
+        float FootHx(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fx : 0f; }
+        float FootHy(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fy : 0f; }
         ConfirmedWishPresenter _wishes;
         WishFxPresenter _wishFx;
         bool _collectWishNotes;
@@ -95,6 +109,7 @@ namespace Roguehalla.Client
             _visionFog.AuditLog = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.audit=1");
             _visionFog.DebugRadiusTiles = DebugRadiusFlag(Application.absoluteURL);
             _fadeDemo = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.fadeDemo=1");
+            if (HitboxOverlay.Enabled) _overlay = new HitboxOverlay(Child("Hitbox overlay"), _actors);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
@@ -207,7 +222,8 @@ namespace Roguehalla.Client
                 // NPC observer handles may renew on every observation. Never infer continuity
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
-                _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
+                _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep, ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -218,7 +234,8 @@ namespace Roguehalla.Client
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
                 float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
-                    me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
+                    me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep, ArchetypeKey(me.Archetype), FootHx(me.Archetype), FootHy(me.Archetype));
+                _overlay?.NoteActor(me.Id, me.Archetype, (byte)ActorKind.Player);
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
@@ -235,6 +252,7 @@ namespace Roguehalla.Client
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
+            _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
             if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             BindVisionSession(session);
@@ -321,7 +339,8 @@ namespace Roguehalla.Client
         {
             foreach(var a in _latestNpcs)
             {
-                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
+                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep,ArchetypeKey(a.Archetype), FootHx(a.Archetype), FootHy(a.Archetype));
+                _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
@@ -338,6 +357,7 @@ namespace Roguehalla.Client
                 foreach (var p in collections.Props)
                 {
                     var position = WorldPoint(p.X, p.Y); int order = 2000 + Mathf.RoundToInt(p.Y * .5f);
+                    _overlay?.NoteProp((byte)p.Kind, p.Weapon.HasValue ? (int)p.Weapon.Value : -1, p.X, p.Y, p.Open, p.Focused);
                     Prop("shadow", position + new Vector3(.1f, -.03f), new Vector2(.9f, .35f), Color.white, order - 3);
                     if (p.Kind == PropAppearance.Ground)
                     {
@@ -391,14 +411,25 @@ namespace Roguehalla.Client
                 }
                 foreach (var shot in collections.Projectiles)
                 {
-                    var p = WorldPoint(shot.X, shot.Y); bool arrow = shot.Kind == ProjectileKind.Arrow;
+                    // ADR0024: the ground track is (X, Y); the shot is DRAWN raised by its delivered height (the shooter's chest at launch,
+                    // 0 under legacy hitboxes), with a soft shadow left on the ground track so depth reads.
+                    var ground = WorldPoint(shot.X, shot.Y); var p = ProjectileDrawPoint(shot.X, shot.Y, shot.Height);
+                    bool arrow = shot.Kind == ProjectileKind.Arrow;
+                    if (shot.Height > 0f)
+                        Prop("shadow", ground, arrow ? new Vector2(.5f, .17f) : new Vector2(.55f, .22f), new Color(0, 0, 0, .55f), 2000 + Mathf.RoundToInt(shot.Y * .5f) - 8);
                     var r = Prop(arrow ? "spark" : "glow", p, arrow ? new Vector2(.6f, .14f) : new Vector2(.7f, .7f),
                         arrow ? new Color(1.6f, 1.25f, .6f) : new Color(1.5f, .55f, 2), 29000);
-                    r.transform.rotation = Quaternion.Euler(0, 0, -shot.Facing * Mathf.Rad2Deg);
+                    r.transform.rotation = Quaternion.Euler(0, 0, ProjectileScreenAngleDeg(shot.Facing));
+                    _overlay?.NoteShot(shot.X, shot.Y, shot.Height);
                 }
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
         }
+        /// <summary>Where a projectile with ground position (x, y) and height h (sim units) is drawn: the ground point raised h toward screen-up.</summary>
+        public static Vector3 ProjectileDrawPoint(float x, float y, float height) { return WorldPoint(x, y - height); }
+        /// <summary>Screen rotation of a sprite that points along the ground heading (sim radians, +y south): the ground is drawn squashed.</summary>
+        public static float ProjectileScreenAngleDeg(float facing) { return Mathf.Atan2(-Mathf.Sin(facing) * GroundSquash, Mathf.Cos(facing)) * Mathf.Rad2Deg; }
+        void LateUpdate() { if (_overlay != null) _overlay.Draw(_archetypes); }
         SpriteRenderer Prop(string sprite, Vector3 p, Vector2 scale, Color color, int order)
         {
             SpriteRenderer r;

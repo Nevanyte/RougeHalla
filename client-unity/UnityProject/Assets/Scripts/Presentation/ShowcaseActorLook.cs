@@ -5,7 +5,16 @@ namespace Roguehalla.Client
     /// <summary>Coherent art reuse for public actor identities; no rules, species claims or gameplay sizes.</summary>
     public static class ShowcaseActorLook
     {
-        static readonly string[] MobLooks =
+        /// <summary>The key of archetype 0 in the Welcome table: legacy circle hulls carry no art, so the key names no look.</summary>
+        public const string LegacyArchetypeKey = "legacy_circle";
+
+        /// <summary>
+        /// Legacy-only fallback (ADR0024): with <c>--hitboxes archetypes</c> the server sends every actor's archetype key, which is the
+        /// catalog key, and <see cref="AppearanceKey"/> uses it. Under <c>legacy_circle</c> every actor is archetype 0 and a server that
+        /// sends no table says nothing about the look, so mobs still need this per-type mapping (rh-sim archetype.rs keeps the same
+        /// mapping for the live mode; a test pins the two together).
+        /// </summary>
+        public static readonly string[] MobLooks =
         {
             "goblin", "mob-antlion", "mob-goblin-elite", "mob-skeleton-mage", "mob-goblin-elite", "mob-antlion",
             "skeleton", "mob-goblin-elite", "mob-skeleton-archer", "mob-skeleton-mage", "mob-goblin-elite", "mob-skeleton-mage",
@@ -13,6 +22,24 @@ namespace Roguehalla.Client
             "mob-skeleton-mage", "mob-goblin-elite", "mob-skeleton-archer", "mob-skeleton-archer", "skeleton", "mob-goblin-elite",
             "mage", "mob-skeleton-mage", "mob-zombie", "hero", "mage-female", "hero-female"
         };
+
+        /// <summary>True for a key the server chose for a drawn fighter: present and not the legacy circle row.</summary>
+        public static bool IsArchetypeLook(string archetypeKey)
+        {
+            return !string.IsNullOrEmpty(archetypeKey) && archetypeKey != LegacyArchetypeKey;
+        }
+
+        /// <summary>
+        /// The catalog key to draw. The server's archetype key (table key = catalog key) wins whenever it names a look; a quest giver
+        /// always uses the neutral silhouette (the giver's server archetype is only a hero-sized box). Without a key (no table, or the
+        /// legacy row) the faction and mob-type mapping below decides, exactly as before protocol 16.
+        /// </summary>
+        public static string AppearanceKey(ActorKind kind, FactionId? faction, MobTypeId? type, string archetypeKey)
+        {
+            if (kind == ActorKind.QuestGiver) return null;
+            if (IsArchetypeLook(archetypeKey)) return archetypeKey;
+            return AppearanceKey(kind, faction, type);
+        }
 
         public static string AppearanceKey(ActorKind kind, FactionId? faction, MobTypeId? type)
         {

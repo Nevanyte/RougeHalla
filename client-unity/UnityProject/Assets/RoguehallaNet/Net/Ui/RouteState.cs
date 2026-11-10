@@ -22,6 +22,13 @@ namespace Roguehalla.Net.Ui
         public readonly double TileSize;
         public readonly double BodyRadius;
         public readonly double WalkSpeed;
+        /// <summary>The footprint a preview path walks (ADR0024): the own foot box, or the disc of <see cref="BodyRadius"/>.</summary>
+        public readonly Footprint Foot;
+
+        public RouteGeometry(double tileSize, Footprint foot, double walkSpeed) : this(tileSize, foot.Hx, walkSpeed)
+        {
+            Foot = foot;
+        }
 
         public RouteGeometry(double tileSize, double bodyRadius, double walkSpeed)
         {
@@ -31,6 +38,7 @@ namespace Roguehalla.Net.Ui
             TileSize = tileSize;
             BodyRadius = bodyRadius;
             WalkSpeed = walkSpeed;
+            Foot = Footprint.Disc(bodyRadius);
         }
 
         static bool Finite(double value) { return !double.IsNaN(value) && !double.IsInfinity(value); }
@@ -204,7 +212,7 @@ namespace Roguehalla.Net.Ui
                 PathPoint[] path;
                 if (!at.HasValue)
                 {
-                    path = _pathfinder.FindPath(map, target.X, target.Y, target.X, target.Y, geometry.BodyRadius);
+                    path = _pathfinder.FindPath(map, target.X, target.Y, target.X, target.Y, geometry.Foot);
                     if (path.Length == 0) { unreachable.Add(i); continue; }
                     RoutePoint snapped = new RoutePoint(path[path.Length - 1].X, path[path.Length - 1].Y);
                     points.Add(snapped);
@@ -213,7 +221,7 @@ namespace Roguehalla.Net.Ui
                     continue;
                 }
 
-                path = _pathfinder.FindPath(map, at.Value.X, at.Value.Y, target.X, target.Y, geometry.BodyRadius);
+                path = _pathfinder.FindPath(map, at.Value.X, at.Value.Y, target.X, target.Y, geometry.Foot);
                 if (path.Length == 0) { unreachable.Add(i); continue; }
                 for (int p = 0; p < path.Length; p++) points.Add(new RoutePoint(path[p].X, path[p].Y));
                 RoutePoint end = new RoutePoint(path[path.Length - 1].X, path[path.Length - 1].Y);
@@ -256,7 +264,7 @@ namespace Roguehalla.Net.Ui
 
         static bool Same(RouteGeometry a, RouteGeometry b)
         {
-            return a.TileSize.Equals(b.TileSize) && a.BodyRadius.Equals(b.BodyRadius) && a.WalkSpeed.Equals(b.WalkSpeed);
+            return a.TileSize.Equals(b.TileSize) && a.BodyRadius.Equals(b.BodyRadius) && a.Foot.Equals(b.Foot) && a.WalkSpeed.Equals(b.WalkSpeed);
         }
 
         static RoutePoint Clamp(RoutePoint point, MapBlob map, double tileSize)

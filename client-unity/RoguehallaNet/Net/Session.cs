@@ -71,6 +71,12 @@ namespace Roguehalla.Net
         public byte[] SessionToken { get; private set; }
         public MapBlob Map { get { return Welcome == null ? null : Welcome.Map; } }
         /// <summary>The hitbox archetype table of this server (protocol 16, ADR0024), empty before the Welcome.</summary>
+        /// <summary>The own footprint for walls and paths: the self archetype's foot (ADR0024), the 12 u disc with no table.</summary>
+        public Footprint OwnFoot { get { return Footprint.For(Archetypes, _me.Archetype); } }
+
+        /// <summary>The own chest height in sim units (projectiles leave from here; 0 with no table or on the legacy row).</summary>
+        public double OwnChest { get { return ChestAim.ChestOf(Archetypes, _me.Archetype); } }
+
         public Protocol.WireArchetype[] Archetypes { get { return Welcome == null || Welcome.Archetypes == null ? System.Array.Empty<Protocol.WireArchetype>() : Welcome.Archetypes; } }
         /// <summary>The vision rule's parameters the server sent (protocol 16), or null before a Welcome.</summary>
         public Protocol.WireVision Vision { get { return Welcome == null ? null : Welcome.Vision; } }
@@ -479,6 +485,8 @@ namespace Roguehalla.Net
                     {
                         if (sourceCut) Motion.RebasePresentationClock(now);
                         // Source time aligns the sample with the predicted walk; the owner's speed mirror sets the walk speed.
+                        // The own foot (disc or box) comes from the Welcome table and the self archetype id.
+                        if (_hasMe) Motion.Foot = Footprint.For(Archetypes, _me.Archetype);
                         if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput, snap.ServerMs,
                             _me.OwnerCombat.HasValue ? _me.OwnerCombat.Value.SpeedMilli : (double?)null);
                         else Motion.Clear();

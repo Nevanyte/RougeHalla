@@ -418,7 +418,7 @@ namespace Roguehalla.Client
             if (Time.realtimeSinceStartupAsDouble >= _nextPath)
             {
                 _nextPath = Time.realtimeSinceStartupAsDouble + .25;
-                _routePlan = _route.PlanAhead(_bound.Map, new RouteGeometry(Tile, Pathfinder.PlayerRadius, PreviewSpeed), plan == null && me != null ? new RoutePoint(me.X, me.Y) : _route.Start);
+                _routePlan = _route.PlanAhead(_bound.Map, new RouteGeometry(Tile, _bound.OwnFoot, PreviewSpeed), plan == null && me != null ? new RoutePoint(me.X, me.Y) : _route.Start);
                 _routePoints = _routePlan.Points;
                 _routeText.text = (_route.Waypoints.Count - _route.NextIndex) + "/12 stops · " + (_routePlan.Start.HasValue ? _routePlan.EtaSeconds.ToString("0") + "s base-speed walk" : "choose a spawn for ETA") +
                     (_routePlan.Unreachable.Count > 0 ? " · " + _routePlan.Unreachable.Count + " unreachable" : "") + "\nClick the map to add a stop.";

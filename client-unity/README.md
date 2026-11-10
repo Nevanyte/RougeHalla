@@ -95,6 +95,22 @@ Current evidence: [first playable Unity browser](../docs/evidence/first-playable
   repair that base and replace the newest sample without adding a clock sample; ordinary duplicates remain ignored.
 - Order sequences are 1..255 (0 is `move_seq` before any order). Aim is limited to 40/s, 16 commands per frame.
 
+## Hitbox archetypes (ADR0024, protocol 16)
+- **Table.** The Welcome carries the archetype table (`Session.Archetypes`); every actor and the self carry an archetype id. The client keeps no
+  table of its own and no number from it. Without a table, or on the legacy row (id 0), everything below is the pre-16 behaviour.
+- **Prediction.** `Footprint` (`Net/Footprint.cs`: the 12 u disc, or an axis-aligned foot box) mirrors rh-sim `Footprint`. `Pathfinder` plans and
+  checks clearance with it (`FindPath(..., Footprint)`, `SegmentClear`, `Clear`), `LocalMotion.Foot` is set from `Session.OwnFoot` (the
+  self archetype's foot) before each snapshot is applied, and `KeyboardSteer` and the route preview use the same foot. Rust vectors:
+  `protocol/fixtures/pathfinding_v2.json` (300 queries) and `server_walk_v2.json` (3 corner walks); the v1 disc vectors still pass.
+- **Aim.** `ChestAim.Angle` aims at the cursor's ground point shifted `chest` toward screen-down, so a projectile drawn raised by the chest
+  leaves the chest and passes through the cursor. `MatchClient` is the only place aim is computed.
+- **Presentation.** Projectiles are drawn at `WorldPoint(x, y - height)` with a ground shadow. The look comes from the archetype key
+  (`ShowcaseActorLook.AppearanceKey(..., archetypeKey)`; the per-type mapping stays only for a server without a table). The faction ground mark is
+  the foot box. Clicking an actor's torso picks it (`ActorPick`).
+- **Debug.** `?hitboxes=1` draws every actor's foot box (cyan) and body box (yellow) and each projectile's ground and raised points, and logs
+  `[hitboxes]`, `[shot]` and `[aim]` lines; `?inputlat=1` also logs `[recon]` (prediction reconciliation counters). Neither exists without its flag.
+  `client-unity/UnityProject/Tools/hitbox-proof.cjs` drives the browser proofs (evidence: `docs/rework/evidence/hitbox/`).
+
 ## Historical protocol-5 Web verification
 
 The earlier IL2CPP/WebGL player at protocol 5/content `b0b7169709bd0a83` compiled and passed Chromium WS/local WSS

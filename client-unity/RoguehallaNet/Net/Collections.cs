@@ -10,7 +10,12 @@ namespace Roguehalla.Net
     public enum CardId : byte { SlowBurn, PocketSand, Siphon }
     public enum BoostId : byte { Ad, Ap, Armor, Shield, MaxHp, AttackSpeed, MoveSpeed, Lifesteal }
     public enum ProjectileKind : byte { Arrow=0,Ball=1 }
-    public struct NetProjectileView { public ProjectileKind Kind; public float X,Y,Facing; public uint? Owner; }
+    public struct NetProjectileView
+    {
+        public ProjectileKind Kind; public float X,Y,Facing; public uint? Owner;
+        /// <summary>Whole sim units the projectile is drawn above its ground position (protocol 16, ADR0024): the shooter's chest at launch, 0 under legacy hitboxes.</summary>
+        public float Height;
+    }
     public struct CampView { public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt; }
     public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
     public struct PropView
@@ -366,7 +371,7 @@ namespace Roguehalla.Net
                 else if(item is ProjectilesState projectiles)
                 {
                     var rows=new NetProjectileView[projectiles.Rows.Length];
-                    for(int i=0;i<rows.Length;i++) {var p=projectiles.Rows[i];rows[i]=new NetProjectileView {Kind=(ProjectileKind)p.Kind,X=Quant.DequantizePos(p.X),Y=Quant.DequantizePos(p.Y),Facing=Quant.DequantizeFacing(p.Facing),Owner=p.Owner};}
+                    for(int i=0;i<rows.Length;i++) {var p=projectiles.Rows[i];rows[i]=new NetProjectileView {Kind=(ProjectileKind)p.Kind,X=Quant.DequantizePos(p.X),Y=Quant.DequantizePos(p.Y),Facing=Quant.DequantizeFacing(p.Facing),Owner=p.Owner,Height=p.Height};}
                     Projectiles=rows;
                 }
                 else if(item is CampsState camps)
