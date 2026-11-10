@@ -883,7 +883,13 @@ if (version >= 16) {
 
   // ADR0026: the indicator facts. The Full snapshot, the delta chain and the fx vector were compared field by field above;
   // here they must exist and carry every new field nonzero somewhere.
-  if (!fx.chains.some(c => c.name === "indicator_facts_delta")) throw new Error("missing Rust-generated indicator_facts_delta chain");
+  const factsChain = fx.chains.find(c => c.name === "indicator_facts_delta");
+  if (!factsChain) throw new Error("missing Rust-generated indicator_facts_delta chain");
+  // Review: actor 2 departs, then returns inside a delta as a new actor with every fact set (delta bits 14..=17).
+  const factSteps = factsChain.steps.map(step => step.decoded?.actors ?? []);
+  const gone = factSteps.findIndex(actors => !actors.some(a => a.id === 2));
+  const back = factSteps.findIndex((actors, i) => i > gone && actors.some(a => a.id === 2 && a.flags === 15 && a.offhand === 16 && a.buildMarks === 0x98 && a.markTier === 4 && a.brand === 100 && a.markTax === 100));
+  if (gone < 1 || back < 0) throw new Error("indicator_facts_delta lacks the departure and the all-facts return");
   for (const name of ["snapshot_indicator_facts", "fx_indicators", "events_camp_cleared", "state_roster"]) {
     if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
   }

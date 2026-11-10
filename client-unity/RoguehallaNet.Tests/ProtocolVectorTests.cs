@@ -1166,6 +1166,27 @@ namespace Roguehalla.Net.Tests
                 yield return new TestCaseData(c.GetProperty("name").GetString()).SetName("chain:" + c.GetProperty("name").GetString());
         }
 
+        /// <summary>ADR0026 review: actor 2 departs, then returns inside a delta as a new actor with every indicator fact set.</summary>
+        [Test]
+        public void IndicatorChainReturnsADepartedActorWithEveryFact()
+        {
+            JsonElement chain = default;
+            foreach (var c in Fixture().GetProperty("chains").EnumerateArray()) if (c.GetProperty("name").GetString() == "indicator_facts_delta") chain = c;
+            var track = new SnapshotTracker();
+            var steps = new List<ServerMsg.Snapshot>();
+            foreach (var step in chain.GetProperty("steps").EnumerateArray())
+            {
+                byte[] frame = Util.FromHex(step.GetProperty("hex").GetString());
+                var s = (ServerMsg.Snapshot)track.Decode(frame, frame.Length, null);
+                steps.Add(s);
+            }
+            int gone = steps.FindIndex(s => !s.Actors.Any(a => a.Id == 2));
+            Assert.Greater(gone, 0, "actor 2 departs");
+            var back = steps.Skip(gone + 1).SelectMany(s => s.Actors).First(a => a.Id == 2);
+            Assert.AreEqual(15, back.Flags); Assert.AreEqual(16, back.Offhand); Assert.AreEqual(0x98, back.BuildMarks);
+            Assert.AreEqual(4, back.MarkTier); Assert.AreEqual(100, back.Brand); Assert.AreEqual(100, back.MarkTax);
+        }
+
         [TestCaseSource(nameof(Chains))]
         public void ChainReplaysToTheRecordedOutcomeAtEveryStep(string name)
         {

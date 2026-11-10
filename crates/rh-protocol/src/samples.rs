@@ -4693,7 +4693,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         let mut prior: Option<SnapshotData> = None;
         // (tick, actor flags, off-hand, build marks, mark, self flags, self marks)
         #[allow(clippy::type_complexity)]
-        let script: [(u32, u8, u8, u8, [u8; 3], u8, u8); 5] = [
+        let script: [(u32, u8, u8, u8, [u8; 3], u8, u8); 7] = [
             (
                 1,
                 ACTOR_FLAG_WISH_READY,
@@ -4723,6 +4723,18 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
                 0x08,
             ),
             (5, 0, 0, 0, [0; 3], 0, 0),
+            // Tick 6: actor 2 departs. Tick 7: it returns inside a delta as a NEW actor with every fact set (delta actor
+            // bits 14..=17 on the new-actor path).
+            (6, 0, 0, 0, [0; 3], 0, 0),
+            (
+                7,
+                ACTOR_FLAGS_KNOWN,
+                MAX_OFFHAND_CODE,
+                0x98,
+                [MAX_MARK_TIER, 100, 100],
+                ACTOR_FLAG_WISH_READY,
+                0x12,
+            ),
         ];
         for (tick, flags, offhand, marks, mark, self_flags, self_marks) in script {
             let mut me = chain_self(400.0);
@@ -4742,7 +4754,11 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
                 flags: if tick % 2 == 0 { ACTOR_FLAG_ENGAGED } else { 0 },
                 ..wa(9, 50., 60., 100, 1)
             };
-            let data = snap(tick, 1, tick, Some(me), &[a, mob]);
+            let data = if tick == 6 {
+                snap(tick, 1, tick, Some(me), &[mob])
+            } else {
+                snap(tick, 1, tick, Some(me), &[a, mob])
+            };
             let (frame, kind) = encoder.encode_frame(data.clone());
             if let Some(base) = prior.as_ref() {
                 assert_eq!(kind, FrameKind::Delta);
