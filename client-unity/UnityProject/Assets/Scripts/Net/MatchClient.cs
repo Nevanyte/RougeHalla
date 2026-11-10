@@ -30,6 +30,13 @@ namespace Roguehalla.Client
         Vector2 _lastDir;
         readonly Pathfinder _steerPathfinder = new Pathfinder();
         double _steerGoalX, _steerGoalY;
+        const double HoldRepeatMs = 100;
+        const float HoldMovedU = 8f;
+        readonly OrderBudget _orderBudget = new OrderBudget();
+        StopRetry _stopRetry;
+        bool _rightHeld;
+        float _holdX, _holdY;
+        double _lastHold;
         double _lastSteer;
         bool _steering;
         float _aimAngle;
@@ -296,6 +303,8 @@ namespace Roguehalla.Client
             if (m == null || !m.Initialized) return;
             double now = NowMs();
             float myX = m.DrawnX, myY = m.DrawnY;
+            // A Stop the server may have dropped (over budget orders are ignored silently) is sent again until the echo arrives.
+            if (_stopRetry.Due(now, m.OrderPending)) { OrderStop(false); }
 
             var mouse = Mouse.current;
             // Release is always forwarded, even if the pointer moved onto a panel after pressing.
@@ -303,6 +312,7 @@ namespace Roguehalla.Client
             {
                 Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
             }
+            if (mouse != null && !mouse.rightButton.isPressed) _rightHeld = false;
             bool keyboardBlocked = Hud != null && Hud.BlocksKeyboardInput;
             bool blocked = Hud != null && Hud.BlocksPointerInput;
             // Opening a map/menu cancels a held attack immediately; release is never swallowed by UI capture.
@@ -338,8 +348,19 @@ namespace Roguehalla.Client
                 }
                 if (mouse.rightButton.wasPressedThisFrame)
                 {
-                    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) Session.Input.AttackMove(sx, sy);
-                    else OrderMove(sx, sy);
+                    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) { Session.Input.AttackMove(sx, sy); _orderBudget.Spend(now); _stopRetry.Cancel(); }
+                    else
+                    {
+                        OrderMove(sx, sy);
+                        // Holding the button keeps steering toward the cursor, like legacy holdMove.
+                        _rightHeld = true; _holdX = sx; _holdY = sy; _lastHold = now;
+                    }
+                }
+                else if (_rightHeld && mouse.rightButton.isPressed && !_steering && now - _lastHold >= HoldRepeatMs &&
+                    (sx - _holdX) * (sx - _holdX) + (sy - _holdY) * (sy - _holdY) > HoldMovedU * HoldMovedU && _orderBudget.TryTake(now))
+                {
+                    OrderMove(sx, sy, true);
+                    _holdX = sx; _holdY = sy; _lastHold = now;
                 }
             }
             var kb = Keyboard.current;
@@ -381,15 +402,20 @@ namespace Roguehalla.Client
             else if (_steering) { OrderStop(); _steering = false; }
         }
 
-        void OrderMove(float x, float y)
+        void OrderMove(float x, float y, bool budgeted = false)
         {
+            if (!budgeted) _orderBudget.Spend(NowMs());
+            _stopRetry.Cancel(); // a newer move supersedes an unechoed Stop
             byte seq = Session.OrderMove(x, y);
             if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
         }
 
-        void OrderStop()
+        void OrderStop(bool fresh = true)
         {
+            double now = NowMs();
+            _orderBudget.Spend(now);
             byte seq = Session.OrderStop();
+            _stopRetry.Sent(now, fresh);
             if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, seq, 0, 0);
         }
 
