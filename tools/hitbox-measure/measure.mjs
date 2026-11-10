@@ -16,7 +16,12 @@
 //            (the chest) is a whole unit
 //   exception: the skeleton's Idle frames hold a two-handed weapon (all-facing median half-width 36), so its bx is the
 //            knight's
-//   body half-height by = (top + below) / 2, chest = (top - below) / 2, body offset oy = -chest
+//   body half-height by = (top + below) / 2, centre = (top - below) / 2, body offset oy = -centre
+//   projectile height (chest): NOT measured for a look a player can have (hero, hero-female, mage, mage-female,
+//            knight): every player look shares the single constant PLAYER_CHEST (30), so a visible projectile's height
+//            never identifies its shooter's faction (C-OBS, ADR0024 changes during implementation). A mob-only look's
+//            chest is its measured centre. `--check` parses `boxes(..)` (mob-only, chest = centre) and `player(..)`
+//            (chest = PLAYER_CHEST) rows and PLAYER_CHEST itself.
 //
 // Usage: node tools/hitbox-measure/measure.mjs [--check] [--json]
 
@@ -93,7 +98,7 @@ export function measure() {
     let below = Math.round(r.below);
     if ((top + below) % 2 !== 0) below -= 1;
     const bx = Math.round(raw.get(WIDTH_FROM[key] ?? key).bx);
-    rows.push({ key, top, below, bx, by: (top + below) / 2, chest: (top - below) / 2, raw: r });
+    rows.push({ key, top, below, bx, by: (top + below) / 2, centre: (top - below) / 2, raw: r });
   }
   return rows;
 }
@@ -101,11 +106,22 @@ export function measure() {
 function tableRows() {
   const text = readFileSync(TABLE, 'utf8');
   const rows = new Map();
-  const re = /boxes\(\s*(\d+),\s*"([^"]+)",\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\)/g;
+  const pc = text.match(/pub const PLAYER_CHEST: f64 = ([\d.]+);/);
+  if (!pc) throw new Error('PLAYER_CHEST not found in archetype.rs');
+  const playerChest = Number(pc[1]);
+  const re = /(boxes|player)\(\s*(\d+),\s*"([^"]+)",\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\)/g;
   for (const m of text.matchAll(re)) {
-    rows.set(m[2], { id: Number(m[1]), bx: Number(m[3]), by: Number(m[4]), chest: Number(m[5]) });
+    const centre = Number(m[6]);
+    rows.set(m[3], {
+      id: Number(m[2]),
+      player: m[1] === 'player',
+      bx: Number(m[4]),
+      by: Number(m[5]),
+      centre,
+      chest: m[1] === 'player' ? playerChest : centre,
+    });
   }
-  return rows;
+  return { rows, playerChest };
 }
 
 const args = new Set(process.argv.slice(2));
@@ -113,28 +129,36 @@ const rows = measure();
 if (args.has('--json')) {
   console.log(JSON.stringify(rows.map(({ raw, ...r }) => r), null, 2));
 } else {
-  console.log('key                  bx  by  oy  chest  top/below   (raw top, below, bx)');
+  console.log('key                  bx  by  oy  centre  top/below   (raw top, below, bx)');
   for (const r of rows) {
     console.log(
-      `${r.key.padEnd(20)} ${String(r.bx).padStart(3)} ${String(r.by).padStart(3)} ${String(-r.chest).padStart(3)} ` +
-        `${String(r.chest).padStart(6)}  ${`${r.top}/${r.below}`.padEnd(9)}   ` +
+      `${r.key.padEnd(20)} ${String(r.bx).padStart(3)} ${String(r.by).padStart(3)} ${String(-r.centre).padStart(3)} ` +
+        `${String(r.centre).padStart(7)}  ${`${r.top}/${r.below}`.padEnd(9)}   ` +
         `(${r.raw.top.toFixed(2)}, ${r.raw.below.toFixed(2)}, ${r.raw.bx.toFixed(2)})`,
     );
   }
 }
 if (args.has('--check')) {
-  const table = tableRows();
+  const { rows: table, playerChest } = tableRows();
   const problems = [];
+  // The looks a player can have (archetype::assign for every faction and for no faction).
+  const PLAYER_LOOKS = new Set(['hero', 'hero-female', 'mage', 'mage-female', 'knight']);
   for (const r of rows) {
     const t = table.get(r.key);
     if (!t) {
       problems.push(`${r.key}: measured but missing from archetype.rs`);
       continue;
     }
-    for (const f of ['bx', 'by', 'chest']) {
+    for (const f of ['bx', 'by', 'centre']) {
       if (t[f] !== r[f]) problems.push(`${r.key}: ${f} is ${t[f]} in archetype.rs, measured ${r[f]}`);
     }
+    if (t.player !== PLAYER_LOOKS.has(r.key)) {
+      problems.push(`${r.key}: must be a ${PLAYER_LOOKS.has(r.key) ? 'player(..)' : 'boxes(..)'} row`);
+    }
+    const chest = PLAYER_LOOKS.has(r.key) ? playerChest : r.centre;
+    if (t.chest !== chest) problems.push(`${r.key}: chest is ${t.chest}, the rule gives ${chest}`);
   }
+  if (playerChest !== 30) problems.push(`PLAYER_CHEST is ${playerChest}, the stated rule is 30 (the hero's centre)`);
   for (const key of table.keys()) {
     if (!rows.some((r) => r.key === key)) problems.push(`${key}: in archetype.rs but has no art in the receipt`);
   }
@@ -142,5 +166,5 @@ if (args.has('--check')) {
     console.error(`hitbox-measure --check FAILED:\n  ${problems.join('\n  ')}`);
     process.exit(1);
   }
-  console.log(`hitbox-measure --check: ${rows.length} boxed archetypes match crates/rh-sim/src/archetype.rs`);
+  console.log(`hitbox-measure --check: ${rows.length} boxed archetypes match crates/rh-sim/src/archetype.rs (player looks fly at PLAYER_CHEST ${playerChest})`);
 }

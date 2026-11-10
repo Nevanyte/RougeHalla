@@ -30,7 +30,7 @@
       "key": "hero"
     },
     {
-      "chest": 33.0,
+      "chest": 30.0,
       "hull": {
         "body": [
           15.0,
@@ -50,7 +50,7 @@
       "key": "hero-female"
     },
     {
-      "chest": 25.0,
+      "chest": 30.0,
       "hull": {
         "body": [
           17.0,
@@ -70,7 +70,7 @@
       "key": "mage"
     },
     {
-      "chest": 27.0,
+      "chest": 30.0,
       "hull": {
         "body": [
           17.0,
@@ -90,7 +90,7 @@
       "key": "mage-female"
     },
     {
-      "chest": 35.0,
+      "chest": 30.0,
       "hull": {
         "body": [
           18.0,
@@ -297,7 +297,7 @@
     "zombie": 12
   },
   "axes": "sim units; +x east, +y south (north is -y); the body box is centred at feet + bodyOffset; chest = -bodyOffset.y",
-  "contentHash": "d9479b6612616984",
+  "contentHash": "026f083d8473fa4b",
   "format": "rh-hitbox-archetypes/1",
   "source": "crates/rh-sim/src/archetype.rs (ADR0024); the live client reads the same table from the protocol-16 Welcome"
 }

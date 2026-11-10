@@ -159,6 +159,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("archetype.rs", "ARCHETYPES", "ADR0024 hitbox archetype table (body/foot boxes, chest) folded by archetype::visit_content under hitbox-archetypes/1"),
+    ("archetype.rs", "PLAYER_CHEST", "ADR0024 projectile height of every player look (C-OBS), folded row by row by archetype::visit_content (each row's chest)"),
     ("archetype.rs", "FOOT", "ADR0024 shared foot box of the archetype table, folded row by row by archetype::visit_content"),
     ("archetype.rs", "LEGACY_CIRCLE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
     ("archetype.rs", "HERO", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),

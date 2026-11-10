@@ -406,6 +406,7 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
     let holder = cx.w.core(crate::fighter::FighterIx::of_slot(victim));
     let id = holder.id;
     let facing = holder.body.facing;
+    let holder_chest = holder.hull().chest;
     if cx.k.config.faction_mode.engagement() {
         cx.s.blocks.push(crate::systems::signatures::BlockContact {
             attacker: pr.launch.owner,
@@ -478,8 +479,9 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
         time: t,
         range,
         target: None,
-        // The drawn arrow does not jump: it keeps the incoming height.
-        height: pr.launch.height,
+        // The holder becomes the owner, so the arrow flies at the holder's height (review finding 8): it reveals the
+        // reflector's look class, never the original shooter's. Equal for every player-on-player reflection.
+        height: holder_chest,
     };
     let mut packet = pr.packet;
     packet.raw *= ARROW_REFLECT_SHARE;

@@ -3,8 +3,9 @@
 //! system and no schedule row.
 //!
 //! Sim axes: +x east, +y south, so north (screen up) is -y. A body box spans `[x - bx, x + bx]` by
-//! `[y + oy - by, y + oy + by]` around the feet `(x, y)`; its centre is `chest = -oy` north of the feet, so two equal
-//! archetypes are even north and south. Row 0 is `legacy_circle`: the 12 u disc for both walls and hits, chest 0, which is
+//! `[y + oy - by, y + oy + by]` around the feet `(x, y)`; its centre is `-oy` north of the feet, so two equal
+//! archetypes are even north and south. Projectiles fly at `chest`: the centre for a mob-only look, [`PLAYER_CHEST`] for
+//! every look a player can have (C-OBS: the height must not identify a player's faction). Row 0 is `legacy_circle`: the 12 u disc for both walls and hits, chest 0, which is
 //! the legacy behaviour bit for bit. Under [`HitboxMode::LegacyCircle`] (the default) every fighter is row 0.
 //!
 //! The boxed rows are measured from the art (`tools/hitbox-measure/measure.mjs --check` recomputes them from the Unity
@@ -93,7 +94,10 @@ pub struct Archetype {
     /// The Unity catalog appearance key the row was measured from (`legacy_circle` has no art).
     pub key: &'static str,
     pub hull: Hull,
-    /// How far above the feet (north, -y) projectiles fly and melee is measured: the body box centre.
+    /// How far above the feet (north, -y) this fighter's projectiles fly. For a mob-only look it is the body box centre;
+    /// every look a player can have shares [`PLAYER_CHEST`], so a projectile's height never tells one player look (and
+    /// so one faction) from another (C-OBS, review finding 8). Melee is measured from the TARGET's body box centre
+    /// ([`Archetype::body_oy`]), not from this value.
     pub chest: f64,
 }
 
@@ -101,21 +105,37 @@ pub struct Archetype {
 /// segment that is clear for the legacy disc is clear for the foot box: spawn, placement and AI clearance stay 12 u.
 pub const FOOT: Half = Half { x: 10.0, y: 6.0 };
 
-const fn boxes(id: u8, key: &'static str, bx: f64, by: f64, chest: f64) -> Archetype {
+/// The projectile height of every look a player can have (hero, hero-female, mage, mage-female, knight). One constant,
+/// not measured: the measured body centres (25 to 35 u) would make a visible projectile identify its shooter's faction
+/// look. 30 is the hero's centre and lies inside every player look's body box.
+pub const PLAYER_CHEST: f64 = 30.0;
+
+/// A mob-only look: projectiles fly at the measured body centre.
+const fn boxes(id: u8, key: &'static str, bx: f64, by: f64, centre: f64) -> Archetype {
+    with_chest(id, key, bx, by, centre, centre)
+}
+
+/// A look a player can have: the measured body box, projectiles at [`PLAYER_CHEST`].
+const fn player(id: u8, key: &'static str, bx: f64, by: f64, centre: f64) -> Archetype {
+    with_chest(id, key, bx, by, centre, PLAYER_CHEST)
+}
+
+const fn with_chest(id: u8, key: &'static str, bx: f64, by: f64, centre: f64, chest: f64) -> Archetype {
     Archetype {
         id: ArchetypeId(id),
         key,
         hull: Hull::Boxes {
             foot: FOOT,
             body: Half { x: bx, y: by },
-            body_offset: (0.0, -chest),
+            body_offset: (0.0, -centre),
         },
         chest,
     }
 }
 
-/// The table (ADR0024 Decision 2). `boxes(id, key, bx, by, chest)`: body half-extents and the chest, with the body offset
-/// `(0, -chest)`; the box top is `chest + by` north of the feet and its bottom `by - chest` south of them.
+/// The table (ADR0024 Decision 2). `boxes|player(id, key, bx, by, centre)`: body half-extents and the measured body
+/// centre, with the body offset `(0, -centre)`; the box top is `centre + by` north of the feet and its bottom
+/// `by - centre` south of them. `player` rows fly projectiles at [`PLAYER_CHEST`], `boxes` rows at the centre.
 pub const ARCHETYPES: [Archetype; 13] = [
     Archetype {
         id: ArchetypeId(0),
@@ -123,11 +143,11 @@ pub const ARCHETYPES: [Archetype; 13] = [
         hull: Hull::Circle { r: PLAYER_RADIUS },
         chest: 0.0,
     },
-    boxes(1, "hero", 16.0, 35.0, 30.0),
-    boxes(2, "hero-female", 15.0, 35.0, 33.0),
-    boxes(3, "mage", 17.0, 28.0, 25.0),
-    boxes(4, "mage-female", 17.0, 28.0, 27.0),
-    boxes(5, "knight", 18.0, 37.0, 35.0),
+    player(1, "hero", 16.0, 35.0, 30.0),
+    player(2, "hero-female", 15.0, 35.0, 33.0),
+    player(3, "mage", 17.0, 28.0, 25.0),
+    player(4, "mage-female", 17.0, 28.0, 27.0),
+    player(5, "knight", 18.0, 37.0, 35.0),
     boxes(6, "goblin", 17.0, 22.0, 19.0),
     boxes(7, "skeleton", 18.0, 40.0, 31.0),
     boxes(8, "mob-goblin-elite", 13.0, 18.0, 16.0),
@@ -165,7 +185,7 @@ impl Archetype {
         }
     }
 
-    /// The body offset's north-south part (`-chest` for a boxed row, 0 for the circle).
+    /// The body offset's north-south part (minus the measured body centre for a boxed row, 0 for the circle).
     #[inline]
     pub fn body_oy(&self) -> f64 {
         match self.hull {
@@ -306,14 +326,16 @@ mod tests {
                     // The foot box lies inside the legacy disc and is smaller than a tile.
                     assert!(foot.x * foot.x + foot.y * foot.y <= PLAYER_RADIUS * PLAYER_RADIUS);
                     assert!(2.0 * foot.x.max(foot.y) < TILE);
-                    assert_eq!(row.chest, -body_offset.1, "{}", row.key);
                     assert_eq!(body_offset.0, 0.0);
+                    let centre = -body_offset.1;
                     for v in [foot.x, foot.y, body.x, body.y, body_offset.1, row.chest] {
                         assert_eq!(v, v.trunc(), "integer values: {}", row.key);
                         assert!(v.abs() <= 127.0, "fits an i8/u8 on the wire: {}", row.key);
                     }
-                    // The body box contains the feet's chest point and reaches no lower than a tile below the feet.
-                    assert!(body.y >= row.chest && body.y - row.chest < TILE);
+                    // The body box contains the feet's centre point and reaches no lower than a tile below the feet.
+                    assert!(body.y >= centre && body.y - centre < TILE);
+                    // The flight height lies inside the shooter's own body box.
+                    assert!((row.chest - centre).abs() <= body.y, "{}", row.key);
                 }
             }
         }
@@ -322,6 +344,33 @@ mod tests {
         sorted.sort();
         sorted.dedup();
         assert_eq!(sorted.len(), keys.len(), "unique keys");
+    }
+
+    /// Review finding 8 (C-OBS): every look a player can be assigned flies projectiles at [`PLAYER_CHEST`], so a
+    /// projectile's height tells a player-look shooter from a mob look and nothing more; a look no player has keeps its
+    /// measured centre.
+    #[test]
+    fn every_player_look_shares_one_projectile_height() {
+        let mut player_looks: Vec<ArchetypeId> = FactionId::ALL
+            .iter()
+            .map(|&f| assign(HitboxMode::Archetypes, Identity::Player(f.into())))
+            .collect();
+        player_looks.push(assign(
+            HitboxMode::Archetypes,
+            Identity::Player(FighterAffiliation::Neutral),
+        ));
+        for row in &ARCHETYPES[1..] {
+            if player_looks.contains(&row.id) {
+                assert_eq!(row.chest, PLAYER_CHEST, "{}", row.key);
+            } else {
+                assert_eq!(row.chest, -row.body_oy(), "{}", row.key);
+            }
+        }
+        let heights: Vec<f64> = player_looks.iter().map(|id| id.row().chest).collect();
+        assert!(heights.iter().all(|&h| h == PLAYER_CHEST), "{heights:?}");
+        // The body boxes stay per look: the mage's centre is its own 25, not 30.
+        assert_eq!(ArchetypeId::MAGE.row().body_oy(), -25.0);
+        assert_eq!(ArchetypeId::KNIGHT.row().body_oy(), -35.0);
     }
 
     #[test]
@@ -350,6 +399,10 @@ mod tests {
         let b = hero.body_box(Vec2::new(100.0, 200.0)).unwrap();
         assert_eq!((b.x0, b.x1, b.y0, b.y1), (84.0, 116.0, 135.0, 205.0));
         assert_eq!(b.centre(), Vec2::new(100.0, 200.0 - hero.chest));
+        let mage = ArchetypeId::MAGE.row();
+        let m = mage.body_box(Vec2::new(100.0, 200.0)).unwrap();
+        assert_eq!(m.centre(), Vec2::new(100.0, 175.0), "the mage box is centred on its measured 25");
+        assert_eq!(mage.chest, PLAYER_CHEST);
         assert_eq!(
             ArchetypeId::LEGACY_CIRCLE
                 .row()
