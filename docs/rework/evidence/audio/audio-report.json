@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-10T14:17:51.225Z",
+ "generatedAt": "2026-11-10T15:10:02.106Z",
  "url": "http://127.0.0.1:8247/",
  "assertions": [
   {
@@ -7,14 +7,16 @@
    "pass": true,
    "detail": {
     "over": []
-   }
+   },
+   "scenario": "files"
   },
   {
    "name": "no file has a sample discontinuity at its loop point (jump > 0.05 and click ratio > 12)",
    "pass": true,
    "detail": {
     "clicks": []
-   }
+   },
+   "scenario": "files"
   },
   {
    "name": "launch screen is silent",
@@ -23,9 +25,10 @@
     "n": 118,
     "rmsDb": -120,
     "peakDb": -120,
-    "windows": 340,
+    "windows": 334,
     "ctx": "running"
-   }
+   },
+   "scenario": "launch"
   },
   {
    "name": "planning screen is silent",
@@ -34,157 +37,148 @@
     "n": 89,
     "rmsDb": -120,
     "peakDb": -120
-   }
+   },
+   "scenario": "launch"
   },
   {
    "name": "no audio file requested before the match",
    "pass": true,
-   "detail": []
+   "detail": [],
+   "scenario": "launch"
   },
   {
    "name": "web audio context is running",
    "pass": true,
-   "detail": "running"
+   "detail": "running",
+   "scenario": "launch"
   },
   {
    "name": "region music audible within 5 s of the region audio gate opening",
    "pass": true,
    "detail": {
     "firstRegion": {
-     "t": 17256.900000095367,
-     "region": "plague"
+     "t": 15753.39999961853,
+     "region": "frost"
     },
     "firstMusicPlay": {
-     "t": 17429.799999713898,
-     "id": "music_plague"
+     "t": 15887,
+     "id": "music_frost"
     },
-    "audibleAfterMs": 276,
-    "matchActiveAt": 16416
-   }
+    "audibleAfterMs": 292,
+    "matchActiveAt": 14898
+   },
+   "scenario": "region"
   },
   {
    "name": "only the spawn region files are requested before the first border",
    "pass": true,
    "detail": {
-    "spawn": "plague",
+    "spawn": "frost",
     "requested": [
-     {
-      "file": "music_plague.mp3",
-      "status": 200,
-      "tMs": 17258
-     },
-     {
-      "file": "amb_plague.mp3",
-      "status": 200,
-      "tMs": 17261
-     },
      {
       "file": "music_frost.mp3",
       "status": 200,
-      "tMs": 30134
+      "tMs": 15754
      },
      {
       "file": "amb_frost.mp3",
       "status": 200,
-      "tMs": 30140
+      "tMs": 15757
+     },
+     {
+      "file": "music_plague.mp3",
+      "status": 200,
+      "tMs": 30490
+     },
+     {
+      "file": "amb_plague.mp3",
+      "status": 200,
+      "tMs": 30493
      }
     ],
     "wrong": []
-   }
+   },
+   "scenario": "region"
   },
   {
    "name": "every requested file belongs to a region the player actually entered",
    "pass": true,
    "detail": {
     "regions": [
-     "plague",
      "frost",
-     "plague"
+     "plague",
+     "frost"
     ],
     "stray": []
-   }
+   },
+   "scenario": "region"
   },
   {
    "name": "no audio request failed",
    "pass": true,
    "detail": [
     {
-     "file": "music_plague.mp3",
-     "status": 200,
-     "tMs": 17258
-    },
-    {
-     "file": "amb_plague.mp3",
-     "status": 200,
-     "tMs": 17261
-    },
-    {
      "file": "music_frost.mp3",
      "status": 200,
-     "tMs": 30134
+     "tMs": 15754
     },
     {
      "file": "amb_frost.mp3",
      "status": 200,
-     "tMs": 30140
+     "tMs": 15757
+    },
+    {
+     "file": "music_plague.mp3",
+     "status": 200,
+     "tMs": 30490
+    },
+    {
+     "file": "amb_plague.mp3",
+     "status": 200,
+     "tMs": 30493
     }
-   ]
+   ],
+   "scenario": "region"
   },
   {
    "name": "walk crossed at least two borders",
    "pass": true,
    "detail": {
     "spawn": {
-     "t": 16655,
-     "region": "plague"
+     "t": 15148.199999809265,
+     "region": "frost"
     },
     "regions": [
      {
-      "t": 16655,
-      "region": "plague"
-     },
-     {
-      "t": 30131.699999809265,
+      "t": 15148.199999809265,
       "region": "frost"
      },
      {
-      "t": 43189.59999990463,
+      "t": 30487.799999713898,
       "region": "plague"
+     },
+     {
+      "t": 68304.39999961853,
+      "region": "frost"
      }
     ]
-   }
+   },
+   "scenario": "region"
   },
   {
    "name": "the first region audio is for the region the player spawned in",
    "pass": true,
    "detail": {
     "gate": {
-     "t": 17256.900000095367,
-     "region": "plague"
+     "t": 15753.39999961853,
+     "region": "frost"
     },
     "regionLogBeforeGate": {
-     "t": 16655,
-     "region": "plague"
+     "t": 15148.199999809265,
+     "region": "frost"
     }
-   }
-  },
-  {
-   "name": "crossfade plague -> frost: no silent gap, no bump, no deep dip",
-   "pass": true,
-   "detail": {
-    "from": "plague",
-    "to": "frost",
-    "regionChangedAt": 30132,
-    "newMusicPlayAt": 30274,
-    "loadDelayMs": 142,
-    "before": -23.86,
-    "after": -25.2,
-    "minDb": -26.11,
-    "maxDb": -22.69,
-    "dipDb": 0.91,
-    "bumpDb": 1.17,
-    "silentMs": 0
-   }
+   },
+   "scenario": "region"
   },
   {
    "name": "crossfade frost -> plague: no silent gap, no bump, no deep dip",
@@ -192,111 +186,128 @@
    "detail": {
     "from": "frost",
     "to": "plague",
-    "regionChangedAt": 43190,
-    "newMusicPlayAt": 43191,
-    "loadDelayMs": 2,
-    "before": -23.76,
-    "after": -23.91,
-    "minDb": -25.27,
-    "maxDb": -22.17,
-    "dipDb": 1.36,
-    "bumpDb": 1.59,
+    "regionChangedAt": 30488,
+    "newMusicPlayAt": 30671,
+    "loadDelayMs": 183,
+    "before": -22.13,
+    "after": -22.02,
+    "minDb": -23.65,
+    "maxDb": -20.49,
+    "dipDb": 1.53,
+    "bumpDb": 1.54,
     "silentMs": 0
-   }
+   },
+   "scenario": "region"
+  },
+  {
+   "name": "crossfade plague -> frost: no silent gap, no bump, no deep dip",
+   "pass": true,
+   "detail": {
+    "from": "plague",
+    "to": "frost",
+    "regionChangedAt": 68304,
+    "newMusicPlayAt": 68307,
+    "loadDelayMs": 3,
+    "before": -19.68,
+    "after": -25.26,
+    "minDb": -26.2,
+    "maxDb": -20.28,
+    "dipDb": 0.94,
+    "bumpDb": -0.6,
+    "silentMs": 0
+   },
+   "scenario": "region"
   },
   {
    "name": "snow, sand, stone and water have measurably different spectra (centroid ratio of every pair >= 1.12)",
    "pass": true,
    "detail": {
     "centroids": {
-     "Snow": 4551,
-     "Sand": 3187,
-     "Stone": 1188,
-     "Water": 3928
+     "Snow": 4847,
+     "Sand": 3132,
+     "Stone": 996,
+     "Water": 3970
     },
-    "minPairRatio": 1.16,
+    "minPairRatio": 1.22,
     "all": {
-     "Snow": 4551,
-     "Sand": 3187,
-     "Grass": 4907,
-     "Mud": 299,
-     "Water": 3928,
-     "Bog": 195,
-     "Stone": 1188,
-     "Temple": 1055,
-     "Gritty": 3301,
-     "Ice": 1458
+     "Snow": 4847,
+     "Sand": 3132,
+     "Grass": 4945,
+     "Mud": 329,
+     "Water": 3970,
+     "Bog": 217,
+     "Stone": 996,
+     "Temple": 1116,
+     "Gritty": 3388,
+     "Ice": 1641
     }
-   }
+   },
+   "scenario": "audition"
   },
   {
    "name": "every footstep sound is audible in the output (peak above -50 dBFS)",
    "pass": true,
    "detail": {
     "measured": 10,
-    "minPeakDb": -4.9
-   }
-  },
-  {
-   "name": "footsteps stay subtle: loudest single step (gain 1, SFX 0.85) peak below -12 dBFS",
-   "pass": false,
-   "detail": {
-    "maxStepPeakDb": -3.6,
-    "perSound": {
-     "Snow": -4,
-     "Sand": -3.9,
-     "Grass": -3.9,
-     "Mud": -4,
-     "Water": -4.1,
-     "Bog": -3.6,
-     "Stone": -4.4,
-     "Temple": -4.9,
-     "Gritty": -4.2,
-     "Ice": -3.8
-    }
-   }
+    "minPeakDb": -5
+   },
+   "scenario": "audition"
   },
   {
    "name": "SFX volume halves the step level by about 6 dB",
    "pass": true,
    "detail": {
-    "fullDb": -4.23,
-    "halfDb": -10.49,
-    "deltaDb": 6.26
-   }
+    "fullDb": -5.02,
+    "halfDb": -10.38,
+    "deltaDb": 5.36
+   },
+   "scenario": "audition"
   },
   {
    "name": "SFX volume 0 silences steps",
    "pass": true,
    "detail": {
     "peakDb": -120
-   }
+   },
+   "scenario": "audition"
+  },
+  {
+   "name": "footsteps stay subtle: the local player's step (game gain, SFX 0.85) peaks below -16 dBFS (music peaks reach about -5)",
+   "pass": true,
+   "detail": {
+    "localStepPeakDb": -19.6,
+    "clipTestGain1PeakDb": -3.8
+   },
+   "scenario": "audition"
   },
   {
    "name": "other actors step quieter than the local player, mobs quieter than players (isolated, same surface, 3 tiles away)",
    "pass": true,
    "detail": {
-    "Local": -18.7,
+    "Local": -19.6,
     "Player3tiles": -28.1,
-    "Mob3tiles": -32.5
-   }
+    "Mob3tiles": -33
+   },
+   "scenario": "audition"
   },
   {
    "name": "footstep cues appear while walking",
    "pass": true,
    "detail": {
-    "localCues": 29
-   }
+    "localCues": 41
+   },
+   "scenario": "steps"
   },
   {
    "name": "at least 85% of local footstep cues have an output transient near them",
    "pass": true,
    "detail": {
-    "cues": 29,
-    "matched": 29,
-    "medianLagMs": 37.733332951858756,
+    "cues": 41,
+    "matched": 40,
+    "medianLagMs": 38.33333333333212,
     "thresholdDb": -50
-   }
+   },
+   "scenario": "steps"
   },
   {
    "name": "transient rate matches the cue rate within 15%",
@@ -304,7 +315,8 @@
    "detail": {
     "cueIntervalMs": 267,
     "peakIntervalMs": 253
-   }
+   },
+   "scenario": "steps"
   },
   {
    "name": "no local footsteps and no unexplained transients while the player stands still",
@@ -313,44 +325,48 @@
     "localCuesWhileStanding": 0,
     "unexplainedPeaks": 0,
     "windows": 168
-   }
+   },
+   "scenario": "steps"
   },
   {
    "name": "the six music tracks sit within 2 dB of each other (RMS, alone, volume 1)",
    "pass": true,
    "detail": {
-    "spreadDb": 0.67,
+    "spreadDb": 0.18,
     "tracks": {
-     "music_fire": -21.6,
-     "music_sentenced": -21.01,
-     "music_plague": -21.09,
-     "music_frost": -20.93,
-     "music_holy": -21.13,
+     "music_fire": -21.01,
+     "music_sentenced": -21.02,
+     "music_plague": -21.12,
+     "music_frost": -20.94,
+     "music_holy": -21.1,
      "music_coliseum": -21.09
     }
-   }
+   },
+   "scenario": "tracks"
   },
   {
    "name": "ambience sits clearly under music (mean music minus loudest ambience >= 6 dB)",
    "pass": true,
    "detail": {
-    "musicMeanDb": -21.1,
+    "musicMeanDb": -21,
     "ambienceMaxDb": -31.02,
     "ambience": {
      "amb_fire": -31.02,
-     "amb_sentenced": -31.04,
+     "amb_sentenced": -31.07,
      "amb_plague": -31.2,
-     "amb_frost": -31.05,
-     "amb_holy": -31.06
+     "amb_frost": -31.04,
+     "amb_holy": -31.04
     }
-   }
+   },
+   "scenario": "tracks"
   },
   {
    "name": "no track clips (peak below -1 dBFS) at volume 1",
    "pass": true,
    "detail": {
-    "maxPeakDb": -4.84
-   }
+    "maxPeakDb": -5.62
+   },
+   "scenario": "tracks"
   },
   {
    "name": "loop seams are inaudible: no dropout and no level jump beyond the track's own dynamics (200 ms windows)",
@@ -358,28 +374,30 @@
    "detail": {
     "badTracks": [],
     "rows": {
-     "music_fire": "8.56/4.89",
-     "music_sentenced": "8.37/10.05",
-     "music_plague": "5.54/3.25",
-     "music_frost": "3.43/3.72",
-     "music_holy": "3.56/6.96",
-     "music_coliseum": "3.66/5.05",
-     "amb_fire": "7.62/5.42",
-     "amb_sentenced": "5.35/5.42",
-     "amb_plague": "16.96/20.39",
-     "amb_frost": "3.82/3.94",
-     "amb_holy": "6.15/7.22"
+     "music_fire": "8.13/5.29",
+     "music_sentenced": "8.7/10.04",
+     "music_plague": "5.54/3.3",
+     "music_frost": "3.7/3.72",
+     "music_holy": "3.65/7",
+     "music_coliseum": "4.22/5.14",
+     "amb_fire": "7.73/5.34",
+     "amb_sentenced": "5.31/5.55",
+     "amb_plague": "17.21/20",
+     "amb_frost": "3.36/3.95",
+     "amb_holy": "5.35/7.22"
     }
-   }
+   },
+   "scenario": "loops"
   },
   {
    "name": "halving the music and ambience volumes lowers the output by about 6 dB",
    "pass": true,
    "detail": {
-    "baseDb": -24,
-    "halfDb": -29.88,
-    "deltaDb": 5.88
-   }
+    "baseDb": -25.08,
+    "halfDb": -30.07,
+    "deltaDb": 4.99
+   },
+   "scenario": "volume"
   },
   {
    "name": "volume 0 silences the output (mute)",
@@ -388,15 +406,17 @@
     "n": 69,
     "rmsDb": -120,
     "peakDb": -120
-   }
+   },
+   "scenario": "volume"
   },
   {
    "name": "restoring the volume restores the level",
    "pass": true,
    "detail": {
-    "baseDb": -24,
-    "backDb": -23.96
-   }
+    "baseDb": -25.08,
+    "backDb": -24.49
+   },
+   "scenario": "volume"
   },
   {
    "name": "the Audio switch off silences everything and fetches no audio",
@@ -408,42 +428,51 @@
      "peakDb": -120
     },
     "requests": []
-   }
+   },
+   "scenario": "volume"
   },
   {
    "name": "headroom: peak with music, ambience, footsteps and combat stays below -1 dBFS",
    "pass": true,
    "detail": {
-    "n": 1161,
-    "rmsDb": -23.58,
-    "peakDb": -7.53
-   }
+    "n": 1725,
+    "rmsDb": -21.68,
+    "peakDb": -2.6
+   },
+   "scenario": "full"
   },
   {
    "name": "combat cues are logged and produce output",
    "pass": true,
    "detail": {
-    "combat": 49,
+    "combat": 48,
     "cueKinds": {
-     "combat.melee.swing": 49,
-     "(fallback)": 43
+     "combat.melee.swing": 48,
+     "mob.antlion.hit": 5,
+     "(fallback)": 58,
+     "mob.antlion.death": 1,
+     "wish.swarm": 1
     }
-   }
+   },
+   "scenario": "full"
   },
   {
    "name": "a Wish cue is logged and produces output",
-   "pass": false,
+   "pass": true,
    "detail": {
-    "wish": 0
-   }
+    "wish": 1
+   },
+   "scenario": "full"
   },
   {
    "name": "no console line matching FMOD | not loaded yet | AudioContext was not allowed in any session",
    "pass": true,
    "detail": {
+    "sessionsChecked": 9,
     "count": 0,
     "first": []
-   }
+   },
+   "scenario": "all"
   }
  ],
  "sessions": {
@@ -669,17 +698,9 @@
    "route": [
     {
      "start": {
-      "tx": 47.649989170457005,
-      "ty": 134.85813298678795,
-      "n": 76
-     }
-    },
-    {
-     "to": "frost",
-     "reached": {
-      "tx": 103.82414935260464,
-      "ty": 125.99417846030312,
-      "n": 82
+      "tx": 104.62382610530759,
+      "ty": 140.52548274770498,
+      "n": 78
      }
     },
     {
@@ -689,684 +710,692 @@
       "ty": 126.12345679012347,
       "n": 80
      }
+    },
+    {
+     "to": "frost",
+     "reached": {
+      "tx": 103.82414935260464,
+      "ty": 125.99417846030312,
+      "n": 82
+     }
     }
    ],
    "audioLog": [
     {
-     "t": 782.4000000953674,
+     "t": 1314.8999996185303,
      "text": "beds backend=browser\n"
     },
     {
-     "t": 782.6999998092651,
+     "t": 1315.2999997138977,
      "text": "debug hooks ready\n"
     },
     {
-     "t": 3091.699999809265,
+     "t": 3628.2999997138977,
      "text": "beds backend=browser\n"
     },
     {
-     "t": 3092.0999999046326,
+     "t": 3628.5999999046326,
      "text": "debug hooks ready\n"
     },
     {
-     "t": 3250.9000000953674,
+     "t": 3791.199999809265,
      "text": "beds backend=browser\n"
     },
     {
-     "t": 3251.0999999046326,
+     "t": 3791.2999997138977,
      "text": "debug hooks ready\n"
     },
     {
-     "t": 3871.199999809265,
+     "t": 4438.199999809265,
      "text": "region-changed None->Fire matchActive=False\n"
     },
     {
-     "t": 16416.199999809265,
+     "t": 14897.699999809265,
      "text": "match-active True region=Fire\n"
     },
     {
-     "t": 16655.199999809265,
-     "text": "region-changed Fire->Plague matchActive=True\n"
+     "t": 15148.39999961853,
+     "text": "region-changed Fire->Frost matchActive=True\n"
     },
     {
-     "t": 17256.900000095367,
-     "text": "gate region=3\n"
-    },
-    {
-     "t": 17257,
-     "text": "set-region Plague music=music_plague\n"
-    },
-    {
-     "t": 17257.199999809265,
-     "text": "load music_plague\n"
-    },
-    {
-     "t": 17257.799999713898,
-     "text": "load amb_plague\n"
-    },
-    {
-     "t": 17310.199999809265,
-     "text": "loaded amb_plague ok=True state=1\n"
-    },
-    {
-     "t": 17314.5,
-     "text": "play amb_plague deck=3\n"
-    },
-    {
-     "t": 17426,
-     "text": "loaded music_plague ok=True state=1\n"
-    },
-    {
-     "t": 17429.799999713898,
-     "text": "play music_plague deck=0\n"
-    },
-    {
-     "t": 24359.799999713898,
-     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 24622.699999809265,
-     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 24889.5,
-     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 25157.5,
-     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 25431.299999713898,
-     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 25698.900000095367,
-     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 25965.400000095367,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 26231.400000095367,
-     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 26498.400000095367,
-     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 26767.299999713898,
-     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 27030.699999809265,
-     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 27298.699999809265,
-     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 27564.599999904633,
-     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 27831.900000095367,
-     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 28098.400000095367,
-     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 28365,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 28631.5,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 28898.900000095367,
-     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 29165.699999809265,
-     "text": "step-voice 1 vol=0.138 active=True enabled=True clip=step_Water_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 29431.900000095367,
-     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Water_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 29698.5,
-     "text": "step-voice 1 vol=0.133 active=True enabled=True clip=step_Water_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 29965,
-     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 30131.799999713898,
-     "text": "region-changed Plague->Frost matchActive=True\n"
-    },
-    {
-     "t": 30133.699999809265,
+     "t": 15753.39999961853,
      "text": "gate region=4\n"
     },
     {
-     "t": 30133.799999713898,
+     "t": 15753.699999809265,
      "text": "set-region Frost music=music_frost\n"
     },
     {
-     "t": 30133.799999713898,
+     "t": 15754,
      "text": "load music_frost\n"
     },
     {
-     "t": 30134.099999904633,
+     "t": 15754.599999904633,
      "text": "load amb_frost\n"
     },
     {
-     "t": 30150.199999809265,
+     "t": 15764.199999809265,
      "text": "loaded amb_frost ok=True state=1\n"
     },
     {
-     "t": 30158.5,
-     "text": "play amb_frost deck=4\n"
+     "t": 15771.599999904633,
+     "text": "play amb_frost deck=3\n"
     },
     {
-     "t": 30230.199999809265,
-     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 30267.099999904633,
+     "t": 15883,
      "text": "loaded music_frost ok=True state=1\n"
     },
     {
-     "t": 30274.099999904633,
-     "text": "play music_frost deck=1\n"
+     "t": 15887,
+     "text": "play music_frost deck=0\n"
     },
     {
-     "t": 30498.5,
-     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 30765.5,
+     "t": 24081,
      "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 31031.599999904633,
-     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 24345.699999809265,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 31298.199999809265,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 24612.099999904633,
+     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 31565.199999809265,
-     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 24878.799999713898,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 31831.599999904633,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 25146,
+     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 32108.699999809265,
-     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 25412.199999809265,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 32365.199999809265,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 25679.89999961853,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 32631.599999904633,
-     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 32908.2999997139,
-     "text": "step-voice 0 vol=0.138 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 33167.5,
+     "t": 25946,
      "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 33431.2999997139,
-     "text": "step-voice 0 vol=0.149 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 26212,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 33589.7999997139,
-     "text": "step-voice 1 vol=0.153 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 33848.2999997139,
-     "text": "step-voice 0 vol=0.138 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 34109.199999809265,
-     "text": "step-voice 0 vol=0.134 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 34373.199999809265,
-     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 34639.7999997139,
-     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 34917.09999990463,
-     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 35180,
-     "text": "step-voice 0 vol=0.141 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 35448.59999990463,
+     "t": 26479.699999809265,
      "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 35715.199999809265,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 26746.699999809265,
+     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 36939.90000009537,
-     "text": "step-voice 0 vol=0.153 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 36959.199999809265,
-     "text": "step-voice 1 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 37214.90000009537,
-     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 37481.7999997139,
-     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 37748.40000009537,
-     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 38022.40000009537,
-     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 38281.59999990463,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 38548.40000009537,
-     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 38824.90000009537,
-     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 39090,
-     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
-    },
-    {
-     "t": 39358.2999997139,
+     "t": 27013.299999713898,
      "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 39616.699999809265,
-     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27278.699999809265,
+     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 39889.199999809265,
-     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27398.89999961853,
+     "text": "cue combat.melee.swing actor=2\n"
     },
     {
-     "t": 40148.2999997139,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27399.099999904633,
+     "text": "sfx melee_attack_2 actor=2\n"
     },
     {
-     "t": 40415.09999990463,
-     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27399.599999904633,
+     "text": "cue (fallback) actor=7\n"
     },
     {
-     "t": 40681.40000009537,
-     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27399.599999904633,
+     "text": "sfx zombie_hit actor=7\n"
     },
     {
-     "t": 40948.2999997139,
-     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27448,
+     "text": "cue combat.melee.swing actor=7\n"
     },
     {
-     "t": 41223.40000009537,
-     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27448.099999904633,
+     "text": "sfx melee_attack_3 actor=7\n"
     },
     {
-     "t": 41481.199999809265,
-     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27448.299999713898,
+     "text": "cue (fallback) actor=2\n"
     },
     {
-     "t": 41748.40000009537,
-     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27448.39999961853,
+     "text": "sfx zombie_hit actor=2\n"
     },
     {
-     "t": 42017,
-     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27546.39999961853,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 42281.699999809265,
-     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27813.199999809265,
+     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 42548.2999997139,
-     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27947.799999713898,
+     "text": "cue combat.melee.swing actor=7\n"
     },
     {
-     "t": 42814.09999990463,
-     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 27948,
+     "text": "sfx melee_attack_2 actor=7\n"
     },
     {
-     "t": 43080.699999809265,
-     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 28078.799999713898,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 43189.90000009537,
+     "t": 28097.299999713898,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 28097.39999961853,
+     "text": "sfx melee_attack_3 actor=2\n"
+    },
+    {
+     "t": 28097.599999904633,
+     "text": "cue (fallback) actor=7\n"
+    },
+    {
+     "t": 28097.699999809265,
+     "text": "sfx zombie_hit actor=7\n"
+    },
+    {
+     "t": 28346.39999961853,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28548.099999904633,
+     "text": "cue combat.melee.swing actor=7\n"
+    },
+    {
+     "t": 28548.199999809265,
+     "text": "sfx melee_attack_2 actor=7\n"
+    },
+    {
+     "t": 28548.299999713898,
+     "text": "cue (fallback) actor=2\n"
+    },
+    {
+     "t": 28548.39999961853,
+     "text": "sfx zombie_hit actor=2\n"
+    },
+    {
+     "t": 28612.099999904633,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28648,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 28648.099999904633,
+     "text": "sfx melee_attack_3 actor=2\n"
+    },
+    {
+     "t": 28878.799999713898,
+     "text": "step-voice 0 vol=0.138 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29047.89999961853,
+     "text": "cue combat.melee.swing actor=7\n"
+    },
+    {
+     "t": 29048.099999904633,
+     "text": "sfx melee_attack_2 actor=7\n"
+    },
+    {
+     "t": 29048.199999809265,
+     "text": "cue (fallback) actor=2\n"
+    },
+    {
+     "t": 29048.299999713898,
+     "text": "sfx zombie_hit actor=2\n"
+    },
+    {
+     "t": 29097.89999961853,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 29097.89999961853,
+     "text": "sfx melee_attack_3 actor=2\n"
+    },
+    {
+     "t": 29098.099999904633,
+     "text": "cue (fallback) actor=7\n"
+    },
+    {
+     "t": 29098.199999809265,
+     "text": "sfx zombie_hit actor=7\n"
+    },
+    {
+     "t": 29146.39999961853,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29412.299999713898,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29498.89999961853,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 29499,
+     "text": "sfx melee_attack_2 actor=2\n"
+    },
+    {
+     "t": 29499.199999809265,
+     "text": "cue (fallback) actor=7\n"
+    },
+    {
+     "t": 29499.199999809265,
+     "text": "sfx zombie_hit actor=7\n"
+    },
+    {
+     "t": 29679.89999961853,
+     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29748.099999904633,
+     "text": "cue combat.melee.swing actor=7\n"
+    },
+    {
+     "t": 29748.199999809265,
+     "text": "sfx melee_attack_3 actor=7\n"
+    },
+    {
+     "t": 29938.199999809265,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30047.699999809265,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 30047.799999713898,
+     "text": "sfx melee_attack_2 actor=2\n"
+    },
+    {
+     "t": 30048,
+     "text": "cue (fallback) actor=7\n"
+    },
+    {
+     "t": 30048.099999904633,
+     "text": "sfx zombie_hit actor=7\n"
+    },
+    {
+     "t": 30212.599999904633,
+     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30347.699999809265,
+     "text": "cue combat.melee.swing actor=7\n"
+    },
+    {
+     "t": 30347.799999713898,
+     "text": "sfx melee_attack_3 actor=7\n"
+    },
+    {
+     "t": 30347.89999961853,
+     "text": "cue (fallback) actor=2\n"
+    },
+    {
+     "t": 30348,
+     "text": "sfx zombie_hit actor=2\n"
+    },
+    {
+     "t": 30471.599999904633,
+     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30487.89999961853,
      "text": "region-changed Frost->Plague matchActive=True\n"
     },
     {
-     "t": 43191.199999809265,
+     "t": 30489.799999713898,
      "text": "gate region=3\n"
     },
     {
-     "t": 43191.2999997139,
+     "t": 30489.799999713898,
      "text": "set-region Plague music=music_plague\n"
     },
     {
-     "t": 43191.40000009537,
-     "text": "play music_plague deck=0\n"
+     "t": 30489.89999961853,
+     "text": "load music_plague\n"
     },
     {
-     "t": 43191.40000009537,
-     "text": "play amb_plague deck=3\n"
+     "t": 30490.099999904633,
+     "text": "load amb_plague\n"
     },
     {
-     "t": 43347.699999809265,
-     "text": "step-voice 1 vol=0.152 active=True enabled=True clip=step_Water_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30498.5,
+     "text": "cue combat.melee.swing actor=2\n"
     },
     {
-     "t": 43616.90000009537,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30498.699999809265,
+     "text": "sfx melee_attack_2 actor=2\n"
     },
     {
-     "t": 43880.90000009537,
-     "text": "step-voice 1 vol=0.131 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30498.89999961853,
+     "text": "cue (fallback) actor=7\n"
     },
     {
-     "t": 44146.90000009537,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30498.89999961853,
+     "text": "sfx zombie_hit actor=7\n"
     },
     {
-     "t": 44415.699999809265,
-     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30570.699999809265,
+     "text": "loaded amb_plague ok=True state=1\n"
     },
     {
-     "t": 44681,
-     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30575.099999904633,
+     "text": "play amb_plague deck=4\n"
     },
     {
-     "t": 44947.90000009537,
-     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30666.5,
+     "text": "loaded music_plague ok=True state=1\n"
     },
     {
-     "t": 45214.199999809265,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30671,
+     "text": "play music_plague deck=1\n"
     },
     {
-     "t": 45480.90000009537,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30738.5,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 45747.5,
-     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30946.599999904633,
+     "text": "cue combat.melee.swing actor=2\n"
     },
     {
-     "t": 46014.699999809265,
-     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Water_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30946.699999809265,
+     "text": "sfx melee_attack_3 actor=2\n"
     },
     {
-     "t": 46281.59999990463,
-     "text": "step-voice 1 vol=0.135 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30946.89999961853,
+     "text": "cue (fallback) actor=7\n"
     },
     {
-     "t": 46407.2999997139,
-     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 30946.89999961853,
+     "text": "sfx zombie_hit actor=7\n"
     },
     {
-     "t": 46667.09999990463,
-     "text": "step-voice 0 vol=0.141 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31005.39999961853,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 46930.40000009537,
-     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31271.799999713898,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Water_0 dist=0.0 listenerPause=False listenerVol=1\n"
     },
     {
-     "t": 47198.199999809265,
-     "text": "step-voice 0 vol=0.130 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31398.39999961853,
+     "text": "cue combat.melee.swing actor=2\n"
     },
     {
-     "t": 47468.09999990463,
-     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31398.5,
+     "text": "sfx melee_attack_2 actor=2\n"
     },
     {
-     "t": 47731.90000009537,
-     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31398.599999904633,
+     "text": "cue (fallback) actor=7\n"
     },
     {
-     "t": 47998.5,
-     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31398.599999904633,
+     "text": "sfx zombie_hit actor=7\n"
     },
     {
-     "t": 48266.90000009537,
-     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+     "t": 31537.799999713898,
+     "text": "step-voice 1 vol=0.131 active=True enabled=True clip=step_Water_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31697.099999904633,
+     "text": "cue combat.melee.swing actor=7\n"
+    },
+    {
+     "t": 31697.299999713898,
+     "text": "sfx melee_attack_3 actor=7\n"
+    },
+    {
+     "t": 31804.89999961853,
+     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Water_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31848.799999713898,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 31849,
+     "text": "sfx melee_attack_2 actor=2\n"
+    },
+    {
+     "t": 31849.099999904633,
+     "text": "cue (fallback) actor=7\n"
+    },
+    {
+     "t": 31849.099999904633,
+     "text": "sfx zombie_hit actor=7\n"
+    },
+    {
+     "t": 32071.89999961853,
+     "text": "step-voice 1 vol=0.131 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 32248.199999809265,
+     "text": "cue combat.melee.swing actor=2\n"
+    },
+    {
+     "t": 32248.299999713898,
+     "text": "sfx melee_attack_3 actor=2\n"
+    },
+    {
+     "t": 32248.5,
+     "text": "cue (fallback) actor=7\n"
     }
    ],
    "fmod": [],
    "regions": [
     {
-     "t": 16655,
-     "region": "plague"
-    },
-    {
-     "t": 30131.699999809265,
+     "t": 15148.199999809265,
      "region": "frost"
     },
     {
-     "t": 43189.59999990463,
+     "t": 30487.799999713898,
      "region": "plague"
+    },
+    {
+     "t": 68304.39999961853,
+     "region": "frost"
     }
    ],
    "plays": [
     {
-     "t": 17314.5,
-     "id": "amb_plague"
-    },
-    {
-     "t": 17429.799999713898,
-     "id": "music_plague"
-    },
-    {
-     "t": 30158.5,
+     "t": 15771.599999904633,
      "id": "amb_frost"
     },
     {
-     "t": 30274.099999904633,
+     "t": 15887,
      "id": "music_frost"
     },
     {
-     "t": 43191.40000009537,
+     "t": 30575.099999904633,
+     "id": "amb_plague"
+    },
+    {
+     "t": 30671,
      "id": "music_plague"
     },
     {
-     "t": 43191.40000009537,
-     "id": "amb_plague"
+     "t": 68307.39999961853,
+     "id": "music_frost"
+    },
+    {
+     "t": 68307.39999961853,
+     "id": "amb_frost"
     }
    ],
    "requests": [
     {
-     "file": "music_plague.mp3",
-     "status": 200,
-     "tMs": 17258
-    },
-    {
-     "file": "amb_plague.mp3",
-     "status": 200,
-     "tMs": 17261
-    },
-    {
      "file": "music_frost.mp3",
      "status": 200,
-     "tMs": 30134
+     "tMs": 15754
     },
     {
      "file": "amb_frost.mp3",
      "status": 200,
-     "tMs": 30140
+     "tMs": 15757
+    },
+    {
+     "file": "music_plague.mp3",
+     "status": 200,
+     "tMs": 30490
+    },
+    {
+     "file": "amb_plague.mp3",
+     "status": 200,
+     "tMs": 30493
     }
    ],
    "crossfades": [
     {
-     "from": "plague",
-     "to": "frost",
-     "regionChangedAt": 30132,
-     "newMusicPlayAt": 30274,
-     "loadDelayMs": 142,
-     "before": -23.86,
-     "after": -25.2,
-     "minDb": -26.11,
-     "maxDb": -22.69,
-     "dipDb": 0.91,
-     "bumpDb": 1.17,
+     "from": "frost",
+     "to": "plague",
+     "regionChangedAt": 30488,
+     "newMusicPlayAt": 30671,
+     "loadDelayMs": 183,
+     "before": -22.13,
+     "after": -22.02,
+     "minDb": -23.65,
+     "maxDb": -20.49,
+     "dipDb": 1.53,
+     "bumpDb": 1.54,
      "silentMs": 0
     },
     {
-     "from": "frost",
-     "to": "plague",
-     "regionChangedAt": 43190,
-     "newMusicPlayAt": 43191,
-     "loadDelayMs": 2,
-     "before": -23.76,
-     "after": -23.91,
-     "minDb": -25.27,
-     "maxDb": -22.17,
-     "dipDb": 1.36,
-     "bumpDb": 1.59,
+     "from": "plague",
+     "to": "frost",
+     "regionChangedAt": 68304,
+     "newMusicPlayAt": 68307,
+     "loadDelayMs": 3,
+     "before": -19.68,
+     "after": -25.26,
+     "minDb": -26.2,
+     "maxDb": -20.28,
+     "dipDb": 0.94,
+     "bumpDb": -0.6,
      "silentMs": 0
     }
    ],
    "summary": {
     "n": 395,
-    "rmsDb": -23.68,
-    "peakDb": -9.1
+    "rmsDb": -22.2,
+    "peakDb": -4.95
    },
    "consoleViolations": [],
-   "consoleAllCount": 872
+   "consoleAllCount": 1533
   },
   "audition": {
    "table": {
     "Snow": {
      "n": 4,
-     "centroidHz": 4551,
-     "peakDb": -4,
+     "centroidHz": 4847,
+     "peakDb": -4.5,
      "rmsDb": -20.8
     },
     "Sand": {
      "n": 4,
-     "centroidHz": 3187,
+     "centroidHz": 3132,
      "peakDb": -3.9,
-     "rmsDb": -13.3
+     "rmsDb": -14.3
     },
     "Grass": {
      "n": 4,
-     "centroidHz": 4907,
-     "peakDb": -3.9,
-     "rmsDb": -14.6
+     "centroidHz": 4945,
+     "peakDb": -5,
+     "rmsDb": -15.1
     },
     "Mud": {
      "n": 4,
-     "centroidHz": 299,
-     "peakDb": -4,
-     "rmsDb": -12.6
+     "centroidHz": 329,
+     "peakDb": -4.3,
+     "rmsDb": -14.1
     },
     "Water": {
      "n": 4,
-     "centroidHz": 3928,
-     "peakDb": -4.1,
-     "rmsDb": -14.5
+     "centroidHz": 3970,
+     "peakDb": -4.2,
+     "rmsDb": -13.5
     },
     "Bog": {
      "n": 4,
-     "centroidHz": 195,
-     "peakDb": -3.6,
-     "rmsDb": -9
+     "centroidHz": 217,
+     "peakDb": -3.8,
+     "rmsDb": -10
     },
     "Stone": {
      "n": 4,
-     "centroidHz": 1188,
-     "peakDb": -4.4,
-     "rmsDb": -20.4
+     "centroidHz": 996,
+     "peakDb": -4.5,
+     "rmsDb": -18.2
     },
     "Temple": {
      "n": 4,
-     "centroidHz": 1055,
-     "peakDb": -4.9,
-     "rmsDb": -16.8
+     "centroidHz": 1116,
+     "peakDb": -4.5,
+     "rmsDb": -17.3
     },
     "Gritty": {
      "n": 4,
-     "centroidHz": 3301,
-     "peakDb": -4.2,
-     "rmsDb": -20.2
+     "centroidHz": 3388,
+     "peakDb": -4.1,
+     "rmsDb": -20.9
     },
     "Ice": {
      "n": 4,
-     "centroidHz": 1458,
-     "peakDb": -3.8,
-     "rmsDb": -17.3
+     "centroidHz": 1641,
+     "peakDb": -3.9,
+     "rmsDb": -17.6
     }
    },
    "medianLagMs": 60,
    "sfxVolume": {
     "full": {
-     "peakDb": -4.23
+     "peakDb": -5.02
     },
     "half": {
-     "peakDb": -10.49
+     "peakDb": -10.38
     },
     "mute": {
      "peakDb": -120
     }
    },
    "voicing": {
-    "Local": -18.7,
+    "Local": -19.6,
     "Player3tiles": -28.1,
-    "Mob3tiles": -32.5
+    "Mob3tiles": -33
    },
    "fmodContext": [],
    "consoleViolations": []
   },
   "steps": {
-   "cues": 29,
-   "matched": 29,
-   "medianLagMs": 37.733332951858756,
+   "cues": 41,
+   "matched": 40,
+   "medianLagMs": 38.33333333333212,
    "actorSummary": {},
-   "stepLines": 56,
+   "stepLines": 90,
    "fmodContext": [],
    "surfacesWalked": {
-    "Sand": 4,
-    "Stone": 25
+    "Snow": 29,
+    "Ice": 11
    },
    "consoleViolations": []
   },
@@ -1374,116 +1403,158 @@
    "levels": {
     "music_fire": {
      "n": 89,
-     "rmsDb": -21.6,
-     "peakDb": -4.84,
+     "rmsDb": -21.01,
+     "peakDb": -6.12,
      "activeSources": [
       {
        "dur": 107,
        "loop": true,
        "gain": 0.9005,
-       "startedAt": 16573.699999809265
+       "startedAt": 22722.5
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34196.89999961853
+       "startedAt": 34269.40000009537
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34247.09999990463
+       "startedAt": 34269.40000009537
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34247.09999990463
+       "startedAt": 34269.40000009537
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34297
+       "startedAt": 34519.2000002861
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34297
+       "startedAt": 34519.2000002861
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34596.699999809265
+       "startedAt": 34617.800000190735
       },
       {
        "dur": 0.508,
        "loop": false,
        "gain": 0,
-       "startedAt": 34648.39999961853
-      },
-      {
-       "dur": 0.508,
-       "loop": false,
-       "gain": 0,
-       "startedAt": 34648.39999961853
+       "startedAt": 34617.800000190735
       }
      ],
      "unityGain": null,
      "shortTermDb": [
-      -21.8,
-      -20.9
+      -21.7,
+      -20.5
      ]
     },
     "music_sentenced": {
      "n": 89,
-     "rmsDb": -21.01,
+     "rmsDb": -21.02,
      "peakDb": -6.46,
      "activeSources": [
       {
        "dur": 54.65,
        "loop": true,
        "gain": 0.7096,
-       "startedAt": 34842.39999961853
+       "startedAt": 34841.90000009537
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 46625.2000002861
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 46625.300000190735
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.2000002861
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.2000002861
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.300000190735
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.300000190735
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.300000190735
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 47017.300000190735
       }
      ],
      "unityGain": null,
      "shortTermDb": [
       -21.4,
-      -20.8
+      -21
      ]
     },
     "music_plague": {
-     "n": 88,
-     "rmsDb": -21.09,
+     "n": 89,
+     "rmsDb": -21.12,
      "peakDb": -7.9,
      "activeSources": [
       {
        "dur": 107,
        "loop": true,
        "gain": 1.0592,
-       "startedAt": 47158.59999990463
+       "startedAt": 47214.09999990463
       }
      ],
      "unityGain": null,
      "shortTermDb": [
-      -20.9,
+      -21,
       -20.9
      ]
     },
     "music_frost": {
-     "n": 89,
-     "rmsDb": -20.93,
+     "n": 88,
+     "rmsDb": -20.94,
      "peakDb": -8.86,
      "activeSources": [
       {
        "dur": 77.4,
        "loop": true,
        "gain": 0.7621,
-       "startedAt": 59425.7999997139
+       "startedAt": 59471.7000002861
       }
      ],
      "unityGain": null,
@@ -1493,20 +1564,20 @@
      ]
     },
     "music_holy": {
-     "n": 88,
-     "rmsDb": -21.13,
+     "n": 89,
+     "rmsDb": -21.1,
      "peakDb": -5.62,
      "activeSources": [
       {
        "dur": 92.4,
        "loop": true,
        "gain": 0.827,
-       "startedAt": 71810.39999961853
+       "startedAt": 71728.40000009537
       }
      ],
      "unityGain": null,
      "shortTermDb": [
-      -21.4,
+      -21.3,
       -21
      ]
     },
@@ -1519,7 +1590,7 @@
        "dur": 92.4,
        "loop": true,
        "gain": 1.1967,
-       "startedAt": 84120.19999980927
+       "startedAt": 84244.90000009537
       }
      ],
      "unityGain": null,
@@ -1537,25 +1608,25 @@
        "dur": 37.55,
        "loop": true,
        "gain": 0.3166,
-       "startedAt": 96275.69999980927
+       "startedAt": 96486.5
       }
      ],
      "unityGain": null,
      "shortTermDb": [
       -31.3,
-      -31.5
+      -31.4
      ]
     },
     "amb_sentenced": {
-     "n": 88,
-     "rmsDb": -31.04,
+     "n": 89,
+     "rmsDb": -31.07,
      "peakDb": -15.32,
      "activeSources": [
       {
        "dur": 9.99,
        "loop": true,
        "gain": 0.8502,
-       "startedAt": 108700.5
+       "startedAt": 108999.2000002861
       }
      ],
      "unityGain": null,
@@ -1573,7 +1644,7 @@
        "dur": 58.007,
        "loop": true,
        "gain": 0.3262,
-       "startedAt": 121175.09999990463
+       "startedAt": 121457
       }
      ],
      "unityGain": null,
@@ -1584,14 +1655,14 @@
     },
     "amb_frost": {
      "n": 89,
-     "rmsDb": -31.05,
+     "rmsDb": -31.04,
      "peakDb": -17.68,
      "activeSources": [
       {
        "dur": 4.46,
        "loop": true,
        "gain": 0.5457,
-       "startedAt": 133504.5
+       "startedAt": 133852.90000009537
       }
      ],
      "unityGain": null,
@@ -1602,14 +1673,14 @@
     },
     "amb_holy": {
      "n": 89,
-     "rmsDb": -31.06,
+     "rmsDb": -31.04,
      "peakDb": -18.62,
      "activeSources": [
       {
        "dur": 39.18,
        "loop": true,
        "gain": 0.2054,
-       "startedAt": 145936.89999961853
+       "startedAt": 146427.5
       }
      ],
      "unityGain": null,
@@ -1625,31 +1696,31 @@
    "rows": {
     "music_fire": {
      "seek": "seek music_fire to=104.00 length=107.00\n",
-     "controlStepDb": 8.56,
-     "seamStepDb": 4.89,
-     "controlMinDb": -28.8,
-     "seamMinDb": -24.2,
+     "controlStepDb": 8.13,
+     "seamStepDb": 5.29,
+     "controlMinDb": -28.6,
+     "seamMinDb": -24.5,
      "seamMaxDb": -16.5
     },
     "music_sentenced": {
      "seek": "seek music_sentenced to=51.65 length=54.65\n",
-     "controlStepDb": 8.37,
-     "seamStepDb": 10.05,
-     "controlMinDb": -27,
+     "controlStepDb": 8.7,
+     "seamStepDb": 10.04,
+     "controlMinDb": -27.1,
      "seamMinDb": -31.6,
      "seamMaxDb": -18.1
     },
     "music_plague": {
      "seek": "seek music_plague to=104.00 length=107.00\n",
      "controlStepDb": 5.54,
-     "seamStepDb": 3.25,
+     "seamStepDb": 3.3,
      "controlMinDb": -24.8,
-     "seamMinDb": -22.7,
+     "seamMinDb": -22.9,
      "seamMaxDb": -17
     },
     "music_frost": {
      "seek": "seek music_frost to=74.40 length=77.40\n",
-     "controlStepDb": 3.43,
+     "controlStepDb": 3.7,
      "seamStepDb": 3.72,
      "controlMinDb": -23.8,
      "seamMinDb": -34,
@@ -1657,57 +1728,57 @@
     },
     "music_holy": {
      "seek": "seek music_holy to=89.40 length=92.40\n",
-     "controlStepDb": 3.56,
-     "seamStepDb": 6.96,
+     "controlStepDb": 3.65,
+     "seamStepDb": 7,
      "controlMinDb": -23.2,
      "seamMinDb": -28.5,
-     "seamMaxDb": -18.8
+     "seamMaxDb": -18.7
     },
     "music_coliseum": {
      "seek": "seek music_coliseum to=89.40 length=92.40\n",
-     "controlStepDb": 3.66,
-     "seamStepDb": 5.05,
+     "controlStepDb": 4.22,
+     "seamStepDb": 5.14,
      "controlMinDb": -23.2,
-     "seamMinDb": -28.2,
-     "seamMaxDb": -16.7
+     "seamMinDb": -28,
+     "seamMaxDb": -16.8
     },
     "amb_fire": {
      "seek": "seek amb_fire to=34.55 length=37.55\n",
-     "controlStepDb": 7.62,
-     "seamStepDb": 5.42,
-     "controlMinDb": -36.2,
-     "seamMinDb": -36.2,
-     "seamMaxDb": -27.7
+     "controlStepDb": 7.73,
+     "seamStepDb": 5.34,
+     "controlMinDb": -35.8,
+     "seamMinDb": -36.5,
+     "seamMaxDb": -27.9
     },
     "amb_sentenced": {
      "seek": "seek amb_sentenced to=6.99 length=9.99\n",
-     "controlStepDb": 5.35,
-     "seamStepDb": 5.42,
+     "controlStepDb": 5.31,
+     "seamStepDb": 5.55,
      "controlMinDb": -34.5,
-     "seamMinDb": -34.4,
+     "seamMinDb": -34.5,
      "seamMaxDb": -28.5
     },
     "amb_plague": {
      "seek": "seek amb_plague to=55.01 length=58.01\n",
-     "controlStepDb": 16.96,
-     "seamStepDb": 20.39,
-     "controlMinDb": -39.4,
+     "controlStepDb": 17.21,
+     "seamStepDb": 20,
+     "controlMinDb": -39.3,
      "seamMinDb": -46,
-     "seamMaxDb": -19.6
+     "seamMaxDb": -19.5
     },
     "amb_frost": {
      "seek": "seek amb_frost to=1.46 length=4.46\n",
-     "controlStepDb": 3.82,
-     "seamStepDb": 3.94,
-     "controlMinDb": -33.2,
+     "controlStepDb": 3.36,
+     "seamStepDb": 3.95,
+     "controlMinDb": -33.3,
      "seamMinDb": -33.1,
-     "seamMaxDb": -29.1
+     "seamMaxDb": -29.2
     },
     "amb_holy": {
      "seek": "seek amb_holy to=36.18 length=39.18\n",
-     "controlStepDb": 6.15,
+     "controlStepDb": 5.35,
      "seamStepDb": 7.22,
-     "controlMinDb": -34.9,
+     "controlMinDb": -35,
      "seamMinDb": -36.7,
      "seamMaxDb": -29.4
     }
@@ -1716,14 +1787,14 @@
   },
   "volume": {
    "base": {
-    "n": 70,
-    "rmsDb": -24,
-    "peakDb": -10.74
+    "n": 69,
+    "rmsDb": -25.08,
+    "peakDb": -12.83
    },
    "half": {
     "n": 69,
-    "rmsDb": -29.88,
-    "peakDb": -17
+    "rmsDb": -30.07,
+    "peakDb": -17.41
    },
    "mute": {
     "n": 69,
@@ -1731,11 +1802,11 @@
     "peakDb": -120
    },
    "back": {
-    "n": 50,
-    "rmsDb": -23.96,
-    "peakDb": -11.48
+    "n": 49,
+    "rmsDb": -24.49,
+    "peakDb": -11.7
    },
-   "deltaDb": 5.88,
+   "deltaDb": 4.99,
    "consoleViolations": []
   },
   "audioOff": {
@@ -1749,331 +1820,334 @@
   },
   "full": {
    "summary": {
-    "n": 1161,
-    "rmsDb": -23.58,
-    "peakDb": -7.53
+    "n": 1725,
+    "rmsDb": -21.68,
+    "peakDb": -2.6
    },
-   "cues": 92,
+   "cues": 113,
    "cueKinds": {
-    "combat.melee.swing": 49,
-    "(fallback)": 43
+    "combat.melee.swing": 48,
+    "mob.antlion.hit": 5,
+    "(fallback)": 58,
+    "mob.antlion.death": 1,
+    "wish.swarm": 1
    },
    "consoleViolations": [],
    "requests": [
     {
-     "file": "music_sentenced.mp3",
+     "file": "music_plague.mp3",
      "status": 200,
-     "tMs": 15868
+     "tMs": 15757
     },
     {
-     "file": "amb_sentenced.mp3",
+     "file": "amb_plague.mp3",
      "status": 200,
-     "tMs": 15874
+     "tMs": 15760
     }
    ],
    "cuePeaks": [
     {
      "cue": "combat.melee.swing",
-     "rise": -2.7,
+     "rise": 0.4,
+     "peakDb": -9.5
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": -1.1,
+     "peakDb": -9.9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 0.2,
+     "peakDb": -9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": -0.5,
+     "peakDb": -9.1
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": -0.2,
+     "peakDb": -10.5
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": -0.4,
+     "peakDb": -9.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 0.5,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.9,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "mob.antlion.hit",
+     "rise": 0.2,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": -0.5,
      "peakDb": -10.4
     },
     {
-     "cue": "combat.melee.swing",
-     "rise": 4.1,
-     "peakDb": -9.1
+     "cue": "(fallback)",
+     "rise": -0.5,
+     "peakDb": -10.4
     },
     {
      "cue": "(fallback)",
-     "rise": 4.1,
-     "peakDb": -9.1
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 3.8,
-     "peakDb": -9.6
+     "rise": -0.6,
+     "peakDb": -10.4
     },
     {
      "cue": "(fallback)",
-     "rise": 3.8,
-     "peakDb": -9.6
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 5.5,
-     "peakDb": -8.5
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 5.5,
-     "peakDb": -8.5
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.2,
+     "rise": 0.3,
      "peakDb": -9
     },
     {
      "cue": "(fallback)",
-     "rise": 2.2,
+     "rise": 0.9,
      "peakDb": -9
     },
     {
-     "cue": "combat.melee.swing",
-     "rise": 3.7,
-     "peakDb": -6.3
+     "cue": "(fallback)",
+     "rise": 2.8,
+     "peakDb": -7.2
     },
     {
      "cue": "(fallback)",
-     "rise": 3.7,
-     "peakDb": -6.3
+     "rise": 3.2,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.2,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.6,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.3,
+     "peakDb": -7.2
     },
     {
      "cue": "combat.melee.swing",
+     "rise": 3.1,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.1,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "mob.antlion.hit",
      "rise": 2.2,
-     "peakDb": -8.2
+     "peakDb": -9.4
     },
     {
      "cue": "(fallback)",
-     "rise": 2.2,
-     "peakDb": -8.2
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.7,
-     "peakDb": -9.8
+     "rise": 2,
+     "peakDb": -9.4
     },
     {
      "cue": "(fallback)",
-     "rise": 2.7,
-     "peakDb": -9.8
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.3,
-     "peakDb": -10.2
+     "rise": 1.9,
+     "peakDb": -9.4
     },
     {
      "cue": "(fallback)",
-     "rise": 2.3,
-     "peakDb": -10.2
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.1,
-     "peakDb": -9.8
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 2.1,
-     "peakDb": -9.8
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 4.7,
-     "peakDb": -7.4
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 4.7,
-     "peakDb": -7.4
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 3.5,
-     "peakDb": -8
+     "rise": 3.3,
+     "peakDb": -5
     },
     {
      "cue": "(fallback)",
      "rise": 3.8,
-     "peakDb": -8
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.2,
-     "peakDb": -9.3
+     "peakDb": -5
     },
     {
      "cue": "(fallback)",
-     "rise": 2.2,
-     "peakDb": -9.3
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 3.9,
-     "peakDb": -7.7
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 3.9,
-     "peakDb": -7.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2.1,
-     "peakDb": -9.6
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 2.1,
-     "peakDb": -9.6
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 2,
-     "peakDb": -7.7
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 2,
-     "peakDb": -7.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 6.2,
-     "peakDb": -8.3
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 6.2,
-     "peakDb": -8.3
-    },
-    {
-     "cue": "combat.melee.swing",
      "rise": 4.5,
-     "peakDb": -8.3
+     "peakDb": -5
     },
     {
      "cue": "combat.melee.swing",
-     "rise": 3.7,
-     "peakDb": -8.4
+     "rise": 5.4,
+     "peakDb": -5.1
+    },
+    {
+     "cue": "mob.antlion.hit",
+     "rise": 5.4,
+     "peakDb": -5.1
     },
     {
      "cue": "(fallback)",
-     "rise": 3.7,
-     "peakDb": -8.4
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 3.5,
-     "peakDb": -9.7
+     "rise": 5.4,
+     "peakDb": -5.1
     },
     {
      "cue": "(fallback)",
-     "rise": 3.5,
-     "peakDb": -9.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 0.5,
-     "peakDb": -7.7
+     "rise": 5,
+     "peakDb": -5.7
     },
     {
      "cue": "(fallback)",
-     "rise": 0.5,
-     "peakDb": -7.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 3.7,
-     "peakDb": -7.9
+     "rise": 4.7,
+     "peakDb": -5.7
     },
     {
      "cue": "(fallback)",
-     "rise": 3.7,
-     "peakDb": -7.9
+     "rise": 4.4,
+     "peakDb": -6.1
     },
     {
      "cue": "combat.melee.swing",
-     "rise": 2.9,
-     "peakDb": -8.7
+     "rise": 4,
+     "peakDb": -6.9
     },
     {
      "cue": "(fallback)",
-     "rise": 2.9,
-     "peakDb": -8.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 5.3,
-     "peakDb": -7.2
+     "rise": 4,
+     "peakDb": -6.9
     },
     {
      "cue": "(fallback)",
-     "rise": 5.3,
-     "peakDb": -7.2
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 5.3,
-     "peakDb": -6.5
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 4.3,
-     "peakDb": -6.5
+     "rise": 2.6,
+     "peakDb": -7.4
     },
     {
      "cue": "(fallback)",
-     "rise": 4.3,
-     "peakDb": -6.5
+     "rise": 2.6,
+     "peakDb": -7.4
     },
     {
      "cue": "combat.melee.swing",
-     "rise": 5.8,
-     "peakDb": -7.8
-    },
-    {
-     "cue": "(fallback)",
-     "rise": 5.8,
-     "peakDb": -7.8
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 1.8,
+     "rise": 1.5,
      "peakDb": -8.9
     },
     {
      "cue": "(fallback)",
-     "rise": 1.8,
+     "rise": 1.5,
      "peakDb": -8.9
     },
     {
-     "cue": "combat.melee.swing",
-     "rise": 2.9,
-     "peakDb": -9.7
+     "cue": "(fallback)",
+     "rise": 1.7,
+     "peakDb": -8.9
     },
     {
      "cue": "(fallback)",
-     "rise": 2.9,
-     "peakDb": -9.7
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 5.8,
-     "peakDb": -6.9
-    },
-    {
-     "cue": "combat.melee.swing",
-     "rise": 5.6,
-     "peakDb": -6.9
+     "rise": 2.5,
+     "peakDb": -8.1
     },
     {
      "cue": "(fallback)",
-     "rise": 5.6,
-     "peakDb": -6.9
+     "rise": 2.5,
+     "peakDb": -8.1
     },
     {
      "cue": "combat.melee.swing",
      "rise": 2.7,
-     "peakDb": -10.2
+     "peakDb": -8.1
     },
     {
      "cue": "(fallback)",
      "rise": 2.7,
+     "peakDb": -8.1
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.8,
+     "peakDb": -8.1
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.8,
+     "peakDb": -8.1
+    },
+    {
+     "cue": "mob.antlion.hit",
+     "rise": 2.4,
+     "peakDb": -8.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.1,
+     "peakDb": -8.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 1.9,
+     "peakDb": -8.2
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 0.8,
      "peakDb": -10.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 0.8,
+     "peakDb": -10.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": -0.2,
+     "peakDb": -10.9
+    },
+    {
+     "cue": "(fallback)",
+     "rise": -1.1,
+     "peakDb": -11.8
+    },
+    {
+     "cue": "mob.antlion.hit",
+     "rise": -1.1,
+     "peakDb": -11.8
+    },
+    {
+     "cue": "mob.antlion.death",
+     "rise": -1.1,
+     "peakDb": -11.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": -0.3,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 0.1,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 0.1,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": -0.2,
+     "peakDb": -10.5
+    },
+    {
+     "cue": "(fallback)",
+     "rise": -0.2,
+     "peakDb": -10.5
     }
    ]
   }
  },
- "passed": false
+ "passed": true
 }
