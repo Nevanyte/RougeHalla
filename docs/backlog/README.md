@@ -16,6 +16,19 @@ actual Unity 6000.0.85f2 Web build and the selected MVP match loop verified, inc
 Initial loot discovery and all seven reliable views are integrated; broader content and cloud deployment remain open. The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
 rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
+## Backend continuation (owner instruction, 2026-11-09 America/Edmonton)
+
+Remaining Rust gameplay, bots and quest backend preparation are active in a separate lane alongside Claude's
+Unity/networking effort. DeepSeek implements Rust; Sol/Luna handle most architecture, inventory, plans and independent
+review; Codex coordinates, admits changes and updates shared records. Work starts from committed backend `4151b3af`
+in `codex/backend-gameplay-quests`, leaving Claude's primary checkout and active branches untouched.
+
+First dispatched packet: [P-BOT-MEMORY-ADMISSION-1](packets/P-BOT-MEMORY-ADMISSION-1.md), reusing the existing private
+Memory repair rather than rewriting it. Quest architecture and a source-backed tour feasibility regression are being
+specified. Full live bot activation remains dependent on legitimate shared observations; no hidden-state shortcut,
+protocol change or new quest design is implied. Treat older broad completion/partial rows below as historical until
+reconciled with code and current evidence; neither a `Partial` comment nor an existing module alone establishes status.
+
 ## November9 coordinator checkpoint
 
 The [current migration checkpoint](../MIGRATION.md) supersedes the older version/status lists below:14/29/23/21/15/content7c6a633f68c2cc72. Native SlowStarter/complete MarkTax/PackLeader/readonly WalkHint and source timings are integrated with63 strict source cases and a derived native tape. Actual Training90 passes its frozen engine cut; layout/complete browser remain open. Pure owned-seat resume/checkpoint storage and private socket components are reviewed, with UI adoption/new-page proof and full fact/Brain activation still separate. Owner scope is the **full original port**, including durable regional hosting and matched M5 Pro performance; the earlier playable-core scope is historical. AWS login renewal is owner-deferred. Consult PROJECT_COORDINATION before allocating work; do not duplicate released components.

@@ -8,7 +8,25 @@ The owner asked to keep workers running and leave active branches until last dur
 The primary project checkout is the write location for `optimization_port`. The earlier managed checkout is a clean
 detached review snapshot; use `git worktree list` to resolve the authoritative path and keep future edits on the branch.
 
-## Current delivery: technical demo (owner decision, 2026-11-09)
+## Parallel backend lane (owner instruction, 2026-11-09 America/Edmonton)
+
+The owner asks Codex to manage remaining Rust gameplay, bots and quests while Claude handles Unity/networking.
+Use isolated branch `codex/backend-gameplay-quests` at backend base `4151b3af` for this lane's integration and plans.
+DeepSeek implements Rust; Sol owns quest architecture and implementation review; Luna owns inventory/work planning.
+Only the coordinator updates MIGRATION, CONTRACTS status and Cargo.lock. Do not edit Claude's checkout/branches,
+Unity assets/code, networking/protocol/decoders, hitbox work or room-crash repair. Future shared integration must be
+scoped and reviewed; no production/cloud actions are part of this lane.
+
+| Owner | Initial assignment | Status |
+|---|---|---|
+| DeepSeek Rust Port Worker | Rebase existing repaired private Memory onto current backend in `codex/deepseek-bot-memory`; scoped source tests and lint | Dispatched; no admission yet |
+| Sol quest architect | Extensible deterministic quest backend boundaries and source-backed tour-supply regression packet | In progress |
+| Luna inventory | Verify remaining gameplay/bots against source and preserved candidates; record dependency/ownership plan | In progress |
+| Codex project manager | Isolated worktrees, packet dispatch, independent review, integration and shared plans | Active |
+
+This supersedes the demo-only parking direction for backend work. Claude's demo remains independently active.
+
+## Technical demo delivery record (owner decision, 2026-11-09)
 
 The [technical demo plan](coordination/TECHNICAL_DEMO.md) is the current scope: one presentable optimized Unity client,
 ordinary networked core match, bounded Calgary staging and actual M5 Pro speed/latency/resource measurements. Full

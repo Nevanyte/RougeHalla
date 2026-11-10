@@ -4,7 +4,25 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## Current delivery scope: technical demo (owner decision, 2026-11-09)
+## Parallel backend completion lane (owner instruction, 2026-11-09 America/Edmonton)
+
+The owner has resumed remaining Rust gameplay, bots and quests while Claude continues Unity and networking.
+Codex manages this lane, delegates most non-Rust architecture/planning/review to Sol and Luna, and assigns Rust
+implementation to DeepSeek. Quest work must prepare a backend architecture for a later content/design rework without
+silently redesigning current quest rules. The earlier demo-only parking instruction no longer parks this backend lane.
+
+Work is isolated on `codex/backend-gameplay-quests`, based on the latest committed backend `4151b3af`; Claude's
+`feature/unity-rework`, hitbox/crash/Unity branches and netcode work remain separate. No Unity, networking/protocol,
+cloud or production changes belong to this lane. The existing backend lead checkout's untracked plague regression
+and evidence are preserved. Integration into `optimization_port` follows reviewed scoped changes, not branch replacement.
+
+Initial work: Sol is designing the quest backend boundary and a source-backed tour-supply correction; Luna is
+reconciling the remaining gameplay/bot inventory against current code. DeepSeek has received
+[P-BOT-MEMORY-ADMISSION-1](backlog/packets/P-BOT-MEMORY-ADMISSION-1.md) in its dedicated
+`codex/deepseek-bot-memory` worktree, reusing the preserved `3e3178b9` repair. It is dispatched, not yet reviewed or
+integrated. No new test result or full bot/quest completion is claimed by this planning update.
+
+## Technical demo delivery record (owner decision, 2026-11-09)
 
 **Current hosting status, 2026-11-10 03:53 UTC:** the temporary test window has ended on its original expiry.
 Guest termination, stack deletion and all11 independent resource checks pass; the sole test DNS record is removed and
