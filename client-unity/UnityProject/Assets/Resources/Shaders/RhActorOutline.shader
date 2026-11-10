@@ -122,21 +122,25 @@ Shader "Roguehalla/ActorOutline"
         {
             float pxw = 2.0 * max(unity_OrthoParams.y, 0.01) / _ScreenParams.y;     // world units per pixel
             float3 latWS = float3(-dirWS.y, dirWS.x, 0.0);
-            float v[9];
+            float v[15];
             [unroll] for (int a = 0; a < 3; a++)
-                [unroll] for (int b = 0; b < 3; b++)
+                [unroll] for (int b = 0; b < 5; b++)
                 {
-                    float3 q = pWS + dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 1) * 6.0 * pxw);
+                    float3 q = pWS + dirWS * ((6.0 + 4.0 * a) * pxw) + latWS * ((b - 2) * 8.0 * pxw);
                     float4 cs = ComputeScreenPos(TransformWorldToHClip(q));
-                    v[a * 3 + b] = TapLum(cs.xy / cs.w);
+                    v[a * 5 + b] = TapLum(cs.xy / cs.w);
                 }
-            float m = v[0];
-            [unroll] for (int i = 0; i < 9; i++)
+            float q25 = v[0], med = v[0], q75 = v[0];
+            [unroll] for (int i = 0; i < 15; i++)
             {
                 int below = 0;
-                [unroll] for (int j = 0; j < 9; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
-                if (below == 4) m = v[i];
+                [unroll] for (int j = 0; j < 15; j++) below += (v[j] < v[i] || (v[j] == v[i] && j < i)) ? 1 : 0;
+                if (below == 3) q25 = v[i];
+                if (below == 7) med = v[i];
+                if (below == 11) q75 = v[i];
             }
+            // A ground of bright veins over dark cells (a wide spread between the quartiles) is judged by its dark cells: the gate's ring median sits there.
+            float m = q75 > 3.0 * max(q25, 0.02) ? q25 : med;
             return m * max(_RhOutlineGain, 0.05);
         }
 
