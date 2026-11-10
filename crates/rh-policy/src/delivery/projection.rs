@@ -472,7 +472,10 @@ mod archetype_table_tests {
         assert_eq!(rh_protocol::archetype::table_fault(&wire), None);
         assert_eq!(wire.len(), ARCHETYPES.len());
         for (w, a) in wire.iter().zip(&ARCHETYPES) {
-            assert_eq!((w.id, w.key.as_str(), f64::from(w.chest)), (a.id.0, a.key, a.chest));
+            assert_eq!(
+                (w.id, w.key.as_str(), f64::from(w.chest)),
+                (a.id.0, a.key, a.chest)
+            );
             match (w.hull, a.hull) {
                 (rh_protocol::WireHull::Circle { r }, Hull::Circle { r: want }) => {
                     assert_eq!(f64::from(r), want)
@@ -492,7 +495,9 @@ mod archetype_table_tests {
                         body_offset,
                     },
                 ) => assert_eq!(
-                    [fx, fy, bx, by].map(f64::from).to_vec()
+                    [fx, fy, bx, by]
+                        .map(f64::from)
+                        .to_vec()
                         .into_iter()
                         .chain([f64::from(ox), f64::from(oy)])
                         .collect::<Vec<_>>(),

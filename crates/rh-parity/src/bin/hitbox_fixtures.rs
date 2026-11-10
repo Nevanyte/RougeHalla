@@ -11,6 +11,12 @@ fn main() {
             std::process::exit(1);
         }
     } else {
-        println!("wrote {:?}", rh_parity::hitbox_goldens::all().iter().map(|(p, _)| *p).collect::<Vec<_>>());
+        println!(
+            "wrote {:?}",
+            rh_parity::hitbox_goldens::all()
+                .iter()
+                .map(|(p, _)| *p)
+                .collect::<Vec<_>>()
+        );
     }
 }

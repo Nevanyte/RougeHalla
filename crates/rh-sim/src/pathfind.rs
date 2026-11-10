@@ -363,8 +363,7 @@ impl Pathfinder {
             while j > i {
                 let anchor_clear = match anchor_j {
                     Some(a) => disc(a),
-                    None => *from_clear
-                        .get_or_insert_with(|| foot.clear(map, from, MASK_MOVE)),
+                    None => *from_clear.get_or_insert_with(|| foot.clear(map, from, MASK_MOVE)),
                 };
                 if anchor_clear
                     && disc(j)

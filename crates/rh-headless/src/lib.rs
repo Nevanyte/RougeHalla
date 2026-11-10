@@ -505,7 +505,15 @@ pub fn run_bot_match_with(
     record: bool,
     digest: bool,
 ) -> (Env, MatchSummary) {
-    run_bot_match_config(arena, SimConfig::default(), players, seed, max_ticks, record, digest)
+    run_bot_match_config(
+        arena,
+        SimConfig::default(),
+        players,
+        seed,
+        max_ticks,
+        record,
+        digest,
+    )
 }
 
 /// [`run_bot_match_with`] on a given configuration (the CLI's `--hitboxes archetypes` runs the ADR0024 boxes).

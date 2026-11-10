@@ -3602,7 +3602,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("server_bad_utf8", vec![0x82, 7, 0, 2, 0xc3, 0x28]),
         // Welcome maps: every MapBlob rule, one fault each.
         ("map_zero_size", welcome_map(0, 4, None, &[])),
-        ("welcome_archetype_order", welcome_archetypes(&[(1, 0), (1, 0)])),
+        (
+            "welcome_archetype_order",
+            welcome_archetypes(&[(1, 0), (1, 0)]),
+        ),
         ("welcome_archetype_hull", welcome_archetypes(&[(0, 2)])),
         ("welcome_archetype_zero_box", welcome_archetypes(&[(0, 3)])),
         ("map_too_large", welcome_map(2048, 1024, None, &[(0, 1)])),

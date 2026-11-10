@@ -161,13 +161,13 @@ pub use state::{
     MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
 };
 
+pub use archetype::{WireArchetype, WireHull};
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
 pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
     SnapshotTracker, TrackError, MAX_DELTA_AGE,
 };
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
-pub use archetype::{WireArchetype, WireHull};
 pub use ground::GroundMode;
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.

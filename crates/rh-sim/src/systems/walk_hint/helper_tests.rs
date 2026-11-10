@@ -638,7 +638,13 @@ fn captured_npc_timings_drive_real_ai_aim_proposals() {
             elite: false,
         },
     };
-    let mut mob = Mob::born(&provenance, from, 0., now, crate::archetype::HitboxMode::LegacyCircle);
+    let mut mob = Mob::born(
+        &provenance,
+        from,
+        0.,
+        now,
+        crate::archetype::HitboxMode::LegacyCircle,
+    );
     assert_eq!(mob.core.weapon.weapon0, Some(WeaponId::Wand));
     let mut modifier = serde_json::to_value(&mob.core.modifiers).unwrap();
     modifier["wire"][0] = json!(row["input"]["asMult"].as_f64().unwrap() * 1000.);

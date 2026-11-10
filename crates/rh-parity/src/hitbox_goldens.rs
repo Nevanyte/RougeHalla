@@ -28,7 +28,9 @@ pub const SERVER_WALK_V2_FILE: &str = "protocol/fixtures/server_walk_v2.json";
 pub const FOOT: Footprint = Footprint::Box { hx: 10.0, hy: 6.0 };
 
 fn repo(relative: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(relative)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative)
 }
 
 fn read_json(relative: &str) -> Value {
@@ -108,7 +110,11 @@ pub fn pathfinding_v2_json() -> String {
         .map(|q| {
             let from = Vec2::new(q.from[0], q.from[1]);
             let to = Vec2::new(q.to[0], q.to[1]);
-            let path: Vec<Value> = pf.find_path(&map, from, to, FOOT).into_iter().map(point).collect();
+            let path: Vec<Value> = pf
+                .find_path(&map, from, to, FOOT)
+                .into_iter()
+                .map(point)
+                .collect();
             json!({"from": q.from, "to": q.to, "path": path})
         })
         .collect();
@@ -127,8 +133,14 @@ pub fn pathfinding_v2_json() -> String {
 /// One corner walk of `server_walk_v2.json`: 241 rows (the reset state, then 240 steps) of a Fire (hero) walker under
 /// `Archetypes`, and the waypoints of the foot-box path.
 fn walk_case(map: &rh_sim::TileMap, spawns: &[Vec2], case: &Value) -> Value {
-    let start = Vec2::new(case["start"][0].as_f64().unwrap(), case["start"][1].as_f64().unwrap());
-    let goal = Vec2::new(case["goal"][0].as_f64().unwrap(), case["goal"][1].as_f64().unwrap());
+    let start = Vec2::new(
+        case["start"][0].as_f64().unwrap(),
+        case["start"][1].as_f64().unwrap(),
+    );
+    let goal = Vec2::new(
+        case["goal"][0].as_f64().unwrap(),
+        case["goal"][1].as_f64().unwrap(),
+    );
     let mut sim = Sim::reset_active(
         SimConfig {
             hitboxes: HitboxMode::Archetypes,

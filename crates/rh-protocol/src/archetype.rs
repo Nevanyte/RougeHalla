@@ -13,7 +13,8 @@ pub const MAX_ARCHETYPES: usize = 32;
 /// Longest key (an appearance key of the client catalog).
 pub const MAX_ARCHETYPE_KEY: usize = 24;
 /// Largest encoded table.
-pub const MAX_ARCHETYPE_TABLE_LEN: usize = 1 + MAX_ARCHETYPES * (1 + 1 + MAX_ARCHETYPE_KEY + 1 + 6 + 1);
+pub const MAX_ARCHETYPE_TABLE_LEN: usize =
+    1 + MAX_ARCHETYPES * (1 + 1 + MAX_ARCHETYPE_KEY + 1 + 6 + 1);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WireHull {

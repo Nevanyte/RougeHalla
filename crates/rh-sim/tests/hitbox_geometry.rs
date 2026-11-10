@@ -39,7 +39,10 @@ impl R {
 }
 
 fn seed1_map() -> TileMap {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../parity/maps/seed1.map.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../parity/maps/seed1.map.json"
+    );
     let text = std::fs::read_to_string(path).expect("parity/maps/seed1.map.json");
     let file: MapFile = serde_json::from_str(&text).expect("map json");
     file.into_arena().expect("seed1 arena").map
@@ -106,7 +109,10 @@ fn box_clear_equals_a_dense_sample_of_the_open_box() {
                 blocked += 1;
             }
         }
-        assert!(clear > 2_000 && blocked > 2_000, "{name}: {clear} clear, {blocked} blocked");
+        assert!(
+            clear > 2_000 && blocked > 2_000,
+            "{name}: {clear} clear, {blocked} blocked"
+        );
         for bad in [f64::NAN, f64::INFINITY] {
             assert!(!box_clear(&map, Vec2::new(bad, 40.0), 10.0, 6.0, MASK_MOVE));
         }
@@ -130,11 +136,33 @@ fn a_box_touching_a_wall_is_clear_and_one_overlapping_it_is_not() {
         .expect("a floor tile under a wall");
     let face = ty as f64 * TILE;
     let x = tx as f64 * TILE + TILE / 2.0;
-    assert!(box_clear(&map, Vec2::new(x, face + 6.0), 10.0, 6.0, MASK_MOVE));
-    assert!(!box_clear(&map, Vec2::new(x, face + 5.999), 10.0, 6.0, MASK_MOVE));
+    assert!(box_clear(
+        &map,
+        Vec2::new(x, face + 6.0),
+        10.0,
+        6.0,
+        MASK_MOVE
+    ));
+    assert!(!box_clear(
+        &map,
+        Vec2::new(x, face + 5.999),
+        10.0,
+        6.0,
+        MASK_MOVE
+    ));
     // The legacy disc stops 12 u from the same face.
-    assert!(circle_clear(&map, Vec2::new(x, face + 12.0), PLAYER_RADIUS, MASK_MOVE));
-    assert!(!circle_clear(&map, Vec2::new(x, face + 6.0), PLAYER_RADIUS, MASK_MOVE));
+    assert!(circle_clear(
+        &map,
+        Vec2::new(x, face + 12.0),
+        PLAYER_RADIUS,
+        MASK_MOVE
+    ));
+    assert!(!circle_clear(
+        &map,
+        Vec2::new(x, face + 6.0),
+        PLAYER_RADIUS,
+        MASK_MOVE
+    ));
 }
 
 #[test]
@@ -216,17 +244,24 @@ fn segment_box_entry_matches_the_first_sampled_contact() {
         if bx.contains(a) {
             let c = bx.centre();
             let away = (a.x - c.x) * (b.x - a.x) + (a.y - c.y) * (b.y - a.y) > 0.0;
-            assert_eq!(got, (!away).then_some(0.0), "inside start {a:?}->{b:?} {bx:?}");
+            assert_eq!(
+                got,
+                (!away).then_some(0.0),
+                "inside start {a:?}->{b:?} {bx:?}"
+            );
             continue;
         }
         const N: u32 = 4_000;
-        let first = (0..=N).map(|i| f64::from(i) / f64::from(N)).find(|&u| {
-            bx.contains(Vec2::new(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u))
-        });
+        let first = (0..=N)
+            .map(|i| f64::from(i) / f64::from(N))
+            .find(|&u| bx.contains(Vec2::new(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u)));
         match (got, first) {
             (Some(u), Some(s)) => {
                 hits += 1;
-                assert!(u <= s + 1e-12 && s - u <= 1.0 / f64::from(N) + 1e-12, "{u} vs {s}");
+                assert!(
+                    u <= s + 1e-12 && s - u <= 1.0 / f64::from(N) + 1e-12,
+                    "{u} vs {s}"
+                );
             }
             (None, None) => {}
             // A contact shorter than the sample step: the exact entry exists and lies on the box.
@@ -275,7 +310,10 @@ fn arc_hits_box_agrees_with_dense_sampling_both_ways() {
             })
         });
         if sampled_hit {
-            assert!(got, "missed: o {o:?} a {a} reach {reach} half {half_arc} {bx:?}");
+            assert!(
+                got,
+                "missed: o {o:?} a {a} reach {reach} half {half_arc} {bx:?}"
+            );
         }
         // No false hit: a polar sample of the closed wedge (radial step dr, angular step dt, both ends included) lands
         // within the sampling gap of any true contact, so a hit must have a polar sample in the slightly grown box.
@@ -294,7 +332,10 @@ fn arc_hits_box_agrees_with_dense_sampling_both_ways() {
                         grown.contains(Vec2::new(o.x + c * d, o.y + s * d))
                     })
                 });
-            assert!(polar_hit, "false hit: o {o:?} a {a} reach {reach} half {half_arc} {bx:?}");
+            assert!(
+                polar_hit,
+                "false hit: o {o:?} a {a} reach {reach} half {half_arc} {bx:?}"
+            );
         }
         if got {
             hit += 1;

@@ -7,7 +7,9 @@ use rh_sim::geometry::Footprint;
 use rh_sim::map::MASK_MOVE;
 
 fn repo(relative: &str) -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(relative)
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative)
 }
 
 #[test]
@@ -23,12 +25,19 @@ fn committed_hitbox_goldens_are_the_current_core() {
 
 #[test]
 fn pathfinding_v2_differs_from_v1_and_every_waypoint_fits_the_foot_box() {
-    let v1: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(repo("protocol/fixtures/pathfinding_v1.json")).unwrap()).unwrap();
-    let v2: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(repo("protocol/fixtures/pathfinding_v2.json")).unwrap()).unwrap();
+    let v1: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("protocol/fixtures/pathfinding_v1.json")).unwrap(),
+    )
+    .unwrap();
+    let v2: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("protocol/fixtures/pathfinding_v2.json")).unwrap(),
+    )
+    .unwrap();
     assert_eq!(v1["mapBlob"], v2["mapBlob"], "the same map");
-    let (q1, q2) = (v1["queries"].as_array().unwrap(), v2["queries"].as_array().unwrap());
+    let (q1, q2) = (
+        v1["queries"].as_array().unwrap(),
+        v2["queries"].as_array().unwrap(),
+    );
     assert_eq!(q1.len(), 300);
     assert_eq!(q2.len(), 300);
     let (_, map) = rh_parity::load_paths(&repo("parity/fixtures/pathfinding_seed1.json"));
@@ -40,7 +49,10 @@ fn pathfinding_v2_differs_from_v1_and_every_waypoint_fits_the_foot_box() {
         // Every waypoint but a snapped fallback (a tile centre) leaves the foot box clear.
         for p in &path[..path.len().saturating_sub(1)] {
             let at = rh_sim::Vec2::new(p[0].as_f64().unwrap(), p[1].as_f64().unwrap());
-            assert!(FOOT.clear(&map, at, MASK_MOVE), "waypoint {at:?} overlaps a wall");
+            assert!(
+                FOOT.clear(&map, at, MASK_MOVE),
+                "waypoint {at:?} overlaps a wall"
+            );
         }
     }
     assert!(differ > 0, "the foot box changes some paths");

@@ -121,7 +121,14 @@ fn every_fighter_gets_the_archetype_its_identity_assigns() {
     let ps: Vec<_> = factions
         .iter()
         .enumerate()
-        .map(|(i, &f)| placement(i as u32 + 1, f, Vec2::new(at.x + 20.0 * i as f64, at.y), None))
+        .map(|(i, &f)| {
+            placement(
+                i as u32 + 1,
+                f,
+                Vec2::new(at.x + 20.0 * i as f64, at.y),
+                None,
+            )
+        })
         .collect();
     for mode in [HitboxMode::LegacyCircle, HitboxMode::Archetypes] {
         let mut s = world(mode, &ps);
@@ -159,14 +166,24 @@ fn every_fighter_gets_the_archetype_its_identity_assigns() {
             .expect("a player in the checkpoint");
         let slot = find_key(core, "archetype").expect("archetype is checkpointed");
         *slot = serde_json::json!(if mode == HitboxMode::Archetypes { 0 } else { 1 });
-        assert!(Sim::restore(json.clone()).is_err(), "a mismatched archetype is refused");
+        assert!(
+            Sim::restore(json.clone()).is_err(),
+            "a mismatched archetype is refused"
+        );
         let slot = find_key(
-            json["world"]["players"].as_array_mut().unwrap().first_mut().unwrap(),
+            json["world"]["players"]
+                .as_array_mut()
+                .unwrap()
+                .first_mut()
+                .unwrap(),
             "archetype",
         )
         .unwrap();
         *slot = serde_json::json!(200);
-        assert!(Sim::restore(json).is_err(), "an unknown archetype is refused");
+        assert!(
+            Sim::restore(json).is_err(),
+            "an unknown archetype is refused"
+        );
     }
 }
 
@@ -210,13 +227,25 @@ fn walking_north_into_a_wall_the_foot_box_stands_with_its_feet_against_it() {
     ] {
         let mut s = world(mode, &[placement(1, FactionId::Fire, start, None)]);
         // Walk at the wall face itself: the goal is clamped to where the footprint fits.
-        order(&mut s, 1, RawCommand::Move { x, y: face + 1.0, seq: Some(1) });
+        order(
+            &mut s,
+            1,
+            RawCommand::Move {
+                x,
+                y: face + 1.0,
+                seq: Some(1),
+            },
+        );
         for _ in 0..40 {
             s.step();
         }
         let p = &s.players()[0];
         assert_eq!(p.body.x, x, "{mode:?}");
-        assert_eq!(p.body.y, face + gap, "{mode:?}: feet stop {gap} u from the north wall");
+        assert_eq!(
+            p.body.y,
+            face + gap,
+            "{mode:?}: feet stop {gap} u from the north wall"
+        );
         assert!(p.foot().clear(&map, p.pos(), MASK_MOVE));
     }
 }
@@ -244,7 +273,10 @@ fn melee_reach_is_even_north_and_south_between_unequal_archetypes() {
         }
     }
     // East-west the box half-width (17) adds instead; the legacy disc adds 12 in every direction.
-    for (mode, extra) in [(HitboxMode::Archetypes, 17.0), (HitboxMode::LegacyCircle, PLAYER_RADIUS)] {
+    for (mode, extra) in [
+        (HitboxMode::Archetypes, 17.0),
+        (HitboxMode::LegacyCircle, PLAYER_RADIUS),
+    ] {
         for (d, want) in [(reach + extra - 0.5, true), (reach + extra + 0.5, false)] {
             let ps = [
                 placement(1, FactionId::Fire, at, Some(WeaponId::Sword)),
@@ -263,7 +295,10 @@ fn a_shot_hits_at_chest_height() {
     // The target stands 40 u north of the shot's ground line: the legacy disc (12 + 7) misses it, the hero's raised
     // arrow (30 u up) meets the target hero's body box (feet - 65 .. feet + 5, grown by 7).
     let target = Vec2::new(at.x + 200.0, at.y - 40.0);
-    for (mode, want) in [(HitboxMode::LegacyCircle, false), (HitboxMode::Archetypes, true)] {
+    for (mode, want) in [
+        (HitboxMode::LegacyCircle, false),
+        (HitboxMode::Archetypes, true),
+    ] {
         let ps = [
             placement(1, FactionId::Fire, at, Some(WeaponId::Bow)),
             placement(2, FactionId::Sentenced, target, None),
@@ -318,7 +353,10 @@ fn walls_are_tested_at_the_ground_position() {
             _ => None,
         })
         .expect("the arrow ended");
-    assert!(at.x > x + TILE, "the arrow travelled along the wall: {at:?}");
+    assert!(
+        at.x > x + TILE,
+        "the arrow travelled along the wall: {at:?}"
+    );
 }
 
 #[test]
@@ -345,7 +383,11 @@ fn the_disc_footprint_path_is_the_radius_path_bit_for_bit() {
     let mut rng = rh_sim::rng::Mulberry32::new(0x4842_0010);
     let mut a = Pathfinder::default();
     let mut b = Pathfinder::default();
-    let bits = |p: &[Vec2]| p.iter().map(|v| (v.x.to_bits(), v.y.to_bits())).collect::<Vec<_>>();
+    let bits = |p: &[Vec2]| {
+        p.iter()
+            .map(|v| (v.x.to_bits(), v.y.to_bits()))
+            .collect::<Vec<_>>()
+    };
     let mut boxed_differs = 0;
     for _ in 0..400 {
         let from = Vec2::new(rng.next_f64() * ww, rng.next_f64() * wh);
@@ -359,10 +401,10 @@ fn the_disc_footprint_path_is_the_radius_path_bit_for_bit() {
         boxed_differs += (bits(&boxed) != bits(&want)) as u32;
         // Every boxed waypoint leaves the foot box clear.
         for p in &boxed {
-            assert!(Footprint::Box { hx: 10.0, hy: 6.0 }.clear(&map, *p, MASK_MOVE) || !map.is_floor(
-                (p.x / TILE).floor() as i64,
-                (p.y / TILE).floor() as i64
-            ));
+            assert!(
+                Footprint::Box { hx: 10.0, hy: 6.0 }.clear(&map, *p, MASK_MOVE)
+                    || !map.is_floor((p.x / TILE).floor() as i64, (p.y / TILE).floor() as i64)
+            );
         }
     }
     assert!(boxed_differs > 0, "the foot box changes some paths");

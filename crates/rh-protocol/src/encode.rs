@@ -1677,7 +1677,9 @@ pub fn encode_welcome(
     mode: GroundMode,
 ) -> Vec<u8> {
     debug_assert_eq!(crate::archetype::table_fault(archetypes), None);
-    let len = WELCOME_HEADER_LEN + crate::archetype::table_len(archetypes) + map.encoded_len_for_mode(mode);
+    let len = WELCOME_HEADER_LEN
+        + crate::archetype::table_len(archetypes)
+        + map.encoded_len_for_mode(mode);
     debug_assert!(
         len <= MAX_SERVER_FRAME,
         "a Welcome of {len} bytes exceeds MAX_SERVER_FRAME"
@@ -1700,7 +1702,9 @@ pub fn encode_welcome_into(
     if let Some(why) = crate::archetype::table_fault(archetypes) {
         return Err(EncodeError::BadValue(why));
     }
-    let len = WELCOME_HEADER_LEN + crate::archetype::table_len(archetypes) + map.encoded_len_for_mode(mode);
+    let len = WELCOME_HEADER_LEN
+        + crate::archetype::table_len(archetypes)
+        + map.encoded_len_for_mode(mode);
     frame_size(len, MAX_SERVER_FRAME)?;
     let mut w = Writer::from_vec(std::mem::take(out));
     w.reserve(len);

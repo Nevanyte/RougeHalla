@@ -394,7 +394,12 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
         let mode = map.terrain_mode;
         let msg = welcome(map);
         let want = msg.encode();
-        let got = encode_welcome(&welcome_header(), &rh_protocol::samples::sample_archetypes(), &pre, mode);
+        let got = encode_welcome(
+            &welcome_header(),
+            &rh_protocol::samples::sample_archetypes(),
+            &pre,
+            mode,
+        );
         assert_eq!(got, want);
         assert_eq!(got.capacity(), got.len());
         let mut out = vec![1];
@@ -617,13 +622,18 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
         .collect();
     for bad in [unordered, empty_key, zero_box, too_many] {
         let mut out = Vec::new();
-        assert!(encode_welcome_into(&welcome_header(), &bad, &pre, GroundMode::Off, &mut out).is_err());
+        assert!(
+            encode_welcome_into(&welcome_header(), &bad, &pre, GroundMode::Off, &mut out).is_err()
+        );
         // Forge the frame: the decoder refuses it too.
         let mut forged = encode_welcome(&welcome_header(), &[], &pre, GroundMode::Off);
         let mut table = Writer::default();
         rh_protocol::samples::write_archetype_table_for_tests(&mut table, &bad);
         let table = table.finish();
-        forged.splice(rh_protocol::WELCOME_HEADER_LEN..rh_protocol::WELCOME_HEADER_LEN + 1, table);
+        forged.splice(
+            rh_protocol::WELCOME_HEADER_LEN..rh_protocol::WELCOME_HEADER_LEN + 1,
+            table,
+        );
         assert!(ServerMsg::decode(&forged).is_err());
     }
 }

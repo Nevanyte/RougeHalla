@@ -19,7 +19,16 @@ use crate::mob_catalog::MobTypeId;
 
 /// A stable archetype id: append-only, like a protocol bit (it travels on the wire as one byte).
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[serde(transparent)]
 pub struct ArchetypeId(pub u8);
@@ -341,7 +350,12 @@ mod tests {
         let b = hero.body_box(Vec2::new(100.0, 200.0)).unwrap();
         assert_eq!((b.x0, b.x1, b.y0, b.y1), (84.0, 116.0, 135.0, 205.0));
         assert_eq!(b.centre(), Vec2::new(100.0, 200.0 - hero.chest));
-        assert_eq!(ArchetypeId::LEGACY_CIRCLE.row().body_box(Vec2::new(0.0, 0.0)), None);
+        assert_eq!(
+            ArchetypeId::LEGACY_CIRCLE
+                .row()
+                .body_box(Vec2::new(0.0, 0.0)),
+            None
+        );
         assert_eq!(
             ArchetypeId::LEGACY_CIRCLE.row().foot(),
             Footprint::Disc(PLAYER_RADIUS)

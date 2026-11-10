@@ -459,7 +459,13 @@ mod neutral_tests {
                 def: 0,
             },
         };
-        let m = Mob::born(&origin, Vec2::new(200., 300.), 1.25, 100., crate::archetype::HitboxMode::LegacyCircle);
+        let m = Mob::born(
+            &origin,
+            Vec2::new(200., 300.),
+            1.25,
+            100.,
+            crate::archetype::HitboxMode::LegacyCircle,
+        );
         assert_eq!(m.kind, MobKind::QuestGiver);
         assert_eq!(m.core.faction_id(), None);
         assert!(m.brain.is_none());

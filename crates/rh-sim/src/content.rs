@@ -1138,7 +1138,9 @@ pub fn visit_progression_content(mut word: impl FnMut(u64)) {
         }),
         ("quests/1", |f| crate::quests::catalog::visit_content(f)),
         ("traders/1", |f| crate::traders::visit_content(f)),
-        ("hitbox-archetypes/1", |f| crate::archetype::visit_content(f)),
+        ("hitbox-archetypes/1", |f| {
+            crate::archetype::visit_content(f)
+        }),
     ];
     for (tag, visit) in visitors {
         word(tag.len() as u64);

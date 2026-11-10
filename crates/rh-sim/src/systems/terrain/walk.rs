@@ -82,9 +82,15 @@ fn sweep_box(
     let j1 = ((y + across) / TILE).ceil() as i64 - 1;
     let mut best = nx;
     let (i0, i1) = if delta > 0. {
-        ((x / TILE).floor() as i64, ((nx + along) / TILE).floor() as i64)
+        (
+            (x / TILE).floor() as i64,
+            ((nx + along) / TILE).floor() as i64,
+        )
     } else {
-        (((nx - along) / TILE).floor() as i64, (x / TILE).floor() as i64)
+        (
+            ((nx - along) / TILE).floor() as i64,
+            (x / TILE).floor() as i64,
+        )
     };
     for i in i0..=i1 {
         let face = if delta > 0. {
@@ -425,7 +431,13 @@ pub(crate) fn walk(
     }
     out
 }
-pub(crate) fn regrip(map: &TileMap, p: Vec2, path: &mut Path, pf: &mut Pathfinder, foot: Footprint) {
+pub(crate) fn regrip(
+    map: &TileMap,
+    p: Vec2,
+    path: &mut Path,
+    pf: &mut Pathfinder,
+    foot: Footprint,
+) {
     if path.first().is_some_and(|w| !clear(map, p, w, foot)) {
         let goal = *path.as_slice().last().unwrap();
         path.replan(pf, map, p, goal, foot);
