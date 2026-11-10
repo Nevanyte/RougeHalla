@@ -164,7 +164,9 @@ async function session(faction, label, body) {
         const t0 = Date.now(); const budgetMs = Number(process.env.RH_SHOTS_BUDGET_MS || 200000);      // the raid ends about four minutes after it starts
         for (const spec of temple.split(',')) {
           if (Date.now() - t0 > budgetMs) { console.log('  out of time, skipping', spec); continue; }
-          const [name, x, y] = spec.split(':'); const tx = Number(x), ty = Number(y);
+          const [name, x, y] = spec.split(':');
+          if (x === 'here') { await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(900); await shot(name); continue; }      // shoot where the hero stands
+          const tx = Number(x), ty = Number(y);
           const pos = await walkTo(page, tx, ty, Number(process.env.RH_SHOTS_WALK_MS || 60000));
           console.log(`  ${name}: wanted ${tx},${ty} hero at`, pos ? `${pos.tx.toFixed(1)},${pos.ty.toFixed(1)}` : 'unknown');
           await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(1200);

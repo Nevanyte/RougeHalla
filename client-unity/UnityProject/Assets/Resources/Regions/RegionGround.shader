@@ -522,6 +522,7 @@ Shader "Roguehalla/RegionGround"
                     }
                 }
 
+                float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
                 [branch] if (_Temple.w > 0.5)
                 {
                     float3 tcol, temis; float tin;
@@ -529,7 +530,7 @@ Shader "Roguehalla/RegionGround"
                     float dE = min(min(t.x - _Temple.x, _Temple.x + tS - t.x), min(t.y - _Temple.y, _Temple.y + tS - t.y));
                     [branch] if (dE > -3.2)
                     {
-                        TempleSurface(t, tcol, temis, tin);
+                        TempleSurface(t, tcol, temis, tin); templeIn = tin;
                         // cast shadow line of the plinth and arcade on the sand: the sun is north-west, so the shade falls to the south and east (a hint on the other sides)
                         float oS = t.y - (_Temple.y + tS), oE = t.x - (_Temple.x + tS), oN = _Temple.y - t.y, oW = _Temple.x - t.x;
                         float inX = smoothstep(_Temple.x - 0.5, _Temple.x + 2.5, t.x) * (1.0 - smoothstep(_Temple.x + tS + 1.5, _Temple.x + tS + 3.0, t.x));
@@ -638,6 +639,7 @@ Shader "Roguehalla/RegionGround"
                                 tc = lerp(tc, light, lip * 0.75);
                                 te = glow * (1.0 - smoothstep(0.0, 0.25, w.y)) * 0.15 * inner;
                             }
+                            if (kd == 7) m *= lerp(1.0, 0.5, templeIn);
                             col = lerp(col, tc, m);
                             emis = lerp(emis, te, m);
                         }
