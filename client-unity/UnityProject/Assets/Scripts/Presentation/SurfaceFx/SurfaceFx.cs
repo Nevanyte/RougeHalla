@@ -288,6 +288,25 @@ namespace Roguehalla.Client
             return n;
         }
 
+        float _nextCensus;
+        /// <summary>Debug only (?surfacefx=1): logs the local player's position and the nearest tile of each surface, so automated runs can steer to it.</summary>
+        void Census()
+        {
+            if (!DebugLog || !_haveLocal || _now < _nextCensus) return;
+            _nextCensus = _now + 6f;
+            var best = new float[16]; var bx = new int[16]; var by = new int[16];
+            for (int i = 0; i < best.Length; i++) best[i] = float.MaxValue;
+            int ltx = (int)(_localX / 32f), lty = (int)(_localY / 32f);
+            for (int ty = 0; ty < 200; ty++) for (int tx = 0; tx < 200; tx++)
+            {
+                int k = (int)_surfaceAt(tx * 32f + 16f, ty * 32f + 16f); if (k <= 0 || k >= 16) continue;
+                float d = (tx - ltx) * (tx - ltx) + (ty - lty) * (ty - lty); if (d < best[k]) { best[k] = d; bx[k] = tx; by[k] = ty; }
+            }
+            var sb = new System.Text.StringBuilder("census local=" + (int)_localX + "," + (int)_localY + " under=" + _surfaceAt(_localX, _localY));
+            for (int k = 1; k < 16; k++) if (best[k] < float.MaxValue) sb.Append(' ').Append((SurfaceKind)k).Append("=tile(").Append(bx[k]).Append(',').Append(by[k]).Append(")d").Append((int)Mathf.Sqrt(best[k]));
+            LogLine(sb.ToString());
+        }
+
         /// <summary>Once per frame, after the actors were presented: updates the shader clock and rebuilds the visible batches.</summary>
         public void Tick(float dt)
         {
@@ -300,6 +319,7 @@ namespace Roguehalla.Client
                 float h = cam.orthographicSize + 1.5f, w = cam.orthographicSize * cam.aspect + 1.5f; var p = cam.transform.position;
                 view = new Vector4(p.x - w, p.y - h, p.x + w, p.y + h); cull = true;
             }
+            Census();
             _tracks.Flush(_now, view, cull);
             _fluids.Flush(_now, view, cull);
         }
