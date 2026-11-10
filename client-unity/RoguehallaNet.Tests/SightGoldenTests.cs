@@ -40,12 +40,12 @@ namespace Roguehalla.Net.Tests
         public void Mirrored_constants_equal_the_Rust_values()
         {
             var c = Golden().GetProperty("constants");
-            Assert.AreEqual(c.GetProperty("visionRadius").GetDouble(), VisionRule.Radius, "VISION_RADIUS");
-            Assert.AreEqual(c.GetProperty("tile").GetDouble(), VisionRule.Tile, "TILE");
-            Assert.AreEqual(c.GetProperty("visionTrailMs").GetDouble(), VisionRule.TrailMs, "VISION_TRAIL_MS");
-            Assert.AreEqual(c.GetProperty("visionUpdateMs").GetDouble(), VisionRule.UpdateMs, "VISION_UPDATE_MS");
+            Assert.AreEqual(c.GetProperty("visionRadius").GetDouble(), VisionRule.DefaultRadius, "VISION_RADIUS");
+            Assert.AreEqual(c.GetProperty("tile").GetDouble(), VisionRule.DefaultTile, "TILE");
+            Assert.AreEqual(c.GetProperty("visionTrailMs").GetDouble(), VisionRule.DefaultTrailMs, "VISION_TRAIL_MS");
+            Assert.AreEqual(c.GetProperty("visionUpdateMs").GetDouble(), VisionRule.DefaultUpdateMs, "VISION_UPDATE_MS");
             Assert.AreEqual(c.GetProperty("tickMs").GetDouble(), VisionRule.TickMs, "TICK_MS");
-            Assert.AreEqual(c.GetProperty("maskSight").GetInt32(), (int)VisionRule.SightMask, "MASK_SIGHT");
+            Assert.AreEqual(c.GetProperty("maskSight").GetInt32(), (int)VisionRule.DefaultSightMask, "MASK_SIGHT");
             Assert.AreEqual(c.GetProperty("bushRevealRadius").GetDouble(), VisionRule.BushRevealRadius, "BUSH_REVEAL_RADIUS");
             Assert.AreEqual(c.GetProperty("bushRevealMs").GetDouble(), VisionRule.BushRevealMs, "BUSH_REVEAL_MS");
             Assert.AreEqual(c.GetProperty("regionColiseum").GetInt32(), (int)VisionRule.RegionColiseum, "coliseum region code");
@@ -89,8 +89,8 @@ namespace Roguehalla.Net.Tests
                         tiles++; if (expected) revealed++;
                     }
                 var probe = row.GetProperty("inRadiusProbe");
-                Assert.AreEqual(probe[0].GetBoolean(), VisionRule.InRadius(ox, oy, ox + VisionRule.Radius, oy), "exactly on the radius");
-                Assert.AreEqual(probe[1].GetBoolean(), VisionRule.InRadius(ox, oy, ox + VisionRule.Radius + 0.001, oy), "just past the radius");
+                Assert.AreEqual(probe[0].GetBoolean(), rule.InRadius(ox, oy, ox + VisionRule.DefaultRadius, oy), "exactly on the radius");
+                Assert.AreEqual(probe[1].GetBoolean(), rule.InRadius(ox, oy, ox + VisionRule.DefaultRadius + 0.001, oy), "just past the radius");
                 origins++;
             }
             Assert.GreaterOrEqual(origins, 40);

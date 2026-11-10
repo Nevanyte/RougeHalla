@@ -131,12 +131,12 @@ namespace Roguehalla.Client
         }
         Transform Child(string name) { var go = new GameObject(name); go.transform.SetParent(transform, false); return go.transform; }
 
-        public void Build(MapBlob map)
+        public void Build(MapBlob map, WireVision vision = null)
         {
             if (HasMap) return;
             Regions.Load(map);
             if (_atmos != null) _atmos.OnMapBuilt(map);
-            _visionFog.Configure(map);
+            _visionFog.Configure(map, vision);
             if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
