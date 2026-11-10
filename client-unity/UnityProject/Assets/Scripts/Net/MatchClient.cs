@@ -27,8 +27,9 @@ namespace Roguehalla.Client
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
-        const float SteerAheadU = 64f;
         Vector2 _lastDir;
+        readonly Pathfinder _steerPathfinder = new Pathfinder();
+        double _steerGoalX, _steerGoalY;
         double _lastSteer;
         bool _steering;
         float _aimAngle;
@@ -355,18 +356,25 @@ namespace Roguehalla.Client
             if (kb.qKey.wasPressedThisFrame) Session.Input.Swap();
             if (kb.eKey.wasPressedThisFrame) Session.Input.UseConsumable();
             if (kb.fKey.wasPressedThisFrame) PickupFocus();
-            // Server +y points down the screen. This sends destinations; it never simulates movement.
+            // Server +y points down the screen. This sends destinations; it never simulates movement. As in legacy
+            // keyboardMoveGoal, the destination is the first body-clear straight goal (held heading, then each axis of a
+            // diagonal, 64 down to 8 u) so steering into or along a wall slides instead of path-walking around it.
             bool arrows = Hud == null || !Hud.ConsumesArrowNavigation;
-            var dir = new Vector2((kb.dKey.isPressed || arrows && kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || arrows && kb.leftArrowKey.isPressed ? 1 : 0),
-                (kb.sKey.isPressed || arrows && kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || arrows && kb.upArrowKey.isPressed ? 1 : 0));
-            if (dir != Vector2.zero)
+            int keyX = (kb.dKey.isPressed || arrows && kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || arrows && kb.leftArrowKey.isPressed ? 1 : 0);
+            int keyY = (kb.sKey.isPressed || arrows && kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || arrows && kb.upArrowKey.isPressed ? 1 : 0);
+            if (keyX != 0 || keyY != 0)
             {
-                dir.Normalize();
-                if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
+                var dir = new Vector2(keyX, keyY);
+                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, out _steerGoalX, out _steerGoalY);
+                if (have)
                 {
-                    OrderMove(myX + dir.x * SteerAheadU, myY + dir.y * SteerAheadU);
-                    _lastDir = dir; _lastSteer = now; _steering = true;
+                    if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
+                    {
+                        OrderMove((float)_steerGoalX, (float)_steerGoalY);
+                        _lastDir = dir; _lastSteer = now; _steering = true;
+                    }
                 }
+                else if (_steering) { OrderStop(); _steering = false; }
             }
             else if (_steering) { OrderStop(); _steering = false; }
         }

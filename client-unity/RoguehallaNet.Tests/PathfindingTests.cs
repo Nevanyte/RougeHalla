@@ -214,5 +214,101 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(first[0][j].Y, again[j].Y, "new instance waypoint " + j + " y");
             }
         }
+
+        /// <summary>
+        /// Rust-vector check of SegmentClear. find_path returns the lone goal exactly when start and goal discs and the rays are
+        /// clear (segment_clear), so over the 300 golden queries: a one-waypoint path ending at the goal means SegmentClear is
+        /// true, and a longer path ending at the (unsnapped) goal from a floor start means it is false.
+        /// </summary>
+        [Test]
+        public void SegmentClearAgreesWithTheRustPathsOverAllQueries()
+        {
+            var golden = Golden();
+            var map = DecodeMap(golden);
+            var pf = new Pathfinder();
+            var queries = golden.GetProperty("queries");
+            int direct = 0, detour = 0;
+            for (int q = 0; q < queries.GetArrayLength(); q++)
+            {
+                var from = queries[q].GetProperty("from"); var to = queries[q].GetProperty("to");
+                double fx = from[0].GetDouble(), fy = from[1].GetDouble(), tx = to[0].GetDouble(), ty = to[1].GetDouble();
+                var path = Expected(queries[q]);
+                if (path.Length == 0) continue;
+                var last = path[path.Length - 1];
+                bool endsAtGoal = last.X == tx && last.Y == ty;
+                if (!endsAtGoal) continue;
+                bool clear = pf.SegmentClear(map, fx, fy, tx, ty, Pathfinder.PlayerRadius);
+                if (path.Length == 1) { Assert.IsTrue(clear, "direct path, query " + q); direct++; }
+                else
+                {
+                    long sx = (long)Math.Floor(fx / 32.0), sy = (long)Math.Floor(fy / 32.0);
+                    bool startFloor = sx >= 0 && sy >= 0 && sx < map.W && sy < map.H && map.Tiles[sy * map.W + sx] == MapBlob.Floor;
+                    if (!startFloor) continue;
+                    Assert.IsFalse(clear, "detour path, query " + q); detour++;
+                }
+            }
+            Assert.Greater(direct, 10, "enough direct vectors");
+            Assert.Greater(detour, 10, "enough detour vectors");
+        }
+
+        [Test]
+        public void SegmentClearRejectsNonFiniteAndWallEnds()
+        {
+            var map = DecodeMap(Golden());
+            var pf = new Pathfinder();
+            Assert.IsFalse(pf.SegmentClear(map, double.NaN, 0, 10, 10, 12));
+            Assert.IsFalse(pf.SegmentClear(map, -50, -50, -40, -50, 12));
+        }
+
+        static bool Floor(MapBlob m, int tx, int ty) { return tx >= 0 && ty >= 0 && tx < m.W && ty < m.H && m.Tiles[ty * m.W + tx] == MapBlob.Floor; }
+
+        [Test]
+        public void KeyboardSteerSlidesAlongAWallInsteadOfBlocking()
+        {
+            var map = DecodeMap(Golden());
+            var pf = new Pathfinder();
+            int found = 0;
+            for (int ty = 3; ty < map.H - 3 && found < 5; ty++)
+                for (int tx = 3; tx < map.W - 3 && found < 5; tx++)
+                {
+                    // Open floor to the west and south, a wall tile directly east.
+                    bool open = true;
+                    for (int dy = -1; dy <= 3; dy++) for (int dx = -2; dx <= 0; dx++) open &= Floor(map, tx + dx, ty + dy);
+                    if (!open || map.Tiles[ty * map.W + tx + 1] != MapBlob.Wall) continue;
+                    double ox = (tx + .5) * 32, oy = (ty + .5) * 32;
+                    // East only: the wall is 16 units away and the disc needs 12, so no goal at 8 or more is clear.
+                    Assert.IsFalse(KeyboardSteer.TryGoal(pf, map, ox, oy, 1, 0, out _, out _), "east into the wall");
+                    // West is open: full lookahead.
+                    Assert.IsTrue(KeyboardSteer.TryGoal(pf, map, ox, oy, -1, 0, out double wx, out double wy));
+                    Assert.AreEqual(ox - 64, wx, 1e-9); Assert.AreEqual(oy, wy, 1e-9);
+                    // South-east: the diagonal is blocked by the wall; the south axis slides.
+                    Assert.IsTrue(KeyboardSteer.TryGoal(pf, map, ox, oy, 1, 1, out double sx, out double sy), "diagonal slides");
+                    Assert.AreEqual(ox, sx, 1e-9); Assert.AreEqual(oy + 64, sy, 1e-9);
+                    // No keys.
+                    Assert.IsFalse(KeyboardSteer.TryGoal(pf, map, ox, oy, 0, 0, out _, out _));
+                    found++;
+                }
+            Assert.Greater(found, 0, "found a wall-adjacent spot on the seed-1 map");
+        }
+
+        [Test]
+        public void KeyboardSteerKeepsFullLookaheadWhileTheWallIsFarEnough()
+        {
+            var map = DecodeMap(Golden());
+            var pf = new Pathfinder();
+            int found = 0;
+            for (int ty = 3; ty < map.H - 3 && found < 3; ty++)
+                for (int tx = 3; tx < map.W - 6 && found < 3; tx++)
+                {
+                    bool open = Floor(map, tx - 1, ty) && Floor(map, tx - 1, ty - 1) && Floor(map, tx - 1, ty + 1);
+                    for (int dx = 0; dx <= 2; dx++) open &= Floor(map, tx + dx, ty) && Floor(map, tx + dx, ty - 1) && Floor(map, tx + dx, ty + 1);
+                    if (!open || map.Tiles[ty * map.W + tx + 3] != MapBlob.Wall) continue;
+                    double ox = tx * 32 + 8, oy = (ty + .5) * 32; // 3 tiles = 96 - 8 = 88 to the wall edge
+                    Assert.IsTrue(KeyboardSteer.TryGoal(pf, map, ox, oy, 1, 0, out double gx, out _));
+                    Assert.AreEqual(ox + 64, gx, 1e-9); // 88 - 64 = 24 units spare: full lookahead still fits
+                    found++;
+                }
+            Assert.Greater(found, 0);
+        }
     }
 }
