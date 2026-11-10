@@ -191,3 +191,46 @@ bytes and ordered case suites (memory-api, strategy, hunt-adapter, mob-tracker, 
 will add the strict reader, compile raw method/callback inputs into the admitted Memory and the native classes, compare
 full outputs/state/callback/RNG transcripts, add the source mutation controls and report exact remaining branches. No
 parity or admission is claimed until that independent review. Root owns integration and shared records.
+
+## Frozen source handoff: native parity bring-up (current WIP)
+
+The frozen Phase A source release was added by Root as commit \`36a3b2b9\` with the exact source/coverage/manifest pins
+from the local README. The updated packet numeric decision (unrounded source values; only named Gaussian/transcendental
+and geometry paths may use the inherited reviewed bounds) was applied. The additive module-goal-key supplement was added
+by Root as \`d629e174\`; its README/manifest were read and are not folded into the primary 98-case reader yet.
+
+### Strict reader and replay harness
+
+New test-only code \`strategy/source_reader.rs\` and \`strategy/source_tests.rs\` validates tagged values (including
+undefined/null/-0/NaN/±Infinity, ordered maps/sets/objects, duplicate keys/values, u8 and instance/callable tags) before
+native mutation, then replays the six corpus suites against the admitted native Memory and real native classes. The
+harness never feeds expected Memory/candidates/callbacks into native decisions; declaration.current=\`$previous\` uses the
+preceding native goal, with the captured current compared only as a guard. Module env overrides are taken from the
+operation declaration (the capture stores them there), and the source RNG-stream override behavior is implemented
+through the private \`RngStream\` seam: an override replaces a draw without advancing the fallback Mulberry stream until
+the overrides are exhausted. Memory is the real admitted \`Memory\`; its camp geometry is the actual generated seed7 camp
+list/radius, not a reconstructed stub.
+
+### Passing frozen suites on the current WIP
+
+- \`mob-tracker\`: 14 operations, pass.
+- \`mob-hunter\`: 127 operations, pass.
+- \`build-route\`: 36 operations, pass.
+- \`memory-api\`: 122 operations, all eight Memory surfaces pass.
+- \`hunt-adapter\`: pass before the latest Catch-up trace was attempted; the current all-suite run records first mismatches
+  in the adapter catch-up history (see source-adapter-first-mismatches.log).
+
+### Remaining first mismatches retained (not admitted)
+
+- \`strategy-path-coordinate-block\` / \`strategy-path-source\`: native camp candidate ordering differs. The source path
+  service uses the full generated GameMap, including the real source \`findPath\`; the current test path harness only
+  implements the declared open/null/coordinate-block rules and cannot reproduce source path topology for \`kind:source\`.
+  This is an adapter/service conversion gap, not permission to change source cases.
+- \`hunt-adapter\` catch-up history: first native mismatch retained in source-adapter-first-mismatches.log (focus counter /
+  target drop timing). No source expected value was altered.
+- Strategy suite: 292 operations; first retained mismatches are path-service related (above) plus any dependent state/
+  identity after those path outcomes. The raw log is preserved.
+- The additive module-goal-key supplement (\`docs/evidence/bot-module-goal-key-source\`,
+  \`parity/policy/bot-module-goal-key/source.json\`) has not been separately consumed by a strict native test yet. The
+  primary 98-case reader/parity does not wait for it; full general module-key parity remains a separate supplement task.
+- No live/public Brain/Unity/network/sim/dependency/shared-status/source edits were made.

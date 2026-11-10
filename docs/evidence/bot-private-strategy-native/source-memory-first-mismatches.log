@@ -1,0 +1,96 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy/crates/rh-policy)
+warning: unused imports: `StrategyOptions` and `Strategy`
+ --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:9:21
+  |
+9 | use super::engine::{Strategy, StrategyOptions};
+  |                     ^^^^^^^^  ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::hunt_adapter::HuntAdapter`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:10:5
+   |
+10 | use super::hunt_adapter::HuntAdapter;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GoalStatus`, `StrategyConfig`, `StrategyPercept`, `StrategySelf`, and `StrategyState`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:14:47
+   |
+14 |     CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, MemoryApi, RouteCamp, StrategyConfig,
+   |                                               ^^^^^^^^^^                        ^^^^^^^^^^^^^^
+15 |     StrategyContext, StrategyMap, StrategyPercept, StrategySelf, StrategyState,
+   |                                   ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `crate::bots::build_route::BuildGoal`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:17:5
+   |
+17 | use crate::bots::build_route::BuildGoal;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::bots::knowledge::Knowledge`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:18:5
+   |
+18 | use crate::bots::knowledge::Knowledge;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::bots::random::Rng`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:21:5
+   |
+21 | use crate::bots::random::Rng;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PersonaId` and `TierId`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:22:26
+   |
+22 | use crate::bots::types::{PersonaId, PersonaParams, TierId, TierParams, PERSONAS, TIERS};
+   |                          ^^^^^^^^^                 ^^^^^^
+
+warning: unused import: `MemoryApi`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:14:59
+   |
+14 |     CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, MemoryApi, RouteCamp, StrategyConfig,
+   |                                                           ^^^^^^^^^
+
+warning: variable `after` is assigned to, but never used
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:434:25
+    |
+434 |                     let mut after = None;
+    |                         ^^^^^^^^^
+    |
+    = note: consider using `_after` instead
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `hp_below` is assigned to, but never used
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:435:25
+    |
+435 |                     let mut hp_below = None;
+    |                         ^^^^^^^^^^^^
+    |
+    = note: consider using `_hp_below` instead
+
+warning: value assigned to `after` is never read
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:439:29
+    |
+439 | ...                   after = when.opt_num("after", "when")?;
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `hp_below` is never read
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:440:29
+    |
+440 | ...                   hp_below = when.opt_num("hpBelow", "when")?;
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: `rh-policy` (lib test) generated 12 warnings (run `cargo fix --lib -p rh-policy --tests` to apply 7 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 11.25s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 1 test
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_memory_parity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 211 filtered out; finished in 0.49s
+

@@ -180,7 +180,8 @@ impl HuntAdapter {
         let in_coliseum = ctx.p.hud.in_coliseum;
         let walk_from = ctx.p.self_.pos();
         let walk_paths = self.walk_paths;
-        let mut walk = move |to: Vec2| -> Option<f64> {
+        let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
+            let to = Vec2::new(mob.x, mob.y);
             if !walk_paths {
                 return Some(
                     math::hypot(to.x - walk_from.x, to.y - walk_from.y) * STRAIGHT_WALK_FACTOR,
@@ -240,7 +241,8 @@ impl HuntAdapter {
         let in_coliseum = ctx.p.hud.in_coliseum;
         let walk_from = ctx.p.self_.pos();
         let walk_paths = self.walk_paths;
-        let mut walk = move |to: Vec2| -> Option<f64> {
+        let mut walk = move |mob: &HuntMobLike| -> Option<f64> {
+            let to = Vec2::new(mob.x, mob.y);
             if !walk_paths {
                 return Some(
                     math::hypot(to.x - walk_from.x, to.y - walk_from.y) * STRAIGHT_WALK_FACTOR,
@@ -308,7 +310,9 @@ fn mob_like_of(m: &super::super::memory::MobMemory) -> Option<HuntMobLike> {
         hp: m.hp_frac * max_hp,
         max_hp,
         faction: m.faction,
+        faction_text: m.faction.map(|f| f.as_str().to_string()),
         weapon0: m.in_hand,
+        weapon0_text: m.in_hand.map(|w| w.as_str().to_string()),
         type_: m.type_.clone(),
     })
 }

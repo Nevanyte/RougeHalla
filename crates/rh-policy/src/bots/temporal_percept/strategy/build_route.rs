@@ -178,7 +178,7 @@ impl BuildRoute {
     }
 
     /// Greedy by value per second, ROUTE_STEPS ahead, with respawns planned and contested camps and zones left out.
-    fn plan(&mut self, inp: &RouteInput<'_>) {
+    pub(crate) fn plan(&mut self, inp: &RouteInput<'_>) {
         self.planned_at = inp.now;
         self.stats.plans += 1;
         let elites = ready_for_elites(inp.run_ms, inp.mob_kills, inp.power);
@@ -243,7 +243,7 @@ impl BuildRoute {
     }
 }
 
-fn route_camp_value(build: &BuildGoal, c: &RouteCamp, elites: bool) -> f64 {
+pub(crate) fn route_camp_value(build: &BuildGoal, c: &RouteCamp, elites: bool) -> f64 {
     if c.elite && !elites {
         return 0.;
     }

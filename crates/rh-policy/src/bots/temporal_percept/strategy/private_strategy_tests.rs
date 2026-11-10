@@ -481,7 +481,9 @@ fn private_strategy_tracker_and_hunter_controls() {
         hp: 50.,
         max_hp: 50.,
         faction: Some(FactionId::Fire),
+        faction_text: Some("fire".into()),
         weapon0: Some(WeaponId::Axe),
+        weapon0_text: Some("axe".into()),
         type_: Some("emberImp".into()),
     };
     let mut tracker = MobTracker::default();
@@ -511,7 +513,7 @@ fn private_strategy_tracker_and_hunter_controls() {
     };
     let mobs = vec![("m1".into(), base.clone())];
     let players: Vec<Vec2> = Vec::new();
-    let mut walk = |_to: Vec2| Some(10.);
+    let mut walk = |_mob: &HuntMobLike| Some(10.);
     let mut input = HuntInput {
         now: 1000.,
         self_: &self_view,

@@ -3,6 +3,7 @@
 use super::build_route::{BuildRoute, RouteInput};
 use super::hunt_adapter::{HuntAdapter, HuntAdapterOptions};
 use super::mob_hunt::HuntDecision;
+use super::types::RngStream;
 use super::types::{
     goal_json_eq, goal_key, lookup, odds, Enemy, Goal, GoalDecision, GoalKind, GoalState,
     GoalStatus, HoldWhy, RoamWhy, RouteCamp, RouteStep, StrategyContext, StrategySelf,
@@ -10,7 +11,6 @@ use super::types::{
 };
 use crate::bots::build_route::{ready_for_elites, type_weight};
 use crate::bots::mob_hunt::{best_edge, is_ranged};
-use crate::bots::random::{gaussian, pick_option};
 use crate::bots::types::FightOdds;
 use rh_sim::constants::{
     MOB_REWARD_FLOOR, MOB_REWARD_MID, MOB_REWARD_WIDTH, PLAYER_SPEED, TARGET_RANGE, TILE,
@@ -107,6 +107,7 @@ pub(crate) struct Strategy {
     last: Vec<GoalDecision>,
     route: Option<BuildRoute>,
     route_next: Option<RouteStep>,
+    returned_current: bool,
     opts: StrategyOptions,
 }
 
@@ -127,8 +128,13 @@ impl Strategy {
             last: Vec::new(),
             route: None,
             route_next: None,
+            returned_current: false,
             opts,
         }
+    }
+
+    pub(crate) fn last_returned_current(&self) -> bool {
+        self.returned_current
     }
 
     pub(crate) fn state(&self) -> StrategyState {
@@ -244,7 +250,7 @@ impl Strategy {
         };
         push_opt(&mut cands, clone_cand_opt(&fight));
         if ctx.p.hud.in_coliseum {
-            for c in self.coliseum(ctx, &enemies, sd, fight_target.as_deref()) {
+            for c in self.coliseum(ctx, current, &enemies, sd, fight_target.as_deref()) {
                 cands.push(c);
             }
         } else {
@@ -337,7 +343,9 @@ impl Strategy {
             self.adapter.as_mut().expect("adapter present").release(ctx);
         }
         let kept = chosen.key == cur_key;
-        let goal = if kept && goal_json_eq(&chosen.decision.goal, current) {
+        let returned_current = kept && goal_json_eq(&chosen.decision.goal, current);
+        self.returned_current = returned_current;
+        let goal = if returned_current {
             current.clone()
         } else {
             chosen.decision.goal.clone()
@@ -366,14 +374,14 @@ impl Strategy {
         cur: usize,
         current: &Goal,
     ) -> usize {
-        let (idx, _) = pick_option(
+        let (chosen, _) = source_pick_option(
             ctx.decide,
             ctx.lapse,
             &live.iter().map(|c| c.decision.utility).collect::<Vec<_>>(),
             ctx.cfg.tier.softmax_t,
             ctx.cfg.tier.lapse_p,
         );
-        let mut chosen = if idx < 0 { 0 } else { idx as usize };
+        let mut chosen = chosen.min(live.len().saturating_sub(1));
         let idling = matches!(current, Goal::Idle)
             || matches!(
                 current,
@@ -586,6 +594,7 @@ impl Strategy {
         if from.is_empty() {
             return None;
         }
+        let threat_count = from.len();
         Some(self.scored(
             ctx,
             Goal::Flee {
@@ -593,7 +602,7 @@ impl Strategy {
                 until: ctx.p.now + EVADE_KEEP_MS,
             },
             EVADE_U,
-            "keeping away from players it does not want to fight",
+            format!("keeping away from {threat_count} player(s) it does not want to fight"),
             None,
         ))
     }
@@ -731,13 +740,13 @@ impl Strategy {
         let z = match judged {
             Some((_, until, z)) if *until > ctx.p.now => *z,
             Some((_, until, z)) => {
-                let fresh = gaussian(ctx.decide, 0., 1.);
+                let fresh = source_gaussian(ctx.decide, 0., 1.);
                 *until = ctx.p.now + JUDGE_KEEP_MS;
                 *z = fresh;
                 fresh
             }
             None => {
-                let fresh = gaussian(ctx.decide, 0., 1.);
+                let fresh = source_gaussian(ctx.decide, 0., 1.);
                 self.judged
                     .push((e.id.clone(), ctx.p.now + JUDGE_KEEP_MS, fresh));
                 fresh
@@ -1366,6 +1375,7 @@ impl Strategy {
     fn coliseum(
         &mut self,
         ctx: &mut StrategyContext<'_>,
+        current: &Goal,
         enemies: &[Enemy],
         sd: bool,
         fight_target: Option<&str>,
@@ -1391,7 +1401,7 @@ impl Strategy {
             out.push(self.scored(
                 ctx,
                 Goal::Hold {
-                    at: self.hold_spot(ctx, enemies),
+                    at: self.hold_spot(ctx, current, enemies),
                     why: HoldWhy::Coliseum,
                 },
                 u,
@@ -1452,7 +1462,7 @@ impl Strategy {
         out
     }
 
-    fn hold_spot(&self, ctx: &StrategyContext<'_>, enemies: &[Enemy]) -> Vec2 {
+    fn hold_spot(&self, ctx: &StrategyContext<'_>, current: &Goal, enemies: &[Enemy]) -> Vec2 {
         let me = &ctx.p.self_;
         let others: Vec<Vec2> = enemies.iter().map(|e| e.pos).collect();
         let clearance = |pt: Vec2| {
@@ -1461,11 +1471,10 @@ impl Strategy {
                 .map(|o| distance(pt, *o))
                 .fold(f64::INFINITY, f64::min)
         };
-        let current = &self.last;
-        if let Some(Goal::Hold {
+        if let Goal::Hold {
             at,
             why: HoldWhy::Coliseum,
-        }) = current.first().map(|c| &c.goal)
+        } = current
         {
             if clearance(*at) >= HOLD_SAFE {
                 return *at;
@@ -1543,8 +1552,7 @@ impl Strategy {
                     id: e.id.clone(),
                     best: e.dist,
                     since: now,
-                    limit: ctx.cfg.persona.chase_give_up_ms
-                        + ctx.decide.next_f64() * ORBIT_JITTER_MS,
+                    limit: ctx.cfg.persona.chase_give_up_ms + ctx.decide.draw() * ORBIT_JITTER_MS,
                 });
             }
         }
@@ -1771,4 +1779,60 @@ fn push_opt(dst: &mut Vec<Cand>, c: Option<Cand>) {
     if let Some(c) = c {
         dst.push(c);
     }
+}
+
+fn source_gaussian(rng: &mut dyn RngStream, mu: f64, sigma: f64) -> f64 {
+    let u1 = rng.draw().max(1e-12);
+    let u2 = rng.draw();
+    mu + sigma * math::sqrt(-2. * crate::bots::random::ln(u1)) * math::cos(2. * math::PI * u2)
+}
+
+fn source_softmax_index(rng: &mut dyn RngStream, utilities: &[f64], temperature: f64) -> usize {
+    if utilities.is_empty() {
+        return usize::MAX;
+    }
+    let mut best = 0usize;
+    for i in 1..utilities.len() {
+        if utilities[i] > utilities[best] {
+            best = i;
+        }
+    }
+    if temperature <= 0. || utilities.len() == 1 {
+        return best;
+    }
+    let top = utilities[best];
+    let weights: Vec<f64> = utilities
+        .iter()
+        .map(|u| math::exp((u - top) / temperature))
+        .collect();
+    let sum: f64 = weights.iter().sum();
+    let mut r = rng.draw() * sum;
+    for (i, w) in weights.iter().enumerate() {
+        r -= *w;
+        if r <= 0. {
+            return i;
+        }
+    }
+    best
+}
+
+fn source_pick_option(
+    rng: &mut dyn RngStream,
+    lapse: &mut dyn RngStream,
+    utilities: &[f64],
+    temperature: f64,
+    lapse_p: f64,
+) -> (usize, bool) {
+    let n = utilities.len();
+    if n == 0 {
+        return (usize::MAX, false);
+    }
+    if n > 1 && lapse.draw() < lapse_p {
+        let mut order: Vec<(f64, usize)> = utilities.iter().copied().zip(0..n).collect();
+        order.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+        order.truncate(3);
+        let k = ((lapse.draw() * order.len() as f64).floor() as usize).min(order.len() - 1);
+        return (order[k].1, true);
+    }
+    (source_softmax_index(rng, utilities, temperature), false)
 }

@@ -32,7 +32,9 @@ pub(crate) struct HuntMobLike {
     pub hp: f64,
     pub max_hp: f64,
     pub faction: Option<FactionId>,
+    pub faction_text: Option<String>,
     pub weapon0: Option<WeaponId>,
+    pub weapon0_text: Option<String>,
     pub type_: Option<String>,
 }
 
@@ -65,7 +67,7 @@ pub(crate) struct HuntInput<'a> {
     pub players: &'a [Vec2],
     pub in_coliseum: bool,
     pub mobs: &'a [(String, HuntMobLike)],
-    pub walk: &'a mut dyn FnMut(Vec2) -> Option<f64>,
+    pub walk: &'a mut dyn FnMut(&HuntMobLike) -> Option<f64>,
     pub attacking: bool,
     pub shot_by_player_at: f64,
     pub type_weight: Option<&'a TypeWeightFn<'a>>,
@@ -332,9 +334,9 @@ impl MobHunter {
             id: eng.id.clone(),
             why: format!(
                 "{} {} with {}",
-                mob.faction.map_or("?", faction_name),
+                mob.faction_text.as_deref().unwrap_or(""),
                 mob.kind,
-                mob.weapon0.map_or("?", weapon_name)
+                mob.weapon0_text.as_deref().unwrap_or("")
             ),
         }
     }
@@ -477,7 +479,7 @@ impl MobHunter {
         near.sort_by(|a, b| a.2.total_cmp(&b.2));
         let mut best: Option<(String, f64)> = None;
         for (id, m, _, theirs, edge, share) in near.into_iter().take(cfg.max_candidates as usize) {
-            let walk = (inp.walk)(Vec2::new(m.x, m.y));
+            let walk = (inp.walk)(&m);
             let Some(walk) = walk else {
                 continue;
             };

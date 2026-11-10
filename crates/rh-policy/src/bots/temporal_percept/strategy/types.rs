@@ -10,7 +10,6 @@ use super::super::memory::{
 };
 use crate::bots::knowledge::Knowledge;
 use crate::bots::paths::{RoomPathService, WalkAnswer};
-use crate::bots::random::Rng;
 use crate::bots::types::{
     BotWeapon, FightOdds, OpponentSnapshot, PersonaParams, SelfView, ServerMs, TierParams,
 };
@@ -342,6 +341,17 @@ pub(crate) struct StrategyPercept {
     pub extras: StrategyExtras,
 }
 
+/// A source-compatible draw stream. Production uses the admitted Mulberry32 Rng; the frozen corpus replaces individual
+/// draws with declared overrides without advancing the fallback stream until the overrides are exhausted.
+pub(crate) trait RngStream {
+    fn draw(&mut self) -> f64;
+}
+impl RngStream for crate::bots::random::Rng {
+    fn draw(&mut self) -> f64 {
+        self.next_f64()
+    }
+}
+
 /// One own-state snapshot for tests/fixtures; source BrainStats' strategy subset (mobTargets, mobDrops, retreats,
 /// mobFocusMs, build, routeContests, goals).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -466,8 +476,8 @@ pub(crate) struct StrategyContext<'a> {
     pub mem: &'a dyn MemoryApi,
     pub know: &'a Knowledge,
     pub paths: &'a mut dyn PathApi,
-    pub decide: &'a mut Rng,
-    pub lapse: &'a mut Rng,
+    pub decide: &'a mut dyn RngStream,
+    pub lapse: &'a mut dyn RngStream,
     pub engaged: bool,
 }
 

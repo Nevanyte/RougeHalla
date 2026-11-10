@@ -8,4 +8,8 @@ mod hunt_adapter;
 mod mob_hunt;
 #[cfg(test)]
 mod private_strategy_tests;
+#[cfg(test)]
+mod source_reader;
+#[cfg(test)]
+mod source_tests;
 mod types;

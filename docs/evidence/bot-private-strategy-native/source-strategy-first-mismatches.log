@@ -1,0 +1,68 @@
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-strategy/crates/rh-policy)
+warning: unused import: `crate::bots::build_route::BuildGoal`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:17:5
+   |
+17 | use crate::bots::build_route::BuildGoal;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `PersonaId` and `TierId`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:22:26
+   |
+22 | use crate::bots::types::{PersonaId, PersonaParams, TierId, TierParams, PERSONAS, TIERS};
+   |                          ^^^^^^^^^                 ^^^^^^
+
+warning: unused import: `crate::bots::random::Rng`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/types.rs:13:5
+   |
+13 | use crate::bots::random::Rng;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `MemoryApi`
+  --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:14:59
+   |
+14 |     CampDef, ColiseumDef, Goal, GoalDecision, GoalStatus, MemoryApi, RouteCamp, StrategyConfig,
+   |                                                           ^^^^^^^^^
+
+warning: unused variable: `cfg`
+    --> crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:1690:41
+     |
+1690 | fn parse_strategy_percept(input: &SVal, cfg: &SourceConfig) -> R<StrategyPercept> {
+     |                                         ^^^ help: if this is intentional, prefix it with an underscore: `_cfg`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: comparison is useless due to type limits
+   --> crates/rh-policy/src/bots/temporal_percept/strategy/engine.rs:384:29
+    |
+384 |         let mut chosen = if idx < 0 { 0 } else { idx as usize };
+    |                             ^^^^^^^
+    |
+    = note: `#[warn(unused_comparisons)]` on by default
+
+warning: `rh-policy` (lib test) generated 6 warnings (run `cargo fix --lib -p rh-policy --tests` to apply 4 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 11.90s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/roguehalla-backend-20261109/target-strategy/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 1 test
+
+thread 'bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity' (71174533) panicked at crates/rh-policy/src/bots/temporal_percept/strategy/source_tests.rs:2271:5:
+strategy parity 292 ops; first failures:
+"strategy-path-coordinate-block" op1 decide: expected=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(400.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5301093535963054)), ("why", Str("fire-5 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]) actual=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))])
+"strategy-path-coordinate-block" op1 decide state: expected=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.5552842134231004)), ("why", Str("fire-3 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(400.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5301093535963054)), ("why", Str("fire-5 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))]) actual=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1872.0)), ("y", Num(2448.0))])), ("why", Str("explore"))])), ("utility", Num(0.5157591201434372)), ("why", Str("fire-2 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))])
+"strategy-path-source" op1 decide: expected=Obj([("goal", Obj([("kind", Str("farm")), ("mob", Str("meal")), ("camp", Null)])), ("utility", Num(0.8903553452134609)), ("why", Str("sentenced mob, reward 0.98")), ("choice", Str("opener|fire|sentenced"))]) actual=Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))])
+"strategy-path-source" op1 decide state: expected=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("farm")), ("mob", Str("meal")), ("camp", Null)])), ("utility", Num(0.8903553452134609)), ("why", Str("sentenced mob, reward 0.98")), ("choice", Str("opener|fire|sentenced"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))]) actual=Obj([("avoidId", Null), ("avoidUntil", Num(0.0)), ("chase", Null), ("goalSince", Num(300000.0)), ("candidates", Arr([Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1872.0)), ("y", Num(2448.0))])), ("why", Str("explore"))])), ("utility", Num(0.5157591201434372)), ("why", Str("fire-2 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(1328.0)), ("y", Num(1488.0))])), ("why", Str("explore"))])), ("utility", Num(0.5121538616524837)), ("why", Str("fire-4 (fire), share 0.98")), ("choice", Str("opener|fire|fire"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(368.0)), ("y", Num(2416.0))])), ("why", Str("explore"))])), ("utility", Num(0.1)), ("why", Str("looking for people at fire-3"))]), Obj([("goal", Obj([("kind", Str("roam")), ("to", Obj([("x", Num(2560.0)), ("y", Num(2560.0))])), ("why", Str("centre"))])), ("utility", Num(0.03)), ("why", Str("nothing better to do"))])]))])
+"strategy-path-source" op1 decide huntStats: expected=Obj([("targets", Num(1.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(0.0))]) actual=Obj([("targets", Num(0.0)), ("drops", Num(0.0)), ("retreats", Num(0.0)), ("focusMs", Num(0.0))])
+"strategy-path-source" op1 decide huntTarget: expected=Str("meal") actual=Null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity ... FAILED
+
+failures:
+
+failures:
+    bots::temporal_percept::strategy::source_tests::private_strategy_source_strategy_parity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 213 filtered out; finished in 1.45s
+
+error: test failed, to rerun pass `-p rh-policy --lib`
