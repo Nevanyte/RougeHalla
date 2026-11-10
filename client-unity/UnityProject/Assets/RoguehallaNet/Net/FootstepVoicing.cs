@@ -7,8 +7,8 @@ namespace Roguehalla.Net
     {
         /// <summary>Beyond this many tiles from the local player a step is not played at all.</summary>
         public const float RadiusTiles = 13f;
-        public const float LocalGain = 0.30f, PlayerGain = 0.19f, MobGain = 0.11f;
-        public const float MinGain = 0.01f;
+        public const float LocalGain = 0.18f, PlayerGain = 0.11f, MobGain = 0.065f;
+        public const float MinGain = 0.004f;
         public const float MaxPan = 0.8f;
 
         /// <summary>

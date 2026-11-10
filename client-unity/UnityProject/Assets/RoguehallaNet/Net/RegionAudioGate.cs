@@ -45,4 +45,23 @@ namespace Roguehalla.Net
         }
         public static float Gain(string id) { return (float)Math.Pow(10.0, TrimDb(id) / 20.0); }
     }
+
+    /// <summary>
+    /// Loop points (seconds into the decoded file) that skip a track's own quiet fade-in and fade-out, so the loop has no hole at the seam.
+    /// Measured by the browser audio probe from the decoded files (AudioProbeLib.suggestLoop: the first and last stretch that stays within
+    /// 12 dB of the track's median level for 3 s). EndSeconds 0 means the whole file. The player also fades 25 ms at both ends of every loop.
+    /// </summary>
+    public static class AudioLoops
+    {
+        public static void For(string id, out float startSeconds, out float endSeconds)
+        {
+            switch (id)
+            {
+                case "music_frost": startSeconds = 0.5f; endSeconds = 77.9f; return;
+                case "music_holy": startSeconds = 3.0f; endSeconds = 95.4f; return;
+                case "music_coliseum": startSeconds = 0.5f; endSeconds = 92.9f; return;
+                default: startSeconds = 0f; endSeconds = 0f; return;
+            }
+        }
+    }
 }

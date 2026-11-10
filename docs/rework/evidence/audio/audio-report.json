@@ -1,0 +1,2079 @@
+{
+ "generatedAt": "2026-11-10T14:17:51.225Z",
+ "url": "http://127.0.0.1:8247/",
+ "assertions": [
+  {
+   "name": "decoded peak of every file is below -1 dBFS",
+   "pass": true,
+   "detail": {
+    "over": []
+   }
+  },
+  {
+   "name": "no file has a sample discontinuity at its loop point (jump > 0.05 and click ratio > 12)",
+   "pass": true,
+   "detail": {
+    "clicks": []
+   }
+  },
+  {
+   "name": "launch screen is silent",
+   "pass": true,
+   "detail": {
+    "n": 118,
+    "rmsDb": -120,
+    "peakDb": -120,
+    "windows": 340,
+    "ctx": "running"
+   }
+  },
+  {
+   "name": "planning screen is silent",
+   "pass": true,
+   "detail": {
+    "n": 89,
+    "rmsDb": -120,
+    "peakDb": -120
+   }
+  },
+  {
+   "name": "no audio file requested before the match",
+   "pass": true,
+   "detail": []
+  },
+  {
+   "name": "web audio context is running",
+   "pass": true,
+   "detail": "running"
+  },
+  {
+   "name": "region music audible within 5 s of the region audio gate opening",
+   "pass": true,
+   "detail": {
+    "firstRegion": {
+     "t": 17256.900000095367,
+     "region": "plague"
+    },
+    "firstMusicPlay": {
+     "t": 17429.799999713898,
+     "id": "music_plague"
+    },
+    "audibleAfterMs": 276,
+    "matchActiveAt": 16416
+   }
+  },
+  {
+   "name": "only the spawn region files are requested before the first border",
+   "pass": true,
+   "detail": {
+    "spawn": "plague",
+    "requested": [
+     {
+      "file": "music_plague.mp3",
+      "status": 200,
+      "tMs": 17258
+     },
+     {
+      "file": "amb_plague.mp3",
+      "status": 200,
+      "tMs": 17261
+     },
+     {
+      "file": "music_frost.mp3",
+      "status": 200,
+      "tMs": 30134
+     },
+     {
+      "file": "amb_frost.mp3",
+      "status": 200,
+      "tMs": 30140
+     }
+    ],
+    "wrong": []
+   }
+  },
+  {
+   "name": "every requested file belongs to a region the player actually entered",
+   "pass": true,
+   "detail": {
+    "regions": [
+     "plague",
+     "frost",
+     "plague"
+    ],
+    "stray": []
+   }
+  },
+  {
+   "name": "no audio request failed",
+   "pass": true,
+   "detail": [
+    {
+     "file": "music_plague.mp3",
+     "status": 200,
+     "tMs": 17258
+    },
+    {
+     "file": "amb_plague.mp3",
+     "status": 200,
+     "tMs": 17261
+    },
+    {
+     "file": "music_frost.mp3",
+     "status": 200,
+     "tMs": 30134
+    },
+    {
+     "file": "amb_frost.mp3",
+     "status": 200,
+     "tMs": 30140
+    }
+   ]
+  },
+  {
+   "name": "walk crossed at least two borders",
+   "pass": true,
+   "detail": {
+    "spawn": {
+     "t": 16655,
+     "region": "plague"
+    },
+    "regions": [
+     {
+      "t": 16655,
+      "region": "plague"
+     },
+     {
+      "t": 30131.699999809265,
+      "region": "frost"
+     },
+     {
+      "t": 43189.59999990463,
+      "region": "plague"
+     }
+    ]
+   }
+  },
+  {
+   "name": "the first region audio is for the region the player spawned in",
+   "pass": true,
+   "detail": {
+    "gate": {
+     "t": 17256.900000095367,
+     "region": "plague"
+    },
+    "regionLogBeforeGate": {
+     "t": 16655,
+     "region": "plague"
+    }
+   }
+  },
+  {
+   "name": "crossfade plague -> frost: no silent gap, no bump, no deep dip",
+   "pass": true,
+   "detail": {
+    "from": "plague",
+    "to": "frost",
+    "regionChangedAt": 30132,
+    "newMusicPlayAt": 30274,
+    "loadDelayMs": 142,
+    "before": -23.86,
+    "after": -25.2,
+    "minDb": -26.11,
+    "maxDb": -22.69,
+    "dipDb": 0.91,
+    "bumpDb": 1.17,
+    "silentMs": 0
+   }
+  },
+  {
+   "name": "crossfade frost -> plague: no silent gap, no bump, no deep dip",
+   "pass": true,
+   "detail": {
+    "from": "frost",
+    "to": "plague",
+    "regionChangedAt": 43190,
+    "newMusicPlayAt": 43191,
+    "loadDelayMs": 2,
+    "before": -23.76,
+    "after": -23.91,
+    "minDb": -25.27,
+    "maxDb": -22.17,
+    "dipDb": 1.36,
+    "bumpDb": 1.59,
+    "silentMs": 0
+   }
+  },
+  {
+   "name": "snow, sand, stone and water have measurably different spectra (centroid ratio of every pair >= 1.12)",
+   "pass": true,
+   "detail": {
+    "centroids": {
+     "Snow": 4551,
+     "Sand": 3187,
+     "Stone": 1188,
+     "Water": 3928
+    },
+    "minPairRatio": 1.16,
+    "all": {
+     "Snow": 4551,
+     "Sand": 3187,
+     "Grass": 4907,
+     "Mud": 299,
+     "Water": 3928,
+     "Bog": 195,
+     "Stone": 1188,
+     "Temple": 1055,
+     "Gritty": 3301,
+     "Ice": 1458
+    }
+   }
+  },
+  {
+   "name": "every footstep sound is audible in the output (peak above -50 dBFS)",
+   "pass": true,
+   "detail": {
+    "measured": 10,
+    "minPeakDb": -4.9
+   }
+  },
+  {
+   "name": "footsteps stay subtle: loudest single step (gain 1, SFX 0.85) peak below -12 dBFS",
+   "pass": false,
+   "detail": {
+    "maxStepPeakDb": -3.6,
+    "perSound": {
+     "Snow": -4,
+     "Sand": -3.9,
+     "Grass": -3.9,
+     "Mud": -4,
+     "Water": -4.1,
+     "Bog": -3.6,
+     "Stone": -4.4,
+     "Temple": -4.9,
+     "Gritty": -4.2,
+     "Ice": -3.8
+    }
+   }
+  },
+  {
+   "name": "SFX volume halves the step level by about 6 dB",
+   "pass": true,
+   "detail": {
+    "fullDb": -4.23,
+    "halfDb": -10.49,
+    "deltaDb": 6.26
+   }
+  },
+  {
+   "name": "SFX volume 0 silences steps",
+   "pass": true,
+   "detail": {
+    "peakDb": -120
+   }
+  },
+  {
+   "name": "other actors step quieter than the local player, mobs quieter than players (isolated, same surface, 3 tiles away)",
+   "pass": true,
+   "detail": {
+    "Local": -18.7,
+    "Player3tiles": -28.1,
+    "Mob3tiles": -32.5
+   }
+  },
+  {
+   "name": "footstep cues appear while walking",
+   "pass": true,
+   "detail": {
+    "localCues": 29
+   }
+  },
+  {
+   "name": "at least 85% of local footstep cues have an output transient near them",
+   "pass": true,
+   "detail": {
+    "cues": 29,
+    "matched": 29,
+    "medianLagMs": 37.733332951858756,
+    "thresholdDb": -50
+   }
+  },
+  {
+   "name": "transient rate matches the cue rate within 15%",
+   "pass": true,
+   "detail": {
+    "cueIntervalMs": 267,
+    "peakIntervalMs": 253
+   }
+  },
+  {
+   "name": "no local footsteps and no unexplained transients while the player stands still",
+   "pass": true,
+   "detail": {
+    "localCuesWhileStanding": 0,
+    "unexplainedPeaks": 0,
+    "windows": 168
+   }
+  },
+  {
+   "name": "the six music tracks sit within 2 dB of each other (RMS, alone, volume 1)",
+   "pass": true,
+   "detail": {
+    "spreadDb": 0.67,
+    "tracks": {
+     "music_fire": -21.6,
+     "music_sentenced": -21.01,
+     "music_plague": -21.09,
+     "music_frost": -20.93,
+     "music_holy": -21.13,
+     "music_coliseum": -21.09
+    }
+   }
+  },
+  {
+   "name": "ambience sits clearly under music (mean music minus loudest ambience >= 6 dB)",
+   "pass": true,
+   "detail": {
+    "musicMeanDb": -21.1,
+    "ambienceMaxDb": -31.02,
+    "ambience": {
+     "amb_fire": -31.02,
+     "amb_sentenced": -31.04,
+     "amb_plague": -31.2,
+     "amb_frost": -31.05,
+     "amb_holy": -31.06
+    }
+   }
+  },
+  {
+   "name": "no track clips (peak below -1 dBFS) at volume 1",
+   "pass": true,
+   "detail": {
+    "maxPeakDb": -4.84
+   }
+  },
+  {
+   "name": "loop seams are inaudible: no dropout and no level jump beyond the track's own dynamics (200 ms windows)",
+   "pass": true,
+   "detail": {
+    "badTracks": [],
+    "rows": {
+     "music_fire": "8.56/4.89",
+     "music_sentenced": "8.37/10.05",
+     "music_plague": "5.54/3.25",
+     "music_frost": "3.43/3.72",
+     "music_holy": "3.56/6.96",
+     "music_coliseum": "3.66/5.05",
+     "amb_fire": "7.62/5.42",
+     "amb_sentenced": "5.35/5.42",
+     "amb_plague": "16.96/20.39",
+     "amb_frost": "3.82/3.94",
+     "amb_holy": "6.15/7.22"
+    }
+   }
+  },
+  {
+   "name": "halving the music and ambience volumes lowers the output by about 6 dB",
+   "pass": true,
+   "detail": {
+    "baseDb": -24,
+    "halfDb": -29.88,
+    "deltaDb": 5.88
+   }
+  },
+  {
+   "name": "volume 0 silences the output (mute)",
+   "pass": true,
+   "detail": {
+    "n": 69,
+    "rmsDb": -120,
+    "peakDb": -120
+   }
+  },
+  {
+   "name": "restoring the volume restores the level",
+   "pass": true,
+   "detail": {
+    "baseDb": -24,
+    "backDb": -23.96
+   }
+  },
+  {
+   "name": "the Audio switch off silences everything and fetches no audio",
+   "pass": true,
+   "detail": {
+    "off": {
+     "n": 276,
+     "rmsDb": -120,
+     "peakDb": -120
+    },
+    "requests": []
+   }
+  },
+  {
+   "name": "headroom: peak with music, ambience, footsteps and combat stays below -1 dBFS",
+   "pass": true,
+   "detail": {
+    "n": 1161,
+    "rmsDb": -23.58,
+    "peakDb": -7.53
+   }
+  },
+  {
+   "name": "combat cues are logged and produce output",
+   "pass": true,
+   "detail": {
+    "combat": 49,
+    "cueKinds": {
+     "combat.melee.swing": 49,
+     "(fallback)": 43
+    }
+   }
+  },
+  {
+   "name": "a Wish cue is logged and produces output",
+   "pass": false,
+   "detail": {
+    "wish": 0
+   }
+  },
+  {
+   "name": "no console line matching FMOD | not loaded yet | AudioContext was not allowed in any session",
+   "pass": true,
+   "detail": {
+    "count": 0,
+    "first": []
+   }
+  }
+ ],
+ "sessions": {
+  "files": {
+   "music_fire": {
+    "bytes": 1499106,
+    "durationS": 107,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -2.35,
+    "rmsDb": -20.11,
+    "headRmsDb": -18.7,
+    "tailRmsDb": -17.9,
+    "seamJump": 0.0186,
+    "seamClickRatio": 4.2,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 107
+    }
+   },
+   "music_sentenced": {
+    "bytes": 766214,
+    "durationS": 54.65,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -2.62,
+    "rmsDb": -18.2,
+    "headRmsDb": -14.4,
+    "tailRmsDb": -24.4,
+    "seamJump": 0.0129,
+    "seamClickRatio": 10,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 54.65
+    }
+   },
+   "music_plague": {
+    "bytes": 1499106,
+    "durationS": 107,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -2.33,
+    "rmsDb": -19.82,
+    "headRmsDb": -18.6,
+    "tailRmsDb": -19.5,
+    "seamJump": 0.0126,
+    "seamClickRatio": 9.9,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 107
+    }
+   },
+   "music_frost": {
+    "bytes": 1107792,
+    "durationS": 79.05,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -3.46,
+    "rmsDb": -19.64,
+    "headRmsDb": -39.4,
+    "tailRmsDb": -39.5,
+    "seamJump": 0.0003,
+    "seamClickRatio": 4.1,
+    "suggestedLoop": {
+     "startSec": 0.5,
+     "endSec": 77.9
+    }
+   },
+   "music_holy": {
+    "bytes": 1336729,
+    "durationS": 95.4,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -2.78,
+    "rmsDb": -19.33,
+    "headRmsDb": -15.7,
+    "tailRmsDb": -17.7,
+    "seamJump": 0.0326,
+    "seamClickRatio": 44.3,
+    "suggestedLoop": {
+     "startSec": 3,
+     "endSec": 95.4
+    }
+   },
+   "music_coliseum": {
+    "bytes": 1301620,
+    "durationS": 92.9,
+    "sampleRate": 48000,
+    "channels": 2,
+    "bitrateKbps": 112,
+    "peakDb": -7.26,
+    "rmsDb": -20.09,
+    "headRmsDb": -28.1,
+    "tailRmsDb": -26.6,
+    "seamJump": 0.0098,
+    "seamClickRatio": 4,
+    "suggestedLoop": {
+     "startSec": 0.5,
+     "endSec": 92.9
+    }
+   },
+   "amb_fire": {
+    "bytes": 300973,
+    "durationS": 37.55,
+    "sampleRate": 48000,
+    "channels": 1,
+    "bitrateKbps": 64,
+    "peakDb": -1.9,
+    "rmsDb": -21.29,
+    "headRmsDb": -21.3,
+    "tailRmsDb": -19,
+    "seamJump": 0.0008,
+    "seamClickRatio": 2.3,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 37.55
+    }
+   },
+   "amb_sentenced": {
+    "bytes": 80500,
+    "durationS": 9.99,
+    "sampleRate": 48000,
+    "channels": 1,
+    "bitrateKbps": 64,
+    "peakDb": -13.88,
+    "rmsDb": -29.49,
+    "headRmsDb": -31.8,
+    "tailRmsDb": -32.3,
+    "seamJump": 0.023,
+    "seamClickRatio": 4.1,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 9.95
+    }
+   },
+   "amb_plague": {
+    "bytes": 464604,
+    "durationS": 58.01,
+    "sampleRate": 48000,
+    "channels": 1,
+    "bitrateKbps": 64,
+    "peakDb": -1.87,
+    "rmsDb": -21.38,
+    "headRmsDb": -30.9,
+    "tailRmsDb": -29.9,
+    "seamJump": 0.0155,
+    "seamClickRatio": 11.8,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 53.25
+    }
+   },
+   "amb_frost": {
+    "bytes": 36196,
+    "durationS": 4.46,
+    "sampleRate": 48000,
+    "channels": 1,
+    "bitrateKbps": 65,
+    "peakDb": -12.42,
+    "rmsDb": -25.76,
+    "headRmsDb": -25.2,
+    "tailRmsDb": -27.1,
+    "seamJump": 0.0019,
+    "seamClickRatio": 8,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 4.45
+    }
+   },
+   "amb_holy": {
+    "bytes": 313930,
+    "durationS": 39.18,
+    "sampleRate": 48000,
+    "channels": 1,
+    "bitrateKbps": 64,
+    "peakDb": -4.87,
+    "rmsDb": -18.34,
+    "headRmsDb": -23.6,
+    "tailRmsDb": -21.8,
+    "seamJump": 0.0102,
+    "seamClickRatio": 11.7,
+    "suggestedLoop": {
+     "startSec": 0,
+     "endSec": 39.15
+    }
+   }
+  },
+  "launch": {
+   "launch": {
+    "n": 118,
+    "rmsDb": -120,
+    "peakDb": -120
+   },
+   "planning": {
+    "n": 89,
+    "rmsDb": -120,
+    "peakDb": -120
+   },
+   "requestsBeforeMatch": [],
+   "unityAudio": {
+    "reachable": false
+   },
+   "unityKeys": {
+    "wa": "undefined",
+    "ui": "object",
+    "mod": [
+     "webglContextAttributes",
+     "matchWebGLToCanvasSize",
+     "webAssemblyTimeStart",
+     "WebPlayer",
+     "websocket"
+    ]
+   },
+   "errors": [],
+   "consoleViolations": []
+  },
+  "region": {
+   "route": [
+    {
+     "start": {
+      "tx": 47.649989170457005,
+      "ty": 134.85813298678795,
+      "n": 76
+     }
+    },
+    {
+     "to": "frost",
+     "reached": {
+      "tx": 103.82414935260464,
+      "ty": 125.99417846030312,
+      "n": 82
+     }
+    },
+    {
+     "to": "plague",
+     "reached": {
+      "tx": 42.63374485596707,
+      "ty": 126.12345679012347,
+      "n": 80
+     }
+    }
+   ],
+   "audioLog": [
+    {
+     "t": 782.4000000953674,
+     "text": "beds backend=browser\n"
+    },
+    {
+     "t": 782.6999998092651,
+     "text": "debug hooks ready\n"
+    },
+    {
+     "t": 3091.699999809265,
+     "text": "beds backend=browser\n"
+    },
+    {
+     "t": 3092.0999999046326,
+     "text": "debug hooks ready\n"
+    },
+    {
+     "t": 3250.9000000953674,
+     "text": "beds backend=browser\n"
+    },
+    {
+     "t": 3251.0999999046326,
+     "text": "debug hooks ready\n"
+    },
+    {
+     "t": 3871.199999809265,
+     "text": "region-changed None->Fire matchActive=False\n"
+    },
+    {
+     "t": 16416.199999809265,
+     "text": "match-active True region=Fire\n"
+    },
+    {
+     "t": 16655.199999809265,
+     "text": "region-changed Fire->Plague matchActive=True\n"
+    },
+    {
+     "t": 17256.900000095367,
+     "text": "gate region=3\n"
+    },
+    {
+     "t": 17257,
+     "text": "set-region Plague music=music_plague\n"
+    },
+    {
+     "t": 17257.199999809265,
+     "text": "load music_plague\n"
+    },
+    {
+     "t": 17257.799999713898,
+     "text": "load amb_plague\n"
+    },
+    {
+     "t": 17310.199999809265,
+     "text": "loaded amb_plague ok=True state=1\n"
+    },
+    {
+     "t": 17314.5,
+     "text": "play amb_plague deck=3\n"
+    },
+    {
+     "t": 17426,
+     "text": "loaded music_plague ok=True state=1\n"
+    },
+    {
+     "t": 17429.799999713898,
+     "text": "play music_plague deck=0\n"
+    },
+    {
+     "t": 24359.799999713898,
+     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 24622.699999809265,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 24889.5,
+     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 25157.5,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 25431.299999713898,
+     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 25698.900000095367,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 25965.400000095367,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 26231.400000095367,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 26498.400000095367,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 26767.299999713898,
+     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 27030.699999809265,
+     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 27298.699999809265,
+     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 27564.599999904633,
+     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 27831.900000095367,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28098.400000095367,
+     "text": "step-voice 0 vol=0.142 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28365,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28631.5,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 28898.900000095367,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29165.699999809265,
+     "text": "step-voice 1 vol=0.138 active=True enabled=True clip=step_Water_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29431.900000095367,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Water_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29698.5,
+     "text": "step-voice 1 vol=0.133 active=True enabled=True clip=step_Water_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 29965,
+     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30131.799999713898,
+     "text": "region-changed Plague->Frost matchActive=True\n"
+    },
+    {
+     "t": 30133.699999809265,
+     "text": "gate region=4\n"
+    },
+    {
+     "t": 30133.799999713898,
+     "text": "set-region Frost music=music_frost\n"
+    },
+    {
+     "t": 30133.799999713898,
+     "text": "load music_frost\n"
+    },
+    {
+     "t": 30134.099999904633,
+     "text": "load amb_frost\n"
+    },
+    {
+     "t": 30150.199999809265,
+     "text": "loaded amb_frost ok=True state=1\n"
+    },
+    {
+     "t": 30158.5,
+     "text": "play amb_frost deck=4\n"
+    },
+    {
+     "t": 30230.199999809265,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30267.099999904633,
+     "text": "loaded music_frost ok=True state=1\n"
+    },
+    {
+     "t": 30274.099999904633,
+     "text": "play music_frost deck=1\n"
+    },
+    {
+     "t": 30498.5,
+     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 30765.5,
+     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31031.599999904633,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31298.199999809265,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31565.199999809265,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 31831.599999904633,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 32108.699999809265,
+     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 32365.199999809265,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 32631.599999904633,
+     "text": "step-voice 0 vol=0.137 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 32908.2999997139,
+     "text": "step-voice 0 vol=0.138 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 33167.5,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 33431.2999997139,
+     "text": "step-voice 0 vol=0.149 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 33589.7999997139,
+     "text": "step-voice 1 vol=0.153 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 33848.2999997139,
+     "text": "step-voice 0 vol=0.138 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 34109.199999809265,
+     "text": "step-voice 0 vol=0.134 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 34373.199999809265,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 34639.7999997139,
+     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 34917.09999990463,
+     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 35180,
+     "text": "step-voice 0 vol=0.141 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 35448.59999990463,
+     "text": "step-voice 0 vol=0.151 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 35715.199999809265,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 36939.90000009537,
+     "text": "step-voice 0 vol=0.153 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 36959.199999809265,
+     "text": "step-voice 1 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 37214.90000009537,
+     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 37481.7999997139,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 37748.40000009537,
+     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 38022.40000009537,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 38281.59999990463,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 38548.40000009537,
+     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 38824.90000009537,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 39090,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 39358.2999997139,
+     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 39616.699999809265,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 39889.199999809265,
+     "text": "step-voice 0 vol=0.147 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 40148.2999997139,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 40415.09999990463,
+     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 40681.40000009537,
+     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 40948.2999997139,
+     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 41223.40000009537,
+     "text": "step-voice 0 vol=0.140 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 41481.199999809265,
+     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 41748.40000009537,
+     "text": "step-voice 0 vol=0.144 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 42017,
+     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Snow_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 42281.699999809265,
+     "text": "step-voice 0 vol=0.139 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 42548.2999997139,
+     "text": "step-voice 0 vol=0.146 active=True enabled=True clip=step_Snow_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 42814.09999990463,
+     "text": "step-voice 0 vol=0.136 active=True enabled=True clip=step_Snow_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 43080.699999809265,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 43189.90000009537,
+     "text": "region-changed Frost->Plague matchActive=True\n"
+    },
+    {
+     "t": 43191.199999809265,
+     "text": "gate region=3\n"
+    },
+    {
+     "t": 43191.2999997139,
+     "text": "set-region Plague music=music_plague\n"
+    },
+    {
+     "t": 43191.40000009537,
+     "text": "play music_plague deck=0\n"
+    },
+    {
+     "t": 43191.40000009537,
+     "text": "play amb_plague deck=3\n"
+    },
+    {
+     "t": 43347.699999809265,
+     "text": "step-voice 1 vol=0.152 active=True enabled=True clip=step_Water_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 43616.90000009537,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Water_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 43880.90000009537,
+     "text": "step-voice 1 vol=0.131 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 44146.90000009537,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 44415.699999809265,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 44681,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 44947.90000009537,
+     "text": "step-voice 0 vol=0.152 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 45214.199999809265,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 45480.90000009537,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Grass_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 45747.5,
+     "text": "step-voice 0 vol=0.145 active=True enabled=True clip=step_Grass_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 46014.699999809265,
+     "text": "step-voice 0 vol=0.148 active=True enabled=True clip=step_Water_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 46281.59999990463,
+     "text": "step-voice 1 vol=0.135 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 46407.2999997139,
+     "text": "step-voice 0 vol=0.133 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 46667.09999990463,
+     "text": "step-voice 0 vol=0.141 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 46930.40000009537,
+     "text": "step-voice 0 vol=0.135 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 47198.199999809265,
+     "text": "step-voice 0 vol=0.130 active=True enabled=True clip=step_Mud_1 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 47468.09999990463,
+     "text": "step-voice 0 vol=0.131 active=True enabled=True clip=step_Mud_3 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 47731.90000009537,
+     "text": "step-voice 0 vol=0.132 active=True enabled=True clip=step_Mud_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 47998.5,
+     "text": "step-voice 0 vol=0.150 active=True enabled=True clip=step_Mud_2 dist=0.0 listenerPause=False listenerVol=1\n"
+    },
+    {
+     "t": 48266.90000009537,
+     "text": "step-voice 0 vol=0.143 active=True enabled=True clip=step_Grass_0 dist=0.0 listenerPause=False listenerVol=1\n"
+    }
+   ],
+   "fmod": [],
+   "regions": [
+    {
+     "t": 16655,
+     "region": "plague"
+    },
+    {
+     "t": 30131.699999809265,
+     "region": "frost"
+    },
+    {
+     "t": 43189.59999990463,
+     "region": "plague"
+    }
+   ],
+   "plays": [
+    {
+     "t": 17314.5,
+     "id": "amb_plague"
+    },
+    {
+     "t": 17429.799999713898,
+     "id": "music_plague"
+    },
+    {
+     "t": 30158.5,
+     "id": "amb_frost"
+    },
+    {
+     "t": 30274.099999904633,
+     "id": "music_frost"
+    },
+    {
+     "t": 43191.40000009537,
+     "id": "music_plague"
+    },
+    {
+     "t": 43191.40000009537,
+     "id": "amb_plague"
+    }
+   ],
+   "requests": [
+    {
+     "file": "music_plague.mp3",
+     "status": 200,
+     "tMs": 17258
+    },
+    {
+     "file": "amb_plague.mp3",
+     "status": 200,
+     "tMs": 17261
+    },
+    {
+     "file": "music_frost.mp3",
+     "status": 200,
+     "tMs": 30134
+    },
+    {
+     "file": "amb_frost.mp3",
+     "status": 200,
+     "tMs": 30140
+    }
+   ],
+   "crossfades": [
+    {
+     "from": "plague",
+     "to": "frost",
+     "regionChangedAt": 30132,
+     "newMusicPlayAt": 30274,
+     "loadDelayMs": 142,
+     "before": -23.86,
+     "after": -25.2,
+     "minDb": -26.11,
+     "maxDb": -22.69,
+     "dipDb": 0.91,
+     "bumpDb": 1.17,
+     "silentMs": 0
+    },
+    {
+     "from": "frost",
+     "to": "plague",
+     "regionChangedAt": 43190,
+     "newMusicPlayAt": 43191,
+     "loadDelayMs": 2,
+     "before": -23.76,
+     "after": -23.91,
+     "minDb": -25.27,
+     "maxDb": -22.17,
+     "dipDb": 1.36,
+     "bumpDb": 1.59,
+     "silentMs": 0
+    }
+   ],
+   "summary": {
+    "n": 395,
+    "rmsDb": -23.68,
+    "peakDb": -9.1
+   },
+   "consoleViolations": [],
+   "consoleAllCount": 872
+  },
+  "audition": {
+   "table": {
+    "Snow": {
+     "n": 4,
+     "centroidHz": 4551,
+     "peakDb": -4,
+     "rmsDb": -20.8
+    },
+    "Sand": {
+     "n": 4,
+     "centroidHz": 3187,
+     "peakDb": -3.9,
+     "rmsDb": -13.3
+    },
+    "Grass": {
+     "n": 4,
+     "centroidHz": 4907,
+     "peakDb": -3.9,
+     "rmsDb": -14.6
+    },
+    "Mud": {
+     "n": 4,
+     "centroidHz": 299,
+     "peakDb": -4,
+     "rmsDb": -12.6
+    },
+    "Water": {
+     "n": 4,
+     "centroidHz": 3928,
+     "peakDb": -4.1,
+     "rmsDb": -14.5
+    },
+    "Bog": {
+     "n": 4,
+     "centroidHz": 195,
+     "peakDb": -3.6,
+     "rmsDb": -9
+    },
+    "Stone": {
+     "n": 4,
+     "centroidHz": 1188,
+     "peakDb": -4.4,
+     "rmsDb": -20.4
+    },
+    "Temple": {
+     "n": 4,
+     "centroidHz": 1055,
+     "peakDb": -4.9,
+     "rmsDb": -16.8
+    },
+    "Gritty": {
+     "n": 4,
+     "centroidHz": 3301,
+     "peakDb": -4.2,
+     "rmsDb": -20.2
+    },
+    "Ice": {
+     "n": 4,
+     "centroidHz": 1458,
+     "peakDb": -3.8,
+     "rmsDb": -17.3
+    }
+   },
+   "medianLagMs": 60,
+   "sfxVolume": {
+    "full": {
+     "peakDb": -4.23
+    },
+    "half": {
+     "peakDb": -10.49
+    },
+    "mute": {
+     "peakDb": -120
+    }
+   },
+   "voicing": {
+    "Local": -18.7,
+    "Player3tiles": -28.1,
+    "Mob3tiles": -32.5
+   },
+   "fmodContext": [],
+   "consoleViolations": []
+  },
+  "steps": {
+   "cues": 29,
+   "matched": 29,
+   "medianLagMs": 37.733332951858756,
+   "actorSummary": {},
+   "stepLines": 56,
+   "fmodContext": [],
+   "surfacesWalked": {
+    "Sand": 4,
+    "Stone": 25
+   },
+   "consoleViolations": []
+  },
+  "tracks": {
+   "levels": {
+    "music_fire": {
+     "n": 89,
+     "rmsDb": -21.6,
+     "peakDb": -4.84,
+     "activeSources": [
+      {
+       "dur": 107,
+       "loop": true,
+       "gain": 0.9005,
+       "startedAt": 16573.699999809265
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34196.89999961853
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34247.09999990463
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34247.09999990463
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34297
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34297
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34596.699999809265
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34648.39999961853
+      },
+      {
+       "dur": 0.508,
+       "loop": false,
+       "gain": 0,
+       "startedAt": 34648.39999961853
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -21.8,
+      -20.9
+     ]
+    },
+    "music_sentenced": {
+     "n": 89,
+     "rmsDb": -21.01,
+     "peakDb": -6.46,
+     "activeSources": [
+      {
+       "dur": 54.65,
+       "loop": true,
+       "gain": 0.7096,
+       "startedAt": 34842.39999961853
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -21.4,
+      -20.8
+     ]
+    },
+    "music_plague": {
+     "n": 88,
+     "rmsDb": -21.09,
+     "peakDb": -7.9,
+     "activeSources": [
+      {
+       "dur": 107,
+       "loop": true,
+       "gain": 1.0592,
+       "startedAt": 47158.59999990463
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -20.9,
+      -20.9
+     ]
+    },
+    "music_frost": {
+     "n": 89,
+     "rmsDb": -20.93,
+     "peakDb": -8.86,
+     "activeSources": [
+      {
+       "dur": 77.4,
+       "loop": true,
+       "gain": 0.7621,
+       "startedAt": 59425.7999997139
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -20.8,
+      -21.1
+     ]
+    },
+    "music_holy": {
+     "n": 88,
+     "rmsDb": -21.13,
+     "peakDb": -5.62,
+     "activeSources": [
+      {
+       "dur": 92.4,
+       "loop": true,
+       "gain": 0.827,
+       "startedAt": 71810.39999961853
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -21.4,
+      -21
+     ]
+    },
+    "music_coliseum": {
+     "n": 89,
+     "rmsDb": -21.09,
+     "peakDb": -7.19,
+     "activeSources": [
+      {
+       "dur": 92.4,
+       "loop": true,
+       "gain": 1.1967,
+       "startedAt": 84120.19999980927
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -21,
+      -21.2
+     ]
+    },
+    "amb_fire": {
+     "n": 89,
+     "rmsDb": -31.02,
+     "peakDb": -11.94,
+     "activeSources": [
+      {
+       "dur": 37.55,
+       "loop": true,
+       "gain": 0.3166,
+       "startedAt": 96275.69999980927
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -31.3,
+      -31.5
+     ]
+    },
+    "amb_sentenced": {
+     "n": 88,
+     "rmsDb": -31.04,
+     "peakDb": -15.32,
+     "activeSources": [
+      {
+       "dur": 9.99,
+       "loop": true,
+       "gain": 0.8502,
+       "startedAt": 108700.5
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -31.2,
+      -30.9
+     ]
+    },
+    "amb_plague": {
+     "n": 89,
+     "rmsDb": -31.2,
+     "peakDb": -16.86,
+     "activeSources": [
+      {
+       "dur": 58.007,
+       "loop": true,
+       "gain": 0.3262,
+       "startedAt": 121175.09999990463
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -29.7,
+      -36.3
+     ]
+    },
+    "amb_frost": {
+     "n": 89,
+     "rmsDb": -31.05,
+     "peakDb": -17.68,
+     "activeSources": [
+      {
+       "dur": 4.46,
+       "loop": true,
+       "gain": 0.5457,
+       "startedAt": 133504.5
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -31.2,
+      -31
+     ]
+    },
+    "amb_holy": {
+     "n": 89,
+     "rmsDb": -31.06,
+     "peakDb": -18.62,
+     "activeSources": [
+      {
+       "dur": 39.18,
+       "loop": true,
+       "gain": 0.2054,
+       "startedAt": 145936.89999961853
+      }
+     ],
+     "unityGain": null,
+     "shortTermDb": [
+      -30.6,
+      -31.8
+     ]
+    }
+   },
+   "consoleViolations": []
+  },
+  "loops": {
+   "rows": {
+    "music_fire": {
+     "seek": "seek music_fire to=104.00 length=107.00\n",
+     "controlStepDb": 8.56,
+     "seamStepDb": 4.89,
+     "controlMinDb": -28.8,
+     "seamMinDb": -24.2,
+     "seamMaxDb": -16.5
+    },
+    "music_sentenced": {
+     "seek": "seek music_sentenced to=51.65 length=54.65\n",
+     "controlStepDb": 8.37,
+     "seamStepDb": 10.05,
+     "controlMinDb": -27,
+     "seamMinDb": -31.6,
+     "seamMaxDb": -18.1
+    },
+    "music_plague": {
+     "seek": "seek music_plague to=104.00 length=107.00\n",
+     "controlStepDb": 5.54,
+     "seamStepDb": 3.25,
+     "controlMinDb": -24.8,
+     "seamMinDb": -22.7,
+     "seamMaxDb": -17
+    },
+    "music_frost": {
+     "seek": "seek music_frost to=74.40 length=77.40\n",
+     "controlStepDb": 3.43,
+     "seamStepDb": 3.72,
+     "controlMinDb": -23.8,
+     "seamMinDb": -34,
+     "seamMaxDb": -22.2
+    },
+    "music_holy": {
+     "seek": "seek music_holy to=89.40 length=92.40\n",
+     "controlStepDb": 3.56,
+     "seamStepDb": 6.96,
+     "controlMinDb": -23.2,
+     "seamMinDb": -28.5,
+     "seamMaxDb": -18.8
+    },
+    "music_coliseum": {
+     "seek": "seek music_coliseum to=89.40 length=92.40\n",
+     "controlStepDb": 3.66,
+     "seamStepDb": 5.05,
+     "controlMinDb": -23.2,
+     "seamMinDb": -28.2,
+     "seamMaxDb": -16.7
+    },
+    "amb_fire": {
+     "seek": "seek amb_fire to=34.55 length=37.55\n",
+     "controlStepDb": 7.62,
+     "seamStepDb": 5.42,
+     "controlMinDb": -36.2,
+     "seamMinDb": -36.2,
+     "seamMaxDb": -27.7
+    },
+    "amb_sentenced": {
+     "seek": "seek amb_sentenced to=6.99 length=9.99\n",
+     "controlStepDb": 5.35,
+     "seamStepDb": 5.42,
+     "controlMinDb": -34.5,
+     "seamMinDb": -34.4,
+     "seamMaxDb": -28.5
+    },
+    "amb_plague": {
+     "seek": "seek amb_plague to=55.01 length=58.01\n",
+     "controlStepDb": 16.96,
+     "seamStepDb": 20.39,
+     "controlMinDb": -39.4,
+     "seamMinDb": -46,
+     "seamMaxDb": -19.6
+    },
+    "amb_frost": {
+     "seek": "seek amb_frost to=1.46 length=4.46\n",
+     "controlStepDb": 3.82,
+     "seamStepDb": 3.94,
+     "controlMinDb": -33.2,
+     "seamMinDb": -33.1,
+     "seamMaxDb": -29.1
+    },
+    "amb_holy": {
+     "seek": "seek amb_holy to=36.18 length=39.18\n",
+     "controlStepDb": 6.15,
+     "seamStepDb": 7.22,
+     "controlMinDb": -34.9,
+     "seamMinDb": -36.7,
+     "seamMaxDb": -29.4
+    }
+   },
+   "consoleViolations": []
+  },
+  "volume": {
+   "base": {
+    "n": 70,
+    "rmsDb": -24,
+    "peakDb": -10.74
+   },
+   "half": {
+    "n": 69,
+    "rmsDb": -29.88,
+    "peakDb": -17
+   },
+   "mute": {
+    "n": 69,
+    "rmsDb": -120,
+    "peakDb": -120
+   },
+   "back": {
+    "n": 50,
+    "rmsDb": -23.96,
+    "peakDb": -11.48
+   },
+   "deltaDb": 5.88,
+   "consoleViolations": []
+  },
+  "audioOff": {
+   "off": {
+    "n": 276,
+    "rmsDb": -120,
+    "peakDb": -120
+   },
+   "requests": [],
+   "consoleViolations": []
+  },
+  "full": {
+   "summary": {
+    "n": 1161,
+    "rmsDb": -23.58,
+    "peakDb": -7.53
+   },
+   "cues": 92,
+   "cueKinds": {
+    "combat.melee.swing": 49,
+    "(fallback)": 43
+   },
+   "consoleViolations": [],
+   "requests": [
+    {
+     "file": "music_sentenced.mp3",
+     "status": 200,
+     "tMs": 15868
+    },
+    {
+     "file": "amb_sentenced.mp3",
+     "status": 200,
+     "tMs": 15874
+    }
+   ],
+   "cuePeaks": [
+    {
+     "cue": "combat.melee.swing",
+     "rise": -2.7,
+     "peakDb": -10.4
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 4.1,
+     "peakDb": -9.1
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 4.1,
+     "peakDb": -9.1
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.8,
+     "peakDb": -9.6
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.8,
+     "peakDb": -9.6
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.5,
+     "peakDb": -8.5
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 5.5,
+     "peakDb": -8.5
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.2,
+     "peakDb": -9
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.2,
+     "peakDb": -9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.7,
+     "peakDb": -6.3
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.7,
+     "peakDb": -6.3
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.2,
+     "peakDb": -8.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.2,
+     "peakDb": -8.2
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.7,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.7,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.3,
+     "peakDb": -10.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.3,
+     "peakDb": -10.2
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.1,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.1,
+     "peakDb": -9.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 4.7,
+     "peakDb": -7.4
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 4.7,
+     "peakDb": -7.4
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.5,
+     "peakDb": -8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.8,
+     "peakDb": -8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.2,
+     "peakDb": -9.3
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.2,
+     "peakDb": -9.3
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.9,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.9,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.1,
+     "peakDb": -9.6
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.1,
+     "peakDb": -9.6
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 6.2,
+     "peakDb": -8.3
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 6.2,
+     "peakDb": -8.3
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 4.5,
+     "peakDb": -8.3
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.7,
+     "peakDb": -8.4
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.7,
+     "peakDb": -8.4
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.5,
+     "peakDb": -9.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.5,
+     "peakDb": -9.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 0.5,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 0.5,
+     "peakDb": -7.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 3.7,
+     "peakDb": -7.9
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 3.7,
+     "peakDb": -7.9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.9,
+     "peakDb": -8.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.9,
+     "peakDb": -8.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.3,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 5.3,
+     "peakDb": -7.2
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.3,
+     "peakDb": -6.5
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 4.3,
+     "peakDb": -6.5
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 4.3,
+     "peakDb": -6.5
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.8,
+     "peakDb": -7.8
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 5.8,
+     "peakDb": -7.8
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 1.8,
+     "peakDb": -8.9
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 1.8,
+     "peakDb": -8.9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.9,
+     "peakDb": -9.7
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.9,
+     "peakDb": -9.7
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.8,
+     "peakDb": -6.9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 5.6,
+     "peakDb": -6.9
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 5.6,
+     "peakDb": -6.9
+    },
+    {
+     "cue": "combat.melee.swing",
+     "rise": 2.7,
+     "peakDb": -10.2
+    },
+    {
+     "cue": "(fallback)",
+     "rise": 2.7,
+     "peakDb": -10.2
+    }
+   ]
+  }
+ },
+ "passed": false
+}

@@ -49,5 +49,16 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(1f, AudioTrims.Gain("unknown"), 1e-6f);
             Assert.Greater(AudioTrims.MusicTargetDb - AudioTrims.AmbienceTargetDb, 6f, "ambience sits clearly under music");
         }
+
+        [Test] public void LoopPointsAreOrderedAndLeaveAtLeastTenSeconds()
+        {
+            foreach (var id in AudioTrims.Ids)
+            {
+                AudioLoops.For(id, out float a, out float b);
+                Assert.GreaterOrEqual(a, 0f, id);
+                if (b > 0f) { Assert.Greater(b - a, 10f, id); Assert.Less(a, 5f, id + " must not cut away real music"); }
+            }
+            AudioLoops.For("unknown", out float ua, out float ub); Assert.AreEqual(0f, ua); Assert.AreEqual(0f, ub);
+        }
     }
 }

@@ -119,8 +119,22 @@ function seamClick(samples, index, radius) {
   const med = median(steps) || 1e-9; const mx = steps.length ? Math.max(...steps) : 0; return { maxStep: mx, medianStep: med, ratio: mx / med };
 }
 
+/**
+ * Loop points that skip a file's quiet fade-in and fade-out. `levelsDb` is a short-term level series (one value per `hopSec`). The median
+ * level M of the middle half is the reference; the start is the first hop from which the level never drops below M - dropDb for holdSec,
+ * the end the last hop that is the end of such a stretch. Returns { startSec, endSec } (the whole file when it is already clean).
+ */
+function suggestLoop(levelsDb, hopSec, dropDb = 12, holdSec = 3) {
+  const n = levelsDb.length; if (n < 8) return { startSec: 0, endSec: n * hopSec };
+  const mid = levelsDb.slice(Math.floor(n * 0.25), Math.floor(n * 0.75)), T = median(mid) - dropDb, hold = Math.min(Math.max(2, Math.round(holdSec / hopSec)), Math.floor(n / 4));
+  const ok = i => levelsDb[i] >= T;
+  let a = 0; for (; a < n - hold; a++) { let good = true; for (let k = 0; k < hold; k++) if (!ok(a + k)) { good = false; break; } if (good) break; }
+  let z = n - 1; for (; z >= a + hold; z--) { let good = true; for (let k = 0; k < hold; k++) if (!ok(z - k)) { good = false; break; } if (good) break; }
+  return { startSec: +(a * hopSec).toFixed(3), endSec: +((z + 1) * hopSec).toFixed(3) };
+}
+
 /** Gain staging helper: the dB change that brings `levelDb` to `targetDb`. */
 function gainToReach(levelDb, targetDb) { return targetDb - levelDb; }
 
 module.exports = { FLOOR_DB, rms, peak, toDb, fromDb, mean, median, percentile, rmsOfWindows, detectPeaks, pairEvents, medianInterval,
-  centroidOfPower, centroidOfDb, powerSpectrum, correlation, crossfadeCheck, maxStepDb, seamClick, gainToReach };
+  centroidOfPower, centroidOfDb, powerSpectrum, correlation, crossfadeCheck, maxStepDb, seamClick, gainToReach, suggestLoop };

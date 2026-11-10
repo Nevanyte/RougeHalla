@@ -81,3 +81,15 @@ test('maxStepDb and seamClick', () => {
 });
 
 test('gainToReach', () => { assert.equal(L.gainToReach(-20, -17), 3); });
+
+test('suggestLoop trims a quiet fade-in and fade-out but leaves a clean file alone', () => {
+  const hop = 0.05, lv = [];
+  for (let i = 0; i < 1200; i++) lv.push(-20 + (i % 7 === 0 ? -2 : 0));            // 60 s of steady music
+  const clean = L.suggestLoop(lv, hop);
+  assert.equal(clean.startSec, 0); assert.ok(Math.abs(clean.endSec - 60) < 0.01);
+  const faded = lv.slice(); for (let i = 0; i < 30; i++) faded[i] = -50; for (let i = 0; i < 20; i++) faded[1199 - i] = -45;   // 1.5 s silence at the start, 1 s fade at the end
+  const f = L.suggestLoop(faded, hop);
+  assert.ok(f.startSec >= 1.5 && f.startSec < 1.7, JSON.stringify(f)); assert.ok(f.endSec <= 59.05 && f.endSec > 58.9, JSON.stringify(f));
+  const dip = lv.slice(); for (let i = 10; i < 20; i++) dip[i] = -52;                // a 0.5 s hole right after the start
+  assert.ok(L.suggestLoop(dip, hop).startSec >= 1.0);
+});
