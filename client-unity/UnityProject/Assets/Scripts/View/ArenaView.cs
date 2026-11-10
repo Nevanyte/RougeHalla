@@ -31,6 +31,8 @@ namespace Roguehalla.Client
         public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
         ConfirmedWishPresenter _wishes;
+        WishFxPresenter _wishFx;
+        bool _collectWishNotes;
         double _sourceTimeMs;
         ShowcaseCatalog _catalog;
         Transform _mapRoot, _propsRoot, _fxRoot;
@@ -86,6 +88,7 @@ namespace Roguehalla.Client
             _actors = new SpriteActorPresenter(transform, _catalog);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
+            _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
             _ambient.color = new Color(.81f, .83f, .9f); _ambient.intensity = .86f;
@@ -171,6 +174,7 @@ namespace Roguehalla.Client
         {
             _actors.Begin();
             uint mine = me != null ? me.Id : 0;
+            _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
             {
                 if (a.Id == mine) continue;
@@ -179,9 +183,10 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
+                _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
-            if (_hasMembership) PresentLatestNpcs();
+            if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
             {
                 bool initialized = motion != null && motion.Initialized;
@@ -189,6 +194,7 @@ namespace Roguehalla.Client
                 float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
                 _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
+                _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
             }
@@ -197,6 +203,7 @@ namespace Roguehalla.Client
             ReleaseScheduledFx();
             UpdateEffects();
             _wishes.Tick(_sourceTimeMs);
+            _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
         }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
@@ -225,6 +232,7 @@ namespace Roguehalla.Client
             if(me!=null) _membership.Add(me.Id);
             _hasMembership=true; _actors.Retain(_membership);
             _wishes.Retain(_membership);
+            _wishFx.Retain(_membership);
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
             PresentLatestNpcs();
@@ -237,6 +245,7 @@ namespace Roguehalla.Client
             foreach(var a in _latestNpcs)
             {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
+                if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
         }
@@ -244,19 +253,11 @@ namespace Roguehalla.Client
         public void PresentCollections(CollectionsView collections)
         {
             _used = 0;
+            if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
             {
-                foreach (var f in collections.Fields)
-                {
-                    Color c = FieldColor(f.Ability);
-                    if (f.Radius > 0) Prop("ring", WorldPoint(f.X, f.Y), new Vector2(f.Radius * Scale * 2, f.Radius * Scale * 2 * GroundSquash), c, 1200);
-                    if (f.Kind == AreaKind.Trail)
-                    {
-                        Vector3 a = WorldPoint(f.X, f.Y), b = WorldPoint(f.X2, f.Y2), d = b - a;
-                        var line = Prop("bar", (a + b) / 2, new Vector2(d.magnitude, .07f), c, 1201);
-                        line.transform.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
-                    }
-                }
+                // Zone, cloud and trail rows: drawn by the Wish presenter at exactly the delivered extents.
+                _wishFx.PresentAreas(collections.Fields);
                 foreach (var p in collections.Props)
                 {
                     var position = WorldPoint(p.X, p.Y); int order = 2000 + Mathf.RoundToInt(p.Y * .5f);
@@ -331,11 +332,6 @@ namespace Roguehalla.Client
             r.transform.position = p; r.transform.localScale = new Vector3(scale.x, scale.y, 1); r.transform.rotation = Quaternion.identity;
             return r;
         }
-        static Color FieldColor(AbilityId ability)
-        {
-            int i = ability == AbilityId.Blaze ? 0 : ability == AbilityId.Trial ? 1 : ability == AbilityId.Swarm ? 2 : ability == AbilityId.Freeze ? 3 : 4;
-            return ShowcasePalette.Faction(i);
-        }
         /// <summary>Presentation-only swing at the owner's click; see <see cref="SpriteActorPresenter.LocalAttackCue"/>.</summary>
         public void LocalAttackCue(uint id) { _actors.LocalAttackCue(id); }
         public void ConfirmedFx(ServerMsg.Fx fx) { ConfirmedFx(fx, 0, double.NaN); }
@@ -352,6 +348,7 @@ namespace Roguehalla.Client
                 if (f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded)
                 {
                     _wishes.Accept(f);
+                    _wishFx.Accept(f);
                     continue;
                 }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
@@ -393,6 +390,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
+            _wishFx.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var flash = _flashes[i];

@@ -27,6 +27,8 @@ namespace Roguehalla.Client
             public float StampTime;
             public bool LocalCue;
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
+            public float WishAt, WishUntil; public byte WishClip;
+            public Color WishTint; public float WishTintAmount;
             public bool Dead, HoldDeathFrame;
             public WeaponId? WeaponId;
             public FactionId? Faction;
@@ -68,7 +70,7 @@ namespace Roguehalla.Client
             foreach (var pair in _active)
             {
                 var a = pair.Value;
-                a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
+                a.AttackUntil = a.HitUntil = a.BlockUntil = 0; a.WishUntil = 0;
                 a.Gait.Reset();
                 a.AttackAt = a.HitAt = a.BlockAt = a.DeadAt = 0;
                 a.LocalCue = false;
@@ -115,8 +117,40 @@ namespace Roguehalla.Client
                 art.BlockAt=now;art.BlockUntil=now+ClipDuration(art.Appearance?.Block,art.Appearance!=null ? art.Appearance.BlockFPS : 10,.2f);
             }
         }
+        /// <summary>
+        /// Plays the character clip that fits a delivered Wish cue on an observed actor: Cast for Freeze, Swarm and Trial, Attack
+        /// for Blaze Step, Block for Last Stand (each falling back to another clip when the character lacks it).
+        /// Presentation only; the cue was confirmed by the server's Wish fx record.
+        /// </summary>
+        public bool WishCue(uint id, AbilityId ability)
+        {
+            if (!_active.TryGetValue(id, out var art) || art.Dead) return false;
+            byte clip = ability == AbilityId.Blaze ? (byte)1 : ability == AbilityId.LastStand ? (byte)2 : (byte)0;
+            Sprite[] frames; float fps; WishFrames(art.Appearance, clip, out frames, out fps);
+            float now = Time.unscaledTime;
+            art.WishClip = clip; art.WishAt = now; art.WishUntil = now + ClipDuration(frames, fps, .4f);
+            return true;
+        }
+        static void WishFrames(ShowcaseCatalog.Appearance a, byte clip, out Sprite[] frames, out float fps)
+        {
+            frames = null; fps = 10;
+            if (a == null) return;
+            if (clip == 2 && a.Block != null && a.Block.Length > 0) { frames = a.Block; fps = a.BlockFPS; return; }
+            if (clip == 1 && a.Attack != null && a.Attack.Length > 0) { frames = a.Attack; fps = a.AttackFPS; return; }
+            if (a.Cast != null && a.Cast.Length > 0) { frames = a.Cast; fps = a.CastFPS; return; }
+            if (a.Attack != null && a.Attack.Length > 0) { frames = a.Attack; fps = a.AttackFPS; return; }
+            if (a.Block != null && a.Block.Length > 0) { frames = a.Block; fps = a.BlockFPS; }
+        }
+        /// <summary>Tints an observed actor's body toward <paramref name="tint"/> for the status it shows. Cleared by <see cref="ClearWishTints"/>.</summary>
+        public void SetWishTint(uint id, Color tint, float amount)
+        {
+            if (_active.TryGetValue(id, out var art)) { art.WishTint = tint; art.WishTintAmount = Mathf.Clamp01(amount); }
+        }
+        public void ClearWishTints() { foreach (var pair in _active) pair.Value.WishTintAmount = 0f; }
         static float ClipDuration(Sprite[] clip,float fps,float fallback)
         { return clip!=null && clip.Length>0 ? clip.Length/8f/Mathf.Max(1,fps) : fallback; }
+        static bool WishClipFrames(ShowcaseCatalog.Appearance a, byte clip, out Sprite[] frames, out float fps)
+        { WishFrames(a, clip, out frames, out fps); return frames != null && frames.Length > 0; }
         static Sprite[] AttackFrames(ShowcaseCatalog.Appearance a,WeaponId weapon,out float fps)
         {
             fps=a!=null ? a.AttackFPS : 10;
@@ -162,7 +196,7 @@ namespace Roguehalla.Client
                 a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
                 a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
                 a.Gait.Reset(); a.StampTime = Time.unscaledTime;
-                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;
+                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
             }
             a.Stamp = _stamp;
             var position = ArenaView.WorldPoint(x, y);
@@ -200,6 +234,8 @@ namespace Roguehalla.Client
             {
                 if(dead && appearance.Death!=null && appearance.Death.Length>0)
                 { frames=appearance.Death;fps=appearance.DeathFPS;elapsed-=a.DeadAt;loop=false; }
+                else if(a.WishUntil>Time.unscaledTime && WishClipFrames(appearance,a.WishClip,out frames,out fps))
+                { elapsed-=a.WishAt;loop=false; }
                 else if(a.BlockUntil>Time.unscaledTime && appearance.Block!=null && appearance.Block.Length>0)
                 { frames=appearance.Block;fps=appearance.BlockFPS;elapsed-=a.BlockAt;loop=false; }
                 else if(a.HitUntil>Time.unscaledTime && appearance.Hit!=null && appearance.Hit.Length>0)
@@ -230,6 +266,7 @@ namespace Roguehalla.Client
                 a.Body.transform.localPosition = new Vector3(0, .55f, 0);
             }
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
+            if (!dead && a.WishTintAmount > 0f) a.Body.color = Color.Lerp(a.Body.color, a.WishTint, a.WishTintAmount);
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
             a.BodyRim.sprite = a.Body.sprite;

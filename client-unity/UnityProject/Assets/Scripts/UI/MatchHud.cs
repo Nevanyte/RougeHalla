@@ -226,6 +226,7 @@ namespace Roguehalla.Client
         {
             _feedback = "";
             Set(_notice, "");
+            _wishMotion.Reset();
             ResetPlayerFlowTimeline();
             if (_session == null) ClearOwnerPresentation("Awaiting server");
             else if (_session.Me == null) ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
@@ -251,6 +252,7 @@ namespace Roguehalla.Client
         void LateUpdate()
         {
             TickFeatures();
+            TickWishTileMotion();
             RefreshSettlementRow();
             if (_session != null && _session.ReconnectAttempt != _bannerAttempt) _dirty = true;
             if (!_dirty || _session == null) return;

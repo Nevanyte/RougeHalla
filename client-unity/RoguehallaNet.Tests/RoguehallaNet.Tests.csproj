@@ -25,6 +25,7 @@
     <Compile Include="..\UnityProject\Assets\Scripts\Net\AccountFullJson.cs" Link="AccountFullJson.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Net\MatchLaunchConfig.cs" Link="MatchLaunchConfig.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Presentation\QualityModel.cs" Link="QualityModel.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\Presentation\WishFxModel.cs" Link="WishFxModel.cs" />
     <EmbeddedResource Include="..\..\crates\rh-persist\data\cosmetics.json" LogicalName="Account.Cosmetics.json" />
     <EmbeddedResource Include="..\UnityProject\Assets\Resources\Account\cosmetics.json" LogicalName="Account.PresentationCosmetics.json" />
     <EmbeddedResource Include="..\UnityProject\Assets\Resources\Account\achievements.json" LogicalName="Account.PresentationAchievements.json" />

@@ -36,7 +36,8 @@ namespace Roguehalla.Client
         RectTransform _weaponBar, _wishTile;
         UnityEngine.UI.Image _wishIcon;
         TMP_Text _wishSeconds, _wishCharges, _healText, _healStatus, _windText, _pickupText;
-        UnityEngine.UI.Image _wishSweep, _wishCastBar;
+        UnityEngine.UI.Image _wishSweep, _wishCastBar, _wishGlow;
+        readonly WishTileMotion _wishMotion = new WishTileMotion();
         float _attackCooldownTotal = 1f;
         // Champion combat HUD.
         RectTransform _championHud;
@@ -356,6 +357,10 @@ namespace Roguehalla.Client
             var cast = HudUi.Box(_wishTile, "CastBar", HudAnchor.BottomLeft, 0, 0, WishSize, 3);
             _wishCastBar = cast.gameObject.AddComponent<UnityEngine.UI.Image>(); _wishCastBar.color = theme.Accent; _wishCastBar.raycastTarget = false;
             _wishCastBar.type = UnityEngine.UI.Image.Type.Filled; _wishCastBar.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal; _wishCastBar.fillAmount = 0f; _wishCastBar.enabled = false;
+            // Cast / ready feedback: a faction-tinted wash over the tile, behind its text (driven by TickWishTileMotion).
+            _wishGlow = HudUi.Fill(_wishTile, "WishGlow", new Color(1f, 1f, 1f, 0f));
+            _wishGlow.rectTransform.offsetMin = new Vector2(1f, 1f); _wishGlow.rectTransform.offsetMax = new Vector2(-1f, -1f);
+            _wishGlow.transform.SetSiblingIndex(Mathf.Min(1, _wishTile.childCount - 1)); _wishGlow.enabled = false;
             _wishSummary.text = "—";
             _wishHint = HudIconHint.Attach(wishInfo, _root, "R · Wish\nAwaiting server");
             // Retain the existing formatted detail model for tests/readers, without a permanent world overlay.
@@ -476,12 +481,14 @@ namespace Roguehalla.Client
             if (_wishSeconds == null) return;
             if (!wish.HasValue)
             {
+                _wishMotion.Observe(null, serverTimeMs, Time.unscaledTime);
                 Set(_wishSeconds, ""); Set(_wishCharges, ""); if (_wishSweep != null) _wishSweep.enabled = false;
                 if (_wishCastBar != null) _wishCastBar.enabled = false;
                 HudUi.SetFrame(_wishTile, theme.Border);
                 return;
             }
             var w = wish.Value;
+            _wishMotion.Observe(wish, serverTimeMs, Time.unscaledTime);
             double remainingMs = Math.Max(0d, w.ReadyAt - serverTimeMs);
             bool ready = remainingMs <= 0d && w.Charges > 0;
             Set(_wishSeconds, remainingMs > 0d ? Math.Ceiling(remainingMs / 1000d).ToString("0") : "");
@@ -505,6 +512,22 @@ namespace Roguehalla.Client
                 }
             }
             HudUi.SetFrame(_wishTile, w.Cast.HasValue ? theme.BorderStrong : ready ? theme.FactionColor(_faction) : theme.Border);
+        }
+
+        /// <summary>
+        /// Every frame: the tile flashes when the server accepts a cast (a delivered cast record, a stock spend or a jump in the
+        /// next-ready time) and pulses when the Wish is available again. Reduced motion keeps the colour wash and drops the scale.
+        /// </summary>
+        void TickWishTileMotion()
+        {
+            if (_wishGlow == null || _wishTile == null) return;
+            float now = Time.unscaledTime, flash = _wishMotion.Flash(now), pulse = _wishMotion.ReadyPulse(now);
+            bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
+            float alpha = Mathf.Clamp01(.6f * flash + .4f * pulse);
+            if (alpha <= .004f) { if (_wishGlow.enabled) { _wishGlow.enabled = false; _wishTile.localScale = Vector3.one; } return; }
+            Color color = UiTheme.Current.FactionColor(_faction); color.a = alpha;
+            _wishGlow.enabled = true; _wishGlow.color = color;
+            _wishTile.localScale = reduced ? Vector3.one : Vector3.one * (1f + .12f * flash + .05f * pulse);
         }
 
         void RefreshCooldownSweep(SelfView me)
