@@ -184,8 +184,8 @@ namespace Roguehalla.Client
             int nr = 0;
             if (AtmosphereQuality.Water && SurfaceFx.Current != null)
             {
-                int n = SurfaceFx.Current.CopyRipples(_ripples);
-                for (int i = 0; i < n && nr < 6; i++)
+                int cnt = SurfaceFx.Current.CopyRipples(_ripples);
+                for (int i = 0; i < cnt && nr < 6; i++)
                 {
                     var r = _ripples[i]; if (r.Reaction != WaterReaction.Shallow) continue;
                     _ripP[nr] = new Vector4(r.World.x, -r.World.y / ArenaView.GroundSquash, r.Birth, r.Life); _ripB[nr] = new Vector4(r.Diameter, 0, 0, 0); nr++;
