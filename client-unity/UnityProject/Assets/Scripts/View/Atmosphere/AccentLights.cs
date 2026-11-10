@@ -66,18 +66,29 @@ namespace Roguehalla.Client
         float[] _score = new float[8];
     }
 
-    /// <summary>Pooled point lights placed on the planner's selection. Lights fade in and out and flicker; only the cap's worth ever exist as active Light2Ds.</summary>
+    /// <summary>
+    /// Pooled terrain and lantern lights placed on the planner's selection (nearest and largest first). Every selected site fades in and out and
+    /// flickers; it is written into <see cref="LocalLightField"/> (the analytic lights the ground, walls and props shade with: relief, wall shadows,
+    /// cookies) and, for the few best ranked sites, also drives a pooled Light2D that lights actors. While the analytic lights are on the Light2D uses
+    /// blend style 2 (ignored by the region shaders, so surfaces are not lit twice); with them off it uses style 0 and everything is lit as before.
+    /// </summary>
     public sealed class AccentLights
     {
         const float FadeSeconds = .7f;
-        sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1; public float Alpha; public bool Wanted; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; }
-        readonly Slot[] _slots = new Slot[AtmosphereQuality.HardMaxLights];
-        readonly int[] _pick = new int[AtmosphereQuality.HardMaxLights];
+        /// <summary>Output gain of an accent light in the analytic field (the Light2D twin keeps the table intensity).</summary>
+        public const float AnalyticGain = .62f;
+        sealed class Slot { public ShowcasePointLight Light; public int Cluster = -1, Rank = 99; public float Alpha; public bool Wanted; public TerrainCluster C; public AccentLightSpec Spec; public float Phase; public Vector3 Pos; }
+        readonly Slot[] _slots = new Slot[LocalLightField.Max];
+        readonly int[] _pick = new int[LocalLightField.Max];
         readonly AccentLightPlanner _planner = new AccentLightPlanner();
-        Transform _root; int _lastCellX = int.MinValue, _lastCellY = int.MinValue; bool _dirty = true;
+        Transform _root; int _lastCellX = int.MinValue, _lastCellY = int.MinValue, _lastCap = -1; bool _dirty = true, _lastAnalytic;
         public AccentLightPlanner Planner { get { return _planner; } }
         /// <summary>Lights currently enabled (alpha above zero).</summary>
         public int ActiveCount { get { int n = 0; foreach (var s in _slots) if (s != null && s.Alpha > .01f) n++; return n; } }
+        /// <summary>Pooled Light2D twins currently enabled (the actors' lighting; at most <see cref="AtmosphereQuality.EffectiveMaxLights"/>).</summary>
+        public int ActiveLight2D { get { int n = 0; foreach (var s in _slots) if (s != null && s.Light != null && s.Light.RequestedVisible) n++; return n; } }
+        /// <summary>Blend style of the live Light2D twins (2 while the analytic field is on).</summary>
+        public int Light2DBlendStyle { get { foreach (var s in _slots) if (s != null && s.Light != null) return s.Light.BlendStyle; return _lastAnalytic ? 2 : 0; } }
         public const float CullMargin = 6f;
 
         public void Initialize(Transform parent) { _root = new GameObject("Accent lights").transform; _root.SetParent(parent, false); }
@@ -92,25 +103,57 @@ namespace Roguehalla.Client
         }
         public void MarkDirty() { _dirty = true; }
 
-        /// <summary>Per frame. Re-plans only when the camera crosses a cell boundary (or the cap changes); otherwise just fades and flickers.</summary>
+        /// <summary>Height of the light above the ground (tiles) and its cookie / shadow behaviour, by kind of site.</summary>
+        public static void Shape(in TerrainCluster c, out float height, out int cookie, out bool shadow)
+        {
+            if (c.TempleLamp) { height = c.Lift > 0 ? c.Lift : .85f; cookie = LocalLightField.CookieGlass; shadow = true; return; }
+            if (c.Lantern) { height = c.Lift > 0 ? c.Lift : 1.05f; cookie = LocalLightField.CookieGrate; shadow = true; return; }
+            switch (c.Kind)
+            {
+                case TerrainKind.Lava: height = .55f; cookie = LocalLightField.CookieNone; shadow = true; return;
+                case TerrainKind.Bog: height = .45f; cookie = LocalLightField.CookieDapple; shadow = false; return;
+                case TerrainKind.Light: height = .8f; cookie = LocalLightField.CookieDapple; shadow = false; return;
+                default: height = .9f; cookie = LocalLightField.CookieNone; shadow = false; return;     // ice glints
+            }
+        }
+
+        /// <summary>Per frame. Re-plans only when the camera crosses a cell boundary (or a cap changes); otherwise just fades and flickers.
+        /// When the analytic field is on, every live light is also written to <see cref="LocalLightField"/> (call <see cref="LocalLightField.Begin"/> first).</summary>
         public void Tick(float camTx, float camTy, float halfW, float halfH, float dt, float time)
         {
-            int cap = AtmosphereQuality.EffectiveMaxLights;
+            bool analytic = AtmosphereQuality.AnalyticLights;
+            int l2cap = AtmosphereQuality.EffectiveMaxLights;
+            int cap = Mathf.Max(l2cap, analytic ? AtmosphereQuality.EffectiveLocalLights : 0);
             int cellX = Mathf.FloorToInt(camTx / AccentLightPlanner.CellTiles), cellY = Mathf.FloorToInt(camTy / AccentLightPlanner.CellTiles);
-            if (_dirty || cellX != _lastCellX || cellY != _lastCellY)
+            if (_dirty || cellX != _lastCellX || cellY != _lastCellY || cap != _lastCap)
             {
-                _dirty = false; _lastCellX = cellX; _lastCellY = cellY;
+                _dirty = false; _lastCellX = cellX; _lastCellY = cellY; _lastCap = cap;
                 Plan(camTx, camTy, halfW, halfH, cap);
             }
+            if (analytic != _lastAnalytic) { _lastAnalytic = analytic; foreach (var s in _slots) if (s != null && s.Light != null) s.Light.SetBlendStyle(analytic ? 2 : 0); }
             for (int i = 0; i < _slots.Length; i++)
             {
                 var s = _slots[i]; if (s == null) continue;
                 s.Alpha = Mathf.MoveTowards(s.Alpha, s.Wanted ? 1f : 0f, dt / FadeSeconds);
-                if (s.Alpha <= 0f && !s.Wanted) { if (s.Cluster >= 0) { s.Cluster = -1; } s.Light.SetVisible(false); continue; }
-                float flick = 1f + s.Spec.Flicker * (.14f * Mathf.Sin(time * 5.3f + s.Phase) + .09f * Mathf.Sin(time * 11.7f + s.Phase * 2.1f) + .06f * Mathf.Sin(time * 2.1f + s.Phase * .7f));
+                if (s.Alpha <= 0f && !s.Wanted) { if (s.Cluster >= 0) { s.Cluster = -1; s.Rank = 99; } if (s.Light != null) s.Light.SetVisible(false); continue; }
+                // Layered flicker: slow breathing, mid-rate wobble, and a crackle from smooth noise (fire and lanterns).
+                float crackle = (Mathf.PerlinNoise(time * 3.3f + s.Phase, s.Phase * .37f) - .5f) * .32f;
+                float flick = 1f + s.Spec.Flicker * (.14f * Mathf.Sin(time * 5.3f + s.Phase) + .09f * Mathf.Sin(time * 11.7f + s.Phase * 2.1f) + .06f * Mathf.Sin(time * 2.1f + s.Phase * .7f) + crackle);
                 float radius = s.Spec.Radius * (s.C.Lantern ? 1f : 1f + .06f * Mathf.Sqrt(s.C.Count));
-                s.Light.Configure(s.Spec.Color, s.Spec.Intensity * s.Alpha * flick, radius * .15f, radius, .55f, false);
-                s.Light.SetVisible(true);
+                float intensity = s.Spec.Intensity * s.Alpha * flick;
+                if (s.Rank < l2cap)
+                {
+                    if (s.Light == null) { s.Light = NewLight(s.Pos, analytic); }
+                    s.Light.Configure(s.Spec.Color, intensity, radius * .15f, radius, .55f, false);
+                    s.Light.SetVisible(true);
+                }
+                else if (s.Light != null) s.Light.SetVisible(false);
+                if (analytic && s.Rank < AtmosphereQuality.EffectiveLocalLights)
+                {
+                    Shape(s.C, out float h, out int cookie, out bool shadow);
+                    float k = intensity * AnalyticGain * (s.C.TempleLamp ? 1.8f : 1f);      // the temple floor is bright already: its lamps need more to read
+                    LocalLightField.Add(s.C.X, s.C.Y, h, radius, s.Spec.Color.r * k, s.Spec.Color.g * k, s.Spec.Color.b * k, cookie, shadow);
+                }
             }
         }
 
@@ -122,31 +165,34 @@ namespace Roguehalla.Client
             {
                 int ci = _pick[p]; var slot = FindSlot(ci);
                 if (slot == null) continue;
-                slot.Wanted = true;
+                slot.Wanted = true; slot.Rank = p;
             }
         }
 
         Slot FindSlot(int cluster)
         {
-            Slot free = null;
+            Slot free = null; int freeAt = -1;
             for (int i = 0; i < _slots.Length; i++)
             {
                 var s = _slots[i];
                 if (s != null && s.Cluster == cluster) return s;
-                if (free == null && (s == null || (!s.Wanted && s.Alpha <= .01f))) { free = s ?? (_slots[i] = NewSlot()); }
+                if (free == null && (s == null || (!s.Wanted && s.Alpha <= .01f))) { free = s ?? (_slots[i] = new Slot()); freeAt = i; }
             }
             if (free == null) return null;           // every slot busy fading out: pick this cluster up next re-plan
             var c = _planner.Clusters[cluster];
             free.Cluster = cluster; free.C = c; free.Spec = c.TempleLamp ? RegionAtmosphereTable.TempleLamp : RegionAtmosphereTable.AccentFor(c.Kind); free.Alpha = 0f; free.Phase = c.X * 1.7f + c.Y * 2.3f;
-            free.Light.transform.position = ArenaView.WorldPoint(c.X * 32f, c.Y * 32f) + new Vector3(0, c.Lift, -1);
+            free.Pos = ArenaView.WorldPoint(c.X * 32f, c.Y * 32f) + new Vector3(0, c.Lift, -1);
+            if (free.Light != null) free.Light.transform.position = free.Pos;
             return free;
         }
 
-        Slot NewSlot()
+        ShowcasePointLight NewLight(Vector3 pos, bool analytic)
         {
-            var light = ShowcaseSprites.CreateLight(_root, "Terrain accent light", Vector3.zero);
+            var light = ShowcaseSprites.CreateLight(_root, "Terrain accent light", pos);
+            light.transform.position = pos;
+            light.SetBlendStyle(analytic ? 2 : 0);
             light.SetVisible(false);
-            return new Slot { Light = light };
+            return light;
         }
 
         public void Dispose() { if (_root != null) { if (Application.isPlaying) Object.Destroy(_root.gameObject); else Object.DestroyImmediate(_root.gameObject); } }

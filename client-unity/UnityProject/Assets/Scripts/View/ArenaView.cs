@@ -49,6 +49,7 @@ namespace Roguehalla.Client
         /// <summary>Foot box half-extents (sim units) of an archetype, 0 for a circle hull, an unknown id or no table.</summary>
         float FootHx(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fx : 0f; }
         float FootHy(byte id) { var r = WireArchetype.Find(_archetypes, id); return r != null && r.Hull == 1 ? r.Fy : 0f; }
+        CombatSparks _sparks; uint _sparkRng = 2463534242u; float _nextTrail; Vector3 _camCenter; Vector2 _camHalf = new Vector2(12, 9);     // render pass: trails, impact sparks, hit lights
         ConfirmedWishPresenter _wishes;
         WishFxPresenter _wishFx;
         bool _collectWishNotes;
@@ -113,6 +114,7 @@ namespace Roguehalla.Client
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
+            _sparks = new CombatSparks(Child("Combat sparks"));
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
             _ambient.color = new Color(.81f, .83f, .9f); _ambient.intensity = .86f;
@@ -212,7 +214,7 @@ namespace Roguehalla.Client
 
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
-            _actors.Begin();
+            _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
             uint mine = me != null ? me.Id : 0;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
@@ -226,6 +228,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                ActorField.Note(WorldPoint(a.X, a.Y));
             }
             if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
@@ -239,6 +242,7 @@ namespace Roguehalla.Client
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
+                ActorField.Note(WorldPoint(mx, my));
             }
             _actors.End();
             _actors.StepFades(); TickVision();
@@ -343,6 +347,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                ActorField.Note(WorldPoint(a.X, a.Y));
             }
         }
 
@@ -409,6 +414,7 @@ namespace Roguehalla.Client
                     if(_catalog!=null && _catalog.Chest!=null) {art.sprite=_catalog.Chest;art.transform.position=p;art.transform.localScale=Vector3.one*1.6f;}
                     if (chest.CanChoose) Prop("rune", p + new Vector3(0, 1), new Vector2(.3f, .4f), new Color(1, .85f, .46f), order + 2);
                 }
+                bool trailTick = Time.unscaledTime >= _nextTrail; if (trailTick) _nextTrail = Time.unscaledTime + .025f;
                 foreach (var shot in collections.Projectiles)
                 {
                     // ADR0024: the ground track is (X, Y); the shot is DRAWN raised by its delivered height (the shooter's chest at launch,
@@ -421,9 +427,18 @@ namespace Roguehalla.Client
                         arrow ? new Color(1.6f, 1.25f, .6f) : new Color(1.5f, .55f, 2), 29000);
                     r.transform.rotation = Quaternion.Euler(0, 0, ProjectileScreenAngleDeg(shot.Facing));
                     _overlay?.NoteShot(shot.X, shot.Y, shot.Height);
+                    ProjectileFx(p, shot.Facing, arrow, trailTick);      // render pass: trail puffs and a small travelling light
                 }
+                _sparks.Observe(collections.Tick, collections.Projectiles, _camCenter, _camHalf.x, _camHalf.y, ref _sparkRng);
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
+        }
+        void ProjectileFx(Vector3 p, float facing, bool arrow, bool trailTick)
+        {
+            float a = ProjectileScreenAngleDeg(facing) * Mathf.Deg2Rad;
+            var back = new Vector3(-Mathf.Cos(a), -Mathf.Sin(a), 0);
+            if (trailTick) _sparks.Trail(p + back * .12f, back, arrow ? new Color(2f, 1.4f, .6f) : new Color(1.6f, .6f, 2.2f), arrow ? .11f : .2f);
+            if (AtmosphereQuality.AnalyticLights && AtmosphereQuality.FxLights) LocalLightField.StageWorld(p, .6f, arrow ? 2.0f : 2.6f, arrow ? new Color(1f, .75f, .4f) : new Color(.7f, .4f, 1f), arrow ? .55f : 1.1f);
         }
         /// <summary>Where a projectile with ground position (x, y) and height h (sim units) is drawn: the ground point raised h toward screen-up.</summary>
         public static Vector3 ProjectileDrawPoint(float x, float y, float height) { return WorldPoint(x, y - height); }
@@ -506,13 +521,14 @@ namespace Roguehalla.Client
                 flash.Sprite.gameObject.SetActive(false); flash.Text.gameObject.SetActive(false);
                 _flashes.RemoveAt(i); _flashPool.Push(flash);
             }
-            _actors.ResetTransientTimers();
+            _actors.ResetTransientTimers(); _sparks.Clear();
         }
 
         void PresentFx(PendingFx f)
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
                 _actors.ConfirmedCue(f.Subject,f.Kind);
+                if (f.Kind == FxKind.Hit || f.Kind == FxKind.Block) _sparks.Hit(p, f.Kind == FxKind.Block, ref _sparkRng);      // render pass: hit sparks and light
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
                 flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;
@@ -572,6 +588,7 @@ namespace Roguehalla.Client
             var p = WorldPoint(serverX, serverY); cam.transform.position = new Vector3(p.x, p.y + 1.5f, -30);
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
+            _camCenter = cam.transform.position; _camHalf = cam.orthographic ? new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize) : new Vector2(12, 9);
             UpdateLampVisibility(p);
             if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
             bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;

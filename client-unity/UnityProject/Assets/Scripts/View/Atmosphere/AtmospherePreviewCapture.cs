@@ -53,7 +53,9 @@ namespace Roguehalla.Client
             cam.allowHDR = true; camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
             var arenaGo = new GameObject("Arena"); var arena = arenaGo.AddComponent<ArenaView>();
             typeof(ArenaView).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(arena, null);
-            AtmosphereQuality.SetUrl(Arg("-atmUrl", "")); AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, false);
+            AtmosphereQuality.SetUrl(Arg("-atmUrl", ""));
+            var preset = Arg("-atmQuality", "ultra") == "high" ? ShowcaseQuality.High : Arg("-atmQuality", "ultra") == "medium" ? ShowcaseQuality.Medium : Arg("-atmQuality", "ultra") == "low" ? ShowcaseQuality.Low : ShowcaseQuality.Ultra;
+            AtmosphereQuality.ApplyPreset(preset, false);
             arena.Build(map);
             if (Arg("-atmParticles", "1") == "0") { AtmosphereQuality.ParticleDensity = 0f; arena.Atmosphere.Particles.RefreshQuality(); }     // judge the ground without the haze
             int width = int.Parse(Arg("-atmW", "1920")), height = int.Parse(Arg("-atmH", "1080"));

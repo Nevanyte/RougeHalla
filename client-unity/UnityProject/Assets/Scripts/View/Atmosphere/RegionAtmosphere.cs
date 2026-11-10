@@ -16,10 +16,17 @@ namespace Roguehalla.Client
     {
         const float EaseSeconds = .35f, CullMarginTiles = 4f;
         ArenaView _arena; Light2D _ambient; Volume _volume; System.Action<Color> _haze;
-        VolumeProfile _profile; ColorAdjustments _ca; SplitToning _split; Bloom _bloom; Vignette _vig;
+        VolumeProfile _profile; ColorAdjustments _ca; SplitToning _split; Bloom _bloom; Vignette _vig; LiftGammaGain _lgg; Tonemapping _tone;
         readonly RegionField _field = new RegionField(); TempleLayout _temple;
-        RegionShadowMap _shadows; readonly AccentLights _lights = new AccentLights(); readonly AtmosphereParticles _particles = new AtmosphereParticles();
+        RegionShadowMap _shadows; readonly AccentLights _lights = new AccentLights(); readonly LifeLights _life = new LifeLights(); readonly AtmosphereParticles _particles = new AtmosphereParticles();
         AtmosphereAudio _audio;
+        WallSdf _sdf; bool _wasAnalytic;
+        /// <summary>How windy each region is (wire ids 1..6: fire, sentenced, plague, frost, holy, coliseum).</summary>
+        static readonly float[] Windiness = { .30f, .30f, .55f, .85f, .75f, .50f };
+        /// <summary>Cloud shadow amount per wire id 0..7 (sunny zones only: frost, holy, plague clearings, coliseum).</summary>
+        static readonly Vector4[] CloudAmt = { Vector4.zero, Vector4.zero, Vector4.zero, new Vector4(.30f, 0, 0, 0), new Vector4(.62f, 0, 0, 0), new Vector4(.55f, 0, 0, 0), new Vector4(.35f, 0, 0, 0), Vector4.zero };
+        static readonly int IdWind = Shader.PropertyToID("_RhWind"), IdCloud = Shader.PropertyToID("_RhCloud"), IdActorN = Shader.PropertyToID("_RhActorN"), IdFx = Shader.PropertyToID("_RhFx");
+        public WallSdf WallSdf { get { return _sdf; } }
         readonly float[] _w = new float[RegionField.Regions];
         AtmosphereParams _cur; bool _hasCur; float _ambientBase = .36f;
         Camera _cam; float _time; int _rectKey = int.MinValue; bool _matchActive;
@@ -27,6 +34,7 @@ namespace Roguehalla.Client
         public RegionField Field { get { return _field; } }
         public RegionShadowMap Shadows { get { return _shadows; } }
         public AccentLights Lights { get { return _lights; } }
+        public LifeLights Life { get { return _life; } }
         public AtmosphereParticles Particles { get { return _particles; } }
         public AtmosphereAudio Audio { get { return _audio; } }
         public AtmosphereParams Current { get { return _cur; } }
@@ -37,7 +45,7 @@ namespace Roguehalla.Client
         {
             _arena = arena; _ambient = ambient; _volume = volume; _haze = haze;
             EnsureOverrides();
-            _particles.Initialize(transform); _lights.Initialize(transform);
+            _particles.Initialize(transform); _lights.Initialize(transform); _life.Initialize(transform);
             _audio = new AtmosphereAudio(this, transform);
             UploadSunTable();
             _arena.LocalRegionChanged += OnRegionChanged;
@@ -55,6 +63,9 @@ namespace Roguehalla.Client
             if (!_profile.TryGet(out _bloom)) _bloom = _profile.Add<Bloom>(true);
             if (!_profile.TryGet(out _split)) _split = _profile.Add<SplitToning>(true);
             if (!_profile.TryGet(out _vig)) _vig = _profile.Add<Vignette>(true);
+            if (!_profile.TryGet(out _lgg)) _lgg = _profile.Add<LiftGammaGain>(true);
+            if (!_profile.TryGet(out _tone)) _tone = _profile.Add<Tonemapping>(true);
+            _tone.mode.Override(TonemappingMode.Neutral);
             _vig.rounded.Override(false);
         }
 
@@ -99,6 +110,9 @@ namespace Roguehalla.Client
             _shadows = map.Regions != null ? new RegionShadowMap(map, _field) : null;
             Shader.SetGlobalTexture("_RhShadowMask", _shadows != null ? (Texture)_shadows.Mask : Texture2D.blackTexture);
             _lights.Load(map); _rectKey = int.MinValue;
+            if (_sdf != null) _sdf.Dispose();
+            _sdf = map.Tiles != null ? new WallSdf(map.Tiles, map.W, map.H) : null;
+            Shader.SetGlobalTexture("_RhWallSdf", _sdf != null ? (Texture)_sdf.Texture : Texture2D.whiteTexture);
         }
 
         void OnRegionChanged(RegionId previous, RegionId current)
@@ -144,8 +158,27 @@ namespace Roguehalla.Client
                         ^ ((Mathf.FloorToInt((ty - halfH - CullMarginTiles) / cs) + 64) << 8) ^ (Mathf.FloorToInt((ty + halfH + CullMarginTiles) / cs) + 64);
                 if (key != _rectKey) { _rectKey = key; _shadows.UpdateVisible(tx - halfW, ty - halfH, tx + halfW, ty + halfH, CullMarginTiles); }
             }
+            PushSurfaceGlobals(tx, ty);
+            bool analytic = AtmosphereQuality.AnalyticLights;
+            if (analytic) { LocalLightField.Begin(AtmosphereQuality.EffectiveLocalLights); if (AtmosphereQuality.FxLights) LocalLightField.AddFlashes(dt); }
             _lights.Tick(tx, ty, halfW, halfH, dt, _time);
+            _life.Tick(dt, _time, tx, ty, halfW, halfH, _w[2], _w[0], _lights.Planner);
+            if (analytic) { LocalLightField.Push(AtmosphereQuality.Relief, AtmosphereQuality.LocalShadows && _sdf != null, AtmosphereQuality.Cookies, AtmosphereQuality.Gloss); _wasAnalytic = true; }
+            else if (_wasAnalytic) { LocalLightField.Clear(); _wasAnalytic = false; }
             _particles.Tick(cam, dt);
+        }
+
+        /// <summary>Wind, cloud shadows and the presented actors, for the ground, wall and prop shaders (RhSun.hlsl). Fixed arrays, no allocation.</summary>
+        void PushSurfaceGlobals(float tx, float ty)
+        {
+            float wind = 0; for (int k = 0; k < RegionField.Regions; k++) wind += _w[k] * Windiness[k];
+            float ang = .45f + .35f * Mathf.Sin(_time * .05f);
+            bool on = AtmosphereQuality.Wind && wind > .001f;
+            Shader.SetGlobalVector(IdWind, new Vector4(Mathf.Cos(ang), Mathf.Sin(ang), on ? wind : 0f, 1.15f + .35f * Mathf.Sin(_time * .21f)));
+            Shader.SetGlobalVectorArray(IdCloud, CloudAmt);
+            int n = ActorField.Push(tx, ty);
+            Shader.SetGlobalVector(IdActorN, new Vector4(n, AtmosphereQuality.Clouds ? 1f : 0f, 0, 0));
+            Shader.SetGlobalVector(IdFx, new Vector4(AtmosphereQuality.Water ? 1f : 0f, 0, 0, 0));
         }
 
         void Update()
@@ -166,6 +199,8 @@ namespace Roguehalla.Client
             if (!post) return;
             bool grade = AtmosphereQuality.Grading;
             _ca.active = grade; _ca.postExposure.Override(p.PostExposure); _ca.contrast.Override(p.Contrast); _ca.saturation.Override(p.Saturation); _ca.colorFilter.Override(p.ColorFilter);
+            if (_lgg != null) { _lgg.active = grade; _lgg.lift.Override(p.Lift); _lgg.gain.Override(p.Gain); }
+            if (_tone != null) _tone.active = grade;
             _split.active = grade; _split.shadows.Override(p.SplitShadows); _split.highlights.Override(p.SplitHighlights); _split.balance.Override(p.SplitBalance);
             _bloom.active = AtmosphereQuality.Bloom; _bloom.threshold.Override(p.BloomThreshold); _bloom.intensity.Override(p.BloomIntensity); _bloom.scatter.Override(p.BloomScatter); _bloom.tint.Override(p.BloomTint);
             _vig.active = AtmosphereQuality.Vignette; _vig.intensity.Override(p.VignetteIntensity); _vig.smoothness.Override(p.VignetteSmoothness); _vig.color.Override(p.VignetteColor);
@@ -175,7 +210,8 @@ namespace Roguehalla.Client
         {
             if (_arena != null) _arena.LocalRegionChanged -= OnRegionChanged;
             AtmosphereQuality.Changed -= OnQualityChanged;
-            _particles.Dispose(); _lights.Dispose(); if (_audio != null) _audio.Dispose(); if (_shadows != null) _shadows.Dispose();
+            LocalLightField.Clear(); if (_sdf != null) _sdf.Dispose();
+            _particles.Dispose(); _lights.Dispose(); _life.Dispose(); if (_audio != null) _audio.Dispose(); if (_shadows != null) _shadows.Dispose();
             if (AtmosphereShadows.Field == _field) AtmosphereShadows.Field = null;
             if (_profile != null && _volume != null && _volume.sharedProfile != _profile) { }
             Shader.SetGlobalVector("_RhSwitch", Vector4.zero);
