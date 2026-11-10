@@ -6,6 +6,14 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Current delivery scope: technical demo (owner decision, 2026-11-09)
 
+**Competitive update2026-11-10:** owner-authorized Claude Wave1/security plus the reproduced stale-echo repair are
+composed at `fe0e2983`.956 managed tests,102 affected Rust tests, format, strict server lint, sync/provenance and actual
+Unity Client/Net compilation pass. Actual performance improvement is not yet measured. The running local baseline
+remains Web18f/source1c44 and the optimized Mac binary SHA0b800a43: Source52060, Training52076, router51524. Its new
+HUD/Settings render correctly in ordinary Training; Source multiplayer is being exercised with three normal players.
+Calgary's bounded ephemeral stack/bootstrap are prepared separately and not yet deployed. Deferred content remains
+outside the demo critical path.
+
 The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
 AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
 this delivery. The [demo scope and owners](coordination/TECHNICAL_DEMO.md) supersede earlier full-port release blockers
