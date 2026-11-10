@@ -60,8 +60,8 @@ namespace Roguehalla.Client
             _zone = Sprite(root, "Zoned ring", ShowcaseSprites.Get("ring"), -5);
             _numberBack = Sprite(root, "Bounty number plate", ShowcaseSprites.Get("bar"), 11);
             _nameBack = Sprite(root, "Name plate", ShowcaseSprites.Get("bar"), 11);
-            _number = Text(root, "Bounty number", 2.6f, FontStyles.Bold);
-            _name = Text(root, "Name", 2.3f, FontStyles.Normal);
+            _number = Text(root, "Bounty number", 3.1f, FontStyles.Bold);
+            _name = Text(root, "Name", 2.5f, FontStyles.Normal);
             HideAll();
         }
 
@@ -72,7 +72,7 @@ namespace Roguehalla.Client
             if (_outlined != null && _outlinedFor == font) return _outlined;
             _outlined = new Material(font.material) { name = "Roguehalla / outlined world text" };
             _outlined.EnableKeyword("OUTLINE_ON");
-            _outlined.SetFloat(ShaderUtilities.ID_OutlineWidth, .24f);
+            _outlined.SetFloat(ShaderUtilities.ID_OutlineWidth, .1f);
             _outlined.SetColor(ShaderUtilities.ID_OutlineColor, (Color)UiTheme.Current.OutlineDark);
             _outlinedFor = font;
             return _outlined;
