@@ -12,7 +12,7 @@ namespace Roguehalla.Client
 {
     public sealed class WorldMarks
     {
-        sealed class Mark { public SpriteRenderer Glyph; public TextMeshPro Label; public string Text; }
+        sealed class Mark { public SpriteRenderer Glyph, GlyphPlate, LabelPlate; public TextMeshPro Label; public string Text; }
         readonly Transform _root;
         readonly List<Mark> _marks = new List<Mark>();
         int _used;
@@ -51,7 +51,7 @@ namespace Roguehalla.Client
                         SetLabel(m, t.Name, theme.TextPrimary, new Vector3(0, -.2f, 0), 2.3f, 1f);
                     }
             }
-            for (int i = _used; i < _marks.Count; i++) { _marks[i].Glyph.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
+            for (int i = _used; i < _marks.Count; i++) { _marks[i].Glyph.enabled = false; _marks[i].GlyphPlate.enabled = false; _marks[i].LabelPlate.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
         }
 
         Mark Next()
@@ -59,6 +59,10 @@ namespace Roguehalla.Client
             if (_used == _marks.Count)
             {
                 var m = new Mark();
+                // Opaque dark plates behind the glyph and the label keep both above 4.5:1 on any ground (sand, snow): plates, not outlines.
+                m.GlyphPlate = ShowcaseSprites.Create(_root, "World marker plate", "bar", Order - 2, Color.white, Vector2.one, Vector3.zero, false);
+                m.LabelPlate = ShowcaseSprites.Create(_root, "World marker label plate", "bar", Order - 1, Color.white, Vector2.one, Vector3.zero, false);
+                m.GlyphPlate.enabled = m.LabelPlate.enabled = false;
                 m.Glyph = ShowcaseSprites.Create(_root, "World marker", "bar", Order, Color.white, Vector2.one, Vector3.zero, false);
                 var go = new GameObject("World marker label"); go.transform.SetParent(_root, false);
                 m.Label = go.AddComponent<TextMeshPro>();
@@ -76,15 +80,21 @@ namespace Roguehalla.Client
         {
             m.Glyph.enabled = true; m.Glyph.sprite = sprite; color.a = alpha; m.Glyph.color = color;
             m.Glyph.transform.position = at; m.Glyph.transform.localScale = new Vector3(size, size, 1);
+            var plate = (Color)UiTheme.Current.OutlineDark; plate.a = 1f;
+            m.GlyphPlate.enabled = true; m.GlyphPlate.color = plate; m.GlyphPlate.transform.position = at; m.GlyphPlate.transform.localScale = new Vector3(size * 1.32f, size * 1.32f, 1);
         }
 
         static void SetLabel(Mark m, string text, Color32 color, Vector3 offset, float size, float alpha)
         {
-            if (string.IsNullOrEmpty(text)) { m.Label.gameObject.SetActive(false); return; }
+            if (string.IsNullOrEmpty(text)) { m.Label.gameObject.SetActive(false); m.LabelPlate.enabled = false; return; }
             if (!ReferenceEquals(m.Text, text)) { m.Text = text; m.Label.text = text; }
             m.Label.fontSize = size; var c = (Color)color; c.a = alpha; m.Label.color = c;
             m.Label.transform.position = m.Glyph.transform.position + offset - new Vector3(0, .25f, 0);
             m.Label.gameObject.SetActive(true);
+            var lp = (Color)UiTheme.Current.OutlineDark; lp.a = 1f;
+            m.LabelPlate.enabled = true; m.LabelPlate.color = lp;
+            m.LabelPlate.transform.position = m.Label.transform.position + new Vector3(0, .02f, 0);
+            m.LabelPlate.transform.localScale = new Vector3(m.Label.preferredWidth + .2f, size * .12f + .02f, 1);
         }
     }
 }

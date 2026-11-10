@@ -444,7 +444,7 @@ namespace Roguehalla.Client
             _championWanted = alive && _session != null && (_session.Phase == MatchPhase.Active || practice);
             if (_deathLine != null)
             {
-                bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && _session.LastResult == null && !practice;
+                bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && !_results.gameObject.activeSelf && !practice;
                 var box = _deathLine.transform.parent.gameObject;
                 if (box.activeSelf != dead) box.SetActive(dead);
             }

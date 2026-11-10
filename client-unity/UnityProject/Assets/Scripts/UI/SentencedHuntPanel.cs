@@ -37,6 +37,7 @@ namespace Roguehalla.Client
             HudUi.Surface(_root, UiTheme.With(theme.Surface, .93f), 7f, theme.FactionColor(1), true, false);
             _title = HudUi.Label(HudUi.At(_root, "Title", 8f, 5f, Width - 16f, 15f), "Title", "Hunt", 11f, theme.FactionColor(1), bold: true);
             _status = HudUi.Label(HudUi.At(_root, "Status", 8f, 21f, Width - 16f, 28f), "Status", "", 10f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            for (int i = 0; i < (int)MaxRows; i++) Row(i).gameObject.SetActive(false); // all rows exist from the start: no UI is built inside the frame loop
             _root.gameObject.SetActive(false);
         }
 
@@ -72,12 +73,12 @@ namespace Roguehalla.Client
             _nextRefresh = Time.unscaledTime + .2f;
             _actors.Clear(); session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
             _rivals.Clear();
-            InterpActor? target = null;
+            bool haveTarget = false; InterpActor targetActor = default(InterpActor);
             foreach (var a in _actors)
             {
                 if (a.Kind != ActorKind.Player || a.Id == me.Id || a.Status != ActorStatus.Alive) continue;
                 _rivals.Add(a);
-                if (me.HuntTarget.HasValue && a.Id == me.HuntTarget.Value) target = a;
+                if (me.HuntTarget.HasValue && a.Id == me.HuntTarget.Value) { haveTarget = true; targetActor = a; }
             }
             // insertion sort by id (a handful of rivals): List<struct>.Sort needs generic code IL2CPP/WebGL may not have compiled
             for (int i = 1; i < _rivals.Count; i++)
@@ -97,14 +98,14 @@ namespace Roguehalla.Client
             bool tracking = me.HuntTarget.HasValue;
             if (tracking)
             {
-                string who = target.HasValue ? Rival(target.Value) : "rival";
+                string who = haveTarget ? Rival(targetActor) : "rival";
                 _status.text = "Tracking " + who + ". +5% speed toward them; choose again when they fall.";
             }
             else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight. They appear here when the server shows one." : "Choose a living rival · +5% speed while moving toward them";
             int rows = tracking ? 0 : Mathf.Min(_rivals.Count, (int)MaxRows);
-            for (int i = 0; i < _rows.Count || i < rows; i++)
+            for (int i = 0; i < _rows.Count; i++)
             {
-                var button = Row(i);
+                var button = _rows[i];
                 bool on = i < rows; button.gameObject.SetActive(on);
                 if (!on) continue;
                 var r = _rivals[i];

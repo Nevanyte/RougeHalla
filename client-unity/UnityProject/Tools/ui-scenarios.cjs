@@ -451,7 +451,7 @@ class Cast {
   async start() {
     this.cdp = await this.run.ctx.newCDPSession(this.run.page);
     this.cdp.on('Page.screencastFrame', async f => { const t = Date.now() - this.t0; this.frames.push({ t, data: f.data }); if (this.keepMs) while (this.frames.length && this.frames[0].t < t - this.keepMs) this.frames.shift(); try { await this.cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch (_) { } });
-    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, everyNthFrame: 1 });
+    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1, maxWidth: 1600, maxHeight: 900 });
   }
   async stop() { try { await this.cdp.send('Page.stopScreencast'); } catch (_) { } }
   save(dir, stem, from, to, crop) { // frames within [from, to] ms on this recorder's clock
@@ -464,35 +464,34 @@ class Cast {
 // Staging: a creature sits in sight, the player walks directly away until it leaves what the server delivers; the screencast records
 // the whole walk and the probe timestamps the moment the creature's id disappears from the delivered actors.
 scenarios['fade-creature'] = async (variant) => {
-  const run = await open('fade-creature', { training: true, auto: 0, faction: FACTIONS[variant || 'frost'] ?? 3 });
-  const start = await startTraining(run); if (!start || !start.practice) { console.log('  training not confirmed'); await run.finish(); return; }
-  await spawnCamp(run, +(opt('mob', 0))); await consoleClose(run); await sleep(1500);
+  const run = await open('fade-creature', { faction: FACTIONS[variant || 'plague'] ?? 2 });
+  await startArena(run); await sleep(6000);
   let p = await run.probe();
-  let tgt = (p.actors || []).filter(a => a.kind === 1).sort((a, b) => Math.hypot(a.x - p.me.x, a.y - p.me.y) - Math.hypot(b.x - p.me.x, b.y - p.me.y))[0];
-  if (!tgt) { console.log('  no creature in sight'); await run.snap('no-creature'); await run.finish(); return; }
-  console.log('  target', tgt.id, 'distance', Math.round(Math.hypot(tgt.x - p.me.x, tgt.y - p.me.y)));
+  const near = () => (p.actors || []).filter(a => a.kind === 1 && a.status === 1).sort((a, b) => Math.hypot(a.x - p.me.x, a.y - p.me.y) - Math.hypot(b.x - p.me.x, b.y - p.me.y))[0];
+  let tgt = near();
+  if (!tgt) { console.log('  no creature in sight at spawn'); await run.snap('no-creature'); await run.finish(); return; }
+  console.log('  target', tgt.mob, 'distance', Math.round(Math.hypot(tgt.x - p.me.x, tgt.y - p.me.y)), 'me', Math.round(p.me.x), Math.round(p.me.y));
   await run.snap('before-walk-away');
-  const cast = new Cast(run); await cast.start();
-  const log = []; let gone = null; const t0 = Date.now(); const track = { x: tgt.x, y: tgt.y };
-  while (Date.now() - t0 < 40000) {
+  const cast = new Cast(run, 9000); await cast.start();
+  const log = []; let gone = null; const t0 = Date.now(); const track = { x: tgt.x, y: tgt.y }; let lastWalk = 0;
+  while (Date.now() - t0 < 60000) {
     p = await run.probe(); if (!p || !p.me) { await sleep(40); continue; }
+    if (p.me.status !== 1) break;
     // creature handles are renewed every snapshot, so follow it by type and position instead of by id
-    const near = (p.actors || []).filter(x => x.kind === 1 && x.mob === tgt.mob && Math.hypot(x.x - track.x, x.y - track.y) < 140).sort((u, v) => Math.hypot(u.x - track.x, u.y - track.y) - Math.hypot(v.x - track.x, v.y - track.y))[0];
-    const a = near; if (a) { track.x = a.x; track.y = a.y; } const t = Date.now() - cast.t0;
-    log.push({ t, present: !!a, d: a ? Math.round(Math.hypot(a.x - p.me.x, a.y - p.me.y)) : null, me: [Math.round(p.me.x), Math.round(p.me.y)], sx: a && Math.round(a.sx), sy: a && Math.round(a.sy) });
-    if (!a && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', [...log].reverse().find(l => l.present)?.d); }
-    if (gone !== null && t > gone + 1200) break;
-    // walk directly away (screen direction from the creature through the player), re-issued twice a second
-    const last = [...log].reverse().find(l => l.present);
-    {
-      const ref = a || (last && { sx: last.sx, sy: last.sy }); if (ref) { await stepToward(run, p.me, ref.sx, ref.sy, 200, true); }
+    const cand = (p.actors || []).filter(x => x.kind === 1 && x.mob === tgt.mob && Math.hypot(x.x - track.x, x.y - track.y) < 160).sort((u, v) => Math.hypot(u.x - track.x, u.y - track.y) - Math.hypot(v.x - track.x, v.y - track.y))[0];
+    const t = Date.now() - cast.t0; if (cand) { track.x = cand.x; track.y = cand.y; }
+    log.push({ t, present: !!cand, d: cand ? Math.round(Math.hypot(cand.x - p.me.x, cand.y - p.me.y)) : null, sx: cand && Math.round(cand.sx), sy: cand && Math.round(cand.sy) });
+    if (!cand && gone === null) { gone = t; console.log('  creature left delivery at', t, 'ms; last distance', [...log].reverse().find(l => l.present)?.d); await sleep(1300); break; }
+    if (Date.now() - lastWalk > 3500) { // straight away from the creature, as far as the map allows
+      const dx = p.me.x - track.x, dy = p.me.y - track.y, n = Math.hypot(dx, dy) || 1;
+      await run.walkWorld(Math.max(150, Math.min(4950, p.me.x + dx / n * 2500)), Math.max(150, Math.min(4950, p.me.y + dy / n * 2500))); lastWalk = Date.now();
     }
     await sleep(30);
   }
   await cast.stop();
   fs.writeFileSync(path.join(run.dir, 'fade-timeline.json'), JSON.stringify(log));
   if (gone !== null) {
-    const files = cast.save(run.dir, 'fade', gone - 500, gone + 900);
+    const files = cast.save(run.dir, 'fade', gone - 700, gone + 1200);
     const last = [...log].reverse().find(l => l.present);
     console.log('  fade frames', files.length, 'last seen at', last && [last.sx, last.sy]);
     fs.writeFileSync(path.join(run.dir, 'fade-meta.json'), JSON.stringify({ goneAtMs: gone, lastSeen: last, frames: files.map(f => path.basename(f)) }));

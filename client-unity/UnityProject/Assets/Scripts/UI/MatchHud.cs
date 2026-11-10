@@ -41,7 +41,9 @@ namespace Roguehalla.Client
         double _lastServerTime = double.NaN;
         ushort _lastKills, _lastGv;
         ActorStatus _lastStatus;
-        WireResult _lastResult;
+        WireResult _lastResult, _pendingResult; float _pendingResultAt;
+        /// <summary>Seconds a defeated player sees the death line before the results card (legacy DEATH_RESULTS_DELAY_MS).</summary>
+        public const float DeathResultsDelay = 1.5f;
         string _feedback = "";
         InventoryView? _inventoryShown;
         PropView? _focusShown;
@@ -148,7 +150,7 @@ namespace Roguehalla.Client
             _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
             SetSignInVisible(false); CloseHubPanels();
             _results.gameObject.SetActive(false); _rewards.gameObject.SetActive(false);
-            _feedback = ""; _lastResult = null; _lastHp = float.NaN; _chestIndex = 0; _shownChest = default;
+            _feedback = ""; _lastResult = _pendingResult = null; _lastHp = float.NaN; _chestIndex = 0; _shownChest = default;
             _lastWish = null; _lastBarrier = float.NaN; _lastBarrierRing = 0; _lastServerTime = double.NaN;
             _inventoryShown = null; _focusShown = null; _buildShown = false; _rewardSignature = ulong.MaxValue;
             _dirty = _rewardsDirty = true; _bannerState = (SessionState)(-1); _bannerPhase = -1;
@@ -274,6 +276,13 @@ namespace Roguehalla.Client
             else if (_rewards.gameObject.activeSelf && _session.Collections.RewardChests.Count > 0)
             { var cs = _session.Collections.RewardChests; RefreshChestClock(cs[_chestIndex % cs.Count]); RefreshChestHint(cs.Count > 1); }
             if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult))
+            {
+                // Legacy main.ts DEATH_RESULTS_DELAY_MS: a killed player sees the "YOU DIED" line and the fall for 1.5 s before the results card
+                // replaces it; every other outcome shows at once.
+                if (!ReferenceEquals(_pendingResult, _session.LastResult))
+                { _pendingResult = _session.LastResult; _pendingResultAt = Time.unscaledTime + (_pendingResult.Outcome == 2 ? DeathResultsDelay : 0f); }
+            }
+            if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult) && Time.unscaledTime >= _pendingResultAt)
             {
                 _lastResult = _session.LastResult; var r = _lastResult;
                 ShowResultFacts(r);

@@ -28,6 +28,9 @@ namespace Roguehalla.Client
         readonly Dictionary<int, FitCache> _fitCache = new Dictionary<int, FitCache>();
         Session _session;
         TradeView _renderedTrade;
+        sealed class ViewRef { public TradeView View; }
+        ViewRef _viewRef = new ViewRef();
+        string _renderedSignature = "";
         Action _onClose;
         uint _boundEpoch;
         int _selectedMerchant = -1;
@@ -140,16 +143,26 @@ namespace Roguehalla.Client
             bool replacement = !ReferenceEquals(current, _renderedTrade);
             if (replacement)
             {
+                // The server may deliver the same trade content again and again (every state frame while a merchant is in sight). Rebuilding
+                // the rows each time resets hover, keyboard focus and the colour tween (rows read as pale, half-faded greys), so an identical
+                // replacement only rebinds the rows to the new view object; the stale-row guard still compares object identity.
+                string signature = TradeSignature(current);
+                bool identical = current != null && current.Available && _renderedTrade != null && signature == _renderedSignature;
                 _renderedTrade = current;
                 _pending = false; _pendingText = "";
-                _renderGeneration++;
-                var oldSelection = _selectedMerchant;
-                int count = current != null && current.Available ? current.Merchants.Count : 0;
-                _selectedMerchant = oldSelection >= 0 && oldSelection < count ? oldSelection : count > 0 ? 0 : -1;
-                RebuildMerchants(current);
-                if (current != null && current.Available && _selectedMerchant >= 0)
-                    UpdateSelectedDetail(current, _selectedMerchant, true);
-                else RebuildChoices(current);
+                if (identical) _viewRef.View = current;
+                else
+                {
+                    _renderedSignature = signature; _viewRef = new ViewRef { View = current };
+                    _renderGeneration++;
+                    var oldSelection = _selectedMerchant;
+                    int count = current != null && current.Available ? current.Merchants.Count : 0;
+                    _selectedMerchant = oldSelection >= 0 && oldSelection < count ? oldSelection : count > 0 ? 0 : -1;
+                    RebuildMerchants(current);
+                    if (current != null && current.Available && _selectedMerchant >= 0)
+                        UpdateSelectedDetail(current, _selectedMerchant, true);
+                    else RebuildChoices(current);
+                }
             }
 
             string authority = _session.State == SessionState.InMatch ? "Server trade view" : StateCopy(_session.State);
@@ -211,6 +224,18 @@ namespace Roguehalla.Client
             return true;
         }
 
+        static string TradeSignature(TradeView v)
+        {
+            if (v == null) return "null";
+            if (!v.Available) return "unavailable";
+            var sb = new System.Text.StringBuilder().Append(v.TradeUsed ? 'u' : 'f').Append('|').Append(v.BarterReadyAt.HasValue ? v.BarterReadyAt.Value.ToString("R", CultureInfo.InvariantCulture) : "-");
+            foreach (var m in v.Merchants) sb.Append("|m").Append((int)m.Kind).Append(',').Append(m.X.ToString("R", CultureInfo.InvariantCulture)).Append(',').Append(m.Y.ToString("R", CultureInfo.InvariantCulture)).Append(',').Append(m.Name);
+            foreach (var o in v.Offers) sb.Append("|o").Append((int)o.Cost).Append((int)o.Gain).Append(',').Append(o.CostValue.ToString("R", CultureInfo.InvariantCulture)).Append(',').Append(o.GainValue.ToString("R", CultureInfo.InvariantCulture)).Append(',').Append(o.Label);
+            foreach (var d in v.Stats) sb.Append("|s").Append((int)d.Stat).Append(',').Append(d.Value.ToString("R", CultureInfo.InvariantCulture));
+            foreach (var l in v.BarterLabels) sb.Append("|b").Append(l);
+            return sb.ToString();
+        }
+
         bool IsCurrentView(Session session, uint epoch, TradeView view, int generation)
         {
             return session != null && ReferenceEquals(session, _session) && session.TimelineEpoch == epoch &&
@@ -225,10 +250,10 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Merchants.Count; i++)
             {
                 var row = view.Merchants[i]; int capturedIndex = i;
-                var capturedSession = _session; uint capturedEpoch = _boundEpoch; int capturedGeneration = _renderGeneration;
+                var capturedSession = _session; uint capturedEpoch = _boundEpoch; int capturedGeneration = _renderGeneration; var viewRef = _viewRef;
                 var button = MythicUi.Button(_merchantList, "Merchant_" + i, "", new Vector2(0, 1), new Vector2(1, 1), () =>
                 {
-                    if (IsCurrentView(capturedSession, capturedEpoch, view, capturedGeneration)) SelectMerchant(capturedIndex);
+                    if (IsCurrentView(capturedSession, capturedEpoch, viewRef.View, capturedGeneration)) SelectMerchant(capturedIndex);
                 }, MythicUi.ButtonStyle.Secondary, 13);
                 var rect = (RectTransform)button.transform;
                 rect.pivot = new Vector2(.5f, 1f); rect.anchorMin = new Vector2(0, 1); rect.anchorMax = new Vector2(1, 1);
@@ -243,6 +268,7 @@ namespace Roguehalla.Client
 
         void RebuildChoices(TradeView view)
         {
+            var viewRef = _viewRef;
             float scroll = _choiceScroll == null ? 1f : _choiceScroll.verticalNormalizedPosition;
             HideRows(_choiceRows); _choiceButtons.Clear();
             _empty.gameObject.SetActive(true);
@@ -271,7 +297,7 @@ namespace Roguehalla.Client
                     byte capturedPick = pick; var capturedSession = _session; uint capturedEpoch = _boundEpoch;
                     int capturedGeneration = _renderGeneration, capturedMerchant = _selectedMerchant;
                     string label = (pick + 1).ToString(CultureInfo.InvariantCulture) + " · " + view.BarterLabels[pick];
-                    var button = CreateChoiceButton(pick, label, () => TryTradeBound(capturedSession, capturedEpoch, view,
+                    var button = CreateChoiceButton(pick, label, () => TryTradeBound(capturedSession, capturedEpoch, viewRef.View,
                         capturedGeneration, capturedMerchant, TradeKind.Barter, capturedPick));
                     _choiceButtons.Add(button);
                 }
@@ -309,10 +335,10 @@ namespace Roguehalla.Client
                         byte capturedPick = pick; var capturedSession = _session; uint capturedEpoch = _boundEpoch;
                         int capturedGeneration = _renderGeneration, capturedMerchant = _selectedMerchant;
                         var offer = offers[pick];
-                        string quote = "Costs " + FormatDouble(offer.CostValue) + " " + StatName(offer.Cost) + "  ·  Gives " +
-                            FormatDouble(offer.GainValue) + " " + StatName(offer.Gain);
-                        string label = (pick + 1).ToString(CultureInfo.InvariantCulture) + " · " + offer.Label + "\n" + quote;
-                        var button = CreateChoiceButton(pick, label, () => TryTradeBound(capturedSession, capturedEpoch, view,
+                        // Legacy shows the server's offer label alone ("-12% attack speed -> +13.9 Defense"); the raw cost/gain numbers are
+                        // fractions and flat values in different units, so repeating them read as a second, inconsistent quote.
+                        string label = (pick + 1).ToString(CultureInfo.InvariantCulture) + " · " + offer.Label;
+                        var button = CreateChoiceButton(pick, label, () => TryTradeBound(capturedSession, capturedEpoch, viewRef.View,
                             capturedGeneration, capturedMerchant, TradeKind.Stats, capturedPick));
                         button.interactable = !view.TradeUsed;
                         _choiceButtons.Add(button);
