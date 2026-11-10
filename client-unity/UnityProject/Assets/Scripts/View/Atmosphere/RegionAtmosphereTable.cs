@@ -93,7 +93,7 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Fire:      // under the mountain: almost no sun, lava does the lighting; embers
                     row.Name = "Fire";
-                    p.SunColor = Tint(key, .7f); p.LightScale = 1.05f; p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * .56f;
+                    p.SunColor = Tint(key, .7f); p.LightScale = 1.1f; p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * .56f;
                     p.LightColor = Tint(Mix(amb, key, .3f), .2f);
                     p.PostExposure = .12f; p.Contrast = 10f; p.Saturation = -6f; p.ColorFilter = Tint(accent, .03f);
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
@@ -106,7 +106,7 @@ namespace Roguehalla.Client
                     row.Name = "Sentenced";
                     p.SunColor = Tint(key, .22f); p.LightScale = .8f; p.SunStrength = .2f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .5f;
                     p.LightColor = Tint(Mix(amb, key, .55f), .15f);
-                    p.PostExposure = .25f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
+                    p.PostExposure = .08f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(amb, .2f); p.SplitBalance = -20f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .3f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .4f);
                     p.VignetteIntensity = .22f; p.Haze = A(fog, .13f);
@@ -126,7 +126,7 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Holy:      // strong golden sun, warm dust
                     row.Name = "Holy";
-                    p.SunColor = Tint(key, .6f); p.LightScale = 1.62f; p.SunStrength = 1.15f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .46f;   // brightest passive level; the sand itself is darker and richer, rays carry the brightness
+                    p.SunColor = Tint(key, .6f); p.LightScale = 1.45f; p.SunStrength = 1.15f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .46f;   // brightest passive level; the sand itself is darker and richer, rays carry the brightness
                     p.LightColor = Tint(Mix(amb, key, .6f), .15f);
                     p.PostExposure = -.04f; p.Contrast = 6f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;

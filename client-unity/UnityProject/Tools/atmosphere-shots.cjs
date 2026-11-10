@@ -118,6 +118,6 @@ async function session(faction, label, body) {
     });
     if (errors.length) { failed = true; console.error(errors.slice(0, 6).join('\n')); }
   }
-  if (lumas.length) fs.writeFileSync(path.join(outDir, `luma${extra ? '-' + extra.replace(/[^a-z0-9.=]/gi, '_') : ''}.json`), JSON.stringify(lumas, null, 1));
+  if (lumas.length) fs.writeFileSync(path.join(outDir, `luma-${tag || 'run'}.json`), JSON.stringify(lumas, null, 1));
   process.exit(failed ? 1 : 0);
 })();
