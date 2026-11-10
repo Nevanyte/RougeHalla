@@ -197,4 +197,20 @@ All implementation/test Rust is DeepSeek-owned. In addition to the exact existin
 
 All source fixtures, source tools and expected source outputs remain immutable. Content and native ability-tape golden updates are NOT preauthorized: first run the actual full63 ability source comparisons and preserve genuine mismatches, then report the exact newly derived identity/tape need to Root. Never turn a recorder into a source oracle or drop cases. Root authorizes the derived recorder/pin step separately after those results. Record exact commands/cwd/flags/exits and first failures as work happens. Keep complete private checkpoints/state transcripts outside Git.
 
+### Root derived-identity authorization (2026-11-10)
+
+Root and the independent reviewer have now inspected the actual worker receipt
+`/tmp/cardlogs/ability-63-source-final.log`: unchanged `frozen_full_source_all_63_cases` passes, zero named
+prerequisites remain, one aggregate test/15.85s/exit0. The existing consumer asserts all63 cases and executes them
+plus its source companions; consumer, source fixtures and tools are unchanged. The old native tape still names
+29/OBS21/content8edd862f48ffa100 and its actual checker fails against the new layout.
+
+Root authorizes ONLY the existing `record_ability_hash_tape` recorder to regenerate
+`parity/abilities/hash-tape.json`, plus the `GOLDEN_CONTENT_HASH` constant in `crates/rh-sim/tests/content.rs`
+to the actual newly derived content hash. Do not edit recorder/checker logic, case sets, expected source gameplay,
+protocol fixtures or unrelated pins. Preserve the failing old-tape receipt and record final command/code bindings,
+all63 outputs, the new identity and passing checker/content tests. If production semantics change after the recorded
+source pass, rerun that gate before the derived refresh. This is permission for derived regression identities,
+not native admission or final combined Claude identity selection.
+
 The independent NPC bleed restore worker owns mob_checkpoint.rs and its focused tests. Do not duplicate or bypass its repair. Card implementation may proceed in parallel; Root will transfer an admitted NPC fix before combined NPC/checkpoint acceptance if needed. Quest and bot strategy worktrees and all Claude scopes remain protected. Use the pinned offline toolchain and a worktree-local target; a metadata-write refusal is a handoff for Root sealing, not a reason to expand permissions.
