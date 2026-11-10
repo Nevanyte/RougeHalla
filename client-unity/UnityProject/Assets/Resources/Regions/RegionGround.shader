@@ -716,10 +716,10 @@ Shader "Roguehalla/RegionGround"
                 {
                     float2 tilt = lerp(gTilt, -gT, saturate(thW));
                     float3 dif, spc;
-                    float gloss = max(gGloss, templeIn * 0.5);
+                    float gloss = max(gGloss, templeIn * 0.3);
                     RhLocalLights(tSun, normalize(float3(tilt, 1.0)), gloss, 12.0 + 40.0 * saturate(gloss), 1.0, 1.0, 0.0, dif, spc);
                     float hr = RhHeadroom(lit.rgb);
-                    lit.rgb += albedo * _Exposure * dif * hr + spc * saturate(hr + 0.15);
+                    lit.rgb += albedo * _Exposure * dif * hr + spc * saturate(hr + 0.05);
                 }
                 lit.a = 1;
                 return lit;
