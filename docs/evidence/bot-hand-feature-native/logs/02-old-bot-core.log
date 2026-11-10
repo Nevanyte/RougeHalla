@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized] target(s) in 0.19s
+     Running unittests src/lib.rs (target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 5 tests
+test bots::parity_tests::bot_core_distributions_match_source ... ok
+test bots::parity_tests::bot_core_tier_and_persona_tables_match_source ... ok
+test bots::parity_tests::bot_core_map_solidity_matches_source ... ok
+test bots::parity_tests::bot_core_clicks_match_source ... ok
+test bots::parity_tests::bot_core_humanizer_matches_source ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 223 filtered out; finished in 0.07s
+
