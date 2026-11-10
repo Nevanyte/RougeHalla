@@ -406,7 +406,7 @@ fn spacing_step(
         return None;
     }
     let m = cx.w.mobs.get(id)?;
-    let (camp, home, foot) = (m.camp, m.home, m.core.foot());
+    let (camp, home, foot, room) = (m.camp, m.home, m.core.foot(), super::mob_spacing::room(m));
     let p = crate::combat_policy::spacing(weapon, false);
     let band = super::mob_spacing::Band {
         lo: if p.retreat > 0. {
@@ -417,7 +417,7 @@ fn spacing_step(
         hi: p.far - MOB_SPACING_BAND_SLACK,
     };
     let map = cx.k.collision_map(cx.w.rt.gates_locked);
-    super::mob_spacing::step(&cx.s.mob_spacing, id, from, at, band, |to| {
+    super::mob_spacing::step(&cx.s.mob_spacing, id, room, from, at, band, |to| {
         foot.segment_clear(map, from, to, MASK_MOVE)
             && leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
             && crate::geometry::has_line_of_sight(map, to, at, mask)

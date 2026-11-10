@@ -52,7 +52,7 @@ fn spaced(m: &Mob) -> bool {
 }
 
 /// The personal-space radius of a mob: its foot box's larger half-extent plus the margin.
-fn room(m: &Mob) -> f64 {
+pub(crate) fn room(m: &Mob) -> f64 {
     let foot = m.core.foot();
     foot.half_x().max(foot.half_y()) + MOB_SPACING_MARGIN
 }
@@ -96,7 +96,7 @@ pub(crate) struct Band {
     pub hi: f64,
 }
 
-/// The step mob `id` (at `from`, fighting a target at `target`) takes out of its pack-mates' room, or `None` when no
+/// The step mob `id` (personal-space radius `room`, at `from`, fighting a target at `target`) takes out of its pack-mates' room, or `None` when no
 /// mob is inside its room, when the step would be shorter than [`MOB_SPACING_STEP_MIN`] (settled: no jitter), or when
 /// neither the step nor its half passes `ok` (a wall, the leash, lost line of sight: the mob stays and overlaps rather
 /// than deadlock). The step is the sum over the neighbours inside the room of half the overlap along the line between
@@ -106,6 +106,7 @@ pub(crate) struct Band {
 pub(crate) fn step(
     index: &[Entry],
     id: PlayerId,
+    room: f64,
     from: Vec2,
     target: Vec2,
     band: Band,
@@ -120,7 +121,6 @@ pub(crate) fn step(
     if r_from < band.lo {
         return None;
     }
-    let me = index.iter().find(|e| e.id == id)?;
     let (cx, cy) = (cell(from.x), cell(from.y));
     let (mut px, mut py) = (0., 0.);
     let mut crowded = false;
@@ -134,7 +134,7 @@ pub(crate) fn step(
             }
             let (dx, dy) = (from.x - e.at.x, from.y - e.at.y);
             let d = hypot(dx, dy);
-            let need = me.room + e.room;
+            let need = room + e.room;
             if d >= need {
                 continue;
             }
@@ -241,10 +241,13 @@ mod tests {
     fn a_lone_mob_and_a_spaced_pair_do_not_move() {
         let ix = sorted(vec![entry(1, 500., 500.), entry(2, 541., 500.)]);
         let t = Vec2::new(500., 600.);
-        assert_eq!(step(&ix, PlayerId(1), ix[0].at, t, wide(), |_| true), None);
+        assert_eq!(
+            step(&ix, PlayerId(1), 20., ix[0].at, t, wide(), |_| true),
+            None
+        );
         let lone = sorted(vec![entry(1, 500., 500.)]);
         assert_eq!(
-            step(&lone, PlayerId(1), lone[0].at, t, wide(), |_| true),
+            step(&lone, PlayerId(1), 20., lone[0].at, t, wide(), |_| true),
             None
         );
     }
@@ -253,8 +256,26 @@ mod tests {
     fn a_pair_steps_apart_by_half_the_overlap_each() {
         let ix = sorted(vec![entry(1, 500., 500.), entry(2, 520., 500.)]);
         let t = Vec2::new(510., 700.);
-        let a = step(&ix, PlayerId(1), Vec2::new(500., 500.), t, wide(), |_| true).unwrap();
-        let b = step(&ix, PlayerId(2), Vec2::new(520., 500.), t, wide(), |_| true).unwrap();
+        let a = step(
+            &ix,
+            PlayerId(1),
+            20.,
+            Vec2::new(500., 500.),
+            t,
+            wide(),
+            |_| true,
+        )
+        .unwrap();
+        let b = step(
+            &ix,
+            PlayerId(2),
+            20.,
+            Vec2::new(520., 500.),
+            t,
+            wide(),
+            |_| true,
+        )
+        .unwrap();
         assert_eq!(a, Vec2::new(490., 500.));
         assert_eq!(b, Vec2::new(530., 500.));
     }
@@ -263,8 +284,26 @@ mod tests {
     fn coincident_mobs_split_across_the_line_to_the_target() {
         let ix = sorted(vec![entry(7, 500., 500.), entry(3, 500., 500.)]);
         let t = Vec2::new(500., 400.); // north
-        let lo = step(&ix, PlayerId(3), Vec2::new(500., 500.), t, wide(), |_| true).unwrap();
-        let hi = step(&ix, PlayerId(7), Vec2::new(500., 500.), t, wide(), |_| true).unwrap();
+        let lo = step(
+            &ix,
+            PlayerId(3),
+            20.,
+            Vec2::new(500., 500.),
+            t,
+            wide(),
+            |_| true,
+        )
+        .unwrap();
+        let hi = step(
+            &ix,
+            PlayerId(7),
+            20.,
+            Vec2::new(500., 500.),
+            t,
+            wide(),
+            |_| true,
+        )
+        .unwrap();
         assert!(lo.x > 500. && hi.x < 500., "{lo:?} {hi:?}");
         assert_eq!(lo.y, 500.);
         assert_eq!(hi.y, 500.);
@@ -277,9 +316,27 @@ mod tests {
         let t = Vec2::new(1000., 1000.);
         let ix = sorted(vec![entry(1, 1000., 910.), entry(2, 1010., 910.5)]);
         let band = Band { lo: 0., hi: 90. };
-        let a = step(&ix, PlayerId(1), ix[0].at, t, band, |_| true).unwrap();
+        let a = step(&ix, PlayerId(1), 20., ix[0].at, t, band, |_| true).unwrap();
         assert!(hypot(a.x - t.x, a.y - t.y) <= 90. + 1e-9);
         assert!(a.x < 1000.);
+    }
+
+    #[test]
+    fn the_step_reads_no_entry_of_its_own() {
+        // The caller passes the mob's room: no scan of the index for the mob's own entry (that scan made a think pass
+        // O(n^2)). A mob absent from the index still steps away from its neighbour.
+        let ix = sorted(vec![entry(2, 520., 500.)]);
+        let t = Vec2::new(510., 700.);
+        let got = step(
+            &ix,
+            PlayerId(1),
+            20.,
+            Vec2::new(500., 500.),
+            t,
+            wide(),
+            |_| true,
+        );
+        assert_eq!(got, Some(Vec2::new(490., 500.)));
     }
 
     #[test]
@@ -290,7 +347,7 @@ mod tests {
         let from = Vec2::new(1000., 901.);
         let ix = sorted(vec![entry(1, 1001., 901.), entry(2, 1000., 901.)]);
         let band = Band { lo: 0., hi: 90. };
-        let to = step(&ix, PlayerId(2), from, t, band, |_| true).expect("a step");
+        let to = step(&ix, PlayerId(2), 20., from, t, band, |_| true).expect("a step");
         let len = hypot(to.x - from.x, to.y - from.y);
         assert!(len <= MOB_SPACING_STEP_MAX + 1e-9, "step {len}");
     }
@@ -303,8 +360,19 @@ mod tests {
         let from = Vec2::new(1000., 900.);
         let ix = sorted(vec![entry(1, 1000., 900.), entry(2, 1010., 900.)]);
         let band = Band { lo: 228., hi: 392. };
-        assert_eq!(step(&ix, PlayerId(1), from, t, band, |_| true), None);
-        assert_eq!(step(&ix, PlayerId(2), Vec2::new(1010., 900.), t, band, |_| true), None);
+        assert_eq!(step(&ix, PlayerId(1), 20., from, t, band, |_| true), None);
+        assert_eq!(
+            step(
+                &ix,
+                PlayerId(2),
+                20.,
+                Vec2::new(1010., 900.),
+                t,
+                band,
+                |_| true
+            ),
+            None
+        );
     }
 
     #[test]
@@ -313,9 +381,12 @@ mod tests {
         let t = Vec2::new(505., 700.);
         let from = Vec2::new(500., 500.);
         // Full step (to 485) refused, half (to 492.5) allowed.
-        let got = step(&ix, PlayerId(1), from, t, wide(), |c| c.x > 490.).unwrap();
+        let got = step(&ix, PlayerId(1), 20., from, t, wide(), |c| c.x > 490.).unwrap();
         assert_eq!(got, Vec2::new(492.5, 500.));
-        assert_eq!(step(&ix, PlayerId(1), from, t, wide(), |_| false), None);
+        assert_eq!(
+            step(&ix, PlayerId(1), 20., from, t, wide(), |_| false),
+            None
+        );
     }
 
     #[test]
@@ -327,6 +398,7 @@ mod tests {
             step(
                 &ix,
                 PlayerId(1),
+                20.,
                 ix[0].at,
                 Vec2::new(0., 0.),
                 wide(),
@@ -344,6 +416,7 @@ mod tests {
         assert!(step(
             &ix,
             PlayerId(1),
+            20.,
             Vec2::new(edge - 5., 300.),
             Vec2::new(0., 0.),
             wide(),
