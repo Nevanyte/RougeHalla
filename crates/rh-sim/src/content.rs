@@ -1118,7 +1118,7 @@ struct RuntimeWords<'a> {
 /// Component names/lengths and actual public key mappings prevent membership/order ambiguity.
 pub fn visit_progression_content(mut word: impl FnMut(u64)) {
     type Visit = fn(&mut dyn FnMut(u64));
-    let visitors: [(&str, Visit); 9] = [
+    let visitors: [(&str, Visit); 10] = [
         ("cards/1", |f| {
             crate::cards::visit_content(&crate::cards::DEFINITION, f)
         }),
@@ -1138,6 +1138,9 @@ pub fn visit_progression_content(mut word: impl FnMut(u64)) {
         }),
         ("quests/1", |f| crate::quests::catalog::visit_content(f)),
         ("traders/1", |f| crate::traders::visit_content(f)),
+        ("hitbox-archetypes/1", |f| {
+            crate::archetype::visit_content(f)
+        }),
     ];
     for (tag, visit) in visitors {
         word(tag.len() as u64);

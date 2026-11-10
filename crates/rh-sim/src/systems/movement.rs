@@ -79,11 +79,13 @@ pub(crate) fn walk_one(
         keep_facing.unwrap_or(p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS);
     if accel == 0. {
         if p.motion.slip.take().is_some() {
-            super::terrain::walk::regrip(map, p.pos(), &mut p.motion.path, pf);
+            let foot = p.foot();
+            super::terrain::walk::regrip(map, p.pos(), &mut p.motion.path, pf, foot);
         }
         advance_along_path(p, dt, aiming, mult);
     } else {
         let pos = p.pos();
+        let foot = p.foot();
         let mut slip = p.motion.slip.take().unwrap_or_else(|| {
             let velocity = tick_velocity(p.body.history.as_slice());
             super::terrain::walk::new_slip(pos, velocity)
@@ -98,7 +100,7 @@ pub(crate) fn walk_one(
             PLAYER_SPEED * mult,
             |x, y| crate::terrain::at(map, x, y, faction).accel,
             now,
-            PLAYER_RADIUS,
+            foot,
             pf,
         );
         p.body.x = pos.x;

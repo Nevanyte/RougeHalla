@@ -88,7 +88,12 @@ namespace Roguehalla.Net.Protocol
         public WireRewardOption[] Options = Array.Empty<WireRewardOption>();
         public bool Picked, CanChoose;
     }
-    public struct WireProjectile { public byte Kind; public ushort X,Y,Facing; public uint? Owner; }
+    public struct WireProjectile
+    {
+        public byte Kind; public ushort X,Y,Facing; public uint? Owner;
+        /// <summary>Height above the ground position in whole sim units (protocol 16, ADR0024): the shooter's chest at launch.</summary>
+        public byte Height;
+    }
     public struct WireCamp { public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt; }
     public struct WireBuild { public byte[] Cards, Boosts; }
     /// <summary>One resolved planning option: where it is, which zone and how long the walk takes.</summary>
@@ -462,7 +467,7 @@ namespace Roguehalla.Net.Protocol
                         item = chests; break;
                     case 7:
                         var projectiles = new ProjectilesState { Rows=new WireProjectile[Count(ref r,MaxRows)] };
-                        for(int j=0;j<projectiles.Rows.Length;j++) projectiles.Rows[j]=new WireProjectile {Kind=r.U8(),X=r.U16(),Y=r.U16(),Facing=r.U16(),Owner=ReadActor(ref r)};
+                        for(int j=0;j<projectiles.Rows.Length;j++) projectiles.Rows[j]=new WireProjectile {Kind=r.U8(),X=r.U16(),Y=r.U16(),Facing=r.U16(),Owner=ReadActor(ref r),Height=r.U8()};
                         item=projectiles;break;
                     case 6:
                         var camps = new CampsState { Rows = new WireCamp[Count(ref r, MaxRows)] };
@@ -696,7 +701,7 @@ namespace Roguehalla.Net.Protocol
         internal override void Write(Writer w)
         {
             w.Varint((uint)Rows.Length);
-            foreach(var p in Rows) {w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);WriteActor(w,p.Owner);}
+            foreach(var p in Rows) {w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);WriteActor(w,p.Owner);w.U8(p.Height);}
         }
     }
 

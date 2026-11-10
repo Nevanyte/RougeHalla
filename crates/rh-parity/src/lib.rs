@@ -17,6 +17,7 @@ mod canon;
 mod combat;
 mod fire_roam;
 mod frost;
+pub mod hitbox_goldens;
 mod holy;
 mod hunt;
 mod mapping;
@@ -578,6 +579,18 @@ fn compare_entities<E>(
     }
 }
 
+/// The hitbox mode every compared legacy scenario runs (ADR0024 Decision 11): the legacy 12 u circle. The archetype mode
+/// is a declared deviation (docs/DEVIATIONS.md DEV-009, DEV-010) checked by Rust-native goldens, never by legacy captures.
+pub const HITBOXES: rh_sim::archetype::HitboxMode = rh_sim::archetype::HitboxMode::LegacyCircle;
+
+/// The name `parity-report` prints in its header for a hitbox mode.
+pub fn hitbox_mode_name(mode: rh_sim::archetype::HitboxMode) -> &'static str {
+    match mode {
+        rh_sim::archetype::HitboxMode::LegacyCircle => "legacy_circle",
+        rh_sim::archetype::HitboxMode::Archetypes => "archetypes",
+    }
+}
+
 /// Builds the Rust sim for a fixture: same map, same placements, the recorded secret order salt.
 pub fn build(fx: &Fixture) -> Sim {
     try_build(fx).expect("valid fixture setup")
@@ -651,6 +664,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         },
         // The capture's module list decides whether the consumables module (and its wind timer) is installed.
         consumables: fx.requires.iter().any(|r| r == "state:consumable"),
+        hitboxes: HITBOXES,
         ..Default::default()
     };
     for (key, value) in &fx.legacy_config.options {
@@ -968,6 +982,14 @@ pub fn compare(fx: &Fixture) -> Report {
             return rep;
         }
     };
+    // ADR0024 Decision 11: a compared run that is not on the legacy circle compares something else.
+    if sim.config().hitboxes != HITBOXES {
+        rep.fail(format!(
+            "hitboxes: the run uses {}, every compared scenario runs {}",
+            hitbox_mode_name(sim.config().hitboxes),
+            hitbox_mode_name(HITBOXES)
+        ));
+    }
     for m in preconditions(fx, &sim) {
         rep.fail(m);
     }

@@ -9,7 +9,7 @@ use crate::fighter::{FighterCore, FighterIx};
 use crate::input::{self, ActionCmd, Command, MoveCmd, Reject};
 use crate::map::TileMap;
 use crate::math::Vec2;
-use crate::pathfind::{plan_path_into, Pathfinder};
+use crate::pathfind::{plan_foot_path_into, Pathfinder};
 use crate::rng::action_order_in_place;
 use crate::schedule::{self, ActionId};
 use crate::state::{PlayerId, World};
@@ -181,7 +181,7 @@ fn apply_move(
             (true, seq)
         }
         MoveCmd::Move { x, y, seq } | MoveCmd::AttackMove { x, y, seq } => {
-            plan_path_into(pf, map, from, Vec2::new(x, y), out);
+            plan_foot_path_into(pf, map, from, Vec2::new(x, y), p.foot(), out);
             (false, seq)
         }
     };

@@ -157,6 +157,7 @@ namespace Roguehalla.Net.Protocol
                     else { if (me.Wish == null) me.Wish = new WireWishOwner(); me.Wish.CopyFrom(d.Wish); }
                 }
                 if (d.HasBarrier) { me.Barrier = d.Barrier; me.BarrierRingStep = d.BarrierRingStep; }
+                if (d.HasArchetype) me.Archetype = d.Archetype;
                 _me.CopyFrom(me);
                 s.Me = me;
             }
@@ -194,6 +195,7 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = ch.MobTypeCode;
             if ((ch.Mask & ActorDelta.MSig) != 0) a.Sig = ch.Sig;
             if ((ch.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = ch.BarrierPct; a.BarrierRingStep = ch.BarrierRingStep; }
+            if ((ch.Mask & ActorDelta.MArchetype) != 0) a.Archetype = ch.Archetype;
             return a;
         }
 

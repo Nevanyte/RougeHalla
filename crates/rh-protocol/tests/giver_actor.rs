@@ -6,6 +6,7 @@ use rh_protocol::{
 
 fn actor(kind: u8, faction: u8, weapon: u8, mob_type_code: u8) -> WireActor {
     WireActor {
+        archetype: Default::default(),
         id: 5,
         kind,
         faction,

@@ -370,3 +370,250 @@ pub(crate) fn segment_rays_clear(map: &TileMap, a: Vec2, b: Vec2, radius: f64, m
 pub fn walkable_segment(map: &TileMap, a: Vec2, b: Vec2, radius: f64) -> bool {
     segment_clear(map, a, b, radius, MASK_MOVE)
 }
+
+// ---- ADR0024: hitbox archetypes (foot box for walls, body box for hits) ----
+
+/// What a mover occupies on the ground for walls and paths (ADR0024 Decision 3). `Disc(r)` is the legacy circle and runs
+/// exactly today's functions ([`circle_clear`], [`segment_rays_clear`]); `Box` is an axis-aligned foot box centred on the
+/// feet with half-extents `hx` (east-west) and `hy` (north-south).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Footprint {
+    Disc(f64),
+    Box { hx: f64, hy: f64 },
+}
+
+impl From<f64> for Footprint {
+    /// A bare radius is the legacy disc, so every existing `radius` argument keeps its meaning.
+    fn from(r: f64) -> Self {
+        Footprint::Disc(r)
+    }
+}
+
+impl Footprint {
+    /// Does the footprint at `p` overlap no tile in `mask`? Touching a tile is clear (the disc's `< r^2`, the box's open
+    /// interval).
+    #[inline]
+    pub fn clear(self, map: &TileMap, p: Vec2, mask: u8) -> bool {
+        match self {
+            Footprint::Disc(r) => circle_clear(map, p, r, mask),
+            Footprint::Box { hx, hy } => box_clear(map, p, hx, hy, mask),
+        }
+    }
+
+    /// Can the footprint slide straight from `a` to `b`? Both ends clear, then the rays.
+    pub fn segment_clear(self, map: &TileMap, a: Vec2, b: Vec2, mask: u8) -> bool {
+        match self {
+            Footprint::Disc(r) => segment_clear(map, a, b, r, mask),
+            Footprint::Box { hx, hy } => segment_box_clear(map, a, b, hx, hy, mask),
+        }
+    }
+
+    /// The ray part of [`Footprint::segment_clear`], with both end footprints already known clear.
+    #[inline]
+    pub fn segment_rays_clear(self, map: &TileMap, a: Vec2, b: Vec2, mask: u8) -> bool {
+        match self {
+            Footprint::Disc(r) => segment_rays_clear(map, a, b, r, mask),
+            Footprint::Box { hx, hy } => segment_box_rays_clear(map, a, b, hx, hy, mask),
+        }
+    }
+
+    /// The half-extent along x (a disc's radius).
+    #[inline]
+    pub fn half_x(self) -> f64 {
+        match self {
+            Footprint::Disc(r) => r,
+            Footprint::Box { hx, .. } => hx,
+        }
+    }
+
+    /// The half-extent along y (a disc's radius).
+    #[inline]
+    pub fn half_y(self) -> f64 {
+        match self {
+            Footprint::Disc(r) => r,
+            Footprint::Box { hy, .. } => hy,
+        }
+    }
+}
+
+/// Does the axis-aligned box `[x-hx, x+hx] x [y-hy, y+hy]` overlap no tile in `mask`? A tile counts only when it overlaps
+/// the box's open interior, so a box touching a wall face is clear (as the disc's strict `< r^2`). Out of bounds is blocked.
+pub fn box_clear(map: &TileMap, p: Vec2, hx: f64, hy: f64, mask: u8) -> bool {
+    if !(p.x + p.y + hx + hy).is_finite() {
+        return false;
+    }
+    if hx <= 0.0 || hy <= 0.0 {
+        return !map.blocked(floor_i64(p.x / TILE), floor_i64(p.y / TILE), mask);
+    }
+    // Tile i overlaps the open interval (x - hx, x + hx) when i*T < x + hx and (i + 1)*T > x - hx.
+    let i0 = floor_i64((p.x - hx) / TILE);
+    let i1 = ceil_i64((p.x + hx) / TILE) - 1;
+    let j0 = floor_i64((p.y - hy) / TILE);
+    let j1 = ceil_i64((p.y + hy) / TILE) - 1;
+    for j in j0..=j1 {
+        for i in i0..=i1 {
+            if map.blocked(i, j, mask) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Can the box of half-extents (`hx`, `hy`) slide straight from `a` to `b`? Both end boxes clear, the centre ray clear
+/// and the two silhouette-corner rays clear. The swept box is a hexagon whose sides are the two end boxes' outer edges
+/// and the two segments traced by the silhouette corners; because the box diagonal is shorter than a tile, a blocked tile
+/// that meets the hexagon must meet an end box or a silhouette segment.
+pub fn segment_box_clear(map: &TileMap, a: Vec2, b: Vec2, hx: f64, hy: f64, mask: u8) -> bool {
+    if !box_clear(map, a, hx, hy, mask) || !box_clear(map, b, hx, hy, mask) {
+        return false;
+    }
+    segment_box_rays_clear(map, a, b, hx, hy, mask)
+}
+
+/// The ray part of [`segment_box_clear`].
+pub(crate) fn segment_box_rays_clear(
+    map: &TileMap,
+    a: Vec2,
+    b: Vec2,
+    hx: f64,
+    hy: f64,
+    mask: u8,
+) -> bool {
+    if ray_blocked(map, a.x, a.y, b.x, b.y, mask) {
+        return false;
+    }
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    if (dx == 0.0 && dy == 0.0) || hx <= 0.0 || hy <= 0.0 {
+        return true;
+    }
+    // The silhouette corners are the two corners farthest from the line of motion, one on each side: for motion with
+    // dx*dy >= 0 (south-east or north-west, and the axis directions) they are (+hx, -hy) and (-hx, +hy), otherwise
+    // (+hx, +hy) and (-hx, -hy). For an axis-aligned motion either pair covers the two side edges together with the end
+    // boxes.
+    let (ox, oy) = if dx * dy >= 0.0 { (hx, -hy) } else { (hx, hy) };
+    !ray_blocked(map, a.x + ox, a.y + oy, b.x + ox, b.y + oy, mask)
+        && !ray_blocked(map, a.x - ox, a.y - oy, b.x - ox, b.y - oy, mask)
+}
+
+/// An axis-aligned box in sim units: `[x0, x1] x [y0, y1]` (north is -y).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Aabb {
+    pub x0: f64,
+    pub y0: f64,
+    pub x1: f64,
+    pub y1: f64,
+}
+
+impl Aabb {
+    /// The box centred at `c` with half-extents (`hx`, `hy`).
+    #[inline]
+    pub fn centred(c: Vec2, hx: f64, hy: f64) -> Self {
+        Aabb {
+            x0: c.x - hx,
+            y0: c.y - hy,
+            x1: c.x + hx,
+            y1: c.y + hy,
+        }
+    }
+
+    /// The box grown by `m` on every side.
+    #[inline]
+    pub fn grown(self, m: f64) -> Self {
+        Aabb {
+            x0: self.x0 - m,
+            y0: self.y0 - m,
+            x1: self.x1 + m,
+            y1: self.y1 + m,
+        }
+    }
+
+    #[inline]
+    pub fn contains(self, p: Vec2) -> bool {
+        p.x >= self.x0 && p.x <= self.x1 && p.y >= self.y0 && p.y <= self.y1
+    }
+
+    #[inline]
+    pub fn centre(self) -> Vec2 {
+        Vec2::new((self.x0 + self.x1) / 2.0, (self.y0 + self.y1) / 2.0)
+    }
+
+    /// The point of the box closest to `p`.
+    #[inline]
+    pub fn closest(self, p: Vec2) -> Vec2 {
+        Vec2::new(p.x.max(self.x0).min(self.x1), p.y.max(self.y0).min(self.y1))
+    }
+}
+
+/// The first `u` in `[0, 1]` at which the segment `a + u (b - a)` is in the closed box (slab test, no square root), or
+/// `None`. A start inside the box counts as `u = 0` only when the segment is not moving away from the box centre, which
+/// mirrors the disc `contact` of the projectile sweep (a shot leaving a body it starts in does not hit it again). Any
+/// non-finite input is `None`, as the disc `contact` is for NaN.
+pub fn segment_box_entry(a: Vec2, b: Vec2, bx: Aabb) -> Option<f64> {
+    if !(a.x + a.y + b.x + b.y + bx.x0 + bx.y0 + bx.x1 + bx.y1).is_finite() {
+        return None;
+    }
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    if bx.contains(a) {
+        let c = bx.centre();
+        return ((a.x - c.x) * dx + (a.y - c.y) * dy <= 0.0).then_some(0.0);
+    }
+    let mut lo = 0.0f64;
+    let mut hi = 1.0f64;
+    for (p, d, min, max) in [(a.x, dx, bx.x0, bx.x1), (a.y, dy, bx.y0, bx.y1)] {
+        if d == 0.0 {
+            if p < min || p > max {
+                return None;
+            }
+            continue;
+        }
+        let mut t0 = (min - p) / d;
+        let mut t1 = (max - p) / d;
+        if t0 > t1 {
+            core::mem::swap(&mut t0, &mut t1);
+        }
+        if t0 > lo {
+            lo = t0;
+        }
+        if t1 < hi {
+            hi = t1;
+        }
+        if lo > hi {
+            return None;
+        }
+    }
+    Some(lo)
+}
+
+/// Does the melee arc (origin `o`, aim `a`, `reach`, `half_arc`) touch the box? Exact (ADR0024 Decision 5): with `p` the
+/// point of the box closest to `o`, (1) `o` inside the box hits; (2) `|p - o| > reach` misses; (3) `p`'s bearing within
+/// `half_arc + ARC_EPS` of `a` hits; (4) otherwise it hits only if one of the two boundary rays
+/// `o + [0, reach] * dir(a +/- half_arc)` crosses the box. Proof of (4): the box intersected with the disc is convex, so a
+/// part of it inside the wedge, with `p` outside the wedge, must cross the wedge boundary inside the disc. Any non-finite
+/// input misses (as the legacy `in_arc` does for NaN). The melee system resolves an origin inside the box with the legacy
+/// disc test instead (ADR0024 Decision 5), so step (1) is the geometric answer, not the rule a swing uses.
+pub fn arc_hits_box(o: Vec2, a: f64, reach: f64, half_arc: f64, bx: Aabb) -> bool {
+    use crate::constants::ARC_EPS;
+    use crate::math::{angle_between, atan2, cos, sin};
+    if !(o.x + o.y + a + half_arc + bx.x0 + bx.y0 + bx.x1 + bx.y1).is_finite() {
+        return false;
+    }
+    if bx.contains(o) {
+        return true;
+    }
+    let p = bx.closest(o);
+    let dx = p.x - o.x;
+    let dy = p.y - o.y;
+    if !(reach >= 0.0) || dx * dx + dy * dy > reach * reach {
+        return false;
+    }
+    if angle_between(atan2(dy, dx), a) <= half_arc + ARC_EPS {
+        return true;
+    }
+    [a - half_arc, a + half_arc].into_iter().any(|edge| {
+        let end = Vec2::new(o.x + cos(edge) * reach, o.y + sin(edge) * reach);
+        segment_box_entry(o, end, bx).is_some()
+    })
+}

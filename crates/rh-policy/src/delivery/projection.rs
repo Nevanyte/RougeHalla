@@ -55,6 +55,7 @@ pub fn sat16(v: u32) -> u16 {
 
 pub fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     WireSelf {
+        archetype: m.archetype.0,
         sig: m.sig,
         effects: m.effects,
         displace_seq: m.displace_seq,
@@ -113,6 +114,7 @@ pub fn actor_supported(a: &ActorView) -> Result<(u8, u8, u8), &'static str> {
 pub fn wire_actor(a: &ActorView) -> Result<WireActor, &'static str> {
     let (kind, faction, weapon) = actor_supported(a)?;
     Ok(WireActor {
+        archetype: a.archetype.0,
         sig: a.sig,
         mob_type_code: a.mob_type.map_or(0, |id| id as u8 + 1),
         effects: a.effects,
@@ -421,5 +423,170 @@ pub fn result(r: &RunResult) -> WireResult {
         gv_win: r.gv.win,
         duration_sec: r.duration_sec,
         win_bonus_withheld: r.win_bonus_withheld,
+    }
+}
+
+/// The hitbox archetype table as a Welcome carries it (protocol 16, ADR0024), from `rh_sim::archetype::ARCHETYPES`. Every
+/// table value is a whole number that fits its wire byte (`rh_sim` asserts it); a test holds the round trip exact.
+pub fn wire_archetypes() -> Vec<rh_protocol::WireArchetype> {
+    use rh_sim::archetype::{Hull, ARCHETYPES};
+    let byte = |v: f64| -> u8 {
+        debug_assert!(v.fract() == 0.0 && (0.0..=255.0).contains(&v));
+        v as u8
+    };
+    let signed = |v: f64| -> i8 {
+        debug_assert!(v.fract() == 0.0 && (-128.0..=127.0).contains(&v));
+        v as i8
+    };
+    ARCHETYPES
+        .iter()
+        .map(|a| rh_protocol::WireArchetype {
+            id: a.id.0,
+            key: a.key.to_string(),
+            hull: match a.hull {
+                Hull::Circle { r } => rh_protocol::WireHull::Circle { r: byte(r) },
+                Hull::Boxes {
+                    foot,
+                    body,
+                    body_offset,
+                } => rh_protocol::WireHull::Boxes {
+                    fx: byte(foot.x),
+                    fy: byte(foot.y),
+                    bx: byte(body.x),
+                    by: byte(body.y),
+                    ox: signed(body_offset.0),
+                    oy: signed(body_offset.1),
+                },
+            },
+            chest: byte(a.chest),
+        })
+        .collect()
+}
+
+/// The vision rule's parameters as a Welcome carries them (protocol 16): the sim's constants and, when the map has
+/// layers, the exact coliseum rectangle `rh_sim::vision` reveals. All public facts (build constants and public map
+/// metadata). The rect of a validated map lies inside it; one that would not fit the wire is a server bug.
+pub fn wire_vision(map: &rh_sim::TileMap) -> rh_protocol::WireVision {
+    use rh_sim::constants::{MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS};
+    let coliseum = map.layers().map(|l| l.coliseum().rect).and_then(|r| {
+        let tiles = |v: i64| u16::try_from(v).expect("a validated coliseum rect fits the wire");
+        (r.w > 0 && r.h > 0).then(|| rh_protocol::WireRect {
+            x: tiles(i64::from(r.x)),
+            y: tiles(i64::from(r.y)),
+            w: tiles(i64::from(r.w)),
+            h: tiles(i64::from(r.h)),
+        })
+    });
+    rh_protocol::WireVision {
+        version: rh_protocol::VISION_RULES_VERSION,
+        tile: TILE,
+        radius: VISION_RADIUS,
+        trail_ms: VISION_TRAIL_MS,
+        update_ms: VISION_UPDATE_MS,
+        sight_mask: MASK_SIGHT,
+        coliseum,
+    }
+}
+
+#[cfg(test)]
+mod vision_block_tests {
+    /// The block the server sends is valid, carries the sim's constants, and names exactly the rectangle
+    /// `rh_sim::vision` reveals (the seed-1 source map has a coliseum; the practice arena has no layers).
+    #[test]
+    fn the_wire_vision_block_is_the_sim_rule() {
+        use rh_sim::constants::{
+            MASK_SIGHT, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS,
+        };
+        let practice = super::wire_vision(&rh_sim::arenas::practice_arena().map);
+        assert_eq!(practice.fault(), None);
+        assert_eq!(practice.coliseum, None);
+        assert_eq!(
+            (
+                practice.version,
+                practice.tile,
+                practice.radius,
+                practice.trail_ms,
+                practice.update_ms,
+                practice.sight_mask
+            ),
+            (
+                1,
+                TILE,
+                VISION_RADIUS,
+                VISION_TRAIL_MS,
+                VISION_UPDATE_MS,
+                MASK_SIGHT
+            )
+        );
+        let doc: serde_json::Value =
+            serde_json::from_slice(include_bytes!("../../../../parity/arena/source.json")).unwrap();
+        let export: rh_sim::mapdata::MapExport =
+            serde_json::from_value(doc["map"]["export"].clone()).unwrap();
+        let arena = export.validate().unwrap().into_arena().unwrap();
+        let v = super::wire_vision(&arena.map);
+        let rect = arena.map.layers().unwrap().coliseum().rect;
+        let r = v.coliseum.expect("the source map has a coliseum");
+        assert_eq!(
+            (
+                i64::from(r.x),
+                i64::from(r.y),
+                i64::from(r.w),
+                i64::from(r.h)
+            ),
+            (
+                i64::from(rect.x),
+                i64::from(rect.y),
+                i64::from(rect.w),
+                i64::from(rect.h)
+            )
+        );
+        assert!(v.fits(arena.map.w as u16, arena.map.h as u16));
+        assert_eq!(v.fault(), None);
+    }
+}
+
+#[cfg(test)]
+mod archetype_table_tests {
+    #[test]
+    fn the_wire_table_is_the_sim_table_exactly() {
+        use rh_sim::archetype::{Hull, ARCHETYPES};
+        let wire = super::wire_archetypes();
+        assert_eq!(rh_protocol::archetype::table_fault(&wire), None);
+        assert_eq!(wire.len(), ARCHETYPES.len());
+        for (w, a) in wire.iter().zip(&ARCHETYPES) {
+            assert_eq!(
+                (w.id, w.key.as_str(), f64::from(w.chest)),
+                (a.id.0, a.key, a.chest)
+            );
+            match (w.hull, a.hull) {
+                (rh_protocol::WireHull::Circle { r }, Hull::Circle { r: want }) => {
+                    assert_eq!(f64::from(r), want)
+                }
+                (
+                    rh_protocol::WireHull::Boxes {
+                        fx,
+                        fy,
+                        bx,
+                        by,
+                        ox,
+                        oy,
+                    },
+                    Hull::Boxes {
+                        foot,
+                        body,
+                        body_offset,
+                    },
+                ) => assert_eq!(
+                    [fx, fy, bx, by]
+                        .map(f64::from)
+                        .to_vec()
+                        .into_iter()
+                        .chain([f64::from(ox), f64::from(oy)])
+                        .collect::<Vec<_>>(),
+                    vec![foot.x, foot.y, body.x, body.y, body_offset.0, body_offset.1]
+                ),
+                _ => panic!("hull kind differs for {}", a.key),
+            }
+        }
     }
 }

@@ -970,6 +970,7 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
+            archetype: Default::default(),
             kind: rh_sim::observe::ActorKind::Player,
             owner: None,
             mob_type: None,
@@ -1202,7 +1203,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 14);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 16);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

@@ -87,6 +87,7 @@ fn observation(
         speed_milli: 1000.,
     });
     o.me = Some(SelfView {
+        archetype: Default::default(),
         wish,
         effects,
         displace_seq: 0,
@@ -119,6 +120,7 @@ fn observation(
     });
     if let Some((x, y)) = enemy {
         o.visible.push(ActorView {
+            archetype: Default::default(),
             kind: rh_sim::observe::ActorKind::Player,
             owner: None,
             mob_type: None,

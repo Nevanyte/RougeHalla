@@ -2,13 +2,16 @@
 //!
 //!   cargo run --release -p rh-headless -- --matches 20 --players 8 --seed 1 [--map parity/maps/seed1.map.json]
 //!                                       [--max-ticks 12000] [--replay-out run.json] [--digest]
+//!                                       [--hitboxes legacy|archetypes]
 //!   cargo run --release -p rh-headless -- --verify-replay run.json [--ignore-content-hash]
 //!
 //! Output (one JSON line): `ticks`, `terminated`, `truncated`, `stateHashFold` (the final `Sim::state_hash` of every
 //! match, folded in order), and with `--digest` the hash-independent behaviour fingerprint `outcomeDigest` (all matches)
 //! and `outcomeDigests` (per match; see `rh_headless::digest`). `meanTickUsPerMatchP50` is the median over matches of
 //! wall time per TICK, and a tick here is everything the runner does for it: observe, decide (the bot seats), the sim
-//! step and the bookkeeping, not `Sim::step` alone.
+//! step and the bookkeeping, not `Sim::step` alone. `--hitboxes` picks the ADR0024 hitbox mode (default `legacy`, the 12 u
+//! circle every parity fixture uses; `archetypes` is the live server's measured boxes); the output names it and counts
+//! `hits` so the two modes can be compared on the same seeds.
 //!
 //! `--ignore-content-hash` (development only) verifies a replay recorded by a build with other content: it skips the
 //! content gate and nothing else. Every step's state hash is still compared, so a pass proves the two builds produce
@@ -120,14 +123,25 @@ fn main() {
     };
     let replay_out = arg(&args, "--replay-out");
     let digest = flag(&args, "--digest");
+    let hitboxes = match arg(&args, "--hitboxes").as_deref() {
+        None | Some("legacy") => rh_sim::archetype::HitboxMode::LegacyCircle,
+        Some("archetypes") => rh_sim::archetype::HitboxMode::Archetypes,
+        Some(other) => panic!("--hitboxes must be legacy or archetypes, not {other:?}"),
+    };
+    let sim = rh_sim::SimConfig {
+        hitboxes,
+        ..rh_sim::SimConfig::default()
+    };
+    let mut hits = 0u64;
     let t0 = Instant::now();
     let (mut ticks, mut ended, mut truncated) = (0u64, 0, 0);
     let mut tick_ns: Vec<u128> = Vec::new();
     let (mut hashes, mut digests) = (Vec::new(), Vec::new());
     for m in 0..matches {
         let started = Instant::now();
-        let (env, s) = rh_headless::run_bot_match_with(
+        let (env, s) = rh_headless::run_bot_match_config(
             &arena,
+            sim.clone(),
             players,
             seed + m,
             max_ticks,
@@ -136,6 +150,7 @@ fn main() {
         );
         tick_ns.push(started.elapsed().as_nanos() / (s.ticks.max(1) as u128));
         ticks += s.ticks as u64;
+        hits += s.hits;
         ended += s.terminated as u32;
         truncated += s.truncated as u32;
         hashes.push(s.state_hash);
@@ -162,7 +177,12 @@ fn main() {
         String::new()
     };
     println!(
-        "{{\"matches\":{matches},\"players\":{players},\"ticks\":{ticks},\"terminated\":{ended},\"truncated\":{truncated},\"stateHashFold\":\"{:016x}\"{digest_keys},\"wallSec\":{wall:.3},\"ticksPerSec\":{:.0},\"meanTickUsPerMatchP50\":{:.2},\"realTimeFactor\":{:.0}}}",
+        "{{\"hitboxes\":\"{}\",\"hits\":{hits},\"matches\":{matches},\"players\":{players},\"ticks\":{ticks},\"terminated\":{ended},\"truncated\":{truncated},\"stateHashFold\":\"{:016x}\"{digest_keys},\"wallSec\":{wall:.3},\"ticksPerSec\":{:.0},\"meanTickUsPerMatchP50\":{:.2},\"realTimeFactor\":{:.0}}}",
+        if hitboxes == rh_sim::archetype::HitboxMode::Archetypes {
+            "archetypes"
+        } else {
+            "legacy"
+        },
         fold_all(hashes.iter().copied()),
         ticks as f64 / wall,
         tick_ns[tick_ns.len() / 2] as f64 / 1000.0,

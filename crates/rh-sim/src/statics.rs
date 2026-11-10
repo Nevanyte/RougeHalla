@@ -240,6 +240,10 @@ pub struct SimConfig {
     /// Explicit source installer override. None preserves the existing foundation/Training preset.
     #[serde(default)]
     pub walk_hints: Option<bool>,
+    /// Which hitboxes the fighters get (ADR0024): the legacy 12 u circle (default: tests, parity, benches, headless) or the
+    /// measured archetype boxes (the live server opts in). Recorded in the statics digest and replay identity.
+    #[serde(default)]
+    pub hitboxes: crate::archetype::HitboxMode,
 }
 
 fn default_wish_lock() -> f64 {
@@ -275,6 +279,7 @@ impl Default for SimConfig {
             training: false,
             dummies: false,
             walk_hints: None,
+            hitboxes: crate::archetype::HitboxMode::LegacyCircle,
         }
     }
 }

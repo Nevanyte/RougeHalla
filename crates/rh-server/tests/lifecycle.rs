@@ -45,6 +45,7 @@ fn arena() -> Arena {
 
 fn sim_config() -> SimConfig {
     SimConfig {
+        hitboxes: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,
@@ -363,6 +364,8 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         tick_rate,
         tick,
         server_ms,
+        archetypes,
+        vision,
         map,
     } = ServerMsg::decode(room_welcome).expect("a Welcome")
     else {
@@ -370,6 +373,8 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
     };
     assert_eq!(map.tiles, arena.map.tiles, "the map the sim plays on");
     ServerMsg::Welcome {
+        archetypes,
+        vision,
         protocol,
         content_hash,
         match_id,
@@ -434,6 +439,7 @@ async fn room_heap_probe() {
     let arena = rh_headless::load_arena(&map).expect("map");
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
+        hitboxes: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

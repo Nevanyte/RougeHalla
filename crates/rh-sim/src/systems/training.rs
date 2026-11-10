@@ -257,12 +257,12 @@ pub(crate) fn spawn_training(hx: &mut Hx, _: &HookArgs) {
         let plain = layout.nearest(true).or_else(|| layout.nearest(false));
         if let Some(at) = plain {
             let facing = layout.facing(at);
-            super::mobs::place_dummy(hx.w, at, facing, false);
+            super::mobs::place_dummy(hx.w, at, facing, false, hx.k.config.hitboxes);
         }
         let shield = layout.nearest(true).or_else(|| layout.nearest(false));
         if let Some(at) = shield {
             let facing = layout.facing(at);
-            super::mobs::place_dummy(hx.w, at, facing, true);
+            super::mobs::place_dummy(hx.w, at, facing, true, hx.k.config.hitboxes);
         }
         let row = layout.rack_row();
         let spots: Vec<Option<Vec2>> = match row {

@@ -394,7 +394,8 @@ fn state_sample() -> ServerMsg {
                     x: 800,
                     y: 900,
                     facing: 12345,
-                    owner: Some(1)
+                    owner: Some(1),
+                    height: 30,
                 };
                 2
             ]),
@@ -673,6 +674,7 @@ fn state_all_max_budget() -> ServerMsg {
             y: u16::MAX,
             facing: u16::MAX,
             owner: Some(u32::MAX - i),
+            height: u8::MAX,
         })
         .collect();
     let plan = WirePlan {
@@ -767,8 +769,72 @@ fn state_all_max_budget() -> ServerMsg {
     msg
 }
 
+/// A sample archetype table (protocol 16): the legacy circle and two boxed rows, one with an id gap.
+pub fn sample_archetypes() -> Vec<WireArchetype> {
+    vec![
+        WireArchetype {
+            id: 0,
+            key: "legacy_circle".into(),
+            hull: WireHull::Circle { r: 12 },
+            chest: 0,
+        },
+        WireArchetype {
+            id: 1,
+            key: "hero".into(),
+            hull: WireHull::Boxes {
+                fx: 10,
+                fy: 6,
+                bx: 16,
+                by: 35,
+                ox: 0,
+                oy: -30,
+            },
+            chest: 30,
+        },
+        WireArchetype {
+            id: 12,
+            key: "mob-zombie".into(),
+            hull: WireHull::Boxes {
+                fx: 10,
+                fy: 6,
+                bx: 9,
+                by: 21,
+                ox: 0,
+                oy: -21,
+            },
+            chest: 21,
+        },
+    ]
+}
+
+/// Writes an archetype table without checking it (for decoder refusal tests).
+pub fn write_archetype_table_for_tests(w: &mut Writer, rows: &[WireArchetype]) {
+    crate::archetype::write_table(w, rows);
+}
+
+/// A sample vision block: rule version 1 and a 2 x 1 coliseum rectangle at tile (1, 1).
+pub fn sample_vision() -> WireVision {
+    WireVision {
+        coliseum: Some(WireRect {
+            x: 1,
+            y: 1,
+            w: 2,
+            h: 1,
+        }),
+        ..WireVision::default()
+    }
+}
+
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
+    // The sample rectangle needs a map of at least 3 x 2 tiles; smaller sample maps carry no coliseum.
+    let vision = if map.w >= 3 && map.h >= 2 {
+        sample_vision()
+    } else {
+        WireVision::default()
+    };
     ServerMsg::Welcome {
+        vision,
+        archetypes: sample_archetypes(),
         protocol: PROTOCOL_VERSION,
         content_hash: 0x0102_0304_0506_0708,
         match_id: [1; 16],
@@ -1169,6 +1235,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     sig: 29,
                     barrier_pct: 11,
                     barrier_ring_step: 2,
+                    archetype: 1,
                 }],
             },
         ),
@@ -2165,6 +2232,144 @@ fn snapshot_bytes(head: u32, body: &[u8], count: u32, actors: &[u8]) -> Vec<u8> 
 
 /// A Welcome whose map is `w` x `h` with these (tile, length) runs and `hash` (by default the true hash of the tiles the
 /// runs spell, so only the named fault is wrong).
+/// A Welcome whose archetype table has rows `(id, shape)`: shape 0 a circle of radius 12, 1 a hero box row, 2 an unknown
+/// hull tag, 3 a box with a zero half-extent. A valid 1x1 map follows.
+fn welcome_archetypes(rows: &[(u8, u8)]) -> Vec<u8> {
+    let good = welcome_map(1, 1, None, &[(1, 1)]);
+    let mut table = Writer::default();
+    table.u8(rows.len() as u8);
+    for &(id, shape) in rows {
+        table.u8(id);
+        table.str("k");
+        match shape {
+            0 => {
+                table.u8(0);
+                table.u8(12);
+            }
+            2 => table.u8(2),
+            _ => {
+                table.u8(1);
+                for v in [if shape == 3 { 0 } else { 10 }, 6, 16, 35, 0, (-30i8) as u8] {
+                    table.u8(v);
+                }
+            }
+        }
+        table.u8(30);
+    }
+    let mut out = good[..WELCOME_HEADER_LEN].to_vec();
+    out.extend(table.finish());
+    out.extend_from_slice(&good[WELCOME_HEADER_LEN + 1..]);
+    out
+}
+
+/// A Welcome on a valid 2 x 2 map whose vision block is these raw bytes (protocol 16).
+fn welcome_vision_bytes(block: &[u8]) -> Vec<u8> {
+    let good = welcome_map(2, 2, None, &[(1, 4)]);
+    let mut out = good[..WELCOME_HEADER_LEN + 1].to_vec();
+    out.extend_from_slice(block);
+    out.extend_from_slice(&good[WELCOME_HEADER_LEN + 1 + crate::vision::VISION_BLOCK_LEN..]);
+    out
+}
+
+/// [`welcome_vision_bytes`] with `v` written unchecked.
+fn welcome_vision(v: WireVision) -> Vec<u8> {
+    let mut w = Writer::default();
+    crate::vision::write_vision_for_tests(&mut w, &v);
+    welcome_vision_bytes(&w.finish())
+}
+
+/// Vision blocks a client must refuse (each one fault), on a 2 x 2 map.
+fn malformed_vision() -> Vec<(&'static str, Vec<u8>)> {
+    let d = WireVision::default();
+    let rect = |x, y, w, h| Some(WireRect { x, y, w, h });
+    let mut flag = Writer::default();
+    crate::vision::write_vision_for_tests(&mut flag, &d);
+    let mut flag = flag.finish();
+    *flag.last_mut().unwrap() = 2;
+    let mut cut = Writer::default();
+    crate::vision::write_vision_for_tests(&mut cut, &d);
+    let cut = cut.finish();
+    vec![
+        (
+            "welcome_vision_version_zero",
+            welcome_vision(WireVision { version: 0, ..d }),
+        ),
+        (
+            "welcome_vision_tile_zero",
+            welcome_vision(WireVision { tile: 0.0, ..d }),
+        ),
+        (
+            "welcome_vision_radius_nan",
+            welcome_vision(WireVision {
+                radius: f64::NAN,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_radius_negative",
+            welcome_vision(WireVision {
+                radius: -900.0,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_trail_negative",
+            welcome_vision(WireVision {
+                trail_ms: -1.0,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_update_infinite",
+            welcome_vision(WireVision {
+                update_ms: f64::INFINITY,
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_mask_zero",
+            welcome_vision(WireVision { sight_mask: 0, ..d }),
+        ),
+        ("welcome_vision_coliseum_flag", welcome_vision_bytes(&flag)),
+        (
+            "welcome_vision_coliseum_empty",
+            welcome_vision(WireVision {
+                coliseum: rect(0, 0, 0, 1),
+                ..d
+            }),
+        ),
+        (
+            "welcome_vision_coliseum_outside",
+            welcome_vision(WireVision {
+                coliseum: rect(1, 0, 2, 1),
+                ..d
+            }),
+        ),
+        ("welcome_vision_truncated", {
+            let good = welcome_map(2, 2, None, &[(1, 4)]);
+            let mut out = good[..WELCOME_HEADER_LEN + 1].to_vec();
+            out.extend_from_slice(&cut[..20]);
+            out
+        }),
+    ]
+}
+
+/// A Welcome whose archetype table is one legacy-circle row with this key (written unchecked). A valid 1x1 map follows.
+fn welcome_archetype_key(key: &str) -> Vec<u8> {
+    let good = welcome_map(1, 1, None, &[(1, 1)]);
+    let mut table = Writer::default();
+    table.u8(1);
+    table.u8(0);
+    table.str(key);
+    table.u8(0);
+    table.u8(12);
+    table.u8(0);
+    let mut out = good[..WELCOME_HEADER_LEN].to_vec();
+    out.extend(table.finish());
+    out.extend_from_slice(&good[WELCOME_HEADER_LEN + 1..]);
+    out
+}
+
 fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8> {
     let tiles: Vec<u8> = runs
         .iter()
@@ -2180,6 +2385,9 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
+    // An empty archetype table and the default vision block (protocol 16).
+    b.u8(0);
+    crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
     b.u16(w);
     b.u16(h);
     b.u32(hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)));
@@ -2218,11 +2426,17 @@ fn ground_welcome_bytes(
     w.u8(20);
     w.u32(0);
     w.f64(0.0);
+    // An empty archetype table and the default vision block (protocol 16).
+    w.u8(0);
+    crate::vision::write_vision_for_tests(&mut w, &WireVision::default());
     map.write(&mut w);
     w.finish()
 }
 
+/// `at` is the offset in the frame without the archetype table and the vision block (the one-byte empty table and the
+/// vision block move the map).
 fn mutate_ground_welcome(mut frame: Vec<u8>, at: usize, bytes: &[u8]) -> Vec<u8> {
+    let at = at + 1 + crate::vision::VISION_BLOCK_LEN;
     frame[at..at + bytes.len()].copy_from_slice(bytes);
     frame
 }
@@ -3082,11 +3296,11 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
         (
             "projectile_kind",
-            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0],
+            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
         ),
         (
             "projectile_owner_zero",
-            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
         ),
         (
             "projectile_owner_flag",
@@ -3143,7 +3357,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(1 << 21, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 22, &[], 0, &[])),
         ("wish_ability_over_4", {
             let mut w = valid_wish();
             w[0] = 5;
@@ -3294,7 +3508,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x400, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x800, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -3346,7 +3560,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 11, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -3519,6 +3733,40 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("server_bad_utf8", vec![0x82, 7, 0, 2, 0xc3, 0x28]),
         // Welcome maps: every MapBlob rule, one fault each.
         ("map_zero_size", welcome_map(0, 4, None, &[])),
+        (
+            "welcome_archetype_order",
+            welcome_archetypes(&[(1, 0), (1, 0)]),
+        ),
+        ("welcome_archetype_hull", welcome_archetypes(&[(0, 2)])),
+        ("welcome_archetype_zero_box", welcome_archetypes(&[(0, 3)])),
+        // Review finding 6: more than 32 rows, an over-long key, a non-ASCII key, a table cut short.
+        (
+            "welcome_archetype_count",
+            welcome_archetypes(&(0..33).map(|id| (id, 0)).collect::<Vec<_>>()),
+        ),
+        (
+            "welcome_archetype_key_long",
+            welcome_archetype_key(&"k".repeat(crate::archetype::MAX_ARCHETYPE_KEY + 1)),
+        ),
+        (
+            "welcome_archetype_key_ascii",
+            welcome_archetype_key("h\u{e9}ro"),
+        ),
+        ("welcome_archetype_truncated", {
+            // Two rows promised, the second cut off after its id: the frame ends inside the table.
+            let good = welcome_map(1, 1, None, &[(1, 1)]);
+            let mut table = Writer::default();
+            table.u8(2);
+            table.u8(0);
+            table.str("k");
+            table.u8(0);
+            table.u8(12);
+            table.u8(0);
+            table.u8(1);
+            let mut out = good[..WELCOME_HEADER_LEN].to_vec();
+            out.extend(table.finish());
+            out
+        }),
         ("map_too_large", welcome_map(2048, 1024, None, &[(0, 1)])),
         ("map_bad_tile", welcome_map(1, 1, None, &[(3, 1)])),
         ("map_zero_run", welcome_map(1, 1, None, &[(0, 0), (0, 1)])),
@@ -3559,9 +3807,12 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("map_ext_run_zero", {
             let mut frame = ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off);
-            frame[85..89].copy_from_slice(&0u32.to_le_bytes());
-            frame.drain(89..92);
-            frame[75..79].copy_from_slice(&15u32.to_le_bytes());
+            // Offsets include the one-byte empty archetype table (protocol 16).
+            // and the vision block after it.
+            let v = crate::vision::VISION_BLOCK_LEN;
+            frame[86 + v..90 + v].copy_from_slice(&0u32.to_le_bytes());
+            frame.drain(90 + v..93 + v);
+            frame[76 + v..80 + v].copy_from_slice(&15u32.to_le_bytes());
             frame
         }),
         (
@@ -3623,7 +3874,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("map_ext_trailing", {
             let mut frame = ground_welcome_bytes(None, None, crate::GroundMode::Off);
             frame.push(0);
-            frame[75..79].copy_from_slice(&12u32.to_le_bytes());
+            let v = crate::vision::VISION_BLOCK_LEN;
+            frame[76 + v..80 + v].copy_from_slice(&12u32.to_le_bytes());
             frame
         }),
         ("welcome_trailing", {
@@ -3633,6 +3885,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         }),
     ]
     .into_iter()
+    .chain(malformed_vision())
     .chain(malformed_deltas())
     .collect()
 }
@@ -3673,6 +3926,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         kind: 0,
         barrier_pct: 0,
         barrier_ring_step: 0,
+        archetype: (id % 13) as u8,
     }
 }
 
@@ -3700,6 +3954,7 @@ fn chain_self(x: f32) -> WireSelf {
         wish: None,
         barrier: 0.0,
         barrier_ring_step: 0,
+        archetype: 3,
     }
 }
 
@@ -3838,6 +4093,37 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             });
         }
         chains.push(("pve_scalar_clears", steps));
+    }
+    // Protocol 16 (review finding 6): the self's archetype arrives in a delta (delta head bit 25), as it does when a
+    // faction is chosen after the lobby Welcome; an unchanged archetype is not resent, a later change is.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let mut prior: Option<SnapshotData> = None;
+        for (tick, archetype, sent) in [(1, 0, false), (2, 3, true), (3, 3, false), (4, 12, true)] {
+            let mut me = chain_self(400.0 + tick as f32);
+            me.archetype = archetype;
+            let data = snap(tick, 1, tick, Some(me), &[wa(1, 10., 20., 100, 1)]);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            if let Some(base) = prior.as_ref() {
+                assert_eq!(kind, FrameKind::Delta);
+                let d = delta::diff(base, &data).unwrap();
+                let mask = d.me.as_ref().expect("a self delta").mask;
+                assert_eq!(mask & delta::DH_ARCHETYPE != 0, sent, "tick {tick}");
+                assert_eq!(ServerMsg::SnapshotDelta(d).encode(), frame);
+            } else {
+                assert_eq!(kind, FrameKind::Full);
+            }
+            let got = tracker.decode(&frame).expect("the self archetype applies");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("self_archetype_delta", steps));
     }
     {
         let mut encoder = ConnEncoder::new();
@@ -4722,8 +5008,13 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
+        // Review finding 6: the self archetype (bit 25) is a self field too.
+        (
+            "delta_head_archetype_without_present_bit",
+            delta_bytes(10, 1, delta::DH_ARCHETYPE, &[3, 0]),
+        ),
         // Bit 25 is not a field of this version; bit 24 carries owner combat.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 25, &[0])),
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 26, &[0])),
         (
             "delta_owner_combat_option_unknown",
             delta_owner(2, &[], false),
@@ -4757,10 +5048,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 13 is not a field of this version.
+        // Actor delta bit 14 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x80, 0x01]),
         ),
         (
             "delta_actor_status_over_3",
@@ -4900,7 +5191,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -4922,14 +5213,15 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.hunt_stacks,
             json_wish(s.wish),
             bits(s.barrier),
-            s.barrier_ring_step
+            s.barrier_ring_step,
+            s.archetype
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}, \"archetype\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -4939,7 +5231,8 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step
+                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step,
+                a.archetype
             )
         })
         .collect();
@@ -4952,9 +5245,56 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
 }
 
 fn decoded_map_json(m: &ServerMsg) -> String {
-    let ServerMsg::Welcome { map, .. } = m else {
+    let ServerMsg::Welcome {
+        map,
+        archetypes,
+        vision,
+        ..
+    } = m
+    else {
         unreachable!()
     };
+    let coliseum = vision.coliseum.map_or_else(
+        || "null".to_string(),
+        |r| {
+            format!(
+                "{{\"x\":{},\"y\":{},\"w\":{},\"h\":{}}}",
+                r.x, r.y, r.w, r.h
+            )
+        },
+    );
+    let vision = format!(
+        "{{\"version\":{},\"tile\":{},\"radius\":{},\"trailMs\":{},\"updateMs\":{},\"sightMask\":{},\"coliseum\":{coliseum}}}",
+        vision.version,
+        vision.tile,
+        vision.radius,
+        vision.trail_ms,
+        vision.update_ms,
+        vision.sight_mask,
+    );
+    let rows: Vec<String> = archetypes
+        .iter()
+        .map(|a| {
+            let hull = match a.hull {
+                WireHull::Circle { r } => format!("\"hull\":0,\"r\":{r}"),
+                WireHull::Boxes {
+                    fx,
+                    fy,
+                    bx,
+                    by,
+                    ox,
+                    oy,
+                } => format!(
+                    "\"hull\":1,\"fx\":{fx},\"fy\":{fy},\"bx\":{bx},\"by\":{by},\"ox\":{ox},\"oy\":{oy}"
+                ),
+            };
+            format!(
+                "{{\"id\":{},\"key\":\"{}\",{hull},\"chest\":{}}}",
+                a.id, a.key, a.chest
+            )
+        })
+        .collect();
+    let archetypes = rows.join(",");
     let nums = |values: &[u8]| {
         values
             .iter()
@@ -4966,7 +5306,7 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         values.map_or_else(|| "null".to_string(), |v| format!("[{}]", nums(v)))
     };
     format!(
-        "{{\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
+        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
         map.w,
         map.h,
         nums(&map.tiles),

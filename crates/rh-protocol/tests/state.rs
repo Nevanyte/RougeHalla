@@ -242,6 +242,7 @@ fn trophy_rewards_reject_nonpositive_and_nonfinite_gains_on_encode() {
 #[test]
 fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     let me = WireSelf {
+        archetype: Default::default(),
         sig: 255,
         id: 1,
         faction: 0,
@@ -267,6 +268,7 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     };
     let actors: Vec<_> = (2..18)
         .map(|id| WireActor {
+            archetype: Default::default(),
             sig: 255,
             mob_type_code: 30,
             id,

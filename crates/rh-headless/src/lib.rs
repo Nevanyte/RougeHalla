@@ -505,6 +505,27 @@ pub fn run_bot_match_with(
     record: bool,
     digest: bool,
 ) -> (Env, MatchSummary) {
+    run_bot_match_config(
+        arena,
+        SimConfig::default(),
+        players,
+        seed,
+        max_ticks,
+        record,
+        digest,
+    )
+}
+
+/// [`run_bot_match_with`] on a given configuration (the CLI's `--hitboxes archetypes` runs the ADR0024 boxes).
+pub fn run_bot_match_config(
+    arena: &Arena,
+    sim: SimConfig,
+    players: usize,
+    seed: u64,
+    max_ticks: u32,
+    record: bool,
+    digest: bool,
+) -> (Env, MatchSummary) {
     let agents = (0..players)
         .map(|i| AgentSpec {
             profile: format!("bot{i}"),
@@ -518,7 +539,7 @@ pub fn run_bot_match_with(
     let mut env = Env::new(
         EnvConfig {
             arena: arena.clone(),
-            sim: SimConfig::default(),
+            sim,
             max_ticks,
             record,
         },

@@ -144,6 +144,7 @@ impl Default for Opts {
 
 async fn rig(o: Opts) -> Rig {
     let sim = SimConfig {
+        hitboxes: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,
@@ -295,6 +296,7 @@ async fn session_properties_are_validated_and_a_starting_server_is_503() {
         let d = Director::new(
             DirectorConfig::new(
                 SimConfig {
+                    hitboxes: Default::default(),
                     walk_hints: None,
                     regen: false,
                     quests: false,
@@ -1309,6 +1311,7 @@ async fn a_session_created_while_draining_is_refused_or_drained_never_left_live_
             require_admit: true,
             ..DirectorConfig::new(
                 SimConfig {
+                    hitboxes: Default::default(),
                     walk_hints: None,
                     regen: false,
                     quests: false,

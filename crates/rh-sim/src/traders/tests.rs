@@ -353,6 +353,7 @@ fn a_rolled_stat_trade_costs_one_positive_rolled_stat() {
         FactionId::Holy,
         Vec2::new(0., 0.),
         crate::content::faction(FactionId::Holy).hp,
+        crate::archetype::HitboxMode::LegacyCircle,
     );
     let mut seed = 0u64;
     let mut random = || {

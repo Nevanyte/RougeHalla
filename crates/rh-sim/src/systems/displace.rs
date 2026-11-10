@@ -41,9 +41,10 @@ fn execute(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: PlayerId, to
         });
         p.motion.slip = None;
         if let Some(goal) = goal {
+            let foot = p.foot();
             p.motion
                 .path
-                .replan(pf, k.collision_map(w.rt.gates_locked), to, goal);
+                .replan(pf, k.collision_map(w.rt.gates_locked), to, goal, foot);
         }
         p.motion.displace_seq = p.motion.displace_seq.wrapping_add(1);
     }

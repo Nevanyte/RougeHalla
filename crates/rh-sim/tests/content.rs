@@ -162,6 +162,22 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("archetype.rs", "ARCHETYPES", "ADR0024 hitbox archetype table (body/foot boxes, chest) folded by archetype::visit_content under hitbox-archetypes/1"),
+    ("archetype.rs", "PLAYER_CHEST", "ADR0024 projectile height of every player look (C-OBS), folded row by row by archetype::visit_content (each row's chest)"),
+    ("archetype.rs", "FOOT", "ADR0024 shared foot box of the archetype table, folded row by row by archetype::visit_content"),
+    ("archetype.rs", "LEGACY_CIRCLE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "HERO", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "HERO_FEMALE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "MAGE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "MAGE_FEMALE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "KNIGHT", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "GOBLIN", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "SKELETON", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "GOBLIN_ELITE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "ANTLION", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "SKELETON_ARCHER", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "SKELETON_MAGE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
+    ("archetype.rs", "ZOMBIE", "ADR0024 archetype id (an identifier); the identity mapping that uses it is folded by archetype::visit_content"),
     ("abilities/mod.rs", "CANCELLED_BY", "executable Wish catalog/blink policy folded by abilities::visit_content"),
     ("abilities/mod.rs", "RANGE_SLACK", "executable Wish catalog/blink policy folded by abilities::visit_content"),
     ("abilities/mod.rs", "TELEPORT_GRACE_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
@@ -523,7 +539,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x7c6a_633f_68c2_cc72;
+const GOLDEN_CONTENT_HASH: u64 = 0x026f_083d_8473_fa4b;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

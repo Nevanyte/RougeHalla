@@ -312,7 +312,13 @@ pub mod probe {
         pub fn restart(&mut self, body: crate::Vec2, goal: crate::Vec2) {
             self.body = body;
             self.slip = crate::systems::terrain::walk::new_slip(body, crate::Vec2::new(0., 0.));
-            self.path.replan(&mut self.pf, &self.map, body, goal);
+            self.path.replan(
+                &mut self.pf,
+                &self.map,
+                body,
+                goal,
+                crate::geometry::Footprint::Disc(crate::constants::PLAYER_RADIUS),
+            );
         }
         /// Returns whether the real shared walker replanned and whether its grip is active.
         pub fn step(&mut self, dt: f64, cap: f64, now: f64) -> (bool, bool) {
@@ -326,7 +332,7 @@ pub mod probe {
                 cap,
                 |_, _| super::surface(6, Some(crate::FactionId::Fire)).accel,
                 now,
-                self.radius,
+                crate::geometry::Footprint::Disc(self.radius),
                 &mut self.pf,
             );
             (

@@ -11,6 +11,7 @@ fn v1_len(me: bool, actors: usize) -> usize {
 fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
     (0..n)
         .map(|k| WireActor {
+            archetype: Default::default(),
             sig: 0,
             mob_type_code: 0,
             effects: 0,
@@ -40,6 +41,7 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
         training: false,
         owner_combat: None,
         me: Some(WireSelf {
+            archetype: Default::default(),
             sig: 0,
             effects: 0,
             displace_seq: 0,

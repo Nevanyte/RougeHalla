@@ -561,6 +561,9 @@ fn head_word(
     if s.barrier.to_bits() != 0.0f32.to_bits() || s.barrier_ring_step != 0 {
         m |= HM_BARRIER;
     }
+    if s.archetype != 0 {
+        m |= HM_ARCHETYPE;
+    }
     m
 }
 
@@ -688,6 +691,9 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
     if mask & HM_BARRIER != 0 {
         n += 5;
     }
+    if mask & HM_ARCHETYPE != 0 {
+        n += 1;
+    }
     n
 }
 
@@ -766,9 +772,10 @@ impl<const N: usize> Fixed<N> {
 
 /// Largest Snapshot head including protocol-12 Wish, barrier, and source-clock override groups.
 const MAX_HEAD_LEN: usize =
-    1 + 5 + 5 + 3 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3 + 55 + 5 + 8;
-/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair.
-const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2;
+    1 + 5 + 5 + 3 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3 + 55 + 5 + 8 + 1;
+/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair,
+/// archetype.
+const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2 + 1;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -829,6 +836,9 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
         w.f32(s.barrier);
         w.u8(s.barrier_ring_step);
     }
+    if m & HM_ARCHETYPE != 0 {
+        w.u8(s.archetype);
+    }
 }
 
 /// The actor mask of `a`: a bit for every field that differs from its default.
@@ -865,6 +875,9 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.barrier_pct != DEFAULT_BARRIER_PCT || a.barrier_ring_step != DEFAULT_BARRIER_RING_STEP {
         m |= AM_BARRIER;
     }
+    if a.archetype != 0 {
+        m |= AM_ARCHETYPE;
+    }
     m
 }
 
@@ -889,6 +902,7 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
         + (m & AM_MOB_TYPE != 0) as usize
         + (m & AM_SIG != 0) as usize
         + 2 * (m & AM_BARRIER != 0) as usize
+        + (m & AM_ARCHETYPE != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -1021,6 +1035,9 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
         w.u8(a.barrier_pct);
         w.u8(a.barrier_ring_step);
     }
+    if m & AM_ARCHETYPE != 0 {
+        w.u8(a.archetype);
+    }
     w.put(out);
 }
 
@@ -1129,7 +1146,17 @@ impl Frame for ServerMsg {
 
     fn encoded_len(&self) -> usize {
         match self {
-            ServerMsg::Welcome { map, .. } => WELCOME_HEADER_LEN + map.encoded_len(),
+            ServerMsg::Welcome {
+                archetypes,
+                vision,
+                map,
+                ..
+            } => {
+                WELCOME_HEADER_LEN
+                    + crate::archetype::table_len(archetypes)
+                    + vision.encoded_len()
+                    + map.encoded_len()
+            }
             ServerMsg::Reject { reason, .. } => 1 + 2 + str_len(reason),
             ServerMsg::Snapshot {
                 tick,
@@ -1170,7 +1197,23 @@ impl Frame for ServerMsg {
 
     fn check(&self, len: usize) -> Result<(), EncodeError> {
         match self {
-            ServerMsg::Welcome { map, .. } => map.check()?,
+            ServerMsg::Welcome {
+                archetypes,
+                vision,
+                map,
+                ..
+            } => {
+                if let Some(why) = crate::archetype::table_fault(archetypes) {
+                    return Err(EncodeError::BadValue(why));
+                }
+                if let Some(why) = vision.fault() {
+                    return Err(EncodeError::BadValue(why));
+                }
+                if !vision.fits(map.w, map.h) {
+                    return Err(EncodeError::BadValue("vision"));
+                }
+                map.check()?
+            }
             ServerMsg::Snapshot {
                 server_time,
                 phase,
@@ -1353,6 +1396,8 @@ impl Frame for ServerMsg {
                 tick_rate,
                 tick,
                 server_ms,
+                archetypes,
+                vision,
                 map,
             } => {
                 WelcomeHeader {
@@ -1366,6 +1411,8 @@ impl Frame for ServerMsg {
                     server_ms: *server_ms,
                 }
                 .write(w);
+                crate::archetype::write_table(w, archetypes);
+                vision.write(w);
                 map.write(w);
             }
             ServerMsg::Reject { code, reason } => {
@@ -1639,16 +1686,32 @@ impl WelcomeHeader {
     }
 }
 
-/// A Welcome frame with a pre-encoded map: the same bytes as `ServerMsg::Welcome { .., map }.encode()`, without RLE
-/// encoding (or cloning) the map per joining player. One allocation of the exact size.
-pub fn encode_welcome(h: &WelcomeHeader, map: &EncodedMap, mode: GroundMode) -> Vec<u8> {
-    let len = WELCOME_HEADER_LEN + map.encoded_len_for_mode(mode);
+/// A Welcome frame with a pre-encoded map: the same bytes as `ServerMsg::Welcome { .., archetypes, vision, map }.encode()`,
+/// without RLE encoding (or cloning) the map per joining player. One allocation of the exact size. `archetypes` must pass
+/// [`crate::archetype::table_fault`] and `vision` [`WireVision::fault`] (the server builds both from build constants and
+/// the validated map, checked by its tests).
+pub fn encode_welcome(
+    h: &WelcomeHeader,
+    archetypes: &[WireArchetype],
+    vision: &WireVision,
+    map: &EncodedMap,
+    mode: GroundMode,
+) -> Vec<u8> {
+    debug_assert_eq!(crate::archetype::table_fault(archetypes), None);
+    debug_assert_eq!(vision.fault(), None);
+    debug_assert!(vision.fits(map.w(), map.h()));
+    let len = WELCOME_HEADER_LEN
+        + crate::archetype::table_len(archetypes)
+        + vision.encoded_len()
+        + map.encoded_len_for_mode(mode);
     debug_assert!(
         len <= MAX_SERVER_FRAME,
         "a Welcome of {len} bytes exceeds MAX_SERVER_FRAME"
     );
     let mut w = Writer::with_capacity(len);
     h.write(&mut w);
+    crate::archetype::write_table(&mut w, archetypes);
+    vision.write(&mut w);
     map.write_with_mode(&mut w, mode);
     w.finish()
 }
@@ -1656,15 +1719,31 @@ pub fn encode_welcome(h: &WelcomeHeader, map: &EncodedMap, mode: GroundMode) -> 
 /// [`encode_welcome`] appended to `out`; a frame over [`MAX_SERVER_FRAME`] is an error and leaves `out` unchanged.
 pub fn encode_welcome_into(
     h: &WelcomeHeader,
+    archetypes: &[WireArchetype],
+    vision: &WireVision,
     map: &EncodedMap,
     mode: GroundMode,
     out: &mut Vec<u8>,
 ) -> Result<usize, EncodeError> {
-    let len = WELCOME_HEADER_LEN + map.encoded_len_for_mode(mode);
+    if let Some(why) = crate::archetype::table_fault(archetypes) {
+        return Err(EncodeError::BadValue(why));
+    }
+    if let Some(why) = vision.fault() {
+        return Err(EncodeError::BadValue(why));
+    }
+    if !vision.fits(map.w(), map.h()) {
+        return Err(EncodeError::BadValue("vision"));
+    }
+    let len = WELCOME_HEADER_LEN
+        + crate::archetype::table_len(archetypes)
+        + vision.encoded_len()
+        + map.encoded_len_for_mode(mode);
     frame_size(len, MAX_SERVER_FRAME)?;
     let mut w = Writer::from_vec(std::mem::take(out));
     w.reserve(len);
     h.write(&mut w);
+    crate::archetype::write_table(&mut w, archetypes);
+    vision.write(&mut w);
     map.write_with_mode(&mut w, mode);
     *out = w.finish();
     Ok(len)

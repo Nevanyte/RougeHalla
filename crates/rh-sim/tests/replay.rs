@@ -1,4 +1,4 @@
-//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/23`, a typed refusal of any other format, and a decoded replay that is
+//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/24`, a typed refusal of any other format, and a decoded replay that is
 //! complete (a malformed map is an `Err` while decoding, not a panic later).
 
 use rh_sim::arenas::practice_arena;
@@ -58,7 +58,7 @@ fn recorded(ticks: u32) -> Replay {
 fn a_recorded_replay_is_tagged_roundtrips_complete_and_verifies() {
     let r = recorded(120);
     assert_eq!(r.format, REPLAY_FORMAT);
-    assert_eq!(REPLAY_FORMAT, "rh-replay/23");
+    assert_eq!(REPLAY_FORMAT, "rh-replay/24");
     let back: Replay = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
     assert_eq!(back, r, "equal right after decoding, with no rebuild call");
     let (sim, _) = run_replay(&back).expect("a decoded replay verifies");
@@ -81,6 +81,7 @@ fn another_replay_format_is_refused_before_anything_runs() {
         "rh-replay/20",
         "rh-replay/21",
         "rh-replay/22",
+        "rh-replay/23",
         "",
         "something else",
     ] {
@@ -96,13 +97,13 @@ fn another_replay_format_is_refused_before_anything_runs() {
     // The immediate predecessor is a typed format refusal even if both the rules
     // identity and the first expected step hash are wrong. Nothing is simulated.
     let mut prior22 = r.clone();
-    prior22.format = "rh-replay/22".into();
+    prior22.format = "rh-replay/23".into();
     prior22.content_hash ^= 1;
     prior22.hashes[0] ^= 1;
     assert_eq!(
         run_replay(&prior22).err(),
         Some(ReplayError::Format {
-            found: "rh-replay/22".into()
+            found: "rh-replay/23".into()
         })
     );
     // The format is checked before the content hash and before any step is run.

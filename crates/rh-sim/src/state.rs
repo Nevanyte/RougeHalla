@@ -241,13 +241,14 @@ impl Path {
         map: &crate::TileMap,
         from: Vec2,
         goal: Vec2,
+        foot: crate::geometry::Footprint,
     ) {
         self.generation = self
             .generation
             .checked_add(1)
             .expect("path generation exhausted");
         self.cursor = 0;
-        crate::pathfind::plan_path_into(pf, map, from, goal, &mut self.pts);
+        crate::pathfind::plan_foot_path_into(pf, map, from, goal, foot, &mut self.pts);
     }
     pub(crate) fn replan_in_place(
         &mut self,
@@ -255,10 +256,10 @@ impl Path {
         map: &crate::TileMap,
         from: Vec2,
         goal: Vec2,
-        radius: f64,
+        foot: crate::geometry::Footprint,
     ) {
         self.cursor = 0;
-        pf.find_path_into(map, from, goal, radius, &mut self.pts);
+        pf.find_path_into(map, from, goal, foot, &mut self.pts);
     }
     /// Replaces the path with `pts` (compacting: the cursor restarts at 0); the buffer keeps its capacity.
     pub fn set_from(&mut self, pts: &[Vec2]) {
@@ -640,7 +641,10 @@ impl Player {
         faction: FactionId,
         spot: Vec2,
         hp: f64,
+        hitboxes: crate::archetype::HitboxMode,
     ) -> Self {
+        let archetype =
+            crate::archetype::assign(hitboxes, crate::archetype::Identity::Player(faction.into()));
         Self {
             stocks: Default::default(),
             card_runtime: None,
@@ -697,6 +701,7 @@ impl Player {
                 modifiers: Default::default(),
                 card_dot_crit: None,
                 motion: Motion::default(),
+                archetype,
                 inputs: InputQueue::default(),
             },
             seat: Seat {
@@ -795,6 +800,10 @@ pub struct ProjectileLaunch {
     pub time: f64,
     pub range: f64,
     pub target: Option<PlayerId>,
+    /// How far above its ground position (north, -y) the flight is (ADR0024): the shooter's archetype chest at launch (0
+    /// under the legacy circle); a reflected arrow keeps the incoming height. Walls test the ground position, bodies the
+    /// raised one. Finite and non-negative.
+    pub height: f64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Projectile {

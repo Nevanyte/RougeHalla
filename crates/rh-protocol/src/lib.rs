@@ -140,9 +140,11 @@
 //! and the server's [`SnapshotData::build`]) refuse, with an [`EncodeError`], any message a decoder would reject (more
 //! than [`MAX_ACTORS`] actors, an oversized frame, a bad map): the codec never clamps or drops what the observation chose.
 
+pub mod archetype;
 pub mod codec;
 mod encode;
 pub mod ground;
+pub mod vision;
 pub use encode::delta;
 pub mod map;
 pub mod quant;
@@ -160,6 +162,7 @@ pub use state::{
     MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
 };
 
+pub use archetype::{WireArchetype, WireHull};
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
 pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
@@ -167,9 +170,10 @@ pub use delta::{
 };
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
 pub use ground::GroundMode;
+pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 14;
+pub const PROTOCOL_VERSION: u16 = 16;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -398,6 +402,8 @@ pub struct WireSelf {
     /// The owner's source-f32 barrier value and its source-derived eight-step ring.
     pub barrier: f32,
     pub barrier_ring_step: u8,
+    /// The own hitbox archetype id (protocol 16, ADR0024); the row is in the Welcome's archetype table.
+    pub archetype: u8,
 }
 
 /// Owner-only action lock state. This is display data, not a capability to target or act.
@@ -503,6 +509,8 @@ pub struct WireActor {
     pub barrier_pct: u8,
     /// Source-derived barrier ring step in 0..=8.
     pub barrier_ring_step: u8,
+    /// Hitbox archetype id (protocol 16, ADR0024); 0 is the legacy circle. The row is in the Welcome's archetype table.
+    pub archetype: u8,
 }
 
 impl WireActor {
@@ -709,6 +717,10 @@ pub enum ServerMsg {
         tick_rate: u8,
         tick: u32,
         server_ms: f64,
+        /// The hitbox archetype table (protocol 16, ADR0024), between the header and the map.
+        archetypes: Vec<archetype::WireArchetype>,
+        /// The vision rule's parameters (protocol 16), after the archetype table and before the map.
+        vision: vision::WireVision,
         /// The canonical public map (server-sent; clients never generate it): docs/adr/0003-canonical-map.md.
         map: map::MapBlob,
     },
@@ -1010,6 +1022,8 @@ pub(crate) const HM_BARRIER: u32 = 1 << 18;
 pub(crate) const HM_SERVER_TIME: u32 = 1 << 19;
 /// Available owner-combat record follows the actor section of a Full snapshot.
 pub(crate) const HM_OWNER_COMBAT: u32 = 1 << 20;
+/// The self's hitbox archetype id (protocol 16): a byte after the barrier pair.
+pub(crate) const HM_ARCHETYPE: u32 = 1 << 21;
 pub(crate) const HM_SELF_BITS: u32 = 0x03ff
     | HM_EFFECTS
     | HM_DISPLACE
@@ -1017,7 +1031,8 @@ pub(crate) const HM_SELF_BITS: u32 = 0x03ff
     | HM_HUNT_TARGET
     | HM_HUNT_STACKS
     | HM_WISH
-    | HM_BARRIER;
+    | HM_BARRIER
+    | HM_ARCHETYPE;
 pub(crate) const HM_KNOWN: u32 =
     HM_SELF_BITS | HM_PHASE | HM_TRAINING | HM_SERVER_TIME | HM_OWNER_COMBAT;
 pub(crate) const HM_TRAINING: u32 = 1 << 16;
@@ -1032,7 +1047,10 @@ pub(crate) const AM_DISPLACE: u32 = 1 << 6;
 pub(crate) const AM_MOB_TYPE: u32 = 1 << 7;
 pub(crate) const AM_SIG: u32 = 1 << 8;
 pub(crate) const AM_BARRIER: u32 = 1 << 9;
-pub(crate) const AM_KNOWN: u32 = AM_KIT
+/// Hitbox archetype id (protocol 16): one byte after the barrier pair.
+pub(crate) const AM_ARCHETYPE: u32 = 1 << 10;
+pub(crate) const AM_KNOWN: u32 = AM_ARCHETYPE
+    | AM_KIT
     | AM_HP
     | AM_STATUS
     | AM_BOUNTY
@@ -1135,7 +1153,9 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     } else {
         (0.0, 0)
     };
+    let archetype = if mask & HM_ARCHETYPE != 0 { r.u8()? } else { 0 };
     Ok(WireSelf {
+        archetype,
         effects,
         displace_seq,
         sig,
@@ -1289,7 +1309,9 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
     } else {
         (DEFAULT_BARRIER_PCT, DEFAULT_BARRIER_RING_STEP)
     };
+    let archetype = if mask & AM_ARCHETYPE != 0 { r.u8()? } else { 0 };
     Ok(WireActor {
+        archetype,
         mob_type_code,
         effects,
         displace_seq,
@@ -1316,17 +1338,35 @@ impl ServerMsg {
         }
         let mut r = Reader::new(frame);
         let msg = match r.u8()? {
-            T_WELCOME => ServerMsg::Welcome {
-                protocol: r.u16()?,
-                content_hash: r.u64()?,
-                match_id: r.array16()?,
-                player_id: r.u32()?,
-                session: r.array16()?,
-                tick_rate: r.u8()?,
-                tick: r.u32()?,
-                server_ms: r.f64()?,
-                map: map::MapBlob::read(&mut r)?,
-            },
+            T_WELCOME => {
+                let protocol = r.u16()?;
+                let content_hash = r.u64()?;
+                let match_id = r.array16()?;
+                let player_id = r.u32()?;
+                let session = r.array16()?;
+                let tick_rate = r.u8()?;
+                let tick = r.u32()?;
+                let server_ms = r.f64()?;
+                let archetypes = archetype::read_table(&mut r)?;
+                let vision = vision::WireVision::read(&mut r)?;
+                let map = map::MapBlob::read(&mut r)?;
+                if !vision.fits(map.w, map.h) {
+                    return Err(DecodeError::BadField("vision"));
+                }
+                ServerMsg::Welcome {
+                    protocol,
+                    content_hash,
+                    match_id,
+                    player_id,
+                    session,
+                    tick_rate,
+                    tick,
+                    server_ms,
+                    archetypes,
+                    vision,
+                    map,
+                }
+            }
             T_REJECT => {
                 // Any code above 0 decodes (unnamed ones as `Unknown`); 0 is not a code.
                 let code = r.u16()?;

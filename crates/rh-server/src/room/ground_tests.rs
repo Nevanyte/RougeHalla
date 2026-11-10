@@ -30,7 +30,13 @@ fn header() -> WelcomeHeader {
 }
 
 fn decoded(assets: &MapAssets, mode: GroundMode) -> MapBlob {
-    let bytes = encode_welcome(&header(), &assets.welcome_map, mode);
+    let bytes = encode_welcome(
+        &header(),
+        super::archetype_table(),
+        &rh_policy::delivery::projection::wire_vision(&assets.arena.map),
+        &assets.welcome_map,
+        mode,
+    );
     assert!(bytes.len() <= rh_protocol::MAX_SERVER_FRAME);
     match ServerMsg::decode(&bytes).unwrap() {
         ServerMsg::Welcome { map, .. } => map,

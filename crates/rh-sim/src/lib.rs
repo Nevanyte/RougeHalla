@@ -9,6 +9,7 @@
 
 pub mod abilities;
 mod actor_refs;
+pub mod archetype;
 pub mod arenas;
 pub mod checkpoint;
 mod collision;

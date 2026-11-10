@@ -4,7 +4,7 @@ use crate::constants::*;
 use crate::content::{staggers, Shape, WeaponId};
 use crate::events::Event;
 use crate::fighter::FighterIx;
-use crate::geometry::ray_blocked;
+use crate::geometry::{arc_hits_box, ray_blocked};
 use crate::map::MASK_MELEE;
 use crate::math::{angle_between, asin, atan2, hypot, Vec2};
 use crate::scratch::TickScratch;
@@ -109,7 +109,8 @@ fn resolve_swings(cx: &mut Cx) {
             } else {
                 w.core(ti).position_at(req.rewind_t)
             };
-            if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
+            let reached = reaches(origin, req.a, reach, half_arc, at, w.core(ti).hull());
+            if !reached {
                 continue;
             }
             if ray_blocked(
@@ -256,6 +257,35 @@ fn repeats_a_time(melee: &[MeleeReq]) -> bool {
             .iter()
             .any(|q| q.rewind_t.to_bits() == r.rewind_t.to_bits())
     })
+}
+
+/// Does a swing from `origin` along `a` reach a target with feet at `at` and hitbox `hull`? ADR0024 Decision 5:
+/// * a legacy circle is today's disc test (`in_arc` with `PLAYER_RADIUS`), bit for bit;
+/// * a body box is tested from the attacker's feet raised by the TARGET's chest (the box centre), so reach is even north
+///   and south for every pair: the arc must meet the box within reach and within its angular span;
+/// * but when that raised origin is already inside the target's box (the two overlap on screen), the target is resolved
+///   with the legacy disc test against its feet instead, so the facing-independent zone stays legacy's 12 u disc and a
+///   target behind the attacker is not hit (review finding 2). The two agree for every target in front: inside the box
+///   the target's feet are at most 44 u away (skeleton), well within the shortest legacy reach (fists, 72 + 12).
+pub fn reaches(
+    origin: Vec2,
+    a: f64,
+    reach: f64,
+    half_arc: f64,
+    at: Vec2,
+    hull: &crate::archetype::Archetype,
+) -> bool {
+    match hull.body_box(at) {
+        None => in_arc(origin, a, reach, half_arc, at, PLAYER_RADIUS),
+        Some(body) => {
+            let o = Vec2::new(origin.x, origin.y + hull.body_oy());
+            if body.contains(o) {
+                in_arc(origin, a, reach, half_arc, at, PLAYER_RADIUS)
+            } else {
+                arc_hits_box(o, a, reach, half_arc, body)
+            }
+        }
+    }
 }
 
 /// Is `p` (a disc of radius `r`) inside the arc? Legacy `inArc`.

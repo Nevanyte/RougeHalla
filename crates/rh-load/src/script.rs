@@ -327,6 +327,7 @@ mod tests {
     #[test]
     fn view_picks_the_nearest_living_other_player() {
         let me = rh_protocol::WireSelf {
+            archetype: Default::default(),
             sig: 0,
             effects: 0,
             displace_seq: 0,
@@ -351,6 +352,7 @@ mod tests {
             hunt_stacks: 0,
         };
         let actor = |id, x, status| rh_protocol::WireActor {
+            archetype: Default::default(),
             sig: 0,
             mob_type_code: 0,
             effects: 0,

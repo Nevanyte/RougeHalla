@@ -400,6 +400,7 @@ fn planning_view(now: f64, pick: i8) -> rh_sim::PlanningView {
 
 fn planning_me(faction: FactionId) -> rh_sim::observe::SelfView {
     rh_sim::observe::SelfView {
+        archetype: Default::default(),
         wish: None,
         effects: 0,
         displace_seq: 0,

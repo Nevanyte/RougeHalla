@@ -1,4 +1,4 @@
-//! Explicit endpoint configuration. Protocol 14 Hello carries no room mode: each process hosts one profile.
+//! Explicit endpoint configuration. The protocol Hello carries no room mode: each process hosts one profile.
 use rh_sim::{abilities, mob_runtime::MobMode, terrain, Arena, ArenaMode, FactionMode, SimConfig};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +16,47 @@ pub struct Settings {
     pub max_rooms: usize,
     pub lobby_seconds: f64,
     pub fill_seconds: f64,
+    /// ADR0024 (P-HB-9): the live runtimes default to [`LIVE_DEFAULT_HITBOXES`]; `--hitboxes legacy|archetypes` overrides.
+    pub hitboxes: rh_sim::archetype::HitboxMode,
+}
+
+/// The hitbox mode of the LIVE runtimes (`--runtime source-arena`, `--runtime training` and `--first-playable`, the
+/// profiles players join) when `--hitboxes` is absent. The ONE line the coordinator changes to `Archetypes` to flip the
+/// live default (after the client's prediction and chest aim are verified; owner sign-off 2026-11-10, DEVIATIONS
+/// DEV-009/DEV-010); `--hitboxes legacy` stays the override. The bare core binary (no `--runtime`, `--runtime core`) is a
+/// development profile and stays `LegacyCircle` whatever this says. `tests::which_runtimes_default_to_which_hitbox_mode`
+/// pins both, so the flip is a deliberate two-line change (this constant and the pinned expectation).
+pub const LIVE_DEFAULT_HITBOXES: rh_sim::archetype::HitboxMode =
+    rh_sim::archetype::HitboxMode::LegacyCircle;
+
+/// `--hitboxes legacy|archetypes`, else `default`.
+pub fn hitboxes_flag(
+    args: &[String],
+    default: rh_sim::archetype::HitboxMode,
+) -> Result<rh_sim::archetype::HitboxMode, String> {
+    use rh_sim::archetype::HitboxMode;
+    match value(args, "--hitboxes")? {
+        None => Ok(default),
+        Some("legacy") => Ok(HitboxMode::LegacyCircle),
+        Some("archetypes") => Ok(HitboxMode::Archetypes),
+        Some(_) => Err("--hitboxes must be legacy or archetypes".into()),
+    }
+}
+
+/// The hitbox mode of the core binary path (no `--runtime`, `--runtime core`, or `--first-playable`): `--hitboxes` takes
+/// effect there too (review finding 9: it is never silently ignored). The default is [`LIVE_DEFAULT_HITBOXES`] for the live
+/// `--first-playable` profile and the legacy circle for the bare core binary. A bad value is a startup error, as it is with
+/// `--runtime`.
+pub fn core_hitboxes(args: &[String]) -> Result<rh_sim::archetype::HitboxMode, String> {
+    let live = args.iter().any(|a| a == "--first-playable");
+    hitboxes_flag(
+        args,
+        if live {
+            LIVE_DEFAULT_HITBOXES
+        } else {
+            rh_sim::archetype::HitboxMode::LegacyCircle
+        },
+    )
 }
 
 fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> {
@@ -112,6 +153,7 @@ impl Settings {
             max_rooms: seats("--max-rooms", 16, 1, usize::MAX)?,
             lobby_seconds: seconds("--lobby-seconds", if training { 0. } else { 30. })?,
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
+            hitboxes: hitboxes_flag(args, LIVE_DEFAULT_HITBOXES)?,
         };
         if training && (settings.lobby_seconds != 0. || settings.fill_seconds != 0.) {
             return Err("training requires zero lobby and fill seconds".into());
@@ -145,6 +187,7 @@ impl Settings {
             min_players: self.min_players,
             lobby_seconds: self.lobby_seconds,
             fill_seconds: self.fill_seconds,
+            hitboxes: self.hitboxes,
             ..SimConfig::default()
         }
     }
@@ -213,6 +256,78 @@ mod tests {
         assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);
+    }
+    /// The deliberate pin (owner sign-off 2026-11-10): which profiles default to which hitbox mode. Flipping the live
+    /// default means changing LIVE_DEFAULT_HITBOXES and the `live` line here, nothing else.
+    #[test]
+    fn which_runtimes_default_to_which_hitbox_mode() {
+        use rh_sim::archetype::HitboxMode;
+        let live = HitboxMode::LegacyCircle; // the pinned live default today
+        assert_eq!(LIVE_DEFAULT_HITBOXES, live);
+        let args = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+        for profile in ["--runtime source-arena --map x", "--runtime training"] {
+            assert_eq!(
+                parse(profile).unwrap().unwrap().sim().hitboxes,
+                live,
+                "{profile}"
+            );
+        }
+        assert_eq!(core_hitboxes(&args("--first-playable")), Ok(live));
+        for dev in ["", "--runtime core"] {
+            assert_eq!(
+                core_hitboxes(&args(dev)),
+                Ok(HitboxMode::LegacyCircle),
+                "{dev}"
+            );
+        }
+    }
+    #[test]
+    fn hitboxes_take_effect_on_the_core_path_too() {
+        use rh_sim::archetype::HitboxMode;
+        let args = |s: &str| s.split_whitespace().map(str::to_owned).collect::<Vec<_>>();
+        for base in ["", "--runtime core", "--first-playable"] {
+            assert!(parse(base).unwrap().is_none(), "{base}: the core path");
+            assert_eq!(
+                core_hitboxes(&args(base)),
+                Ok(HitboxMode::LegacyCircle),
+                "{base}"
+            );
+            assert_eq!(
+                core_hitboxes(&args(&format!("{base} --hitboxes archetypes"))),
+                Ok(HitboxMode::Archetypes),
+                "{base}"
+            );
+            assert_eq!(
+                core_hitboxes(&args(&format!("{base} --hitboxes legacy"))),
+                Ok(HitboxMode::LegacyCircle),
+                "{base}"
+            );
+            for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
+                assert!(
+                    core_hitboxes(&args(&format!("{base} {bad}"))).is_err(),
+                    "{base} {bad}"
+                );
+            }
+        }
+    }
+    #[test]
+    fn every_runtime_defaults_to_the_legacy_circle_and_archetypes_opt_in() {
+        use rh_sim::archetype::HitboxMode;
+        for args in ["--runtime source-arena --map x", "--runtime training"] {
+            let got = parse(args).unwrap().unwrap();
+            assert_eq!(got.sim().hitboxes, HitboxMode::LegacyCircle, "{args}");
+            let opted = parse(&format!("{args} --hitboxes archetypes"))
+                .unwrap()
+                .unwrap();
+            assert_eq!(opted.sim().hitboxes, HitboxMode::Archetypes, "{args}");
+            let legacy = parse(&format!("{args} --hitboxes legacy"))
+                .unwrap()
+                .unwrap();
+            assert_eq!(legacy.sim().hitboxes, HitboxMode::LegacyCircle, "{args}");
+            for bad in ["--hitboxes boxes", "--hitboxes", "--hitboxes=archetypes"] {
+                assert!(parse(&format!("{args} {bad}")).is_err(), "{args} {bad}");
+            }
+        }
     }
     #[test]
     fn source_maps_require_complete_valid_metadata() {

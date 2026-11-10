@@ -9,6 +9,7 @@ fn player(faction: FactionId) -> Player {
         faction,
         Vec2::new(0., 0.),
         100.,
+        crate::archetype::HitboxMode::LegacyCircle,
     )
 }
 

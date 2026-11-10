@@ -1172,6 +1172,9 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.rt.sudden_death_at", "disabled lifecycle requires zero; locked Source deadline must match exact teleport hook clock plus configured duration"),
 
     ("statics.config.hazards", "terrain mode is a closed Off/Map/All enum"),
+    ("statics.config.hitboxes", "ADR0024: every fighter's archetype must equal archetype::assign(mode, identity), so flipping the mode alone leaves mismatched rows"),
+    ("world.players.*.core.archetype", "ADR0024: the id must be known and equal archetype::assign(config.hitboxes, faction identity)"),
+    ("world.mobs.*.core.archetype", "ADR0024: the id must be known and equal archetype::assign(config.hitboxes, mob identity); births are also re-derived by the expected-birth comparisons"),
     ("world.players.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
     ("world.mobs.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
     ("world.rt.gates_locked", "no ordinary arena gate producer is admitted yet; true requires that future stage"),
@@ -1425,6 +1428,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.projectiles.*.launch.kind", "flight kind and catalog speed agree"),
     ("world.projectiles.*.launch.id","run entity ids are allocated, distinct and monotone"),
     ("world.projectiles.*.launch.reflected", "reflected requires a return count and a shield arrow"),
+    ("world.projectiles.*.launch.height", "ADR0024: exactly 0 under LegacyCircle, a table chest value under Archetypes (archetype::valid_height)"),
     ("world.projectiles.*.reflections", "return count agrees with the launch"),
     ("world.projectiles.*.halved","only a ball can be intercepted by a sword"),
     ("world.projectiles.*.time","settled projectiles end exactly at the simulation clock"),

@@ -87,6 +87,7 @@ fn new_command_and_notice_refusals_are_atomic() {
 #[test]
 fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     let me = WireSelf {
+        archetype: Default::default(),
         id: u32::MAX,
         faction: 15,
         x: 1.,
@@ -111,6 +112,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         barrier_ring_step: 0,
     };
     let actor = WireActor {
+        archetype: Default::default(),
         id: u32::MAX,
         faction: 15,
         x: 1.,
@@ -175,6 +177,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
 #[test]
 fn projectile_rows_preserve_duplicates_and_strict_owner_bounds() {
     let row = WireProjectile {
+        height: Default::default(),
         kind: 1,
         x: u16::MAX,
         y: 0,

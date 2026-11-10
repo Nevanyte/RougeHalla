@@ -2,7 +2,13 @@
 //! The gate: every `slice` scenario MATCHes, `capture-only` scenarios are listed (not compared), and the 300 legacy
 //! findPath queries MATCH. Exits 1 on any mismatch, any unreadable scenario fixture, or any JSON file in parity/fixtures
 //! whose format is neither a scenario nor the pathfinding fixture (discovery is loud: nothing leaves the gate unseen).
+//! The header names the hitbox mode every compared scenario runs (ADR0024 Decision 11: `legacy_circle`); a separate
+//! section reports the Rust-native ADR0024 goldens, which are a declared deviation, not legacy parity.
 fn main() {
+    println!(
+        "hitboxes: {} (every compared scenario; ADR0024 archetypes are a deviation, not legacy parity)",
+        rh_parity::hitbox_mode_name(rh_parity::HITBOXES)
+    );
     let mut fail = false;
     let (mut slice, mut capture_only) = (0, 0);
     let files = rh_parity::discover(&rh_parity::fixtures_dir());
@@ -52,6 +58,16 @@ fn main() {
         println!("    {m}");
     }
     fail |= !bad.is_empty();
+    let stale = rh_parity::hitbox_goldens::write_or_check(true);
+    println!(
+        "ADR0024 deviation, not legacy parity: hitbox goldens (archetypes_v1, pathfinding_v2, server_walk_v2) | {}",
+        if stale.is_empty() {
+            "current".to_string()
+        } else {
+            format!("STALE {stale:?} (cargo run -p rh-parity --bin hitbox-fixtures)")
+        }
+    );
+    fail |= !stale.is_empty();
     println!(
         "{slice} slice scenarios + {capture_only} capture-only, {n} pathfinding queries{}: {}",
         if files.unrecognised.is_empty() {

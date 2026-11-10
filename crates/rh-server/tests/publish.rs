@@ -318,6 +318,7 @@ impl Hand {
         let now = Instant::now();
         let cfg = RoomConfig {
             sim: SimConfig {
+                hitboxes: Default::default(),
                 walk_hints: None,
                 regen: false,
                 quests: false,

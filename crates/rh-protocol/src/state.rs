@@ -881,13 +881,15 @@ pub struct WireProjectile {
     pub y: u16,
     pub facing: u16,
     pub owner: Option<u32>,
+    /// Height above the ground position in whole sim units (protocol 16, ADR0024): the shooter's chest at launch.
+    pub height: u8,
 }
 impl WireProjectile {
     fn valid(&self) -> bool {
         self.kind <= 1 && self.owner != Some(0)
     }
     fn len(&self) -> usize {
-        8 + self.owner.map_or(0, varint_len)
+        9 + self.owner.map_or(0, varint_len)
     }
     fn write(&self, w: &mut Writer) {
         w.u8(self.kind);
@@ -895,6 +897,7 @@ impl WireProjectile {
         w.u16(self.y);
         w.u16(self.facing);
         w.opt(self.owner.as_ref(), |w, id| w.varint(*id));
+        w.u8(self.height);
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let v = Self {
@@ -903,6 +906,7 @@ impl WireProjectile {
             y: r.u16()?,
             facing: r.u16()?,
             owner: r.opt(Reader::varint)?,
+            height: r.u8()?,
         };
         if v.valid() {
             Ok(v)

@@ -19,7 +19,7 @@
 use crate::constants::{
     PATH_TIE_EPS, PLAYER_RADIUS, PULL_WINDOW, SNAP_RADIUS, START_CENTER_SLACK, TILE,
 };
-use crate::geometry::{circle_clear, segment_rays_clear};
+use crate::geometry::Footprint;
 use crate::map::{tile_to_world_center, world_to_tile, TileMap, MASK_MOVE, STEP_DX, STEP_DY};
 use crate::math::Vec2;
 
@@ -220,12 +220,19 @@ impl Pathfinder {
         false
     }
 
-    /// Waypoints (excluding `from`) that walk a disc of `radius` from `from` to `to`; empty when unreachable. A goal inside a
-    /// wall snaps to the nearest floor tile within [`SNAP_RADIUS`] rings; the last waypoint is `to` itself when the disc fits
-    /// there, else the nearest in-tile point where it does.
-    pub fn find_path(&mut self, map: &TileMap, from: Vec2, to: Vec2, radius: f64) -> Vec<Vec2> {
+    /// Waypoints (excluding `from`) that walk the footprint `foot` from `from` to `to`; empty when unreachable. A bare `f64`
+    /// is the legacy disc of that radius ([`Footprint::Disc`], the very same evaluation); a [`Footprint::Box`] is an
+    /// archetype's foot box (ADR0024). A goal inside a wall snaps to the nearest floor tile within [`SNAP_RADIUS`] rings; the
+    /// last waypoint is `to` itself when the footprint fits there, else the nearest in-tile point where it does.
+    pub fn find_path(
+        &mut self,
+        map: &TileMap,
+        from: Vec2,
+        to: Vec2,
+        foot: impl Into<Footprint>,
+    ) -> Vec<Vec2> {
         let mut out = Vec::new();
-        self.find_path_into(map, from, to, radius, &mut out);
+        self.find_path_into(map, from, to, foot, &mut out);
         out
     }
 
@@ -236,9 +243,10 @@ impl Pathfinder {
         map: &TileMap,
         from: Vec2,
         to: Vec2,
-        radius: f64,
+        foot: impl Into<Footprint>,
         out: &mut Vec<Vec2>,
     ) {
+        let foot = foot.into();
         out.clear();
         // Each coordinate on its own: opposite extremes cancel in a sum.
         if !(from.x.is_finite() && from.y.is_finite() && to.x.is_finite() && to.y.is_finite()) {
@@ -272,19 +280,19 @@ impl Pathfinder {
             }
         }
         if !goal_in_wall {
-            target = clamp_clear(map, to, gx, gy, radius);
+            target = clamp_clear(map, to, gx, gy, foot);
         }
         // The end discs of `from` and `target` are pure functions of the map: each is evaluated at most once per query.
         let mut from_clear: Option<bool> = None;
         let mut target_clear: Option<bool> = None;
         if !start_in_wall {
             // segment_clear(from, target): the disc at from, the disc at target, then the rays (its short-circuit order).
-            let a = circle_clear(map, from, radius, MASK_MOVE);
+            let a = foot.clear(map, from, MASK_MOVE);
             from_clear = Some(a);
             if a {
-                let b = circle_clear(map, target, radius, MASK_MOVE);
+                let b = foot.clear(map, target, MASK_MOVE);
                 target_clear = Some(b);
-                if b && segment_rays_clear(map, from, target, radius, MASK_MOVE) {
+                if b && foot.segment_rays_clear(map, from, target, MASK_MOVE) {
                     out.push(target);
                     return;
                 }
@@ -336,7 +344,7 @@ impl Pathfinder {
         }
         let mut disc = |j: usize| -> bool {
             if cc[j] == UNKNOWN {
-                cc[j] = if circle_clear(map, cand[j], radius, MASK_MOVE) {
+                cc[j] = if foot.clear(map, cand[j], MASK_MOVE) {
                     CLEAR
                 } else {
                     BLOCKED
@@ -355,12 +363,11 @@ impl Pathfinder {
             while j > i {
                 let anchor_clear = match anchor_j {
                     Some(a) => disc(a),
-                    None => *from_clear
-                        .get_or_insert_with(|| circle_clear(map, from, radius, MASK_MOVE)),
+                    None => *from_clear.get_or_insert_with(|| foot.clear(map, from, MASK_MOVE)),
                 };
                 if anchor_clear
                     && disc(j)
-                    && segment_rays_clear(map, anchor, cand[j], radius, MASK_MOVE)
+                    && foot.segment_rays_clear(map, anchor, cand[j], MASK_MOVE)
                 {
                     break;
                 }
@@ -405,28 +412,31 @@ fn snap_to_floor(map: &TileMap, x: f64, y: f64) -> Option<(i64, i64)> {
     None
 }
 
-fn clamp_clear(map: &TileMap, p: Vec2, gx: i64, gy: i64, radius: f64) -> Vec2 {
-    if circle_clear(map, p, radius, MASK_MOVE) {
+/// Clamps a goal off the walls of its tile: x by the footprint's east-west half-extent, y by its north-south one (both the
+/// radius for a disc).
+fn clamp_clear(map: &TileMap, p: Vec2, gx: i64, gy: i64, foot: Footprint) -> Vec2 {
+    if foot.clear(map, p, MASK_MOVE) {
         return p;
     }
+    let (rx, ry) = (foot.half_x(), foot.half_y());
     let x0 = gx as f64 * TILE;
     let y0 = gy as f64 * TILE;
     let mut x = p.x;
     let mut y = p.y;
     if map.is_solid(gx - 1, gy) {
-        x = x.max(x0 + radius);
+        x = x.max(x0 + rx);
     }
     if map.is_solid(gx + 1, gy) {
-        x = x.min(x0 + TILE - radius);
+        x = x.min(x0 + TILE - rx);
     }
     if map.is_solid(gx, gy - 1) {
-        y = y.max(y0 + radius);
+        y = y.max(y0 + ry);
     }
     if map.is_solid(gx, gy + 1) {
-        y = y.min(y0 + TILE - radius);
+        y = y.min(y0 + TILE - ry);
     }
     let clamped = Vec2::new(x, y);
-    if circle_clear(map, clamped, radius, MASK_MOVE) {
+    if foot.clear(map, clamped, MASK_MOVE) {
         clamped
     } else {
         Vec2::new(tile_to_world_center(gx), tile_to_world_center(gy))
@@ -447,6 +457,19 @@ pub fn plan_path_into(
     out: &mut Vec<Vec2>,
 ) {
     pf.find_path_into(map, from, to, PLAYER_RADIUS, out)
+}
+
+/// A mover's path with its own footprint (ADR0024: the fighter's foot box, or the legacy disc under `LegacyCircle`, which
+/// is [`plan_path_into`] exactly).
+pub fn plan_foot_path_into(
+    pf: &mut Pathfinder,
+    map: &TileMap,
+    from: Vec2,
+    to: Vec2,
+    foot: Footprint,
+    out: &mut Vec<Vec2>,
+) {
+    pf.find_path_into(map, from, to, foot, out)
 }
 
 #[cfg(test)]

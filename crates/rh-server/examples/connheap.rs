@@ -48,6 +48,7 @@ async fn server(args: &[String], conns: usize, secs: u64) {
         None => rh_sim::arenas::practice_arena(),
     };
     let sim = rh_sim::SimConfig {
+        hitboxes: Default::default(),
         walk_hints: None,
         regen: false,
         quests: false,

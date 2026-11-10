@@ -27,6 +27,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
         .map(|i| {
             let n = fixed_actors.unwrap_or(MIX[i as usize % 8]) as u32;
             let me = WireSelf {
+                archetype: Default::default(),
                 sig: 0,
                 effects: 0,
                 displace_seq: 0,
@@ -51,6 +52,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 barrier_ring_step: 0,
             };
             let actors = (0..n).map(|k| WireActor {
+                archetype: Default::default(),
                 sig: 0,
                 mob_type_code: 0,
                 effects: 0,

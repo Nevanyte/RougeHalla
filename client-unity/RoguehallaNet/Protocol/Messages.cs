@@ -344,6 +344,8 @@ namespace Roguehalla.Net.Protocol
         public float Barrier;
         /// <summary>Authoritative owner barrier ring step (0..8).</summary>
         public byte BarrierRingStep;
+        /// <summary>The own hitbox archetype id (protocol 16, ADR0024); its row is in <see cref="ServerMsg.Welcome.Archetypes"/>.</summary>
+        public byte Archetype;
 
         internal void CopyFrom(WireSelf o)
         {
@@ -352,14 +354,14 @@ namespace Roguehalla.Net.Protocol
             HuntTarget = o.HuntTarget; HuntStacks = o.HuntStacks;
             if (o.Wish == null) Wish = null;
             else { if (Wish == null) Wish = new WireWishOwner(); Wish.CopyFrom(o.Wish); }
-            Barrier = o.Barrier; BarrierRingStep = o.BarrierRingStep;
+            Barrier = o.Barrier; BarrierRingStep = o.BarrierRingStep; Archetype = o.Archetype;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
             HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13,
-            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16, HWish = 1 << 17, HBarrier = 1 << 18, HServerTime = 1 << 19, HOwnerCombat = 1 << 20;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat;
+            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16, HWish = 1 << 17, HBarrier = 1 << 18, HServerTime = 1 << 19, HOwnerCombat = 1 << 20, HArchetype = 1 << 21;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -390,6 +392,7 @@ namespace Roguehalla.Net.Protocol
             if (HuntStacks != 0) m |= HHuntStacks;
             if (Wish != null) m |= HWish;
             if (BitConverter.SingleToInt32Bits(Barrier) != BitConverter.SingleToInt32Bits(0f) || BarrierRingStep != 0) m |= HBarrier;
+            if (Archetype != 0) m |= HArchetype;
             return m;
         }
 
@@ -416,6 +419,7 @@ namespace Roguehalla.Net.Protocol
             if ((head & HHuntStacks) != 0) n += Writer.VarintLength(HuntStacks);
             if ((head & HWish) != 0) n += WireWishOwnerLength(Wish);
             if ((head & HBarrier) != 0) n += 5;
+            if ((head & HArchetype) != 0) n += 1;
             return n;
         }
 
@@ -448,6 +452,7 @@ namespace Roguehalla.Net.Protocol
             else { Barrier = 0f; BarrierRingStep = 0; }
             if (Barrier < 0 || float.IsNaN(Barrier) || float.IsInfinity(Barrier) || BarrierRingStep > 8)
                 throw new DecodeException(DecodeError.BadField, "barrier");
+            Archetype = (head & HArchetype) != 0 ? r.U8() : (byte)0;
         }
 
         internal void Write(Writer w, uint head)
@@ -469,6 +474,7 @@ namespace Roguehalla.Net.Protocol
             if ((head & HHuntStacks) != 0) w.Varint(HuntStacks);
             if ((head & HWish) != 0) WishWire.WriteOwner(w, Wish);
             if ((head & HBarrier) != 0) { WishWire.ValidateBarrier(Barrier, BarrierRingStep); w.F32(Barrier); w.U8(BarrierRingStep); }
+            if ((head & HArchetype) != 0) w.U8(Archetype);
         }
     }
 
@@ -651,9 +657,11 @@ namespace Roguehalla.Net.Protocol
         public ushort Effects;
         /// <summary>Authoritative per-observer barrier share.</summary>
         public byte BarrierPct, BarrierRingStep;
+        /// <summary>Hitbox archetype id (protocol 16, ADR0024); 0 is the legacy circle. Its row is in the Welcome's table.</summary>
+        public byte Archetype;
 
         // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier;
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MArchetype = 1 << 10, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier | MArchetype;
         internal const byte DefaultHpPct = 100;
 
         /// <summary>Only native quest givers use the reserved absent-identity kit and carry no regional type.</summary>
@@ -676,6 +684,7 @@ namespace Roguehalla.Net.Protocol
             if (MobTypeCode != 0) m |= MMobType;
             if (Sig != 0) m |= MSig;
             if (BarrierPct != 0 || BarrierRingStep != 0) m |= MBarrier;
+            if (Archetype != 0) m |= MArchetype;
             return m;
         }
 
@@ -685,7 +694,7 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0) + ((m & MArchetype) != 0 ? 1 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -715,6 +724,7 @@ namespace Roguehalla.Net.Protocol
             a.Sig = (mask & MSig) != 0 ? r.U8() : (byte)0;
             if ((mask & MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); }
             if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier");
+            a.Archetype = (mask & MArchetype) != 0 ? r.U8() : (byte)0;
             if (!a.HasValidGiverIdentity) throw new DecodeException(DecodeError.BadField, "giver actor");
             return a;
         }
@@ -734,6 +744,7 @@ namespace Roguehalla.Net.Protocol
             if ((m & MMobType) != 0) w.U8(MobTypeCode);
             if ((m & MSig) != 0) w.U8(Sig);
             if ((m & MBarrier) != 0) { if (BarrierPct > 100 || BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(BarrierPct); w.U8(BarrierRingStep); }
+            if ((m & MArchetype) != 0) w.U8(Archetype);
         }
     }
 
@@ -833,11 +844,11 @@ namespace Roguehalla.Net.Protocol
     public struct ActorDelta
     {
         public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MAll = 0x1fff, MNew = MX | MY | MFacing;
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MArchetype = 1 << 13, MAll = 0x3fff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
-        public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig, BarrierPct, BarrierRingStep;
+        public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig, BarrierPct, BarrierRingStep, Archetype;
         public ushort Bounty, Effects;
     }
 
@@ -909,12 +920,16 @@ namespace Roguehalla.Net.Protocol
             switch (r.U8())
             {
                 case TWelcome:
-                    msg = new Welcome
+                {
+                    var welcome = new Welcome
                     {
                         Protocol = r.U16(), ContentHash = r.U64(), MatchId = r.Array16(), PlayerId = r.U32(), Session = r.Array16(),
-                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Map = MapBlob.Read(ref r),
+                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Archetypes = WireArchetype.ReadTable(ref r), Vision = WireVision.Read(ref r), Map = MapBlob.Read(ref r),
                     };
+                    if (!welcome.Vision.Fits(welcome.Map.W, welcome.Map.H)) throw new DecodeException(DecodeError.BadField, "vision");
+                    msg = welcome;
                     break;
+                }
                 case TReject:
                 {
                     ushort code = r.U16();
@@ -1037,13 +1052,21 @@ namespace Roguehalla.Net.Protocol
             public byte TickRate;
             public uint Tick;
             public double ServerMs;
+            /// <summary>The hitbox archetype table (protocol 16, ADR0024): between the header and the map. Rows by ascending id.</summary>
+            public WireArchetype[] Archetypes = Array.Empty<WireArchetype>();
+            /// <summary>The vision rule's parameters (protocol 16): after the archetype table, before the map.</summary>
+            public WireVision Vision = new WireVision();
             public MapBlob Map;
 
             public override byte[] Encode()
             {
-                var w = new Writer(60 + Map.EncodedLength);
+                var table = Archetypes ?? Array.Empty<WireArchetype>();
+                var vision = Vision ?? new WireVision();
+                var w = new Writer(60 + WireArchetype.TableLength(table) + vision.Length() + Map.EncodedLength);
                 w.U8(TWelcome); w.U16(Protocol); w.U64(ContentHash); w.Bytes(MatchId); w.U32(PlayerId); w.Bytes(Session);
                 w.U8(TickRate); w.U32(Tick); w.F64(ServerMs);
+                WireArchetype.WriteTable(w, table);
+                vision.Write(w);
                 Map.Write(w);
                 return w.Finish();
             }
@@ -1170,7 +1193,7 @@ namespace Roguehalla.Net.Protocol
                 s.Tick = r.Varint(); s.AckInput = r.Varint();
                 uint head = r.Varint();
                 if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0) ||
-                    ((head & (WireSelf.HWish | WireSelf.HBarrier | WireSelf.HOwnerCombat)) != 0 && (head & WireSelf.HPresent) == 0))
+                    ((head & (WireSelf.HWish | WireSelf.HBarrier | WireSelf.HOwnerCombat | WireSelf.HArchetype)) != 0 && (head & WireSelf.HPresent) == 0))
                     throw new DecodeException(DecodeError.BadField, "head");
                 s.Training = (head & WireSelf.HTraining) != 0;
                 if ((head & WireSelf.HPresent) != 0)
@@ -1227,6 +1250,9 @@ namespace Roguehalla.Net.Protocol
             public bool HasBarrier;
             public float Barrier;
             public byte BarrierRingStep;
+            /// <summary>Whether this delta carries the self's hitbox archetype id (protocol 16, head bit 25).</summary>
+            public bool HasArchetype;
+            public byte Archetype;
             /// <summary>Whether this delta carries owner-combat availability; null explicitly clears, omission retains.</summary>
             public bool HasOwnerCombat;
             public WireOwnerCombat OwnerCombat;
@@ -1235,8 +1261,8 @@ namespace Roguehalla.Net.Protocol
 
             // Head bits (append only): 0 self fields, 7 departed, 8 phase, 20 training, 21 Wish, 22 barrier, 23 server time, 24 owner combat.
             const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, HTraining = 1 << 20,
-                HWish = 1 << 21, HBarrier = 1 << 22, HServerTime = 1 << 23, HOwnerCombat = 1 << 24,
-                Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat;
+                HWish = 1 << 21, HBarrier = 1 << 22, HServerTime = 1 << 23, HOwnerCombat = 1 << 24, HArchetype = 1 << 25,
+                Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining | HWish | HBarrier | HServerTime | HOwnerCombat | HArchetype;
 
             /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
             internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
@@ -1252,8 +1278,9 @@ namespace Roguehalla.Net.Protocol
                 d.HasSelf = (head & HPresent) != 0;
                 d.HasWish = (head & HWish) != 0;
                 d.HasBarrier = (head & HBarrier) != 0;
+                d.HasArchetype = (head & HArchetype) != 0;
                 d.HasOwnerCombat = (head & HOwnerCombat) != 0;
-                if ((d.HasWish || d.HasBarrier) && !d.HasSelf) throw new DecodeException(DecodeError.BadField, "owner group without self");
+                if ((d.HasWish || d.HasBarrier || d.HasArchetype) && !d.HasSelf) throw new DecodeException(DecodeError.BadField, "owner group without self");
                 d.Me = d.HasSelf ? SelfDelta.Read(ref r, head & SelfDelta.Fields) : default(SelfDelta);
                 d.Wish = d.HasWish && r.Flag() ? WishWire.ReadOwner(ref r, d.Wish) : null;
                 if (d.HasBarrier)
@@ -1262,6 +1289,7 @@ namespace Roguehalla.Net.Protocol
                     if (d.Barrier < 0 || float.IsNaN(d.Barrier) || float.IsInfinity(d.Barrier) || d.BarrierRingStep > 8)
                         throw new DecodeException(DecodeError.BadField, "barrier");
                 }
+                d.Archetype = d.HasArchetype ? r.U8() : (byte)0;
                 d.HasPhase = (head & HPhase) != 0;
                 d.Phase = d.HasPhase ? r.Code(Wire.MaxPhaseCode, "phase") : (byte)0;
                 d.ServerTimeOverrideMs = (head & HServerTime) != 0 ? r.F64() : (double?)null;
@@ -1295,6 +1323,7 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = r.Code(30,"mob type");
                     if ((a.Mask & ActorDelta.MSig) != 0) a.Sig = r.U8();
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier"); }
+                    if ((a.Mask & ActorDelta.MArchetype) != 0) a.Archetype = r.U8();
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -1332,7 +1361,7 @@ namespace Roguehalla.Net.Protocol
                 if (HasPhase && Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (ChangedCount > Wire.MaxActors || DepartedCount > Wire.MaxActors) throw new ArgumentException("too many actors");
                 if (HasSelf && (Me.Mask & ~SelfDelta.Fields) != 0) throw new ArgumentException("head");
-                if ((HasWish || HasBarrier) && !HasSelf) throw new ArgumentException("owner group without self");
+                if ((HasWish || HasBarrier || HasArchetype) && !HasSelf) throw new ArgumentException("owner group without self");
                 if (HasOwnerCombat && OwnerCombat != null && !HasSelf) throw new ArgumentException("owner combat without self");
                 if (HasWish && Wish != null) WishWire.ValidateOwner(Wish);
                 if (HasBarrier) WishWire.ValidateBarrier(Barrier, BarrierRingStep);
@@ -1355,6 +1384,7 @@ namespace Roguehalla.Net.Protocol
                 if (HasSelf) head |= HPresent | (Me.Mask & SelfDelta.Fields);
                 if (HasWish) head |= HWish;
                 if (HasBarrier) head |= HBarrier;
+                if (HasArchetype) head |= HArchetype;
                 if (HasOwnerCombat) head |= HOwnerCombat;
                 bool hasTime = ServerTimeOverrideMs.HasValue && BitConverter.DoubleToInt64Bits(ServerTimeOverrideMs.Value) != BitConverter.DoubleToInt64Bits(Tick * (double)Wire.TickMs);
                 if (hasTime) head |= HServerTime;
@@ -1364,6 +1394,7 @@ namespace Roguehalla.Net.Protocol
                 if (HasSelf) Me.Write(w);
                 if (HasWish) { w.U8(Wish == null ? (byte)0 : (byte)1); if (Wish != null) WishWire.WriteOwner(w, Wish); }
                 if (HasBarrier) { w.F32(Barrier); w.U8(BarrierRingStep); }
+                if (HasArchetype) w.U8(Archetype);
                 if (HasPhase) w.U8(Phase);
                 if (hasTime) w.F64(ServerTimeOverrideMs.Value);
                 w.Varint((uint)ChangedCount);
@@ -1386,6 +1417,7 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MMobType) != 0) w.U8(a.MobTypeCode);
                     if ((a.Mask & ActorDelta.MSig) != 0) w.U8(a.Sig);
                     if ((a.Mask & ActorDelta.MBarrier) != 0) { if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(a.BarrierPct); w.U8(a.BarrierRingStep); }
+                    if ((a.Mask & ActorDelta.MArchetype) != 0) w.U8(a.Archetype);
                 }
                 if (DepartedCount > 0)
                 {

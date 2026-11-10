@@ -912,3 +912,33 @@ fn active_chase_and_in_flight_lock_restore_with_identical_continuations() {
         }
     }
 }
+
+/// ADR0024 Decision 11: every compared (slice) scenario runs the legacy 12 u circle: the configuration says so and every
+/// fighter it builds is archetype 0. The archetype mode is a declared deviation, never compared to a legacy capture.
+#[test]
+fn every_compared_scenario_runs_legacy_circle() {
+    let fixtures = scenarios("slice");
+    assert!(!fixtures.is_empty());
+    for fx in &fixtures {
+        let sim = build(fx);
+        assert_eq!(
+            sim.config().hitboxes,
+            rh_sim::archetype::HitboxMode::LegacyCircle,
+            "{}",
+            fx.scenario
+        );
+        assert!(
+            sim.players()
+                .iter()
+                .all(|p| p.archetype == rh_sim::archetype::ArchetypeId::LEGACY_CIRCLE)
+                && sim
+                    .mobs()
+                    .iter()
+                    .all(|m| m.core.archetype == rh_sim::archetype::ArchetypeId::LEGACY_CIRCLE),
+            "{}: a fighter is not on the legacy circle",
+            fx.scenario
+        );
+    }
+    assert_eq!(HITBOXES, rh_sim::archetype::HitboxMode::LegacyCircle);
+    assert_eq!(hitbox_mode_name(HITBOXES), "legacy_circle");
+}
