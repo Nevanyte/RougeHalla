@@ -1,0 +1,28 @@
+== command: cargo test -p rh-policy --lib bots::paths_parity_tests --locked --offline -j 2
+== started: 2026-11-10T10:06:09Z
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling zmij v1.0.23
+   Compiling libm v0.2.16
+   Compiling serde v1.0.229
+   Compiling serde_derive v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling memchr v2.8.3
+   Compiling ryu-js v1.0.3
+   Compiling itoa v1.0.18
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-worktrees/backend-bot-path-budget/crates/rh-policy)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.38s
+     Running unittests src/lib.rs (target/path-budget-build/debug/deps/rh_policy-214e2d42634828c3)
+
+running 1 test
+test bots::paths_parity_tests::the_path_service_matches_the_source_step_by_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.00s
+
+== exit: 0
+== finished: 2026-11-10T10:07:00Z
