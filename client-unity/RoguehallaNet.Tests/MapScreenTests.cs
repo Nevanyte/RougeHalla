@@ -175,7 +175,8 @@ namespace Roguehalla.Net.Tests
             Assert.IsFalse(a.Stacked);
             float margin = a.Body.X, other = 1280 - a.Body.Right;
             Assert.AreEqual(margin, other, 1.01f, "centred horizontally");
-            Assert.AreEqual(a.Body.Y, 800 - a.Body.Bottom, 1.01f, "centred vertically");
+            Assert.GreaterOrEqual(a.Body.Y, MapScreenLayout.ChromeClear, "clears the top-right chrome buttons and the phase pill");
+            Assert.LessOrEqual(a.Body.Bottom, 800 - MapScreenLayout.Pad + .01f);
             var b = MapScreenLayout.Compute(1707, 960, MapScreenMode.Tab);
             Assert.Greater(b.Map.W, a.Map.W);
             Assert.LessOrEqual(b.Map.W, MapScreenLayout.MapMax);

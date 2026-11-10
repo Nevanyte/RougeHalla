@@ -37,7 +37,7 @@ namespace Roguehalla.Net.Ui
         public readonly MapRect Map;
         /// <summary>The strip under the map: the zone legend (Tab) or the route summary (planning).</summary>
         public readonly MapRect Legend;
-        /// <summary>Tab: roster/key column. Planning: unused (zero width).</summary>
+        /// <summary>Tab: roster/key column (the whole block starts below the top-right chrome, 44 units down). Planning: unused (zero width).</summary>
         public readonly MapRect Left;
         /// <summary>Tab: weapon guide and quest column. Planning: the decision column.</summary>
         public readonly MapRect Right;
@@ -73,7 +73,7 @@ namespace Roguehalla.Net.Ui
                 side = Clamp(side, 120f, MapMax);
                 float fw = side + FramePad * 2f;
                 float x0 = (float)Math.Floor((w - Math.Max(fw, avail)) / 2f);
-                float y = Pad;
+                float y = ChromeClear;
                 var title = new MapRect(x0 + (Math.Max(fw, avail) - fw) / 2f, y, fw, TitleHeight);
                 var frame = new MapRect(title.X, title.Bottom + Gap / 2f, fw, fw);
                 var leg = new MapRect(title.X, frame.Bottom + Gap / 2f, fw, legend);
@@ -81,15 +81,15 @@ namespace Roguehalla.Net.Ui
                 float top = leg.Bottom + Gap; float rest = Math.Max(60f, h - Pad - top);
                 var left = new MapRect(Pad, top, colW, rest);
                 var right = new MapRect(Pad + colW + Gap, top, colW, rest);
-                return new MapScreenLayout(MapScreenMode.Tab, true, title, frame, leg, left, right, new MapRect(Pad, Pad, avail, h - Pad * 2f));
+                return new MapScreenLayout(MapScreenMode.Tab, true, title, frame, leg, left, right, new MapRect(Pad, ChromeClear, avail, h - ChromeClear - Pad));
             }
             float fixedH = TitleHeight + Gap + Gap + legend + FramePad * 2f;
-            float sideMax = (float)Math.Floor(Math.Min(h - Pad * 2f - fixedH, w - Pad * 2f - col * 2f - Gap * 2f - FramePad * 2f));
+            float sideMax = (float)Math.Floor(Math.Min(h - ChromeClear - Pad - fixedH, w - Pad * 2f - col * 2f - Gap * 2f - FramePad * 2f));
             float mapSide = Clamp(sideMax, MapMin, MapMax);
             float frameW = mapSide + FramePad * 2f;
             float totalW = col * 2f + Gap * 2f + frameW;
             float colH = TitleHeight + Gap + frameW + Gap + legend;
-            float bx = (float)Math.Floor((w - totalW) / 2f), by = (float)Math.Floor((h - colH) / 2f);
+            float bx = (float)Math.Floor((w - totalW) / 2f), by = (float)Math.Max(ChromeClear, Math.Floor(ChromeClear + (h - ChromeClear - Pad - colH) / 2f));
             var left2 = new MapRect(bx, by, col, colH);
             float mx = bx + col + Gap;
             var title2 = new MapRect(mx, by, frameW, TitleHeight);

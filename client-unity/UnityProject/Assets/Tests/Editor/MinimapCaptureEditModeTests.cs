@@ -105,6 +105,64 @@ namespace Roguehalla.Client.Tests
             if (_clientObject != null) UnityEngine.Object.DestroyImmediate(_clientObject);
         }
 
+        TacticalMapSurface LargeSurface() { return _canvasObject.transform.Find("TacticalMap/MapFrame/PublicMap").GetComponent<TacticalMapSurface>(); }
+
+        [Test]
+        public void TabMapRightClickIssuesOneOrdinaryMoveOrderAndShowsAPingOnBothMaps()
+        {
+            _map.SetOpen(true);
+            var large = LargeSurface();
+            large.Pressed(new Vector2(40f, 60f), PointerEventData.InputButton.Right);
+            _session.FlushInput();
+            var sent = _transport.TakeCommands();
+            Assert.That(sent.Count, Is.EqualTo(1), "one ordinary move order, nothing else");
+            Assert.That(sent[0].Kind, Is.EqualTo(CommandKind.Move));
+            Assert.That(sent[0].X, Is.EqualTo(40f).Within(.01f)); Assert.That(sent[0].Y, Is.EqualTo(60f).Within(.01f));
+            Assert.That(large.Marks.PingActive, Is.True, "a ping marks the destination on the Tab map");
+            Assert.That(_surface.Marks.PingActive, Is.True, "and on the minimap");
+            large.PointerReleased(new Vector2(40f, 60f), PointerEventData.InputButton.Right);
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty, "releasing on the same point does not resend it");
+        }
+
+        [Test]
+        public void TabMapLeftClickPlansARouteStopAndNeverMoves()
+        {
+            _map.SetOpen(true);
+            LargeSurface().Pressed(new Vector2(48f, 48f), PointerEventData.InputButton.Left);
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty, "left click only edits the private route");
+            LargeSurface().Pressed(new Vector2(48f, 48f), PointerEventData.InputButton.Middle);
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty);
+        }
+
+        [Test]
+        public void TabMapRightDragRepeatsAreDroppedWhenOverTheOrderBudgetButThePressAndReleaseAreNot()
+        {
+            _map.SetOpen(true);
+            var large = LargeSurface();
+            int accepted = 0;
+            for (int i = 0; i < 40; i++) if (_client.OrderMapMove(10f + i, 10f, true)) accepted++;
+            Assert.That(accepted, Is.LessThan(40), "held repeats obey the shared order budget");
+            Assert.That(accepted, Is.GreaterThan(0));
+            large.Pressed(new Vector2(70f, 70f), PointerEventData.InputButton.Right);
+            _session.FlushInput();
+            var sent = _transport.TakeCommands();
+            Assert.That(sent[sent.Count - 1].X, Is.EqualTo(70f).Within(.01f), "a press is an essential order and always goes out");
+        }
+
+        [Test]
+        public void RightClickIsIgnoredWhilePlanningSoNoOrderLeavesBeforeTheRunStarts()
+        {
+            var large = LargeSurface();
+            _transport.Deliver(new ServerMsg.State { Tick = 2, Items = new StateItem[] { new PlanState { Value = new WirePlan { EndsAt = 99999, Boons = new string[0] } } } });
+            Assert.That(_map.IsPlanning, Is.True);
+            large.Pressed(new Vector2(40f, 60f), PointerEventData.InputButton.Right);
+            _session.FlushInput();
+            Assert.That(_transport.TakeCommands(), Is.Empty);
+        }
+
         [Test]
         public void PhysicalLeftReleaseCancelsPeekAndRestoresTheOwnerCamera()
         {

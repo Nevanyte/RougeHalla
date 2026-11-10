@@ -66,9 +66,9 @@ function minimapRect(w, h, s) {
 }
 function tabMapRect(w, h, s) {
   const uiW = w / s, uiH = h / s, col = 250, fixedH = 34 + 12 + 12 + 30 + 8;
-  const side = Math.min(820, Math.max(240, Math.floor(Math.min(uiH - 24 - fixedH, uiW - 24 - col * 2 - 24 - 8))));
+  const side = Math.min(820, Math.max(240, Math.floor(Math.min(uiH - 44 - 12 - fixedH, uiW - 24 - col * 2 - 24 - 8))));
   const frameW = side + 8, totalW = col * 2 + 24 + frameW, colH = 34 + 12 + frameW + 12 + 30;
-  const bx = Math.floor((uiW - totalW) / 2), by = Math.floor((uiH - colH) / 2);
+  const bx = Math.floor((uiW - totalW) / 2), by = Math.max(44, Math.floor(44 + (uiH - 44 - 12 - colH) / 2));
   return { x: (bx + col + 12 + 4) * s, y: (by + 34 + 12 + 4) * s, size: side * s };
 }
 
@@ -79,33 +79,34 @@ async function walk(cfg, page, s, shot) {
   const moves = () => page.evaluate(() => window.__rhLatency.events.filter(e => e.kind === 'sampleMove').map(e => ({ x: e.x, y: e.y, seq: e.moveSeq })));
   const self = async (clip) => { const b = await page.screenshot(); return centroid(context, b, clip, [137, 206, 246], 10, cfg.dpr); };
   const result = {};
+  const mini = minimapRect(cfg.w, cfg.h, s);
+  const miniClip = { x: mini.x, y: mini.y, width: mini.size, height: mini.size };
+  const worldOf = c => c ? { x: (c.x - mini.x) / mini.size * 5120, y: (c.y - mini.y) / mini.size * 5120 } : null;
   for (const where of ['minimap', 'tab']) {
-    // Fresh start point: walk back toward the middle of the level first so every probe has room to move.
     const fx = where === 'minimap' ? 0.30 : 0.70, fy = where === 'minimap' ? 0.60 : 0.30;
-    let rect;
-    if (where === 'tab') { await page.keyboard.down('Tab'); await page.waitForTimeout(600); rect = tabMapRect(cfg.w, cfg.h, s); }
-    else rect = minimapRect(cfg.w, cfg.h, s);
-    const x = rect.x + rect.size * fx, y = rect.y + rect.size * fy;
-    const before = (await moves()).length;
+    const target = { x: fx * 5120, y: fy * 5120 };
+    // The player's world position is read back from the minimap's own player marker before and after (Tab released both times).
+    const before = worldOf(await self(miniClip));
+    const sentBefore = (await moves()).length;
     const ctxBefore = await page.evaluate(() => ({ ...window.__ctxmenu }));
-    const mapClip = { x: rect.x, y: rect.y, width: rect.size, height: rect.size };
-    const selfBefore = await self(mapClip);
+    let rect = mini;
+    if (where === 'tab') { await page.keyboard.down('Tab'); await page.waitForTimeout(600); rect = tabMapRect(cfg.w, cfg.h, s); }
+    const x = rect.x + rect.size * fx, y = rect.y + rect.size * fy;
     await page.mouse.move(x, y); await page.waitForTimeout(150);
     await page.mouse.down({ button: 'right' }); await page.waitForTimeout(90); await page.mouse.up({ button: 'right' });
     await page.waitForTimeout(250);
     await shot(`walk-${where}-ping`);
     await page.waitForTimeout(2300);
     if (where === 'tab') { await shot('walk-tab-after'); await page.keyboard.up('Tab'); await page.waitForTimeout(500); }
-    const selfAfter = await (where === 'tab' ? (async () => { const r = minimapRect(cfg.w, cfg.h, s); return centroid(context, await page.screenshot(), { x: r.x, y: r.y, width: r.size, height: r.size }, [137, 206, 246], 10, cfg.dpr); })() : self(mapClip));
-    const sent = (await moves()).slice(before);
+    const after = worldOf(await self(miniClip));
+    const sent = (await moves()).slice(sentBefore);
     const ctxAfter = await page.evaluate(() => ({ ...window.__ctxmenu }));
-    const expect = { x: fx * 5120, y: fy * 5120 };
-    const last = sent[sent.length - 1];
-    result[where] = { clickedAt: { x, y }, expectedWorld: expect, ordersSent: sent.length, lastOrder: last || null,
-      orderMatches: !!last && Math.abs(last.x - expect.x) < 40 && Math.abs(last.y - expect.y) < 40,
-      selfMarkerBefore: selfBefore, selfMarkerAfter: selfAfter,
-      movedPx: selfBefore && selfAfter ? Math.hypot(selfAfter.x - selfBefore.x, selfAfter.y - selfBefore.y) : null,
-      contextMenuEvents: ctxAfter.count - ctxBefore.count, contextMenuLeftOpen: ctxAfter.count - ctxBefore.count - (ctxAfter.prevented - ctxBefore.prevented) };
+    const dist = p => p ? Math.hypot(p.x - target.x, p.y - target.y) : null;
+    result[where] = { clickedAtCssPx: { x: Math.round(x), y: Math.round(y) }, targetWorld: target, playerBeforeWorld: before, playerAfterWorld: after,
+      distToTargetBefore: dist(before), distToTargetAfter: dist(after),
+      walkedTowardTarget: !!before && !!after && dist(after) < dist(before) - 100,
+      orderTraceEvents: sent.length, lastTracedOrder: sent[sent.length - 1] || null,
+      contextMenuEvents: ctxAfter.count - ctxBefore.count, contextMenuNotPrevented: ctxAfter.count - ctxBefore.count - (ctxAfter.prevented - ctxBefore.prevented) };
     await shot(`walk-${where}-done`);
   }
   console.log('  walk', JSON.stringify(result));

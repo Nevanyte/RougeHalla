@@ -147,7 +147,7 @@ namespace Roguehalla.Client
             ((RectTransform)_contactRail.Find("KeyHeading")).offsetMax = new Vector2(-12f, -10f);
             BuildKey(theme);
             _inViewHeading = HudUi.Label(_contactRail, "InViewHeading", "IN VIEW", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display);
-            _contactsText = MythicUi.ScrollText(_contactRail, "DeliveredContacts", "", Vector2.zero, Vector2.one, 10);
+            _contactsText = MythicUi.ScrollText(_contactRail, "DeliveredContacts", "", Vector2.zero, Vector2.one, 7.7f);
             _contactScroll = (RectTransform)_contactsText.transform.parent.parent;
             _counterRail = HudUi.Box(_runRail, "WeaponsPage", HudAnchor.TopLeft, 0, 0, 250, 500);
             HudUi.Surface(_counterRail, theme.Surface, theme.CornerRadiusLarge, theme.Border, true, true);
@@ -165,7 +165,7 @@ namespace Roguehalla.Client
             var legendText = _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>();
             legendText.text = "Arrows point to the weapon each one counters. + advantage, ! threat."; legendText.enableAutoSizing = false; legendText.fontSize = 10f;
             _questHeading = HudUi.Label(_counterRail, "QuestHeading", "QUESTS & TRADERS", 13f, theme.Accent, TextAlignmentOptions.TopLeft, false, UiFontRole.Display);
-            _questsText = MythicUi.ScrollText(_counterRail, "QuestList", "", Vector2.zero, Vector2.one, 10);
+            _questsText = MythicUi.ScrollText(_counterRail, "QuestList", "", Vector2.zero, Vector2.one, 7.7f);
             _questScroll = (RectTransform)_questsText.transform.parent.parent;
 
             // Legacy minimap: a square 12/12 from the bottom-right corner, no button strip, frame ring is the border (drawn rect = hit rect).
@@ -175,6 +175,8 @@ namespace Roguehalla.Client
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _miniMarks = _mini.GetComponentInChildren<TacticalMapMarks>();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
+            // Route controls draw over both the planning card and the Tab columns.
+            _routeText.transform.SetAsLastSibling(); _undo.transform.SetAsLastSibling(); _clear.transform.SetAsLastSibling(); _status.transform.SetAsLastSibling();
             _layoutScale = -1f;
             SyncStage(); ApplyLayout(true);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
