@@ -9,7 +9,8 @@ use crate::delta::{
 };
 use crate::map::MapBlob;
 use crate::state::{
-    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
+    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
+    MAX_VISIBLE_PROPS,
 };
 use crate::*;
 use crate::{
@@ -991,6 +992,42 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Quests(Some(WireQuestView::default())),
                     StateItem::Trade(None),
                 ],
+            },
+        ),
+        // Protocol 16, ADR0026: State key 12, the roster (a multi-byte id gap, a bot, a 24-byte name, non-ASCII text).
+        (
+            "state_roster",
+            ServerMsg::State {
+                tick: 210,
+                items: vec![StateItem::Roster(vec![
+                    WireRosterRow {
+                        id: 1,
+                        bot: false,
+                        name: "Wren".into(),
+                    },
+                    WireRosterRow {
+                        id: 2,
+                        bot: true,
+                        name: "bot-Ashen_7".into(),
+                    },
+                    WireRosterRow {
+                        id: 300,
+                        bot: false,
+                        name: "x".repeat(MAX_ROSTER_NAME),
+                    },
+                    WireRosterRow {
+                        id: 301,
+                        bot: true,
+                        name: "S\u{f8}ren".into(),
+                    },
+                ])],
+            },
+        ),
+        (
+            "state_roster_empty",
+            ServerMsg::State {
+                tick: 211,
+                items: vec![StateItem::Roster(vec![])],
             },
         ),
         (
@@ -4092,7 +4129,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 12]),
+        ("state_unknown_key", vec![0x88, 0, 1, 13]),
         ("state_quest_status_unknown", quest_bad_status),
         ("state_quest_flags_unknown", quest_bad_flags),
         ("state_quest_visited_unknown", quest_bad_visited),
@@ -4202,7 +4239,39 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 12]),
+        ("state_too_many_keys", vec![0x88, 0, 13]),
+        // Protocol 16, ADR0026: State key 12, the roster.
+        ("state_roster_count_over_32", vec![0x88, 0, 1, 12, 33]),
+        (
+            "state_roster_id_zero",
+            vec![0x88, 0, 1, 12, 1, 0, 0, 1, b'a'],
+        ),
+        (
+            "state_roster_order",
+            vec![0x88, 0, 1, 12, 2, 5, 0, 1, b'a', 5, 0, 1, b'b'],
+        ),
+        (
+            "state_roster_flags_unknown",
+            vec![0x88, 0, 1, 12, 1, 1, 2, 1, b'a'],
+        ),
+        ("state_roster_name_empty", vec![0x88, 0, 1, 12, 1, 1, 0, 0]),
+        ("state_roster_name_long", {
+            let mut v = vec![0x88, 0, 1, 12, 1, 1, 0, 25];
+            v.extend_from_slice(&[b'a'; 25]);
+            v
+        }),
+        (
+            "state_roster_name_control",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 2, b'a', 0x07],
+        ),
+        (
+            "state_roster_name_utf8",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 1, 0xff],
+        ),
+        (
+            "state_roster_truncated",
+            vec![0x88, 0, 1, 12, 1, 1, 0, 3, b'a'],
+        ),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),

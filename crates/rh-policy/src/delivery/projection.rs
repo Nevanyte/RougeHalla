@@ -492,6 +492,45 @@ pub fn to_wire(e: &SeenEvent) -> Wire {
     }
 }
 
+/// A display name as the roster carries it (ADR0026): control characters dropped, cut to at most
+/// [`rh_protocol::state::MAX_ROSTER_NAME`] bytes on a character boundary, "?" when nothing is left. Seat names are already
+/// server-owned (Hello callsigns, generated bot names), so this only guards the wire bound.
+pub fn roster_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len().min(rh_protocol::state::MAX_ROSTER_NAME));
+    for c in name.chars().filter(|c| !c.is_control()) {
+        if out.len() + c.len_utf8() > rh_protocol::state::MAX_ROSTER_NAME {
+            break;
+        }
+        out.push(c);
+    }
+    if out.is_empty() {
+        out.push('?');
+    }
+    out
+}
+
+/// Whether the committed wire roster still equals the observation's (no allocation).
+pub fn roster_equal(
+    wire: &[rh_protocol::WireRosterRow],
+    seen: &[rh_sim::observe::RosterRow],
+) -> bool {
+    wire.len() == seen.len()
+        && wire.iter().zip(seen).all(|(w, s)| {
+            w.id == s.id.0 && w.bot == s.bot && (w.name == s.name || w.name == roster_name(&s.name))
+        })
+}
+
+/// The observation's roster as State key 12 rows.
+pub fn wire_roster(seen: &[rh_sim::observe::RosterRow]) -> Vec<rh_protocol::WireRosterRow> {
+    seen.iter()
+        .map(|s| rh_protocol::WireRosterRow {
+            id: s.id.0,
+            bot: s.bot,
+            name: roster_name(&s.name),
+        })
+        .collect()
+}
+
 pub fn result(r: &RunResult) -> WireResult {
     WireResult {
         outcome: match r.outcome {
@@ -744,5 +783,54 @@ mod archetype_table_tests {
                 _ => panic!("hull kind differs for {}", a.key),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod roster_tests {
+    use super::*;
+
+    #[test]
+    fn roster_names_are_bounded_printable_and_never_empty() {
+        assert_eq!(roster_name("Wren"), "Wren");
+        assert_eq!(roster_name("a\u{7}b\nc"), "abc");
+        assert_eq!(roster_name(""), "?");
+        assert_eq!(roster_name("\u{1}"), "?");
+        let long = "\u{e9}".repeat(20); // 40 bytes
+        let cut = roster_name(&long);
+        assert_eq!(
+            cut.len(),
+            24,
+            "cut on a character boundary at the byte bound"
+        );
+        assert!(rh_protocol::state::roster_name_valid(&cut));
+    }
+
+    #[test]
+    fn the_wire_roster_matches_the_observation_until_it_changes() {
+        let seen = vec![
+            rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(1),
+                name: "Wren".into(),
+                bot: false,
+            },
+            rh_sim::observe::RosterRow {
+                id: rh_sim::PlayerId(2),
+                name: "x".repeat(40),
+                bot: true,
+            },
+        ];
+        let wire = wire_roster(&seen);
+        assert!(roster_equal(&wire, &seen));
+        let mut changed = seen.clone();
+        changed[0].bot = true;
+        assert!(!roster_equal(&wire, &changed));
+        assert!(!roster_equal(&wire, &seen[..1]));
+        assert!(rh_protocol::ServerMsg::State {
+            tick: 1,
+            items: vec![rh_protocol::StateItem::Roster(wire)],
+        }
+        .try_encode()
+        .is_ok());
     }
 }

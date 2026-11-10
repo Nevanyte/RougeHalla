@@ -305,6 +305,41 @@ pub struct Observation {
     pub visible: Vec<ActorView>,
     pub camps: Vec<crate::mob_runtime::CampRoster>,
     pub events: Vec<SeenEvent>,
+    /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
+    /// carries no position, faction, health or sight fact.
+    pub roster: Vec<RosterRow>,
+}
+
+/// One seated player of the match roster (ADR0026).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RosterRow {
+    pub id: PlayerId,
+    pub name: String,
+    pub bot: bool,
+}
+
+/// Refreshes `out` to the seated players, reusing its rows and name buffers (no allocation while the roster is steady).
+fn roster_into(sim: &Sim, out: &mut Vec<RosterRow>) {
+    let players = sim.players();
+    out.truncate(players.len());
+    for (i, p) in players.iter().enumerate() {
+        if let Some(row) = out.get_mut(i) {
+            row.id = p.id;
+            row.bot = p.seat.bot;
+            if row.name != p.seat.name {
+                row.name.clone_from(&p.seat.name);
+            }
+        } else {
+            out.push(RosterRow {
+                id: p.id,
+                name: p.seat.name.clone(),
+                bot: p.seat.bot,
+            });
+        }
+    }
+    if !out.is_sorted_by_key(|r| r.id) {
+        out.sort_unstable_by_key(|r| r.id);
+    }
 }
 
 impl SeenEvent {
@@ -523,6 +558,7 @@ impl Default for Observation {
             visible: Vec::new(),
             camps: Vec::new(),
             events: Vec::new(),
+            roster: Vec::new(),
         }
     }
 }
@@ -819,6 +855,7 @@ pub(crate) fn observe_with(
     };
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());
+    roster_into(sim, &mut out.roster);
     out.visible.clear();
     if let Some(m) = me {
         let map = sim.collision_view();

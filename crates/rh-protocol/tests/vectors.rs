@@ -187,6 +187,14 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "state_trade_stats_over_limit"
             | "state_trade_merchants_over_limit" => TooMany(0),
             "state_reward_card_id_80" => BadField("reward id"),
+            "state_roster_count_over_32" => BadField("roster count"),
+            "state_roster_id_zero" | "state_roster_order" => BadField("roster order"),
+            "state_roster_flags_unknown" => BadField("roster flags"),
+            "state_roster_name_empty" | "state_roster_name_long" | "state_roster_name_control" => {
+                BadField("roster name")
+            }
+            "state_roster_name_utf8" => BadUtf8,
+            "state_roster_truncated" => Truncated,
             "state_reward_kind_unknown" => BadField("reward kind"),
             "state_reward_kill_key_unknown" => BadField("reward key"),
             "state_reward_kill_gain_zero"

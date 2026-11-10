@@ -169,9 +169,9 @@ pub use state::{
     TrophyStatKey, WireArena, WireBuild, WireCamp, WireField, WireFocus, WireInventory,
     WireMerchant, WirePlan, WirePlanOption, WireProjectile, WireProp, WirePropKind, WireProps,
     WireQuestObjective, WireQuestParticipant, WireQuestPoint, WireQuestRow, WireQuestView,
-    WireRewardChest, WireRewardId, WireRewardOption, WireRosterEntry, WireTradeDelta,
-    WireTradeKind, WireTradeOffer, WireTradeStat, WireTradeView, MAX_TRADE_MERCHANTS,
-    MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
+    WireRewardChest, WireRewardId, WireRewardOption, WireRosterEntry, WireRosterRow,
+    WireTradeDelta, WireTradeKind, WireTradeOffer, WireTradeStat, WireTradeView,
+    MAX_TRADE_MERCHANTS, MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
 };
 
 pub use archetype::{WireArchetype, WireHull};

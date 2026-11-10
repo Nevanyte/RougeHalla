@@ -215,3 +215,38 @@ fn the_windup_telegraph_reaches_exactly_the_observers_of_its_swing() {
         ));
     }
 }
+
+#[test]
+fn the_roster_lists_every_seated_player_for_every_viewer_and_nothing_else() {
+    for visible in [false, true] {
+        let mut sim = world(visible);
+        sim.w.players[1].seat.bot = true;
+        let (owner, rival) = (sim.w.players[0].id, sim.w.players[1].id);
+        let mine = observe(&sim, owner, &[]);
+        let theirs = observe(&sim, rival, &[]);
+        assert_eq!(mine.roster, theirs.roster, "the same for every viewer");
+        assert_eq!(
+            mine.roster,
+            vec![
+                RosterRow {
+                    id: owner,
+                    name: "owner".into(),
+                    bot: false
+                },
+                RosterRow {
+                    id: rival,
+                    name: "rival".into(),
+                    bot: true
+                },
+            ],
+            "whether or not the rival is in sight"
+        );
+    }
+    // A reused buffer is refreshed in place (a rename, a shorter roster).
+    let mut sim = world(true);
+    let mut out = Observation::default();
+    observe_into(&sim, sim.w.players[0].id, &[], &mut out);
+    sim.w.players[1].seat.name = "renamed".into();
+    observe_into(&sim, sim.w.players[0].id, &[], &mut out);
+    assert_eq!(out.roster[1].name, "renamed");
+}

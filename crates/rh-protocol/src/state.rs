@@ -3,7 +3,13 @@ use crate::codec::{str_fits, str_len, varint_len};
 use crate::{DecodeError, EncodeError, Reader, Writer};
 use std::num::NonZeroU32;
 
-pub const MAX_STATE_KEYS: usize = 11;
+pub const MAX_STATE_KEYS: usize = 12;
+/// Most roster rows a State key 12 carries (ADR0026); a match seats at most 8 players today.
+pub const MAX_ROSTER: usize = 32;
+/// Longest roster display name in UTF-8 bytes (ADR0026).
+pub const MAX_ROSTER_NAME: usize = 24;
+/// Roster row flag: the seat is a bot.
+pub const ROSTER_FLAG_BOT: u8 = 1;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
 pub const MAX_REWARD_CHESTS: usize = 512;
@@ -861,6 +867,40 @@ pub enum StateItem {
     Quests(Option<WireQuestView>),
     /// Key 11: private saved owner trade state and currently point-visible merchants.
     Trade(Option<WireTradeView>),
+    /// Key 12 (protocol 16, ADR0026): every player seated in the match, by ascending actor id: display name and bot flag.
+    /// The same for every viewer; it carries no position, faction, health or sight fact.
+    Roster(Vec<WireRosterRow>),
+}
+
+/// One seated player (State key 12): its actor id (the id its actor row carries when delivered), the bot flag and its
+/// display name (1..=24 UTF-8 bytes, no control character).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WireRosterRow {
+    pub id: u32,
+    pub bot: bool,
+    pub name: String,
+}
+
+/// A roster name a decoder accepts: 1..=[`MAX_ROSTER_NAME`] bytes with no control character.
+pub fn roster_name_valid(name: &str) -> bool {
+    (1..=MAX_ROSTER_NAME).contains(&name.len()) && !name.chars().any(char::is_control)
+}
+
+fn roster_fault(rows: &[WireRosterRow]) -> Option<&'static str> {
+    if rows.len() > MAX_ROSTER {
+        return Some("roster count");
+    }
+    let mut previous = 0u32;
+    for row in rows {
+        if row.id == 0 || row.id <= previous {
+            return Some("roster order");
+        }
+        previous = row.id;
+        if !roster_name_valid(&row.name) {
+            return Some("roster name");
+        }
+    }
+    None
 }
 
 /// Public camp summary; no private actor identity is carried.
@@ -1669,6 +1709,7 @@ impl StateItem {
             Self::Arena(_) => 9,
             Self::Quests(_) => 10,
             Self::Trade(_) => 11,
+            Self::Roster(_) => 12,
         }
     }
     pub(crate) fn encoded_len(&self) -> usize {
@@ -1695,6 +1736,12 @@ impl StateItem {
                 Self::Arena(value) => 1 + value.as_ref().map_or(0, WireArena::len),
                 Self::Quests(value) => 1 + value.as_ref().map_or(0, WireQuestView::encoded_len),
                 Self::Trade(value) => 1 + value.as_ref().map_or(0, WireTradeView::encoded_len),
+                Self::Roster(rows) => {
+                    1 + rows
+                        .iter()
+                        .map(|row| varint_len(row.id) + 1 + 1 + row.name.len())
+                        .sum::<usize>()
+                }
             }
     }
     pub(crate) fn check(&self) -> Result<(), EncodeError> {
@@ -1780,6 +1827,11 @@ impl StateItem {
             Self::Quests(None) => {}
             Self::Trade(Some(value)) => value.check()?,
             Self::Trade(None) => {}
+            Self::Roster(rows) => {
+                if let Some(why) = roster_fault(rows) {
+                    return Err(EncodeError::BadValue(why));
+                }
+            }
         }
         Ok(())
     }
@@ -1838,6 +1890,14 @@ impl StateItem {
                 w.u8(u8::from(value.is_some()));
                 if let Some(view) = value {
                     view.write(w);
+                }
+            }
+            Self::Roster(rows) => {
+                w.u8(rows.len() as u8);
+                for row in rows {
+                    w.varint(row.id);
+                    w.u8(if row.bot { ROSTER_FLAG_BOT } else { 0 });
+                    w.str(&row.name);
                 }
             }
         }
@@ -1946,6 +2006,27 @@ impl StateItem {
                     return Err(DecodeError::TooLarge(payload_len));
                 }
                 Self::Trade(value)
+            }
+            12 => {
+                let n = usize::from(r.u8()?);
+                if n > MAX_ROSTER {
+                    return Err(DecodeError::BadField("roster count"));
+                }
+                let mut rows = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let id = r.varint()?;
+                    let bot = match r.u8()? {
+                        0 => false,
+                        ROSTER_FLAG_BOT => true,
+                        _ => return Err(DecodeError::BadField("roster flags")),
+                    };
+                    let name = r.str()?;
+                    rows.push(WireRosterRow { id, bot, name });
+                }
+                if let Some(why) = roster_fault(&rows) {
+                    return Err(DecodeError::BadField(why));
+                }
+                Self::Roster(rows)
             }
             _ => return Err(DecodeError::BadField("state key")),
         })

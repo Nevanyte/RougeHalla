@@ -175,6 +175,7 @@ fn state_group(item: &StateItem) -> Value {
             "roster":value.as_ref().map_or(0,|v|v.roster.len()),
             "objectives":value.as_ref().map_or(0,|v|v.objectives.len())
         }),
+        StateItem::Roster(value) => json!({"key":key,"group":"roster","rows":value.len()}),
         StateItem::Trade(value) => json!({
             "key":key,"group":"trade","available":value.is_some(),
             "offers":value.as_ref().map_or(0,|v|v.offers.len()),

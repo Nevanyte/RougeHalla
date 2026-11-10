@@ -23,6 +23,7 @@ pub struct CollectionPublisher {
     arena: Option<WireArena>,
     quests: Option<rh_protocol::WireQuestView>,
     trade: Option<rh_protocol::WireTradeView>,
+    roster: Vec<rh_protocol::WireRosterRow>,
     last_forced: Option<u32>,
 }
 
@@ -587,6 +588,11 @@ impl CollectionPublisher {
         if full || !trade_bits_equal(next_trade.as_ref(), self.trade.as_ref()) {
             items.push(StateItem::Trade(next_trade));
         }
+        if full || !super::projection::roster_equal(&self.roster, &observation.roster) {
+            items.push(StateItem::Roster(super::projection::wire_roster(
+                &observation.roster,
+            )));
+        }
         let (frame, items) = if items.is_empty() {
             (None, items)
         } else {
@@ -623,6 +629,7 @@ impl PendingState {
                 StateItem::Arena(v) => publisher.arena = v,
                 StateItem::Quests(v) => publisher.quests = v,
                 StateItem::Trade(v) => publisher.trade = v,
+                StateItem::Roster(v) => publisher.roster = v,
                 StateItem::RewardChests(_) => {}
             }
         }
@@ -702,7 +709,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         );
         let StateItem::RewardChests(rows) = &items[3] else {
             panic!()
@@ -748,7 +755,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         );
         first.commit(&mut publisher);
         assert!(publisher
@@ -817,7 +824,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         );
         assert!(matches!(
             items[0],
@@ -875,7 +882,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         );
     }
 
