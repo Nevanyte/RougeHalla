@@ -64,9 +64,8 @@ pub(crate) fn after_weapons(cx: &mut Cx) {
     // factions.ts explicitly filters c.kind !== "player"); NPCs are corrected here instead.
     for i in 0..cx.w.fighter_count() {
         let ix = crate::fighter::FighterIx::of_slot(i);
-        // A fighter raised mid-tick (a Plague zombie, plague_zombies::raise_or_grow has no scratch access) can sit past the
-        // scratch length reserved at the last spawn point. It cannot have started an attack this tick, so read it as false.
-        if !cx.w.standing(ix) || !cx.s.attack_started.get(i).copied().unwrap_or(false) {
+        // weapons::update sized attack_started to the fighter count, and no fighter joins between it and here.
+        if !cx.w.standing(ix) || !cx.s.attack_started[i] {
             continue;
         }
         let p = cx.w.core_mut(ix);

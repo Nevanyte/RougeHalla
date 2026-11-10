@@ -609,6 +609,17 @@ fn apply_inner(
         }
         slot_head[vi] = NONE;
         slot_tail[vi] = NONE;
+        // The slots were taken before the pass; an earlier victim's death can remove a mob mid-pass (a downed Plague
+        // owner's zombie leaves with it, plague_zombies::fighter_out), shifting every later mob slot down. Reacquire the
+        // slot by the victim's id (legacy groups by id); a victim no longer present has nothing to apply to. Without a
+        // removal this is the same slot.
+        let Some(vi) = pass
+            .w
+            .fighter_idx(ledger[bufs.idxs[0]].victim)
+            .map(FighterIx::slot)
+        else {
+            continue;
+        };
         apply_victim(
             &mut pass, &mut bufs, vi, ledger, mults, races, deny_parts, entry_rank,
         );
