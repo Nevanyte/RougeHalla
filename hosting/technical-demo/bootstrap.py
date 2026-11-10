@@ -236,7 +236,16 @@ WantedBy=multi-user.target
 
 def caddy_config():
     return '''play.rougehalla.com {
-    encode zstd gzip
+    encode zstd gzip {
+        match {
+            header Content-Type text/*
+            header Content-Type application/javascript*
+            header Content-Type application/json*
+            header Content-Type application/wasm*
+            header Content-Type application/octet-stream*
+            header Content-Type image/svg+xml*
+        }
+    }
     root * /opt/rougehalla-demo/web
     redir / /index.html?trainingServer=wss%3A%2F%2Fplay.rougehalla.com%2Ftraining%2Fws 302
     @blocked path /control* /probe* /training/api* /training/control* /training/probe* /training/readyz*

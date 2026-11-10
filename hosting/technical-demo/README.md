@@ -222,3 +222,25 @@ origins match the corrected test subdomain. No production DNS/TLS/service,
 account data or cloud resource was changed by this source edit. Root must
 regenerate/pin new nonsecret config/userdata and bind the exact Web endpoint
 before a separately authorized guest; earlier origin receipts stay historical.
+
+## Hosted Unity response encoding correction
+
+Root's actual GET response headers with `Accept-Encoding: gzip` showed the
+58,599,146-byte Web.wasm and47,874,287-byte Web.data responses had no
+Content-Encoding. The preparation now explicitly includes response MIME types
+`text/*`, `application/javascript*`, `application/json*`, `application/wasm*`,
+`application/octet-stream*` and `image/svg+xml*` in the existing zstd/gzip encode
+matcher. This removes reliance on the installed Caddy version's default MIME
+list; it changes neither Unity build/artifact nor native identity.
+
+Host, routes/blocked paths, Training redirect, static MIME headers and existing
+precompressed suffix handling remain unchanged. The old exact Caddyfile and
+bootstrap are retained in the coordinator's content-encoding-fix receipt for
+Root's rollback. This source preparation does not reload a server or prove
+compressed byte counts, cold-load duration, CPU cost or public game performance.
+Root must validate the exact new Caddyfile with the installed binary before its
+single graceful reload, then inspect actual GET response encoding/size under
+normal TLS. No restart, timer, NFT, gameplay or cloud change occurred here.
+
+Caddy syntax references: [encode response matcher](https://caddyserver.com/docs/caddyfile/directives/encode)
+and [response-header matching](https://caddyserver.com/docs/caddyfile/response-matchers).
