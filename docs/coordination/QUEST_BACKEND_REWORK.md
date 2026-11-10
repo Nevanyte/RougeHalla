@@ -49,6 +49,8 @@ kill; any declared damage/HP/placement setup must be explicit. Account for every
 with enough supply would correctly keep the offer open. Keep all other humans at zero progress so two remaining regions
 cannot satisfy their three-region tour. Observe a later ordinary step, not a direct call to an extracted predicate.
 
+The frozen batch uses empty explicit credit entries, but `killMob` still consumes prior mob threat. Case0 includes an additional credited Frost mob reward; the recorded GV/farm/notices are authoritative and must not be suppressed. Older “uncredited” capture prose is incorrect; source bytes remain frozen.
+
 Do this as its own repair commit before extraction. Do not change an existing corpus to make the result pass.
 The repair changes reachable gameplay/state trajectories; Root has approved an appended `tour-supply/visited-region-mask/1` semantics marker in the existing quest content
 visitor (length and UTF8 bytes after the unchanged20-row fold), written by DeepSeek. This moves the rules hash while

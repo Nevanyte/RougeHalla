@@ -20,6 +20,8 @@ DeepSeek writes **all Rust implementation and tests**. Sol/Luna own the new non-
 architecture/review. This packet is ordered; do not label extraction complete while the source-derived repair remains
 unverified. No Unity/networking/Editor/browser work is authorized by this packet.
 
+Source boundary clarification: frozen `killMob` calls supply no explicit new credit entries, but preserve accumulated mob threat, which can award real GV/farm credit. The native replay must retain those recorded rewards/notices. Do not interpret older “uncredited” prose as an instruction to clear threat or suppress payout; source payloads remain unchanged. See the independent quest admission review when finalized.
+
 ## Exact write scopes
 
 | Owner/stage | Files |
