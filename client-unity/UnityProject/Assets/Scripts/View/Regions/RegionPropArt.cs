@@ -52,12 +52,22 @@ namespace Roguehalla.Client
         /// <summary>Evidence and A/B only (before/after captures of the clipping fix): paint each prop in its nominal cell, uncropped, as the atlas did before. Never set in the game.</summary>
         public static bool DebugNoPadding;
 
-        static bool TryPack(RegionCanvas[] cvs, int aw, int ah, out RectInt[] rects)
+        /// <summary>Art that bends in the wind (trees, grass, reeds, bushes, cloth). Packed first, with a shelf break after it, so the shader can tell it by atlas V alone (<see cref="SwayV"/>): no second material, no extra draw calls.</summary>
+        public static bool Sways(string key)
+        {
+            return key.EndsWith(".pine") || key.EndsWith(".pine2") || key.EndsWith(".tree") || key.EndsWith(".deadtree") || key.EndsWith(".palm") || key.EndsWith(".reeds") || key.EndsWith(".bush")
+                || key.EndsWith(".shrub") || key.EndsWith(".fern") || key.EndsWith(".flowers") || key.EndsWith(".grass") || key.EndsWith(".deadgrass") || key.EndsWith(".banner") || key.EndsWith(".scarecrow");
+        }
+        /// <summary>Atlas V below which a vertex belongs to wind-capable art (the global <c>_RhSwayV</c>).</summary>
+        public static float SwayV { get; private set; }
+
+        static bool TryPack(RegionCanvas[] cvs, int aw, int ah, out RectInt[] rects, int breakAt = -1)
         {
             rects = new RectInt[cvs.Length]; int x = 2, y = 2, rowH = 0;
             for (int i = 0; i < cvs.Length; i++)
             {
                 int w = cvs[i].W + 4, h = cvs[i].H + 4;
+                if (i == breakAt && x > 2) { x = 2; y += rowH; rowH = 0; }
                 if (x + w > aw) { x = 2; y += rowH; rowH = 0; }
                 if (y + h > ah) return false;
                 rects[i] = new RectInt(x + 2, y + 2, cvs[i].W, cvs[i].H); x += w; rowH = Mathf.Max(rowH, h);
@@ -93,10 +103,17 @@ namespace Roguehalla.Client
 
         static void Build(List<Def> defs, int aw0, int ah0)
         {
+            var ordered = new List<Def>(defs.Count);
+            foreach (var d in defs) if (Sways(d.Key)) ordered.Add(d);
+            int swayCount = ordered.Count;
+            foreach (var d in defs) if (!Sways(d.Key)) ordered.Add(d);
+            defs = ordered;
             var cvs = new RegionCanvas[defs.Count]; var pivots = new Vector2[defs.Count]; var margins = new int[defs.Count][];
             for (int i = 0; i < defs.Count; i++) cvs[i] = PaintCropped(defs[i], out pivots[i], out margins[i]);
             int aw = aw0, ah = ah0; RectInt[] rects;
-            while (!TryPack(cvs, aw, ah, out rects)) ah *= 2;
+            while (!TryPack(cvs, aw, ah, out rects, swayCount)) ah *= 2;
+            SwayV = swayCount <= 0 ? 0f : swayCount >= defs.Count ? 2f : (rects[swayCount].y - 1f) / ah;
+            Shader.SetGlobalFloat("_RhSwayV", SwayV);
             var px = new Color32[aw * ah];
             _atlas = new Texture2D(aw, ah, TextureFormat.RGBA32, false, false) { name = "Region props atlas", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             _all = new Dictionary<string, RegionPropSprite>();

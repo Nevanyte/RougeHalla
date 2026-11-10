@@ -48,6 +48,7 @@ Shader "Roguehalla/RegionLitMesh"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/CombinedShapeLightShared.hlsl"
 
             #include "RhSun.hlsl"
+            #include "RhLocalLights.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half _Exposure;
             CBUFFER_END
@@ -75,9 +76,29 @@ Shader "Roguehalla/RegionLitMesh"
                 main.rgb *= sunM;
                 SurfaceData2D surfaceData;
                 InputData2D inputData;
-                InitializeSurfaceData(main.rgb * _Exposure, main.a, half4(1, 1, 1, 1), half3(0, 0, 1), surfaceData);
+                // mask = 0: the "with Mask" light blend styles (the accent point lights while the analytic local lights are on) do not light this surface
+                // a second time; RhLocalLights.hlsl lights it per pixel instead. With the field off those lights use style 0 and light it as before.
+                InitializeSurfaceData(main.rgb * _Exposure, main.a, half4(0, 0, 0, 0), half3(0, 0, 1), surfaceData);
                 InitializeInputData(i.uv, i.lightingUV, inputData);
-                return CombinedShapeLightShared(surfaceData, inputData);
+                half4 lit = CombinedShapeLightShared(surfaceData, inputData);
+                [branch] if (kind < 3.5 && _RhLI.x > 0.5)
+                {
+                    float2 pt = float2(i.world.x, -i.world.y / _RhMapInfo.z);
+                    [branch] if (RhAnyLight(pt))
+                    {
+                        // Wall relief: the face normal by surface kind plus a bump from the painted luma (mortar lines, chips, cracks).
+                        float3 n = kind < 0.5 ? float3(0, 0, 1) : kind < 1.5 ? float3(0, 0.80, 0.60) : kind < 2.5 ? float3(-0.70, 0, 0.714) : float3(0.70, 0, 0.714);
+                        float2 o = (abs(float2(ddx(i.uv.x), ddy(i.uv.y))) + 1e-5) * 1.3;
+                        float3 lw = float3(0.2126, 0.7152, 0.0722);
+                        float lR = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(o.x, 0)).rgb, lw), lL = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(o.x, 0)).rgb, lw);
+                        float lU = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv + float2(0, o.y)).rgb, lw), lD = dot(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv - float2(0, o.y)).rgb, lw);
+                        n.xy += float2(-(lR - lL), (lU - lD)) * 1.8;
+                        float3 dif, spc;
+                        RhLocalLights(pt, normalize(n), 0.16, 16.0, kind < 0.5 ? 0.0 : 0.0, dif, spc);
+                        lit.rgb += main.rgb * _Exposure * dif * main.a + spc * main.a;
+                    }
+                }
+                return lit;
             }
             ENDHLSL
         }

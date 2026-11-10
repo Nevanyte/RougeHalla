@@ -11,8 +11,19 @@ namespace Roguehalla.Client
     {
         public const int Size = 256, Layers = 6;
 
-        public static Texture2DArray Build()
+        /// <summary>Surface relief strength per layer (fire, sentenced, plague, frost, holy, coliseum): how steeply the baked height tilts the normal.</summary>
+        static readonly float[] NormalStrength = { 3.2f, 3.6f, 2.6f, 2.2f, 2.4f, 3.2f };
+        /// <summary>How polished each layer's raised parts are (the normal array's blue channel scales the specular response).</summary>
+        static readonly float[] Polish = { .25f, .45f, .18f, .35f, .12f, .55f };
+
+        public static Texture2DArray Build() { return Build(out _); }
+
+        /// <summary>Ground detail array plus a matching normal array (rg = surface tilt in tile space from the same height channel, b = gloss) for the local lights.</summary>
+        public static Texture2DArray Build(out Texture2DArray normals)
         {
+            normals = new Texture2DArray(Size, Size, Layers, TextureFormat.RGBA32, true, true)
+            { name = "Region ground normals", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear, anisoLevel = 2 };
+            var npx = new Color32[Size * Size];
             var array = new Texture2DArray(Size, Size, Layers, TextureFormat.RGBA32, true, true)
             { name = "Region ground detail", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear, anisoLevel = 4 };
             var h = new float[Size * Size]; var r = new float[Size * Size]; var g = new float[Size * Size]; var b = new float[Size * Size];
@@ -38,10 +49,15 @@ namespace Roguehalla.Client
                     float lit = (nx * -.7f + ny * .7f) * 9f * relief;
                     float rr = Mathf.Clamp01(r[i] + lit * .5f);
                     px[i] = new Color32((byte)(rr * 255f), (byte)(Mathf.Clamp01(g[i]) * 255f), (byte)(Mathf.Clamp01(b[i]) * 255f), (byte)(Mathf.Clamp01(h[i]) * 255f));
+                    // Normal tilt for the analytic local lights: minus the height gradient (rows grow with tile y, so the tilt is already in tile space).
+                    float tx = Mathf.Clamp(-nx * NormalStrength[layer], -1f, 1f), ty = Mathf.Clamp(-ny * NormalStrength[layer], -1f, 1f);
+                    npx[i] = new Color32((byte)((tx * .5f + .5f) * 255f), (byte)((ty * .5f + .5f) * 255f), (byte)(Mathf.Clamp01(h[i]) * Polish[layer] * 255f), 255);
                 }
                 array.SetPixelData(px, 0, layer);
+                normals.SetPixelData(npx, 0, layer);
             }
             array.Apply(true, true);
+            normals.Apply(true, true);
             return array;
         }
 
