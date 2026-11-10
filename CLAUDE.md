@@ -57,6 +57,13 @@ Rules:
   changed fixture, a new `#[ignore]`/`#[allow]`, a deleted assertion or an edit outside the write scope is a failure, not a
   repair. Opus reviews the diff plus the gate output, not the worker's transcript.
 - Run `/retro` after each merged packet; fold recurring failures into gates or this file rather than longer prompts.
+- **Graphify** (codebase knowledge graph): query the graph before grepping or opening files one by one, especially to map a
+  legacy `packages/` system to its Rust home before a parity port. Graph code only (`crates/`, `client-unity/RoguehallaNet*`,
+  `packages/`); never `docs/evidence/`, `parity/` fixtures or `target/`, since docs extraction spends model tokens and those
+  trees are noise. Run `graphify update .` after checkout or merge; a stale graph is a hint, the code wins.
+- **Ponytail** (minimal-code skill): `full` for Sonnet/Haiku UI, tooling and new server code; **`off` for parity ports and
+  test writing**. A parity port reproduces legacy behaviour and `f64` operation order exactly, and "use the standard
+  library instead" can break C-NUM or A* tie-breaking. Fewer lines is never a reason to drop a test or a trust-boundary check.
 
 Commands: `cargo test --workspace` (Postgres tests: `eval "$(tools/pgtest/start.sh)"`), `cargo run -p rh-parity --bin parity-report`,
 `dotnet test client-unity/RoguehallaNet.Tests`, `node tools/browser-proof/proof.mjs`; legacy: `npm ci && npm test`.

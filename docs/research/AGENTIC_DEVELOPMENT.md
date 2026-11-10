@@ -318,6 +318,42 @@ Repo skills to write (`.claude/skills/<name>/SKILL.md`, short, `disable-model-in
 Keep skill descriptions short. Every installed skill's description is loaded into every session. Disable the Pocock
 skills this repo doesn't use (`triage`, `teach`, `wizard`, and so on).
 
+### 7.1 Graphify and Ponytail (owner suggestion 2026-11-10)
+
+These are two separate open-source tools.
+
+**Graphify** builds a code knowledge graph (tree-sitter parsing into `graphify-out/graph.json`, plus `GRAPH_REPORT.md` and
+an HTML view). Agents query the graph instead of grepping. Install: `uv tool install graphifyy` (two y's), then
+`graphify install --project` for a repo-local skill and hook. It fits this repo's largest search cost: finding where a
+legacy `packages/` system lives and which Rust module and schedule row it maps to before a parity port. Conditions:
+
+- **Graph code only.** Code is parsed locally. Docs and PDFs are read by the session's model, which would mean Opus reading
+  285 MB of docs. Exclude `docs/evidence/`, `parity/` fixtures and `target/`. The exclusion syntax is not documented on the
+  page read, so check it during the trial.
+- **Freshness.** `graphify update .` is AST-only and cheap. `graphify hook install` adds post-commit and post-checkout
+  hooks. `worker.sh` should run the update in each new worktree. The graph is a hint, and the code wins.
+- **Hook mode.** Use the default reminder hook, not `--strict`. Strict mode blocks the first raw source read, which
+  conflicts with packets that name exact files to read.
+- **Unverified:** Rust and C# grammar support (34 tree-sitter languages are claimed, not listed), and vendor token-saving
+  claims (one review reports freshness and noise friction). Measure it in the bake-off as a separate arm: same packets,
+  with and without the graph.
+
+**Ponytail** is a skill and plugin that makes the agent climb a seven-rung ladder before writing code: does this need to
+exist, does the codebase/std/platform/an installed dependency already do it, can it be one line, and only then write the
+minimum. Install: `/plugin marketplace add DietrichGebert/ponytail`, then `/plugin install ponytail@ponytail`. Modes
+`lite|full|ultra|off` are per session, defaulting from `PONYTAIL_DEFAULT_MODE`. The project's own benchmark claims 54%
+fewer lines and 20% lower cost. A JetBrains test of 80 paired tasks, as reported second-hand (the page could not be
+fetched), measured about 15% fewer lines and 10% lower cost. Use:
+
+- **`full` for the `ui` and `cheap-read` tiers and for new server or tooling code**, where agents tend to over-build.
+- **`off` for `rust-mech` parity ports and test writing.** A port must reproduce legacy behaviour and `f64` operation order
+  exactly. "The standard library already does this" is how C-NUM or A* tie-breaking breaks. Gate G6 (test count does not
+  fall) and the trust-boundary rules stay in force regardless of mode.
+- Set the mode per worker launch (`PONYTAIL_DEFAULT_MODE` in `worker.sh` and in sub-agent environments), not by asking
+  the model mid-session.
+
+Review both plugins' hooks before installing; they run on every tool call.
+
 ---
 
 ## 8. Measurement: the routing ledger
