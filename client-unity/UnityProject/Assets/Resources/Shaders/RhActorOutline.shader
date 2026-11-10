@@ -48,6 +48,7 @@ Shader "Roguehalla/ActorOutline"
         float _RhOutlineGrab; // global, set by ActorOutline: 1 when _CameraSortingLayerTexture is valid this frame
 
         // Mirrors ActorOutlineModel.cs; SpriteOutline.PublishGlobals writes them (tunable in a page with ?ol.light=, ol.dark=, ol.cross=, ol.dead=).
+        float _RhOutlineFlip;   // tuning pages only: 1 flips the grab vertically
         float _RhOutlineRadius; // tuning pages only
         float _RhOutlineGain;  // set once per frame by SpriteOutline.PublishFrame: 2^post exposure of the grade
         float4 _RhOutlineTune;   // set by SpriteOutline.PublishGlobals: light HDR value, dark value, crossover luminance, dead zone half width
@@ -85,6 +86,7 @@ Shader "Roguehalla/ActorOutline"
         // veins over dark cells the mean reads bright and a geometric mean still leans on the veins, the median does not.
         float TapLum(float2 uv)
         {
+            uv.y = _RhOutlineFlip > 0.5 ? 1.0 - uv.y : uv.y;
             return Luma(SAMPLE_TEXTURE2D_LOD(_CameraSortingLayerTexture, sampler_LinearClamp, uv, 0).rgb);
         }
 

@@ -47,7 +47,7 @@ namespace Roguehalla.Client
                 if (url.Contains("fx.outline=1")) Enabled = true;
                 if (url.Contains("fx.outlinegrab=0")) SetGrabPass(false);
                 WidthScale = QueryFloat(url, "ol.width", 1f); LightHdr = QueryFloat(url, "ol.light", LightHdr); DarkLinear = QueryFloat(url, "ol.dark", DarkLinear);
-                Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); HaloStrength = QueryFloat(url, "ol.halo", HaloStrength); RadiusScale = QueryFloat(url, "ol.r", 1f);
+                Cross = QueryFloat(url, "ol.cross", Cross); GainScale = QueryFloat(url, "ol.gain", GainScale); HaloStrength = QueryFloat(url, "ol.halo", HaloStrength); RadiusScale = QueryFloat(url, "ol.r", 1f); Flip = QueryFloat(url, "ol.flip", 0f);
                 int down = (int)QueryFloat(url, "ol.down", -1); if (down >= 0) SetGrabDownsampling(down); Dead = QueryFloat(url, "ol.dead", Dead);
             }
             PublishGlobals();
@@ -55,7 +55,7 @@ namespace Roguehalla.Client
 
         /// <summary>Tuning for measurement pages only (<c>?ol.width=1.2</c> scales the strokes; <c>ol.light</c>, <c>ol.dark</c>, <c>ol.cross</c>, <c>ol.dead</c> set the shader constants).</summary>
         public static float WidthScale = 1f, LightHdr = ActorOutlineModel.LightLinear, DarkLinear = ActorOutlineModel.DarkLinear, Cross = -1f, Dead = ActorOutlineModel.DeadZone;
-        static readonly int Tune = Shader.PropertyToID("_RhOutlineTune"), RadiusId = Shader.PropertyToID("_RhOutlineRadius");
+        static readonly int Tune = Shader.PropertyToID("_RhOutlineTune"), RadiusId = Shader.PropertyToID("_RhOutlineRadius"), FlipId = Shader.PropertyToID("_RhOutlineFlip");
 
         /// <summary>
         /// MEASUREMENT ONLY (<c>?fx.outlinegrab=0</c>, the perf harness): switches the 2D renderer's camera sorting layer grab off or on at run time (the renderer reads the
@@ -105,13 +105,13 @@ namespace Roguehalla.Client
             }
             catch (System.Exception e) { Debug.LogWarning("Outline grab downsampling switch unavailable: " + e.Message); }
         }
-        public static float RadiusScale = 1f;
+        public static float RadiusScale = 1f, Flip = 0f;
 
         public static void PublishGlobals()
         {
             Shader.SetGlobalFloat(GrabFlag, UseGrab ? 1f : 0f);
             float cross = Cross > 0f ? Cross : ActorOutlineModel.Crossover();
-            Shader.SetGlobalVector(Tune, new Vector4(LightHdr, DarkLinear, cross, Dead)); Shader.SetGlobalFloat(RadiusId, RadiusScale);
+            Shader.SetGlobalVector(Tune, new Vector4(LightHdr, DarkLinear, cross, Dead)); Shader.SetGlobalFloat(RadiusId, RadiusScale); Shader.SetGlobalFloat(FlipId, Flip);
         }
 
         static float QueryFloat(string url, string key, float fallback)

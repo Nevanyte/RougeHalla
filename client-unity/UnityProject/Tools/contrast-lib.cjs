@@ -230,7 +230,7 @@ function analyzeCell({ width, height, lumNormal, lumGround, mask, rect }, opts =
   for (let i = 0; i < r.ring.length; i++) { if (r.ring[i]) { ringVals.push(ln[i]); ringGround.push(lg[i]); } if (rc.interior[i]) interiorVals.push(ln[i]); }
   if (!edge.valid || ringVals.length < 30) { result.reason = `no measurable sectors (${edge.valid} valid, ${ringVals.length} ring px)`; return result; }
   result.valid = true;
-  if (opts.debug) result.debug = { contour: r.contour, ring: r.ring, interior: r.interior, centroid: c, sectors: o.sectors, sectorRatios: edge.ratios };
+  if (opts.debug) result.debug = { contour: r.contour, ring: r.ring, interior: r.interior, centroid: c, sectors: o.sectors, sectorRatios: edge.ratios, sectorContour: edge.contourMed, sectorRing: edge.ringMed };
   const rimPx = sil.n - core.n;
   result.edge = { p10: edge.p10, min: edge.min, median: edge.median, sectors: edge.valid, ratios: edge.ratios,
     ground: { p10: ground.p10, min: ground.min, median: ground.median }, contourMedian: median(Float64Array.from(edge.contourMed.filter(Number.isFinite))), ringMedian: median(ringVals),
