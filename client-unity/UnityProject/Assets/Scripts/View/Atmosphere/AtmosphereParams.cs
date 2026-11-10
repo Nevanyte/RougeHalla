@@ -50,6 +50,12 @@ namespace Roguehalla.Client
     {
         /// <summary>No region's passive floor may be lower than this (relative to a neutral 1.0 multiplier).</summary>
         public const float GlobalMinFloor = .34f;
+        /// <summary>Single number for the passive (ambient + sun) light level on flat ground with no emitter: luminance of <see cref="Passive"/> at the flat-ground sun factor.</summary>
+        public static float Level(in AtmosphereParams p)
+        {
+            var m = Passive(p, FlatNdl); return .2126f * m.r + .7152f * m.g + .0722f * m.b;
+        }
+        public const float FlatNdl = .65f;
         public static Color Passive(in AtmosphereParams p, float ndl)
         {
             var sun = p.SunColor * (p.SunStrength * Mathf.Clamp01(ndl));

@@ -87,6 +87,42 @@ namespace Roguehalla.Client.Tests
             Assert.IsFalse(AtmosphereQuality.DynamicLights, "emitters were off for this check");
         }
 
+        [Test] public void PassiveLightRankingFollowsTheBrief()
+        {
+            float L(RegionId r) { return AtmosphereLighting.Level(RegionAtmosphereTable.Get(r).Params); }
+            Assert.Greater(L(RegionId.Holy), L(RegionId.Frost), "holy > frost");
+            Assert.Greater(L(RegionId.Frost), L(RegionId.Plague), "frost > plague");
+            Assert.Greater(L(RegionId.Plague), L(RegionId.Fire), "plague > fire");
+            Assert.GreaterOrEqual(L(RegionId.Fire), L(RegionId.Sentenced), "fire >= sentenced");
+            for (int i = 0; i <= 6; i++) Assert.GreaterOrEqual(AtmosphereLighting.Level(RegionAtmosphereTable.Get(i).Params), AtmosphereLighting.GlobalMinFloor, "level of region " + i);
+            var t = RegionAtmosphereTable.Get(RegionAtmosphereTable.Profile.HolyTempleInterior);
+            Assert.NotNull(t); var m = AtmosphereLighting.Passive(t.Params, 0f);
+            Assert.GreaterOrEqual(Mathf.Min(m.r, Mathf.Min(m.g, m.b)), .5f, "temple interior is evenly lit even in shade");
+            Assert.Greater(AtmosphereLighting.Level(t.Params), L(RegionId.Fire)); Assert.Greater(t.Params.AmbientColor.r, t.Params.AmbientColor.b, "warm");
+        }
+
+        [Test] public void RaysAreSwitchableAndOnlyInHolyAndPlague()
+        {
+            foreach (RegionId r in new[] { RegionId.Holy, RegionId.Plague })
+            {
+                bool any = false; foreach (var l in ParticlePresets.Get(RegionAtmosphereTable.Get(r).Particles)) any |= l.Texture == "shaft"; Assert.IsTrue(any, r + " has light shafts");
+            }
+            foreach (RegionId r in new[] { RegionId.Frost, RegionId.Fire, RegionId.Sentenced })
+                foreach (var l in ParticlePresets.Get(RegionAtmosphereTable.Get(r).Particles)) Assert.AreNotEqual("shaft", l.Texture);
+            int on = ParticlePresets.Budget(ParticlePresetId.Pollen, 1f); AtmosphereQuality.SetUrl("?fx.rays=0");
+            Assert.Less(ParticlePresets.Budget(ParticlePresetId.Pollen, 1f), on); AtmosphereQuality.SetUrl("");
+            AtmosphereQuality.ApplyPreset(ShowcaseQuality.High, true); Assert.AreEqual(0, ParticlePresets.Budget(ParticlePresetId.Pollen, AtmosphereQuality.ParticleDensity), "reduced motion: no rays");
+        }
+
+        [Test] public void LanternsAreCullableLightSites()
+        {
+            var pl = new AccentLightPlanner(); for (int i = 0; i < 40; i++) pl.AddLantern(10 + (i % 8) * 18, 10 + (i / 8) * 30, 1f);
+            Assert.IsTrue(RegionAtmosphereTable.AccentFor(TerrainKind.None).Lantern);
+            var pick = new int[AtmosphereQuality.HardMaxLights];
+            int n = pl.Select(60, 60, 84, 78, AccentLights.CullMargin, 4, pick); Assert.LessOrEqual(n, 4);
+            for (int i = 0; i < n; i++) { var c = pl.Clusters[pick[i]]; Assert.IsTrue(c.Lantern); Assert.That(c.X, Is.InRange(60 - AccentLights.CullMargin, 84 + AccentLights.CullMargin)); Assert.That(c.Y, Is.InRange(60 - AccentLights.CullMargin, 78 + AccentLights.CullMargin)); }
+        }
+
         [Test] public void AudioFilesExistForEveryTableId()
         {
             string dir = Path.Combine(Application.dataPath, "StreamingAssets", AtmosphereAudio.Folder);

@@ -51,7 +51,7 @@
       "swatches": {
         "base":      { "role": "ground: worn dark flagstones, cobbles, bare earth", "oklch": [0.58, 0.028, 292], "legacy": "#3A3B42" },
         "secondary": { "role": "gothic masonry, iron railings, dead grass, gallows", "oklch": [0.36, 0.036, 70], "legacy": "#6E553A" },
-        "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.44, 0.140, 300], "legacy": "#7E57C2" }
+        "accent":    { "role": "judgment banners, violet lanterns",         "oklch": [0.38, 0.13, 300], "legacy": "#7E57C2" }
       },
       "light": {
         "key":     [0.84, 0.070, 72],
@@ -94,9 +94,9 @@
       "faction": "holy",
       "mood": "Desert with oasis and garden pockets in golden sun.",
       "swatches": {
-        "base":      { "role": "ground, sun-bleached sand and sandstone",   "oklch": [0.80, 0.095, 85], "legacy": "#E9DFC0" },
+        "base":      { "role": "ground, rich golden sand and sandstone",   "oklch": [0.68, 0.105, 80], "legacy": "#E9DFC0" },
         "secondary": { "role": "oasis and garden greenery, palms, lawns",   "oklch": [0.58, 0.130, 135] },
-        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.60, 0.120, 80], "legacy": "#D4AF37" }
+        "accent":    { "role": "gilded trim, shrine gold",                  "oklch": [0.44, 0.09, 80], "legacy": "#D4AF37" }
       },
       "light": {
         "key":     [0.93, 0.088, 90],

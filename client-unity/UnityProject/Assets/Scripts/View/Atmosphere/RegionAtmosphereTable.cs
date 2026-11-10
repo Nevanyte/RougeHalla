@@ -6,7 +6,9 @@ namespace Roguehalla.Client
     public struct AccentLightSpec
     {
         public TerrainKind Terrain; public Color Color; public float Intensity, Radius, Flicker;
-        public bool Enabled { get { return Terrain != TerrainKind.None && Intensity > 0f; } }
+        /// <summary>True for the lantern props of the gothic zone (lights sit on the props, not on terrain).</summary>
+        public bool Lantern;
+        public bool Enabled { get { return (Terrain != TerrainKind.None || Lantern) && Intensity > 0f; } }
     }
 
     /// <summary>One data row per region. Colours are derived from docs/art/palette.json through <see cref="RegionPaletteGenerated"/> only.</summary>
@@ -29,12 +31,19 @@ namespace Roguehalla.Client
         {
             int i = (int)region; return Rows[i >= 0 && i < RowCount ? i : 6];
         }
+        /// <summary>The golden temple that will cover the pillar area: a separate, evenly and warmly lit interior profile for a later pass to select by area.</summary>
+        public static RegionAtmosphereRow HolyTempleInterior { get { return _temple; } }
+        static RegionAtmosphereRow _temple;
+        /// <summary>Profile ids for area-selected profiles (the regions use <see cref="Get(RegionId)"/>).</summary>
+        public enum Profile { HolyTempleInterior }
+        public static RegionAtmosphereRow Get(Profile profile) { return _temple; }
+
         public static RegionAtmosphereRow Get(int index) { return Rows[index >= 0 && index < RowCount ? index : 6]; }
 
         /// <summary>The accent light spec for a terrain kind (lava, ice, bog, light), or a disabled spec. Lights follow terrain, not the player's region.</summary>
         public static AccentLightSpec AccentFor(TerrainKind kind)
         {
-            for (int i = 1; i < RowCount - 1; i++) if (Rows[i].Accent.Terrain == kind && Rows[i].Accent.Enabled) return Rows[i].Accent;
+            for (int i = 1; i < RowCount - 1; i++) if (kind == TerrainKind.None ? Rows[i].Accent.Lantern : Rows[i].Accent.Terrain == kind && Rows[i].Accent.Enabled) return Rows[i].Accent;
             return default(AccentLightSpec);
         }
 
@@ -73,9 +82,9 @@ namespace Roguehalla.Client
             {
                 case RegionId.Frost:     // bright, whiter, cold sunlight; crisp long shadows; snow
                     row.Name = "Frost";
-                    p.SunColor = Tint(key, .45f); p.SunStrength = .85f; p.ShadowLength = 1.3f; p.AmbientColor = Tint(amb, .3f) * .42f;
+                    p.SunColor = Tint(key, .45f); p.SunStrength = .85f; p.ShadowLength = 1.3f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
                     p.LightColor = Tint(Mix(amb, key, .4f), .1f);
-                    p.PostExposure = -.05f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
+                    p.LightScale = .94f; p.PostExposure = -.05f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .1f); p.SplitBalance = -15f;
                     p.BloomThreshold = .97f; p.BloomIntensity = .25f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
                     p.VignetteIntensity = .16f; p.Haze = A(fog, .075f);
@@ -84,9 +93,9 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Fire:      // under the mountain: almost no sun, lava does the lighting; embers
                     row.Name = "Fire";
-                    p.SunColor = Tint(key, .7f); p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * 1.1f;
+                    p.SunColor = Tint(key, .7f); p.LightScale = 1.65f; p.SunStrength = .2f; p.ShadowLength = .35f; p.AmbientColor = Tint(amb, .3f) * .56f;
                     p.LightColor = Tint(Mix(amb, key, .3f), .2f);
-                    p.PostExposure = .12f; p.Contrast = 10f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
+                    p.PostExposure = .4f; p.Contrast = 10f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
                     p.SplitShadows = Toning(shadow, .55f); p.SplitHighlights = Toning(accent, .3f); p.SplitBalance = 10f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .4f; p.BloomScatter = .65f; p.BloomTint = Tint(accent, .6f);
                     p.VignetteIntensity = .2f; p.Haze = A(fog, .09f);
@@ -95,17 +104,18 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Sentenced: // the one muted zone: hazy harvest dusk
                     row.Name = "Sentenced";
-                    p.SunColor = Tint(key, .22f); p.SunStrength = .26f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .8f;
+                    p.SunColor = Tint(key, .22f); p.LightScale = .8f; p.SunStrength = .2f; p.ShadowLength = .5f; p.AmbientColor = Tint(amb, .6f) * .5f;
                     p.LightColor = Tint(Mix(amb, key, .55f), .15f);
                     p.PostExposure = .42f; p.Contrast = 4f; p.Saturation = -16f; p.ColorFilter = Tint(shadow, .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(amb, .2f); p.SplitBalance = -20f;
                     p.BloomThreshold = .9f; p.BloomIntensity = .3f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .4f);
                     p.VignetteIntensity = .22f; p.Haze = A(fog, .13f);
                     row.Particles = ParticlePresetId.Dust; row.Music = "music_sentenced"; row.Ambience = "amb_sentenced";
+                    row.Accent = new AccentLightSpec { Lantern = true, Color = Mix(Tint(key, .8f), Tint(accent, .8f), .3f), Intensity = 1.7f, Radius = 4.6f, Flicker = .35f };   // iron lanterns: soft warm-cold pools of light
                     break;
                 case RegionId.Plague:    // sickly teal-green, dim green-filtered light; spores
                     row.Name = "Plague";
-                    p.SunColor = Tint(Mix(key, Palette(RegionId.Holy, RegionPaletteGenerated.Key), .6f), .8f); p.SunStrength = .8f; p.ShadowLength = .85f; p.AmbientColor = Tint(amb, .35f) * .86f;
+                    p.SunColor = Tint(Mix(key, Palette(RegionId.Holy, RegionPaletteGenerated.Key), .6f), .8f); p.LightScale = 1.55f; p.SunStrength = .55f; p.ShadowLength = .85f; p.AmbientColor = Tint(amb, .35f) * .42f;   // medium
                     p.LightColor = Tint(Mix(amb, key, .35f), .15f);
                     p.PostExposure = .3f; p.Contrast = 8f; p.Saturation = -14f; p.ColorFilter = Tint(Mix(accent, Palette(id, RegionPaletteGenerated.Base), .7f), .1f);
                     p.SplitShadows = Toning(shadow, .5f); p.SplitHighlights = Toning(key, .2f); p.SplitBalance = -5f;
@@ -116,7 +126,7 @@ namespace Roguehalla.Client
                     break;
                 case RegionId.Holy:      // strong golden sun, warm dust
                     row.Name = "Holy";
-                    p.SunColor = Tint(key, .6f); p.SunStrength = 1f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .44f;
+                    p.SunColor = Tint(key, .6f); p.LightScale = 1.62f; p.SunStrength = 1.15f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .46f;   // brightest passive level; the sand itself is darker and richer, rays carry the brightness
                     p.LightColor = Tint(Mix(amb, key, .6f), .15f);
                     p.PostExposure = -.04f; p.Contrast = 6f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;
@@ -142,8 +152,19 @@ namespace Roguehalla.Client
         {
             var rows = new RegionAtmosphereRow[RowCount];
             for (int i = 0; i < RowCount; i++) rows[i] = Row((RegionId)i);
+            _temple = Temple();
             rows[0].Name = "None";
             return rows;
+        }
+
+        static RegionAtmosphereRow Temple()
+        {
+            var holy = Row(RegionId.Holy); var p = holy.Params;
+            var key = Palette(RegionId.Holy, RegionPaletteGenerated.Key); var amb = Palette(RegionId.Holy, RegionPaletteGenerated.Ambient);
+            p.SunColor = Tint(key, .5f); p.SunStrength = .3f; p.ShadowLength = .4f; p.AmbientColor = Tint(Mix(amb, key, .5f), .55f) * .8f;   // even, warm, calm
+            p.PostExposure = 0f; p.Contrast = 4f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
+            p.PassiveFloor = Tint(amb, .3f) * .55f;
+            return new RegionAtmosphereRow { Region = RegionId.Holy, Name = "HolyTempleInterior", Params = p, Particles = ParticlePresetId.None, Music = "music_holy", Ambience = "amb_holy" };
         }
 
         /// <summary>All music ids the table can request (for the audio loader's fallback and the build check).</summary>

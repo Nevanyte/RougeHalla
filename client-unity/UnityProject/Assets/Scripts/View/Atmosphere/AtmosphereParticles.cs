@@ -7,6 +7,8 @@ namespace Roguehalla.Client
     public static class AtmosphereTextures
     {
         static readonly Dictionary<string, Texture2D> Cache = new Dictionary<string, Texture2D>();
+        /// <summary>GLSL-style smoothstep (edge0 may be above edge1 for a falling ramp).</summary>
+        static float SS(float e0, float e1, float x) { float t = Mathf.Clamp01((x - e0) / (e1 - e0)); return t * t * (3f - 2f * t); }
         public static float Gain(string key) { return key == "ember" ? 1.9f : key == "spore" ? 1.5f : 1f; }
 
         public static Texture2D Get(string key)
@@ -21,13 +23,13 @@ namespace Roguehalla.Client
                 switch (key)
                 {
                     case "flake":   // bright core with a cool blue-grey rim so a flake still reads on pale snow
-                        a = Mathf.SmoothStep(1f, .45f, r) * .95f;
-                        rgb = Color.Lerp(new Color(.55f, .72f, .93f), Color.white, Mathf.SmoothStep(.62f, .3f, r)); break;
+                        a = SS(1f, .45f, r) * .95f;
+                        rgb = Color.Lerp(new Color(.55f, .72f, .93f), Color.white, SS(.62f, .3f, r)); break;
                     case "mote": a = Mathf.Pow(Mathf.Clamp01(1f - r), 1.8f); break;
                     case "ember": a = Mathf.Exp(-r * r * 5.5f) * .7f + Mathf.Exp(-r * r * 40f) * .6f; break;
                     case "spore": a = Mathf.Exp(-r * r * 4f) * .45f + Mathf.Clamp01(1f - Mathf.Abs(r - .5f) * 7f) * .35f + Mathf.Exp(-r * r * 60f) * .6f; break;
-                    case "chaff": { float e = Mathf.Sqrt(u * u + v * v * 9f); a = Mathf.SmoothStep(1f, .55f, e); break; }
-                    case "shaft": a = Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(u)), 1.7f) * Mathf.SmoothStep(1f, .55f, Mathf.Abs(v)); break;
+                    case "chaff": { float e = Mathf.Sqrt(u * u + v * v * 9f); a = SS(1f, .55f, e); break; }
+                    case "shaft": a = Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(u)), 1.7f) * SS(1f, .5f, Mathf.Abs(v)); break;
                     default: a = Mathf.Clamp01(1f - r); break;
                 }
                 px[y * w + x] = new Color32((byte)(rgb.r * 255f), (byte)(rgb.g * 255f), (byte)(rgb.b * 255f), (byte)(Mathf.Clamp01(a) * 255f));
@@ -67,12 +69,22 @@ namespace Roguehalla.Client
         readonly Bank[] _banks = { new Bank(), new Bank() };
         readonly List<Object> _owned = new List<Object>();
         Transform _root; int _active = -1; ParticlePresetId _desired = ParticlePresetId.None;
+        bool _raysApplied = true;
         float _density = 1f, _gustClock, _camHalfW = 13f, _camHalfH = 9f;
 
         public ParticlePresetId Desired { get { return _desired; } }
         public ParticlePresetId Playing { get { return _active >= 0 && _banks[_active].Active ? _banks[_active].Preset : ParticlePresetId.None; } }
         /// <summary>Live particles across all layers (diagnostics and tests).</summary>
         public int ParticleCount { get { int n = 0; foreach (var b in _banks) foreach (var l in b.Layers) if (l != null && l.InUse && l.Ps != null) n += l.Ps.particleCount; return n; } }
+
+        /// <summary>One line per live layer (diagnostics for the capture harness).</summary>
+        public string Describe()
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var b in _banks) if (b.Active) foreach (var l in b.Layers) if (l.InUse)
+                sb.Append(l.Spec.Texture).Append(':').Append(l.Ps.particleCount).Append(" a=").Append(b.AppliedAlpha.ToString("0.00")).Append(" ord=").Append(l.Renderer.sortingOrder).Append(" b=").Append(l.Renderer.bounds.size.ToString("0")).Append(" | ");
+            return sb.ToString();
+        }
 
         public void Initialize(Transform parent)
         {
@@ -152,7 +164,7 @@ namespace Roguehalla.Client
             size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, .7f), new Keyframe(.2f, 1f), new Keyframe(1f, .85f)));
             var rot = l.Ps.rotationOverLifetime; rot.enabled = s.Spin > 0f;
             if (rot.enabled) rot.z = new ParticleSystem.MinMaxCurve(-s.Spin * Mathf.Deg2Rad, s.Spin * Mathf.Deg2Rad);
-            l.Renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            l.Renderer.renderMode = ParticleSystemRenderMode.Billboard; l.Renderer.maxParticleSize = 3f;   // default .5 of the viewport would clip the long shafts
             l.Renderer.sharedMaterial = BankMaterial(bank, s.Texture);
             l.Renderer.sortingOrder = (s.AboveActors ? ParticlePresets.AboveActorsOrder : ParticlePresets.BehindActorsOrder) + order;
         }
@@ -188,7 +200,7 @@ namespace Roguehalla.Client
         {
             var target = AtmosphereQuality.ParticlesEnabled ? _desired : ParticlePresetId.None;
             var current = _active >= 0 && _banks[_active].Active ? _banks[_active].Preset : ParticlePresetId.None;
-            if (target == current && _active >= 0 && _banks[_active].Active)
+            if (target == current && _active >= 0 && _banks[_active].Active && _raysApplied == AtmosphereQuality.Rays)
             {   // same preset: only density may have changed
                 var bank = _banks[_active]; var specs = ParticlePresets.Get(target); bank.Target = 1f;
                 for (int i = 0; i < specs.Length; i++) if (bank.Layers[i].InUse) { var main = bank.Layers[i].Ps.main; main.maxParticles = Mathf.Max(1, ParticlePresets.LayerBudget(specs[i], _density)); var em = bank.Layers[i].Ps.emission; em.rateOverTime = specs[i].Rate * Mathf.Min(_density, AtmosphereQuality.MaxParticleDensity); }
@@ -202,12 +214,13 @@ namespace Roguehalla.Client
             for (int i = 0; i < ParticlePresets.MaxLayers; i++) ReleaseLayer(nb.Layers[i]);
             var layers = ParticlePresets.Get(target);
             float longest = 0f;
-            for (int i = 0; i < layers.Length; i++) { Configure(nb, nb.Layers[i], layers[i], i); longest = Mathf.Max(longest, layers[i].LifeMax); }
+            for (int i = 0; i < layers.Length; i++) { if (layers[i].Texture == "shaft" && !AtmosphereQuality.Rays) continue; Configure(nb, nb.Layers[i], layers[i], i); longest = Mathf.Max(longest, layers[i].LifeMax); }
             for (int i = 0; i < layers.Length; i++)
-            {   // prewarm so the layer is already full as it fades in
+            {
+                if (!nb.Layers[i].InUse) continue;   // prewarm so the layer is already full as it fades in
                 nb.Layers[i].Ps.Simulate(longest * .9f, false, true, true); nb.Layers[i].Ps.Play(false);
             }
-            nb.Preset = target; nb.Active = true; nb.Target = 1f; nb.Alpha = instant ? 1f : 0f; nb.AppliedAlpha = -1f; SetBankAlpha(nb, nb.Alpha);
+            _raysApplied = AtmosphereQuality.Rays; nb.Preset = target; nb.Active = true; nb.Target = 1f; nb.Alpha = instant ? 1f : 0f; nb.AppliedAlpha = -1f; SetBankAlpha(nb, nb.Alpha);
             _active = idle;
         }
 

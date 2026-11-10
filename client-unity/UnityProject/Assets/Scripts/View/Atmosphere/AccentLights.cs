@@ -4,7 +4,8 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
 {
-    public struct TerrainCluster { public float X, Y; public int Count; public TerrainKind Kind; }
+    /// <summary>A light site: a cluster of terrain tiles (lava, ice, bog, light) or a single lantern prop (Lantern = true, Kind None).</summary>
+    public struct TerrainCluster { public float X, Y; public int Count; public TerrainKind Kind; public bool Lantern; public float Lift; }
 
     /// <summary>
     /// Pure planner for terrain-generated accent lights. Clusters (one per 8x8-tile cell and terrain kind) are built once at map
@@ -37,6 +38,9 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>Add one lantern prop as a light site (tile-space position; <paramref name="lift"/> raises the light to the lamp head, in world units).</summary>
+        public void AddLantern(float tx, float ty, float lift) { _clusters.Add(new TerrainCluster { X = tx, Y = ty, Count = 1, Kind = TerrainKind.None, Lantern = true, Lift = lift }); }
+
         /// <summary>Indices of the clusters to light for a tile-space camera rect (x right, y down): inside rect + margin, best first, at most
         /// min(cap, result.Length). Returns how many were written.</summary>
         public int Select(float minTx, float minTy, float maxTx, float maxTy, float margin, int cap, int[] result)
@@ -48,7 +52,7 @@ namespace Roguehalla.Client
             {
                 var c = _clusters[i];
                 if (c.X < minTx - margin || c.X > maxTx + margin || c.Y < minTy - margin || c.Y > maxTy + margin) continue;   // cull first
-                float dx = c.X - cx, dy = c.Y - cy, s = Mathf.Sqrt(dx * dx + dy * dy) - .6f * Mathf.Sqrt(c.Count);        // lower is better
+                float dx = c.X - cx, dy = c.Y - cy, s = Mathf.Sqrt(dx * dx + dy * dy) - (c.Lantern ? 1.5f : .6f * Mathf.Sqrt(c.Count));        // lower is better
                 int at = n < cap ? n : cap;
                 while (at > 0 && score[at - 1] > s) { if (at < cap) { score[at] = score[at - 1]; result[at] = result[at - 1]; } at--; }
                 if (at >= cap) continue;
@@ -74,7 +78,13 @@ namespace Roguehalla.Client
         public const float CullMargin = 6f;
 
         public void Initialize(Transform parent) { _root = new GameObject("Accent lights").transform; _root.SetParent(parent, false); }
-        public void Load(MapBlob map) { _planner.Build(map.Terrain, map.W, map.H); _dirty = true; _lastCellX = int.MinValue; }
+        public void Load(MapBlob map)
+        {
+            _planner.Build(map.Terrain, map.W, map.H);
+            if (RegionAtmosphereTable.AccentFor(TerrainKind.None).Enabled && map.Regions != null)
+                foreach (var pl in RegionProps.Scatter(map)) if (pl.Art == "sent.lantern") _planner.AddLantern(pl.X, pl.Y, 1.05f);
+            _dirty = true; _lastCellX = int.MinValue;
+        }
         public void MarkDirty() { _dirty = true; }
 
         /// <summary>Per frame. Re-plans only when the camera crosses a cell boundary (or the cap changes); otherwise just fades and flickers.</summary>
@@ -93,7 +103,7 @@ namespace Roguehalla.Client
                 s.Alpha = Mathf.MoveTowards(s.Alpha, s.Wanted ? 1f : 0f, dt / FadeSeconds);
                 if (s.Alpha <= 0f && !s.Wanted) { if (s.Cluster >= 0) { s.Cluster = -1; } s.Light.SetVisible(false); continue; }
                 float flick = 1f + s.Spec.Flicker * (.14f * Mathf.Sin(time * 5.3f + s.Phase) + .09f * Mathf.Sin(time * 11.7f + s.Phase * 2.1f) + .06f * Mathf.Sin(time * 2.1f + s.Phase * .7f));
-                float radius = s.Spec.Radius * (1f + .06f * Mathf.Sqrt(s.C.Count));
+                float radius = s.Spec.Radius * (s.C.Lantern ? 1f : 1f + .06f * Mathf.Sqrt(s.C.Count));
                 s.Light.Configure(s.Spec.Color, s.Spec.Intensity * s.Alpha * flick, radius * .15f, radius, .55f, false);
                 s.Light.SetVisible(true);
             }
@@ -123,7 +133,7 @@ namespace Roguehalla.Client
             if (free == null) return null;           // every slot busy fading out: pick this cluster up next re-plan
             var c = _planner.Clusters[cluster];
             free.Cluster = cluster; free.C = c; free.Spec = RegionAtmosphereTable.AccentFor(c.Kind); free.Alpha = 0f; free.Phase = c.X * 1.7f + c.Y * 2.3f;
-            free.Light.transform.position = ArenaView.WorldPoint(c.X * 32f, c.Y * 32f) + new Vector3(0, 0, -1);
+            free.Light.transform.position = ArenaView.WorldPoint(c.X * 32f, c.Y * 32f) + new Vector3(0, c.Lift, -1);
             return free;
         }
 

@@ -103,7 +103,7 @@ namespace Roguehalla.Client
               th.WallTop = Mix(Sec(2), B(2), .55f); th.WallFace = Mix(Sec(2), B(2), .35f); th.WallEdge = Mix(Sec(2), B(2), .7f);
               th.GroundParams = new Vector4(.16f, .18f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, 2.2f, 0);
               th.Props = new[] { new PropRule("sent.tomb", 2.6f, .9f, 1.15f), new PropRule("sent.cross", 1.7f, .9f, 1.15f), new PropRule("sent.slab", 1.4f, .9f, 1.15f),
-                                 new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", .8f, .95f, 1.05f, wallClearance: 1),
+                                 new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", 1.5f, .95f, 1.05f, wallClearance: 1),
                                  new PropRule("sent.urn", .9f, .9f, 1.1f), new PropRule("sent.gargoyle", .5f, .95f, 1.05f, wallClearance: 1), new PropRule("sent.scarecrow", .12f, .95f, 1.05f, wallClearance: 2) }; }
             // 3 plague: forgotten city. Mossy paving, dense greenery pockets.
             { var th = t[3]; th.Wall = WallStyle.Ruin;

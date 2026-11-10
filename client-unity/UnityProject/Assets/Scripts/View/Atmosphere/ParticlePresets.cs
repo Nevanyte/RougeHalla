@@ -65,7 +65,17 @@ namespace Roguehalla.Client
         static readonly ParticleLayerSpec[] Pollen =
         {
             new ParticleLayerSpec { Texture = "mote", MaxParticles = 70, Rate = 6.5f, LifeMin = 8, LifeMax = 13, SizeMin = .05f, SizeMax = .12f, Wind = new Vector2(.4f, .12f), Gust = .5f, Noise = .45f, NoiseFreq = .25f, Tint = new Color(1f, .9f, .5f, .75f), Parallax = .15f, Twinkle = 1.5f },
-            new ParticleLayerSpec { Texture = "shaft", MaxParticles = 5, Rate = .5f, LifeMin = 9, LifeMax = 14, SizeMin = 5f, SizeMax = 8f, Wind = new Vector2(.12f, -.05f), Tint = new Color(1f, .92f, .6f, .10f), Parallax = .35f, StretchY = 4.5f, Rotation = 38f },
+            // golden light shafts cutting across the sand along the one sun direction (rotation = shadow angle - 90), world fixed, drifting very slowly
+            new ParticleLayerSpec { Texture = "shaft", MaxParticles = 9, Rate = .9f, LifeMin = 10, LifeMax = 15, SizeMin = 1.6f, SizeMax = 3.4f, Wind = new Vector2(.1f, -.05f), Tint = new Color(1f, .97f, .78f, .42f), Parallax = 0f, StretchY = 6f, Rotation = 62f },
+        };
+
+        static readonly ParticleLayerSpec[] PlagueRays =
+        {
+            new ParticleLayerSpec { Texture = "spore", MaxParticles = 70, Rate = 6, LifeMin = 7, LifeMax = 11, SizeMin = .07f, SizeMax = .15f, Wind = new Vector2(.05f, .22f), Noise = .5f, NoiseFreq = .22f, Tint = new Color(.66f, 1f, .38f, .8f), Parallax = .1f, Twinkle = 2.5f },
+            new ParticleLayerSpec { Texture = "mote", MaxParticles = 50, Rate = 5, LifeMin = 8, LifeMax = 12, SizeMin = .05f, SizeMax = .1f, Wind = new Vector2(.1f, .12f), Noise = .4f, NoiseFreq = .3f, Tint = new Color(.55f, .95f, .75f, .6f), Parallax = .25f },
+            new ParticleLayerSpec { Texture = "spore", MaxParticles = 14, Rate = 1.2f, LifeMin = 8, LifeMax = 12, SizeMin = .16f, SizeMax = .26f, Wind = new Vector2(.08f, .2f), Noise = .6f, NoiseFreq = .18f, Tint = new Color(.7f, 1f, .5f, .3f), Parallax = -.2f, AboveActors = true, Twinkle = 1.5f },
+            // green-gold light filtering through brush and canopy: broad soft shafts along the sun direction
+            new ParticleLayerSpec { Texture = "shaft", MaxParticles = 8, Rate = .8f, LifeMin = 10, LifeMax = 15, SizeMin = 1.8f, SizeMax = 3.6f, Wind = new Vector2(.08f, -.04f), Tint = new Color(.8f, 1f, .6f, .36f), Parallax = 0f, StretchY = 6f, Rotation = 62f },
         };
 
         public static ParticleLayerSpec[] Get(ParticlePresetId id)
@@ -75,7 +85,7 @@ namespace Roguehalla.Client
                 case ParticlePresetId.Snow: return Snow;
                 case ParticlePresetId.Embers: return Embers;
                 case ParticlePresetId.Dust: return Dust;
-                case ParticlePresetId.Spores: return Spores;
+                case ParticlePresetId.Spores: return PlagueRays;
                 case ParticlePresetId.Pollen: return Pollen;
                 default: return None;
             }
@@ -85,6 +95,7 @@ namespace Roguehalla.Client
         public static int LayerBudget(in ParticleLayerSpec layer, float density)
         {
             if (density <= .001f) return 0;
+            if (layer.Texture == "shaft" && !AtmosphereQuality.Rays) return 0;
             return Mathf.Max(1, Mathf.CeilToInt(layer.MaxParticles * Mathf.Min(density, AtmosphereQuality.MaxParticleDensity)));
         }
 

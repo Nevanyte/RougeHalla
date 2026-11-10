@@ -69,7 +69,7 @@ namespace Roguehalla.Client
                 UnityEngine.Object.DestroyImmediate(tex); RenderTexture.active = null; cam.targetTexture = null;
                 var at = arena.Atmosphere;
                 Debug.Log("AtmospherePreviewCapture: " + p[0] + " region=" + arena.LocalRegion + " lights=" + at.Lights.ActiveCount + " clusters=" + at.Lights.Planner.Count +
-                    " shadowChunksVisible=" + at.Shadows.VisibleChunks + " baked=" + at.Shadows.BakedChunks + " particles=" + at.Particles.ParticleCount + " playing=" + at.Particles.Playing);
+                    " shadowChunksVisible=" + at.Shadows.VisibleChunks + " baked=" + at.Shadows.BakedChunks + " particles=" + at.Particles.ParticleCount + " playing=" + at.Particles.Playing + " layers=" + at.Particles.Describe());
             }
         }
     }

@@ -34,7 +34,7 @@ namespace Roguehalla.Client
             new[] { // 2 sentenced
                 new[] { 0.58f, 0.028f, 292f }, // Base
                 new[] { 0.36f, 0.036f, 70f }, // Secondary
-                new[] { 0.44f, 0.14f, 300f }, // Accent
+                new[] { 0.38f, 0.13f, 300f }, // Accent
                 new[] { 0.84f, 0.07f, 72f }, // Key
                 new[] { 0.55f, 0.035f, 290f }, // Ambient
                 new[] { 0.32f, 0.05f, 305f }, // Shadow
@@ -59,9 +59,9 @@ namespace Roguehalla.Client
                 new[] { 0.92f, 0.025f, 235f }, // Fog
             },
             new[] { // 5 holy
-                new[] { 0.8f, 0.095f, 85f }, // Base
+                new[] { 0.68f, 0.105f, 80f }, // Base
                 new[] { 0.58f, 0.13f, 135f }, // Secondary
-                new[] { 0.6f, 0.12f, 80f }, // Accent
+                new[] { 0.44f, 0.09f, 80f }, // Accent
                 new[] { 0.93f, 0.088f, 90f }, // Key
                 new[] { 0.74f, 0.07f, 95f }, // Ambient
                 new[] { 0.52f, 0.09f, 320f }, // Shadow
@@ -101,7 +101,7 @@ namespace Roguehalla.Client
             new[] { // 2 sentenced
                 new Color32(122, 120, 138, 255), // Base
                 new Color32(73, 58, 40, 255), // Secondary
-                new Color32(96, 59, 147, 255), // Accent
+                new Color32(78, 44, 124, 255), // Accent
                 new Color32(231, 196, 153, 255), // Key
                 new Color32(113, 110, 133, 255), // Ambient
                 new Color32(57, 44, 71, 255), // Shadow
@@ -126,9 +126,9 @@ namespace Roguehalla.Client
                 new Color32(213, 232, 243, 255), // Fog
             },
             new[] { // 5 holy
-                new Color32(218, 185, 117, 255), // Base
+                new Color32(186, 145, 70, 255), // Base
                 new Color32(87, 139, 53, 255), // Secondary
-                new Color32(165, 119, 16, 255), // Accent
+                new Color32(108, 76, 2, 255), // Accent
                 new Color32(255, 230, 164, 255), // Key
                 new Color32(184, 171, 120, 255), // Ambient
                 new Color32(128, 87, 137, 255), // Shadow
