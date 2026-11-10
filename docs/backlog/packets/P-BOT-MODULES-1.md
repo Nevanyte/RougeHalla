@@ -239,3 +239,44 @@ prerequisite mismatch gets its own Root repair lease; do not change old expectat
 obtains independent source and native admission before integration. This closes the complete private module layer;
 full Brain guards/cadence/hand features/sequences/stats/end, fair publication and real validated live/headless use remain
 explicit later work, never omitted from the complete-bot objective.
+
+## Root corrected bridge allocation (2026-11-10)
+
+Root accepts the independent [bridge review](../../evidence/bot-module-bridge-review/README.md) and allocates only
+these additional function/state seams in the same isolated `backend-bot-modules` worktree. The initial proposal is
+preserved; it is not approved verbatim. Existing public APIs and old fixtures remain behaviorally unchanged.
+
+- **planning.rs:** LEARN constants' crate visibility; raw finite-f64 SourcePlanDeal; a source array-index adapter over
+  the existing plan score (invalid/fractional/negative/out-of-range resolves no entry/-Infinity, never truncation);
+  shared schedule/learned bias/choice helpers; extract the existing PlanModule deal/phase/read/settle/lastCall/ask/
+  ready transitions into one private core consumed by both the old wrapper and source module. Existing public deal
+  and methods adapt into that core. `TierId` is correct for schedule tables; actual supplied reaction.mu/softmaxT/
+  lapseP are required where source uses them. Real event order/time and cfg identity remain at the source adapter.
+- **wish.rs:** source-shaped borrowed ability/rank/context adapter and shared cast-policy/availability/retry/slip
+  transition core, with the old WishModule retaining its legacy public-view/clock behavior through a compatibility
+  adapter. Source input uses actual Memory.lastCast/hit facts; do not substitute the old capped hit list or inferred
+  casting start. Source rank remains f64 and follows actual floor/clamp. The finite reader supports the five actual
+  built-in definitions plus all captured absent/invalid-def guard cases exactly. It must validate preserved fields,
+  orders and Blaze64/300 distances; unsupported custom future valid shapes are explicitly outside this finite profile
+  and refused before mutation, not silently converted to a catalog row. No rh-sim blink edit is allocated: use the
+  existing fixed-distance leaf only under that proved matching profile, with the real collision/open maps and gates.
+  Old public open/unlocked behavior remains through its compatibility adapter; do not silently correct it here.
+- **hazards.rs:** factor existing classification/search and step/hold/expiry/arrival/throttle/light/adjust machinery
+  into one private fact/service-based core. Both old Observation wrapper and source module use it; do not fabricate
+  an Observation or actor ID. Parameterize distance origin, ordered predicates and actual clear/collision callbacks,
+  preserving stable ties, hook call timing and unchanged-list identity. Empty/unknown source faction has no home
+  exception; it does not become a fabricated recognized faction.
+
+New helper files may be added only under `bots/planning/source_core.rs`, `bots/wish/source_core.rs`,
+`bots/hazards/source_core.rs` if necessary, with module declarations in those three leased files. New focused bridge
+witness tests may live in these new files or the already allocated modules tree. This allocation is limited to the
+named existing functions, associated private state and their wrapper plumbing; it is not a whole-file rewrite or a
+lease on types.rs, World/Sim, public observation, old test expectations, source/goldens, dependencies or identities.
+If a transition truly cannot be shared without changing source/public behavior, report the exact field and counterexample
+for a separate decision rather than duplicating an entire engine. Temporary mirrored engines must not survive.
+
+Start exact, including callbacks and finite values. No numeric tolerance is pre-approved; report a real failing leaf
+with source/native ancestry before any relaxation. All255 histories/3259operations and meaningful intake/nonadvance/
+semantic controls remain required, plus affected unchanged planning/Wish/hazard/hand/Memory/Strategy overlaps and strict
+default/all-feature lint/format. The reviewer recommendation's “in principle” is resolved only by this corrected lease;
+final code and evidence still require independent admission.
