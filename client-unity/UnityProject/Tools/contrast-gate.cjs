@@ -253,17 +253,19 @@ function readCells(file) {
 }
 function compare(fa, fb, edge) {
   const A = readCells(fa), B = readCells(fb);
-  const keys = [...A.m.keys()].filter(k => B.m.has(k)), d = [], dBody = [], dMin = [];
-  let flips = 0, frameDiff = 0, only = 0;
+  const keys = [...A.m.keys()].filter(k => B.m.has(k));
+  const mean = v => v.reduce((s, x) => s + x, 0) / (v.length || 1);
+  const bucket = () => ({ n: 0, p10: [], min: [], body: [] });
+  const same = bucket(), diff = bucket(), all = bucket();
+  let flips = 0, unmeasurable = 0;
   for (const k of keys) {
     const a = A.m.get(k), b = B.m.get(k);
-    if (a.p10 === null || b.p10 === null) { only++; continue; }
-    d.push(Math.abs(a.p10 - b.p10)); dMin.push(Math.abs(a.min - b.min)); dBody.push(Math.abs(a.body - b.body));
-    if ((a.p10 >= edge) !== (b.p10 >= edge)) flips++; if (a.frame !== b.frame) frameDiff++;
+    if (a.p10 === null || b.p10 === null) { unmeasurable++; continue; }
+    for (const bk of [all, a.frame === b.frame ? same : diff]) { bk.n++; bk.p10.push(Math.abs(a.p10 - b.p10)); bk.min.push(Math.abs(a.min - b.min)); bk.body.push(Math.abs(a.body - b.body)); }
+    if ((a.p10 >= edge) !== (b.p10 >= edge)) flips++;
   }
-  const out = { cellsCompared: keys.length, unmeasurable: only, edgeP10: { meanAbsDiff: d.reduce((s, v) => s + v, 0) / (d.length || 1), p95: lib.percentile(d, .95), max: Math.max(0, ...d) },
-    edgeMin: { meanAbsDiff: dMin.reduce((s, v) => s + v, 0) / (dMin.length || 1), max: Math.max(0, ...dMin) }, body: { meanAbsDiff: dBody.reduce((s, v) => s + v, 0) / (dBody.length || 1), max: Math.max(0, ...dBody) },
-    passFlips: flips, animationFrameDiffers: frameDiff };
+  const sum = bk => ({ cells: bk.n, edgeP10: { meanAbs: mean(bk.p10), p95: lib.percentile(bk.p10, .95), max: Math.max(0, ...bk.p10) }, edgeMin: { meanAbs: mean(bk.min), max: Math.max(0, ...bk.min) }, body: { meanAbs: mean(bk.body), max: Math.max(0, ...bk.body) } });
+  const out = { cellsCompared: keys.length, unmeasurable, passFlips: flips, all: sum(all), sameAnimationFrame: sum(same), differentAnimationFrame: sum(diff) };
   console.log(JSON.stringify(out, null, 2));
   return out;
 }
