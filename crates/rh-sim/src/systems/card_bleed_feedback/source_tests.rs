@@ -150,7 +150,7 @@ fn command(input: &V) -> RawCommand {
     }
 }
 
-fn config(input: &V) -> SimConfig {
+fn config_with_hitboxes(input: &V, hitboxes: crate::archetype::HitboxMode) -> SimConfig {
     let declared = &input["config"];
     let profile = input["profile"].as_str().unwrap_or("core");
     SimConfig {
@@ -185,13 +185,14 @@ fn config(input: &V) -> SimConfig {
         dummies: false,
         // Every capture installer list omits walkHint.
         walk_hints: Some(false),
-        // The Card source captures are legacy-circle (parity) runs.
-        hitboxes: crate::archetype::HitboxMode::LegacyCircle,
+        // The Card source captures are legacy-circle (parity) runs; only the Archetypes composition proof selects
+        // the other mode, and it does so here, before the Sim is constructed.
+        hitboxes,
         mob_spacing: Default::default(),
     }
 }
 
-fn construct(input: &V) -> Sim {
+fn construct_with_hitboxes(input: &V, hitboxes: crate::archetype::HitboxMode) -> Sim {
     let seed = input["mainSeed"].as_u64().unwrap_or(12) as u32;
     let mut random = crate::rng::Mulberry32::new(seed);
     let secrets = Secrets {
@@ -199,8 +200,8 @@ fn construct(input: &V) -> Sim {
         spawn_seed: seed,
         reward_salt: [1, 2, 3, 4],
     };
-    let mut sim =
-        Sim::try_new(config(input), room(), secrets).expect("admitted source constructor");
+    let mut sim = Sim::try_new(config_with_hitboxes(input, hitboxes), room(), secrets)
+        .expect("admitted source constructor");
     for (i, player) in input["players"].as_array().unwrap().iter().enumerate() {
         let faction = FactionId::parse(player["faction"].as_str().unwrap()).unwrap();
         sim.add_player(&format!("bleed-{i}"), Some(faction), false)
@@ -311,8 +312,12 @@ fn scratch_markers(ops: &[Op]) -> Vec<&'static str> {
 }
 
 fn run_case(case: &V) -> Harness {
+    run_case_with_hitboxes(case, crate::archetype::HitboxMode::LegacyCircle)
+}
+
+fn run_case_with_hitboxes(case: &V, hitboxes: crate::archetype::HitboxMode) -> Harness {
     let input = &case["input"];
-    let sim = construct(input);
+    let sim = construct_with_hitboxes(input, hitboxes);
     let players: Vec<_> = sim.players().iter().map(|p| p.id).collect();
     let mut harness = Harness {
         sim,
@@ -997,4 +1002,82 @@ fn the_source_cases_reach_grouping_cadence_run_end_reset_teleport_and_exclusion(
             .len(),
         0
     );
+}
+
+/// Archetypes composition proof: the declared `first-use-clock-periodic-and-empty-interval` input (loadouts, setup,
+/// ordinary commands and spans) drives the real scheduled landed Card DoT, periodic flush and `FxProjector` delivery
+/// with Archetypes selected before construction. The case's `trace`/`cardContributions`/`cardFx`/`final` are not read:
+/// this is a producer/projection integration assertion, not a legacy-number comparison.
+#[test]
+fn archetypes_first_use_case_delivers_a_real_public_card_hit_without_leaking_raw_reports() {
+    let doc = source();
+    let case = doc["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "first-use-clock-periodic-and-empty-interval")
+        .expect("declared case");
+    let harness = run_case_with_hitboxes(case, crate::archetype::HitboxMode::Archetypes);
+    assert_eq!(
+        harness.sim.config().hitboxes,
+        crate::archetype::HitboxMode::Archetypes
+    );
+
+    // The ordinary Attack must land a real weapon hit on the victim in this mode, and the Card DoT must follow.
+    let (p0, p1) = (harness.players[0], harness.players[1]);
+    let weapon_hit = harness
+        .rows
+        .iter()
+        .any(|r| r.landed.iter().any(|h| h.by == Some(p0) && !h.dot));
+    assert!(
+        weapon_hit,
+        "the declared Attack lands a weapon hit under Archetypes"
+    );
+    let contributions = processed_contributions(&harness);
+    assert!(
+        !contributions.is_empty(),
+        "the scheduled landed Card DoT produced processed contributions under Archetypes"
+    );
+    assert!(contributions
+        .iter()
+        .all(|(_, _, victim, by, _)| *victim == p1 && *by == Some(p0)));
+
+    // The actual periodic flush produced trusted rows (server-side only) ...
+    let trusted: Vec<_> = harness
+        .rows
+        .iter()
+        .flat_map(|r| r.events.iter())
+        .filter(|e| matches!(e, Event::CardBleedHit { .. }))
+        .collect();
+    assert!(
+        !trusted.is_empty(),
+        "a real periodic flush reached trusted rows"
+    );
+
+    // ... and a real eligible public Card Hit reached a viewer who the sealed sight masks say could see the victim.
+    let public = actual_public_stream(&harness);
+    assert!(!public.is_empty(), "a public Card Hit reached a viewer");
+    let mut eligible_delivered = 0;
+    for (viewer, tick, _time, victim, by, amount) in &public {
+        assert_eq!(*victim, p1);
+        assert_eq!(*by, Some(p0));
+        assert!(amount.is_finite() && *amount > 0.);
+        let row = harness
+            .rows
+            .iter()
+            .find(|r| r.tick == *tick)
+            .expect("row for the emitting tick");
+        assert!(
+            row_sees(row, *viewer, *victim),
+            "public Card Hit only reaches a viewer whose sealed sight sees the victim"
+        );
+        eligible_delivered += 1;
+    }
+    assert!(eligible_delivered > 0);
+
+    // No raw trusted report state is emitted to any viewer: every projected row is the public Hit shape, and the
+    // per-tick report carries no raw CardBleedHit event in the viewer-facing `seen` streams.
+    for (_, _, _, event) in &harness.pub_events {
+        assert!(matches!(event, SeenEvent::Hit { passive: false, .. }));
+    }
 }

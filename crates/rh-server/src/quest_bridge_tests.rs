@@ -22,6 +22,10 @@ fn quest_bridge_wire_bounds_cover_the_native_domain() {
 }
 
 fn quest_bridge_sim(at: Option<rh_sim::Vec2>) -> Sim {
+    quest_bridge_sim_with(at, rh_sim::archetype::HitboxMode::LegacyCircle)
+}
+
+fn quest_bridge_sim_with(at: Option<rh_sim::Vec2>, hitboxes: rh_sim::archetype::HitboxMode) -> Sim {
     let arena = source_arena();
     let origin = at.unwrap_or(arena.spawns[0]);
     let peer_at = arena.spawns[1];
@@ -29,6 +33,7 @@ fn quest_bridge_sim(at: Option<rh_sim::Vec2>) -> Sim {
         SimConfig {
             quests: true,
             pvp_rules: false,
+            hitboxes,
             ..cfg(Duration::from_millis(50)).sim
         },
         arena,
@@ -714,6 +719,18 @@ const WIRE_ROW_EXPIRED: u8 = 3;
 
 #[tokio::test(start_paused = true)]
 async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts() {
+    quest_room_earned_shards_completion(rh_sim::archetype::HitboxMode::LegacyCircle).await;
+}
+
+/// The same complete earned proof with Archetypes selected before genesis Sim, Room config/join and the active Sim.
+/// Completion ticks are read from the actual run (printed with `--nocapture`), never imposed.
+#[tokio::test(start_paused = true)]
+async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_toasts_under_archetypes(
+) {
+    quest_room_earned_shards_completion(rh_sim::archetype::HitboxMode::Archetypes).await;
+}
+
+async fn quest_room_earned_shards_completion(hitboxes: rh_sim::archetype::HitboxMode) {
     let tick = Duration::from_millis(50);
     let declared_owner_name = "name0";
     let declared_foreign_name = "name1";
@@ -721,7 +738,7 @@ async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_to
     // 1. Inspect ONLY the newly generated native offer set. The deterministic seed-7 Source-arena genesis is the same
     //    component recipe the existing quest bridge tests use; the selected offer must be the actually produced
     //    published Open `shards-frost` row, never an installed or substituted offer.
-    let genesis = quest_bridge_sim(None);
+    let genesis = quest_bridge_sim_with(None, hitboxes);
     let genesis_runtime = quest_bridge_runtime(&genesis);
     let genesis_offer = genesis_runtime
         .offers
@@ -745,6 +762,7 @@ async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_to
     //    handle or action is issued. This is a labelled component fixture, not the hosted lobby/startup path.
     let assets = MapAssets::new(source_arena()).unwrap();
     let mut config = cfg(tick);
+    config.sim.hitboxes = hitboxes;
     assert!(
         !config.sim.quests,
         "the shared bridge cfg is quest-disabled only as a component fixture; the Source runtime profile enables quests"
@@ -783,6 +801,7 @@ async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_to
         SimConfig {
             quests: true,
             pvp_rules: false,
+            hitboxes,
             ..cfg(tick).sim
         },
         assets.arena.clone(),
@@ -1093,6 +1112,11 @@ async fn quest_room_earned_shards_completion_delivers_exact_owner_and_foreign_to
     }
     let completion_tick =
         completion_tick.expect("the accepted native turn-in produced real quest completion");
+    assert_eq!(room.sim().config().hitboxes, hitboxes);
+    eprintln!(
+        "quest room proof: {hitboxes:?} completion at native tick {completion_tick} ({} ms)",
+        room.sim().server_time()
+    );
     let completion_ms = room.sim().server_time();
     assert_eq!(
         completion_ms,

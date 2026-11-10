@@ -25,8 +25,10 @@ fn seed1_arena() -> crate::Arena {
         .expect("seed1 arena")
 }
 
-fn pve_config() -> SimConfig {
+/// The same PvE profile with the hitbox mode chosen before the Sim is constructed (never flipped afterwards).
+fn pve_config_with(hitboxes: crate::archetype::HitboxMode) -> SimConfig {
     SimConfig {
+        hitboxes,
         abilities: crate::abilities::Mode::Off,
         faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
         hazards: crate::terrain::Mode::Off,
@@ -48,8 +50,19 @@ fn pve_config() -> SimConfig {
 
 /// The normal constructor + real joins + ordinary raid-start step for the admitted five-faction seed1 profile.
 fn pve_world(factions: &[FactionId]) -> (Sim, Vec<PlayerId>) {
-    let mut sim = Sim::try_new(pve_config(), seed1_arena(), Secrets::from_seed(5))
-        .expect("normal PvE constructor admits the five-faction seed1 profile");
+    pve_world_with(factions, crate::archetype::HitboxMode::LegacyCircle)
+}
+
+fn pve_world_with(
+    factions: &[FactionId],
+    hitboxes: crate::archetype::HitboxMode,
+) -> (Sim, Vec<PlayerId>) {
+    let mut sim = Sim::try_new(
+        pve_config_with(hitboxes),
+        seed1_arena(),
+        Secrets::from_seed(5),
+    )
+    .expect("normal PvE constructor admits the five-faction seed1 profile");
     let mut ids = Vec::new();
     for (i, faction) in factions.iter().enumerate() {
         ids.push(
@@ -286,7 +299,24 @@ fn earned_post_hit_checkpoint() -> Earned {
 
 #[test]
 fn earned_hemorrhage_bleed_on_regional_npc_restores_and_continues() {
-    let (mut sim, players) = pve_world(&[FactionId::Holy]);
+    earned_bleed_restores_and_continues(crate::archetype::HitboxMode::LegacyCircle);
+}
+
+/// The same real producer trajectory with Archetypes selected in the constructed Sim: the ordinary Attack must land a
+/// weapon hit in this mode (asserted inside the shared body before any bleed assertion), then checkpoint, restore and
+/// continuation invariants are identical. No status row is installed and no placement is assumed to carry over.
+#[test]
+fn earned_hemorrhage_bleed_on_regional_npc_restores_and_continues_under_archetypes() {
+    earned_bleed_restores_and_continues(crate::archetype::HitboxMode::Archetypes);
+}
+
+fn earned_bleed_restores_and_continues(hitboxes: crate::archetype::HitboxMode) {
+    let (mut sim, players) = pve_world_with(&[FactionId::Holy], hitboxes);
+    assert_eq!(
+        sim.config().hitboxes,
+        hitboxes,
+        "mode selected at construction"
+    );
     let player = players[0];
     let (npc, _at, aim) = place_attacker(&mut sim, player);
     grant_hemorrhage(&mut sim, player);
