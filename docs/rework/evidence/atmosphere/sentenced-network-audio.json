@@ -1,0 +1,27 @@
+[
+ {
+  "url": "StreamingAssets/Audio/music_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 90
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_fire.mp3",
+  "status": 200,
+  "afterMatchStartMs": 90
+ },
+ {
+  "url": "StreamingAssets/Audio/music_coliseum.mp3",
+  "status": 200,
+  "afterMatchStartMs": 100
+ },
+ {
+  "url": "StreamingAssets/Audio/music_holy.mp3",
+  "status": 200,
+  "afterMatchStartMs": 296
+ },
+ {
+  "url": "StreamingAssets/Audio/amb_holy.mp3",
+  "status": 200,
+  "afterMatchStartMs": 296
+ }
+]

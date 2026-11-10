@@ -7,11 +7,11 @@ The pinned Flare: Empyrean Campaign source includes matching directional plate a
 | Avatar layer | Male image / animation | Female image / animation |
 | --- | --- | --- |
 | Head base (already included) | `Raw/images/avatar/male/head_short.png` / `Raw/animations/avatar/male/head_short.txt` | `Raw/images/avatar/female/head_long.png` / `Raw/animations/avatar/female/head_long.txt` |
-| Helm | `plate_helm.png` / `plate_helm.txt` | `plate_helm.png` / `plate_helm.txt` |
-| Chest | `plate_cuirass.png` / `plate_cuirass.txt` | `plate_cuirass.png` / `plate_cuirass.txt` |
-| Hands | `plate_gauntlets.png` / `plate_gauntlets.txt` | `plate_gauntlets.png` / `plate_gauntlets.txt` |
-| Legs | `plate_greaves.png` / `plate_greaves.txt` | `plate_greaves.png` / `plate_greaves.txt` |
-| Feet | `plate_boots.png` / `plate_boots.txt` | `plate_boots.png` / `plate_boots.txt` |
+| Helm | `plate_helm.jpg` / `plate_helm.txt` | `plate_helm.jpg` / `plate_helm.txt` |
+| Chest | `plate_cuirass.jpg` / `plate_cuirass.txt` | `plate_cuirass.jpg` / `plate_cuirass.txt` |
+| Hands | `plate_gauntlets.jpg` / `plate_gauntlets.txt` | `plate_gauntlets.jpg` / `plate_gauntlets.txt` |
+| Legs | `plate_greaves.jpg` / `plate_greaves.txt` | `plate_greaves.jpg` / `plate_greaves.txt` |
+| Feet | `plate_boots.jpg` / `plate_boots.txt` | `plate_boots.jpg` / `plate_boots.txt` |
 
 Armor image and animation paths are under `Raw/images/avatar/{male,female}/` and `Raw/animations/avatar/{male,female}/` respectively. For each gender, replace the four `default_*` layers with the matching plate parts and add `plate_helm` above the head base. Keep the existing weapon layer independent.
 

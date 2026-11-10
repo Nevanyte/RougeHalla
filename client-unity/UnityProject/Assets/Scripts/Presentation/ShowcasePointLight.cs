@@ -71,8 +71,8 @@ namespace Roguehalla.Client
         public void ApplyQuality()
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
-            bool show = _configured && _visible && isActiveAndEnabled && (!_highOnly || quality == ShowcaseQuality.High);
-            bool high = show && quality == ShowcaseQuality.High;
+            bool show = _configured && _visible && isActiveAndEnabled && (!_highOnly || quality >= ShowcaseQuality.High);
+            bool high = show && quality >= ShowcaseQuality.High;
             // Disable the old variant before enabling the new one; never two active lights at one anchor.
             if (!high && _accurate != null) _accurate.enabled = false;
             if ((!show || high) && _disabled != null) _disabled.enabled = false;

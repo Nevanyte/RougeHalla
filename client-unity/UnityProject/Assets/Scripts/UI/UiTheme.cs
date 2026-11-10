@@ -1,0 +1,167 @@
+using System;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+
+namespace Roguehalla.Client
+{
+    public enum UiFontRole { Body, Display }
+
+    /// <summary>
+    /// The single seam for the in-match HUD's look. Every colour, font, corner radius, border width and panel sprite the HUD uses is
+    /// read from <see cref="Current"/>, so assigning a different theme (or editing these values) reskins the whole HUD.
+    /// The shipped values are the palette of docs/art/palette.json (WCAG 4.5:1 for every text role). No layout lives here.
+    /// </summary>
+    public sealed class UiTheme
+    {
+        static UiTheme _current;
+        public static event Action Changed;
+
+        public static UiTheme Current
+        {
+            get { return _current ?? (_current = Skin()); }
+            set { _current = value ?? Skin(); Changed?.Invoke(); }
+        }
+
+        // Surfaces.
+        public Color32 Surface;          // panels, cards, plates
+        public Color32 SurfaceRaised;    // buttons, rows, chips resting on a surface
+        public Color32 SurfaceSunken;    // meter troughs, map backing, inset wells
+        public Color32 SurfaceHover;     // hovered / highlighted control fill
+        public Color32 SurfaceSelected;  // selected / pressed control fill
+        public Color32 SurfaceDisabled;  // disabled control fill
+        public Color32 Border;           // hairlines and frames
+        public Color32 BorderStrong;     // emphasised frames (active slot, focus)
+        public Color32 Scrim;            // full-screen dim behind a modal (alpha carries the strength)
+        // Text.
+        public Color32 TextPrimary;      // ink on Surface / SurfaceRaised
+        public Color32 TextSecondary;    // labels, hints, keycaps
+        // Semantic accents.
+        public Color32 Accent;           // reward / selection / "gold"
+        public Color32 AccentDim;        // accent borders, primary-button fill
+        public Color32 Danger;           // refusal, low health, death
+        public Color32 Success;          // healthy, ready, own gain
+        public Color32 Warning;          // low-ish, amber states
+        public Color32 Info;             // barrier / shield blue
+        public Color32 OutlineDark;      // 2 px outline ink for markers drawn over a bright world
+        public Color32 OutlineLight;     // outline ink over a dark world
+        // The five faction accents (Fire, Sentenced, Plague, Frost, Holy). Used as text on Surface, so they hold 4.5:1.
+        public Color32[] Faction = new Color32[5];
+        // The sixth map zone (the coliseum): a neutral stone from the region palette, since it belongs to no faction.
+        public Color32 Coliseum;
+        // Build stat tints: Offense, Soul, Defense, Soul defense, Health, Attack speed, Move speed, Life steal.
+        public Color32[] Stat = new Color32[8];
+
+        // Font roles and sizes (HUD px = stage units).
+        public string BodyFontResource = "Showcase/NunitoRegular";
+        public string DisplayFontResource = "Showcase/CinzelDecorative";
+        public float SizeDisplay = 44f;   // "YOU DIED"
+        public float SizeHeading = 17f;   // card titles
+        public float SizeBody = 13f;      // settings / help rows
+        public float SizeSmall = 11f;     // plate values, chips
+        public float SizeTiny = 10f;      // labels, key caps
+        public float SizeMicro = 9f;      // scaling lines
+
+        // Shape.
+        public float CornerRadius = 6f;
+        public float CornerRadiusSmall = 3f;
+        public float CornerRadiusLarge = 8f;
+        public float BorderWidth = 1f;
+        /// <summary>Optional 9-sliced panel sprite. Null uses a generated rounded rectangle at <see cref="CornerRadius"/>.</summary>
+        public Sprite PanelSprite;
+        /// <summary>Optional 9-sliced frame sprite drawn over panels in the border colour. Null uses a generated ring.</summary>
+        public Sprite FrameSprite;
+
+        static readonly Dictionary<string, TMP_FontAsset> FontCache = new Dictionary<string, TMP_FontAsset>();
+
+        public TMP_FontAsset Font(UiFontRole role)
+        {
+            string path = role == UiFontRole.Display ? DisplayFontResource : BodyFontResource;
+            TMP_FontAsset font;
+            if (!string.IsNullOrEmpty(path) && FontCache.TryGetValue(path, out font) && font != null) return font;
+            font = string.IsNullOrEmpty(path) ? null : Resources.Load<TMP_FontAsset>(path);
+            if (font == null && role == UiFontRole.Display) font = Font(UiFontRole.Body);
+            if (font == null) font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF") ?? TMP_Settings.defaultFontAsset;
+            if (!string.IsNullOrEmpty(path) && font != null) FontCache[path] = font;
+            return font;
+        }
+
+        public Color32 FactionColor(int faction)
+        {
+            return faction >= 0 && faction < Faction.Length ? Faction[faction] : TextSecondary;
+        }
+
+        /// <summary>The tint colour of a map zone by wire region id (1 Fire .. 5 Holy, 6 Coliseum); the neutral text colour for none.</summary>
+        public Color32 ZoneColor(int region)
+        {
+            if (region == 6) return Coliseum;
+            return region >= 1 && region <= 5 ? Faction[region - 1] : TextSecondary;
+        }
+
+        public Color32 StatColor(int stat)
+        {
+            return stat >= 0 && stat < Stat.Length ? Stat[stat] : TextPrimary;
+        }
+
+        /// <summary>Every colour token (RGB only matters; alpha is a per-use opacity).</summary>
+        public IEnumerable<Color32> AllColors()
+        {
+            yield return Surface; yield return SurfaceRaised; yield return SurfaceSunken; yield return SurfaceHover;
+            yield return SurfaceSelected; yield return SurfaceDisabled; yield return Border; yield return BorderStrong;
+            yield return Scrim; yield return TextPrimary; yield return TextSecondary; yield return Accent; yield return AccentDim;
+            yield return Danger; yield return Success; yield return Warning; yield return Info; yield return OutlineDark; yield return OutlineLight;
+            foreach (var c in Faction) yield return c;
+            yield return Coliseum;
+            foreach (var c in Stat) yield return c;
+        }
+
+        /// <summary>True when the colour's RGB is one of this theme's tokens (clear and fully transparent colours are neutral).</summary>
+        public bool Owns(Color color)
+        {
+            if (color.a <= 0.001f) return true;
+            var c = (Color32)color;
+            foreach (var token in AllColors())
+                if (token.r == c.r && token.g == c.g && token.b == c.b) return true;
+            return false;
+        }
+
+        public static Color With(Color32 color, float alpha) { Color c = color; c.a = alpha; return c; }
+
+        /// <summary>
+        /// The shipped skin: slate-blue panels, warm-cream text and a gold accent from docs/art/palette.json. Every colour comes from
+        /// <see cref="UiPaletteTokens"/>, which tools/art/gen-ui-theme.cjs generates from that file (never hand-copied).
+        /// </summary>
+        public static UiTheme Skin()
+        {
+            var t = new UiTheme
+            {
+                Surface = UiPaletteTokens.Surface,
+                SurfaceRaised = UiPaletteTokens.SurfaceRaised,
+                SurfaceSunken = UiPaletteTokens.SurfaceSunken,
+                SurfaceHover = UiPaletteTokens.SurfaceHover,
+                SurfaceSelected = UiPaletteTokens.SurfaceSelected,
+                SurfaceDisabled = UiPaletteTokens.SurfaceDisabled,
+                Border = UiPaletteTokens.Border,
+                BorderStrong = UiPaletteTokens.BorderStrong,
+                Scrim = UiPaletteTokens.Scrim,
+                TextPrimary = UiPaletteTokens.TextPrimary,
+                TextSecondary = UiPaletteTokens.TextSecondary,
+                Accent = UiPaletteTokens.Accent,
+                AccentDim = UiPaletteTokens.AccentDim,
+                Danger = UiPaletteTokens.Danger,
+                Success = UiPaletteTokens.Success,
+                Warning = UiPaletteTokens.Warning,
+                Info = UiPaletteTokens.Info,
+                OutlineDark = UiPaletteTokens.OutlineDark,
+                OutlineLight = UiPaletteTokens.OutlineLight,
+                Faction = (Color32[])UiPaletteTokens.Faction.Clone(),
+                Coliseum = RegionPaletteGenerated.Srgb[(int)RegionId.Coliseum][RegionPaletteGenerated.Base],
+                Stat = (Color32[])UiPaletteTokens.Stat.Clone(),
+            };
+            return t;
+        }
+
+        /// <summary>Kept for existing callers: the shipped skin.</summary>
+        public static UiTheme Placeholder() { return Skin(); }
+    }
+}

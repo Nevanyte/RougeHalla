@@ -1,0 +1,331 @@
+{
+  "faction": 1,
+  "wish": "Trial",
+  "url": "http://127.0.0.1:8157/?server=ws%3A%2F%2F127.0.0.1%3A7857%2Fws&profile=redacted&faction=1&diagnostic=1&token=t1",
+  "attempts": 2,
+  "accepted": true,
+  "castWallMsSinceLaunch": 62143,
+  "serverDrivenEvidence": [
+    {
+      "kind": "sampleWish",
+      "frame": 10061,
+      "player": 1,
+      "moveSeq": 10,
+      "x": 642.700927734375,
+      "y": 3555.9931640625,
+      "at": 73614.19999980927,
+      "wall": 58933
+    },
+    {
+      "kind": "sampleWish",
+      "frame": 10535,
+      "player": 1,
+      "moveSeq": 12,
+      "x": 648.35595703125,
+      "y": 3560.977783203125,
+      "at": 76926.39999961853,
+      "wall": 62193
+    },
+    {
+      "kind": "presentWishStarted",
+      "frame": 10538,
+      "player": 1,
+      "ability": 2,
+      "sourceTime": 73650,
+      "at": 76949.19999980927,
+      "wall": 62193
+    },
+    {
+      "kind": "presentWishLanded",
+      "frame": 10589,
+      "player": 1,
+      "ability": 2,
+      "sourceTime": 74000,
+      "at": 77301.39999961853,
+      "wall": 62495
+    }
+  ],
+  "frames": [
+    {
+      "file": "f000.jpg",
+      "tMs": 0,
+      "tag": "2:0"
+    },
+    {
+      "file": "f001.jpg",
+      "tMs": 161,
+      "tag": "2:161"
+    },
+    {
+      "file": "f002.jpg",
+      "tMs": 310,
+      "tag": "2:310"
+    },
+    {
+      "file": "f003.jpg",
+      "tMs": 464,
+      "tag": "2:464"
+    },
+    {
+      "file": "f004.jpg",
+      "tMs": 618,
+      "tag": "2:618"
+    },
+    {
+      "file": "f005.jpg",
+      "tMs": 776,
+      "tag": "2:776"
+    },
+    {
+      "file": "f006.jpg",
+      "tMs": 938,
+      "tag": "2:938"
+    },
+    {
+      "file": "f007.jpg",
+      "tMs": 1094,
+      "tag": "2:1094"
+    },
+    {
+      "file": "f008.jpg",
+      "tMs": 1254,
+      "tag": "2:1254"
+    },
+    {
+      "file": "f009.jpg",
+      "tMs": 1427,
+      "tag": "2:1427"
+    },
+    {
+      "file": "f010.jpg",
+      "tMs": 1614,
+      "tag": "2:1614"
+    },
+    {
+      "file": "f011.jpg",
+      "tMs": 1844,
+      "tag": "2:1844"
+    },
+    {
+      "file": "f012.jpg",
+      "tMs": 2058,
+      "tag": "2:2058"
+    },
+    {
+      "file": "f013.jpg",
+      "tMs": 2212,
+      "tag": "2:2212"
+    },
+    {
+      "file": "f014.jpg",
+      "tMs": 2371,
+      "tag": "2:2371"
+    },
+    {
+      "file": "f015.jpg",
+      "tMs": 2571,
+      "tag": "2:2571"
+    },
+    {
+      "file": "f016.jpg",
+      "tMs": 2720,
+      "tag": "2:2720"
+    },
+    {
+      "file": "f017.jpg",
+      "tMs": 2870,
+      "tag": "2:2870"
+    },
+    {
+      "file": "f018.jpg",
+      "tMs": 3018,
+      "tag": "2:3018"
+    },
+    {
+      "file": "f019.jpg",
+      "tMs": 3172,
+      "tag": "2:3172"
+    },
+    {
+      "file": "f020.jpg",
+      "tMs": 3322,
+      "tag": "2:3322"
+    },
+    {
+      "file": "f021.jpg",
+      "tMs": 3469,
+      "tag": "2:3469"
+    },
+    {
+      "file": "f022.jpg",
+      "tMs": 3624,
+      "tag": "2:3624"
+    },
+    {
+      "file": "f023.jpg",
+      "tMs": 3775,
+      "tag": "2:3775"
+    },
+    {
+      "file": "f024.jpg",
+      "tMs": 3935,
+      "tag": "2:3935"
+    },
+    {
+      "file": "f025.jpg",
+      "tMs": 4095,
+      "tag": "2:4095"
+    },
+    {
+      "file": "f026.jpg",
+      "tMs": 4271,
+      "tag": "2:4271"
+    },
+    {
+      "file": "f027.jpg",
+      "tMs": 4466,
+      "tag": "2:4466"
+    },
+    {
+      "file": "f028.jpg",
+      "tMs": 4664,
+      "tag": "2:4664"
+    },
+    {
+      "file": "f029.jpg",
+      "tMs": 4816,
+      "tag": "2:4816"
+    },
+    {
+      "file": "f030.jpg",
+      "tMs": 4963,
+      "tag": "2:4963"
+    },
+    {
+      "file": "f031.jpg",
+      "tMs": 5116,
+      "tag": "2:5116"
+    },
+    {
+      "file": "f032.jpg",
+      "tMs": 5268,
+      "tag": "2:5268"
+    },
+    {
+      "file": "f033.jpg",
+      "tMs": 5423,
+      "tag": "2:5423"
+    },
+    {
+      "file": "f034.jpg",
+      "tMs": 5607,
+      "tag": "2:5607"
+    },
+    {
+      "file": "f035.jpg",
+      "tMs": 5815,
+      "tag": "2:5815"
+    },
+    {
+      "file": "f036.jpg",
+      "tMs": 5961,
+      "tag": "2:5961"
+    },
+    {
+      "file": "f037.jpg",
+      "tMs": 6142,
+      "tag": "2:6142"
+    },
+    {
+      "file": "f038.jpg",
+      "tMs": 6293,
+      "tag": "2:6293"
+    },
+    {
+      "file": "f039.jpg",
+      "tMs": 6472,
+      "tag": "2:6472"
+    },
+    {
+      "file": "f040.jpg",
+      "tMs": 6663,
+      "tag": "2:6663"
+    },
+    {
+      "file": "f041.jpg",
+      "tMs": 6828,
+      "tag": "2:6828"
+    },
+    {
+      "file": "f042.jpg",
+      "tMs": 7037,
+      "tag": "2:7037"
+    },
+    {
+      "file": "f043.jpg",
+      "tMs": 7202,
+      "tag": "2:7202"
+    },
+    {
+      "file": "f044.jpg",
+      "tMs": 7382,
+      "tag": "2:7382"
+    },
+    {
+      "file": "f045.jpg",
+      "tMs": 7609,
+      "tag": "2:7609"
+    },
+    {
+      "file": "f046.jpg",
+      "tMs": 7783,
+      "tag": "2:7783"
+    },
+    {
+      "file": "f047.jpg",
+      "tMs": 7994,
+      "tag": "2:7994"
+    },
+    {
+      "file": "f048.jpg",
+      "tMs": 8227,
+      "tag": "2:8227"
+    },
+    {
+      "file": "f049.jpg",
+      "tMs": 8406,
+      "tag": "2:8406"
+    },
+    {
+      "file": "f050.jpg",
+      "tMs": 8614,
+      "tag": "2:8614"
+    },
+    {
+      "file": "f051.jpg",
+      "tMs": 8787,
+      "tag": "2:8787"
+    },
+    {
+      "file": "f052.jpg",
+      "tMs": 8959,
+      "tag": "2:8959"
+    },
+    {
+      "file": "f053.jpg",
+      "tMs": 9116,
+      "tag": "2:9116"
+    },
+    {
+      "file": "f054.jpg",
+      "tMs": 9281,
+      "tag": "2:9281"
+    },
+    {
+      "file": "f055.jpg",
+      "tMs": 9458,
+      "tag": "2:9458"
+    }
+  ],
+  "consoleErrors": []
+}

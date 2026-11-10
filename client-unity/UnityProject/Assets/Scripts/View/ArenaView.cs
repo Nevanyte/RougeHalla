@@ -15,8 +15,24 @@ namespace Roguehalla.Client
         public const float GroundSquash = .78f;
         public static Vector3 WorldPoint(float x, float y) { return new Vector3(x * Scale, -y * Scale * GroundSquash, 0); }
         public bool HasMap { get; private set; }
+        /// <summary>Region and terrain lookup for the lighting, particle and music systems; see <see cref="RegionMap"/>.</summary>
+        public RegionMap Regions { get; } = new RegionMap();
+        /// <summary>"What is the character standing on" (snow, sand, mud, shallow water, bog...); see <see cref="SurfaceMap"/>.</summary>
+        public SurfaceMap Surfaces { get { return _surfaces ?? (_surfaces = new SurfaceMap(Regions)); } }
+        SurfaceMap _surfaces;
+        /// <summary>Region at a Unity world position (the space <see cref="WorldPoint"/> returns); None when the map has no region plane.</summary>
+        public RegionId RegionAt(Vector3 worldPos) { return Regions.RegionAt(worldPos); }
+        /// <summary>Region under the local player (debounced); None until the first position is known.</summary>
+        public RegionId LocalRegion { get { return Regions.LocalRegion; } }
+        /// <summary>Raised (previous, current) when the local player enters another region.</summary>
+        public event System.Action<RegionId, RegionId> LocalRegionChanged { add { Regions.LocalRegionChanged += value; } remove { Regions.LocalRegionChanged -= value; } }
+        RegionGround _regionGround; RegionWalls _regionWalls; RegionProps _regionProps;
+        /// <summary>Brightness multiplier for region ground and walls (they are lit by the same Light2D set as the actors).</summary>
+        public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
         ConfirmedWishPresenter _wishes;
+        WishFxPresenter _wishFx;
+        bool _collectWishNotes;
         double _sourceTimeMs;
         ShowcaseCatalog _catalog;
         Transform _mapRoot, _propsRoot, _fxRoot;
@@ -42,9 +58,20 @@ namespace Roguehalla.Client
         readonly Stack<Flash> _flashPool = new Stack<Flash>();
         Volume _volume;
         Light2D _ambient;
+        RegionAtmosphere _atmos;
+        Color _fogColor = new Color(.22f, .32f, .48f, .075f);
+        /// <summary>Region atmosphere driver (light, grading, haze, particles, accent lights, shadows, audio).</summary>
+        public RegionAtmosphere Atmosphere { get { return _atmos; } }
+        void ApplyHaze(Color c) { _fogColor = c; for (int i = 0; i < _fog.Count; i++) if (_fog[i] != null) _fog[i].color = c; }
         int _used;
         Vector3 _lastFollow;
+        float _smoothX, _smoothY;
+        bool _smoothValid;
+        /// <summary>Legacy CameraFollow constants: tau 35 ms, cut over 256 u or after a gap of more than 250 ms.</summary>
+        const float FollowTauSeconds = .035f, FollowCutUnits = 256f, FollowMaxDt = .25f;
         bool _hasFollow;
+        /// <summary>Observed actors currently presented (perf recorder context).</summary>
+        public int ObservedActorCount { get { return _actors != null ? _actors.ActiveCount : 0; } }
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
@@ -61,16 +88,20 @@ namespace Roguehalla.Client
             _actors = new SpriteActorPresenter(transform, _catalog);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
+            _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
             _ambient.color = new Color(.81f, .83f, .9f); _ambient.intensity = .86f;
             _volume = gameObject.AddComponent<Volume>(); _volume.isGlobal = true; _volume.priority = 2;
             var profile = Resources.Load<VolumeProfile>("Showcase/Atmosphere");
             if (profile != null) _volume.sharedProfile = profile;
+            AtmosphereQuality.Initialize();
+            _atmos = gameObject.AddComponent<RegionAtmosphere>();
             for (int i = 0; i < 32; i++) _motes.Add(ShowcaseSprites.Create(transform, "Ambient dust", "glow", 1500,
                 new Color(1.6f,1.2f,.6f,.35f), new Vector2(.07f,.07f), Vector3.zero, false));
             for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
                 new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
+            _atmos.Bind(this, _ambient, _volume, ApplyHaze);
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
@@ -79,6 +110,9 @@ namespace Roguehalla.Client
         public void Build(MapBlob map)
         {
             if (HasMap) return;
+            Regions.Load(map);
+            if (_atmos != null) _atmos.OnMapBuilt(map);
+            if (map.Regions != null && map.Regions.Length == map.W * map.H) { BuildRegionMap(map); return; }
             float w = map.W, h = map.H * GroundSquash;
             for (int y = 0; y < map.H; y += 4) for (int x = 0; x < map.W; x += 4)
             {
@@ -113,6 +147,15 @@ namespace Roguehalla.Client
             HasMap = true;
             ApplyQuality();
         }
+        /// <summary>Region-aware map: one ground quad, row-batched walls and deterministic props. Used when the map carries the region plane.</summary>
+        void BuildRegionMap(MapBlob map)
+        {
+            _regionGround = RegionGround.Create(_mapRoot, map, RegionExposure);
+            _regionWalls = RegionWalls.Build(_mapRoot, map, RegionExposure);
+            _regionProps = RegionProps.Build(_mapRoot, map);
+            HasMap = true;
+            ApplyQuality();
+        }
         static float Hash(int x, int y) { unchecked { uint h = (uint)(x * 73856093 ^ y * 19349663); return (h & 255) / 255f; } }
 
         void AddLantern(Vector3 p, int order, int index)
@@ -131,6 +174,7 @@ namespace Roguehalla.Client
         {
             _actors.Begin();
             uint mine = me != null ? me.Id : 0;
+            _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
             {
                 if (a.Id == mine) continue;
@@ -139,24 +183,33 @@ namespace Roguehalla.Client
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
+                _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
             }
-            if (_hasMembership) PresentLatestNpcs();
+            if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
             {
                 bool initialized = motion != null && motion.Initialized;
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
-                _actors.Present(me.Id, initialized ? motion.DrawnX : me.X, initialized ? motion.DrawnY : me.Y, aimAngle, healthPercent,
+                float mx = initialized ? motion.DrawnX : me.X, my = initialized ? motion.DrawnY : me.Y;
+                _actors.Present(me.Id, mx, my, aimAngle, healthPercent,
                     me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
+                _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
+                Regions.UpdateLocal(mx, my, Time.unscaledTime);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
             }
             _actors.End();
+            if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
             ReleaseScheduledFx();
             UpdateEffects();
             _wishes.Tick(_sourceTimeMs);
+            _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
         }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
+            if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             _renderReady = session != null && session.Clock.Ready;
             _renderMs = _renderReady ? session.Clock.RenderMs : 0;
@@ -179,6 +232,7 @@ namespace Roguehalla.Client
             if(me!=null) _membership.Add(me.Id);
             _hasMembership=true; _actors.Retain(_membership);
             _wishes.Retain(_membership);
+            _wishFx.Retain(_membership);
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
             PresentLatestNpcs();
@@ -189,25 +243,21 @@ namespace Roguehalla.Client
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
+            {
                 _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,a.BarrierPct,a.BarrierRingStep);
+                if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
+                if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+            }
         }
 
         public void PresentCollections(CollectionsView collections)
         {
             _used = 0;
+            if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
             {
-                foreach (var f in collections.Fields)
-                {
-                    Color c = FieldColor(f.Ability);
-                    if (f.Radius > 0) Prop("ring", WorldPoint(f.X, f.Y), new Vector2(f.Radius * Scale * 2, f.Radius * Scale * 2 * GroundSquash), c, 1200);
-                    if (f.Kind == AreaKind.Trail)
-                    {
-                        Vector3 a = WorldPoint(f.X, f.Y), b = WorldPoint(f.X2, f.Y2), d = b - a;
-                        var line = Prop("bar", (a + b) / 2, new Vector2(d.magnitude, .07f), c, 1201);
-                        line.transform.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
-                    }
-                }
+                // Zone, cloud and trail rows: drawn by the Wish presenter at exactly the delivered extents.
+                _wishFx.PresentAreas(collections.Fields);
                 foreach (var p in collections.Props)
                 {
                     var position = WorldPoint(p.X, p.Y); int order = 2000 + Mathf.RoundToInt(p.Y * .5f);
@@ -282,11 +332,8 @@ namespace Roguehalla.Client
             r.transform.position = p; r.transform.localScale = new Vector3(scale.x, scale.y, 1); r.transform.rotation = Quaternion.identity;
             return r;
         }
-        static Color FieldColor(AbilityId ability)
-        {
-            int i = ability == AbilityId.Blaze ? 0 : ability == AbilityId.Trial ? 1 : ability == AbilityId.Swarm ? 2 : ability == AbilityId.Freeze ? 3 : 4;
-            return ShowcasePalette.Faction(i);
-        }
+        /// <summary>Presentation-only swing at the owner's click; see <see cref="SpriteActorPresenter.LocalAttackCue"/>.</summary>
+        public void LocalAttackCue(uint id) { _actors.LocalAttackCue(id); }
         public void ConfirmedFx(ServerMsg.Fx fx) { ConfirmedFx(fx, 0, double.NaN); }
         /// <summary>
         /// Cues on a remote player drawn by interpolation wait until render time reaches <paramref name="dueMs"/> (source ms
@@ -301,6 +348,7 @@ namespace Roguehalla.Client
                 if (f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded)
                 {
                     _wishes.Accept(f);
+                    _wishFx.Accept(f);
                     continue;
                 }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
@@ -342,6 +390,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
+            _wishFx.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
                 var flash = _flashes[i];
@@ -389,30 +438,52 @@ namespace Roguehalla.Client
             go.SetActive(false);
             return new Flash{Sprite=sprite,Text=text};
         }
+        /// <summary>
+        /// Follows the owner with light smoothing (absorbs 2 to 6 u reconciliation corrections, legacy CameraFollow). The cursor is
+        /// always mapped through the camera as it actually stands (<see cref="ScreenToServer"/>), so smoothing never skews aim.
+        /// Cuts straight to the target on a jump, a long frame, or when <paramref name="cut"/> is set.
+        /// </summary>
+        public void FollowSmoothed(Camera cam, float serverX, float serverY, float dt, bool cut)
+        {
+            float dx = serverX - _smoothX, dy = serverY - _smoothY;
+            if (cut || !_smoothValid || !(dt >= 0f) || dt > FollowMaxDt || dx * dx + dy * dy > FollowCutUnits * FollowCutUnits)
+            { _smoothX = serverX; _smoothY = serverY; }
+            else
+            {
+                float alpha = 1f - Mathf.Exp(-dt / FollowTauSeconds);
+                _smoothX += dx * alpha; _smoothY += dy * alpha;
+            }
+            _smoothValid = true;
+            Follow(cam, _smoothX, _smoothY);
+        }
+        /// <summary>Raw follow (map peek); the next smoothed follow starts from its target.</summary>
+        public void FollowExact(Camera cam, float serverX, float serverY) { _smoothValid = false; Follow(cam, serverX, serverY); }
         public void Follow(Camera cam, float serverX, float serverY)
         {
             var p = WorldPoint(serverX, serverY); cam.transform.position = new Vector3(p.x, p.y + 1.5f, -30);
             cam.transform.rotation = Quaternion.identity;
             _lastFollow = p; _hasFollow = true;
             UpdateLampVisibility(p);
-            int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
+            if (_atmos != null) _atmos.OnFollow(cam, Time.unscaledDeltaTime);
+            bool ambient = Quality.AmbientParticles && Quality.Particles > 0f;
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
+            int moteLimit = ambient ? Mathf.Min(_motes.Count, Mathf.CeilToInt(_motes.Count * Mathf.Min(1f, Quality.Particles))) : 0;
             for(int i=0;i<_motes.Count;i++)
             {
-                var m = _motes[i]; m.enabled = budget > 0;
+                var m = _motes[i]; m.enabled = i < moteLimit && !(_atmos != null && _atmos.OwnsMotes);
                 float t = motion ? Time.unscaledTime * .03f : 0;
                 m.transform.position = p + new Vector3(Mathf.Repeat(i*7.31f+t,32)-16, Mathf.Repeat(i*3.71f+t*.7f,18)-9,0);
             }
             for(int i=0;i<_fog.Count;i++)
             {
-                _fog[i].enabled=budget>0;
+                _fog[i].enabled=ambient;
                 float t=motion ? Time.unscaledTime*.04f : 0;
                 _fog[i].transform.position=p+new Vector3(Mathf.Sin(t+i*2)*6,(i-1)*5,0);
             }
         }
         void UpdateLampVisibility(Vector3 p)
         {
-            int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
+            int budget = Quality.DynamicLights;
             int count = 0;
             foreach (var lamp in _lamps)
             {
@@ -429,12 +500,24 @@ namespace Roguehalla.Client
         void ApplyQuality()
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
-            if (_volume != null) _volume.enabled = quality != ShowcaseQuality.Low;
-            if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f;
-            foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
-            foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
+            // Presets come from the Quality row (QualityModel); AtmosphereQuality turns them into the per-effect switches
+            // (volume enable, bloom, grading, sun, shadows, lights, particles) and applies ?fx.* overrides.
+            AtmosphereQuality.RefreshFromSettings();
+            if (_atmos != null) _atmos.SetAmbientBase(AtmosphereQuality.PostProcessing ? .36f : .3f);   // near-constant base for every quality (no tonemapping at Low, so a little less)
+            foreach (var glow in _lampGlows) glow.enabled = Quality.DynamicLights > 0;
+            foreach (var light in _lamps) { light.SetShadows(Quality.Shadows); light.ApplyQuality(); }
             if (_hasFollow) UpdateLampVisibility(_lastFollow);
         }
-        void OnDestroy() { if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality; }
+        static void SetActive<T>(VolumeProfile profile, bool active) where T : VolumeComponent
+        {
+            T component; if (profile.TryGet(out component)) component.active = active;
+        }
+        void OnDestroy()
+        {
+            if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
+            if (_regionGround != null) _regionGround.Dispose();
+            if (_regionWalls != null) _regionWalls.Dispose();
+            if (_regionProps != null) _regionProps.Dispose();
+        }
     }
 }

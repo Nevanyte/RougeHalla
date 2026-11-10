@@ -142,7 +142,7 @@ namespace Roguehalla.Client
         void Redraw()
         {
             var pixels = new Color32[512 * 512];
-            Color32 baseLine = new Color32(103, 119, 137, 230);
+            Color32 baseLine = ShowcasePalette.PanelStroke;
             foreach (var edge in EdgeData)
             {
                 int from = Array.IndexOf(RingData, edge.Winner), to = Array.IndexOf(RingData, edge.Loser);
@@ -155,7 +155,7 @@ namespace Roguehalla.Client
             {
                 Vector2 p = At(i);
                 bool selected = _active == RingData[i];
-                DrawRing(pixels, (int)p.x, (int)p.y, selected ? 34 : 30, selected ? ShowcasePalette.Gold : new Color32(156, 172, 190, 255), selected ? 4 : 2);
+                DrawRing(pixels, (int)p.x, (int)p.y, selected ? 34 : 30, selected ? ShowcasePalette.Gold : ShowcasePalette.MutedText, selected ? 4 : 2);
             }
             _texture.SetPixels32(pixels);
             _texture.Apply(false, false);

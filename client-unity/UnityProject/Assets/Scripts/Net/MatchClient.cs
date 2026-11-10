@@ -27,8 +27,16 @@ namespace Roguehalla.Client
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
-        const float SteerAheadU = 64f;
         Vector2 _lastDir;
+        readonly Pathfinder _steerPathfinder = new Pathfinder();
+        double _steerGoalX, _steerGoalY;
+        const double HoldRepeatMs = 100;
+        const float HoldMovedU = 8f;
+        readonly OrderBudget _orderBudget = new OrderBudget();
+        StopRetry _stopRetry;
+        bool _rightHeld;
+        float _holdX, _holdY;
+        double _lastHold;
         double _lastSteer;
         bool _steering;
         float _aimAngle;
@@ -278,13 +286,19 @@ namespace Roguehalla.Client
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
+            // Camera first: the cursor ground point read by ReadInput must use this frame's camera, or aim is a frame stale.
+            FollowCamera();
             if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
+            bool probe = InputLatencyProbe.Enabled && Session.Motion != null && Session.Motion.Initialized && Session.Me != null;
+            if (probe && Session.State == SessionState.InMatch && (Hud == null || !Hud.BlocksKeyboardInput))
+                InputLatencyProbe.BeginFrame(Keyboard.current, NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
             if (Session.State == SessionState.InMatch)
             {
                 ReadInput();
                 Session.FlushInput();
             }
             Present();
+            if (probe) InputLatencyProbe.EndFrame(NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
         }
 
         void ReadInput()
@@ -293,6 +307,8 @@ namespace Roguehalla.Client
             if (m == null || !m.Initialized) return;
             double now = NowMs();
             float myX = m.DrawnX, myY = m.DrawnY;
+            // A Stop the server may have dropped (over budget orders are ignored silently) is sent again until the echo arrives.
+            if (_stopRetry.Due(now, m.OrderPending)) { OrderStop(false); }
 
             var mouse = Mouse.current;
             // Release is always forwarded, even if the pointer moved onto a panel after pressing.
@@ -300,6 +316,7 @@ namespace Roguehalla.Client
             {
                 Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
             }
+            if (mouse != null && !mouse.rightButton.isPressed) _rightHeld = false;
             bool keyboardBlocked = Hud != null && Hud.BlocksKeyboardInput;
             bool blocked = Hud != null && Hud.BlocksPointerInput;
             // Opening a map/menu cancels a held attack immediately; release is never swallowed by UI capture.
@@ -327,6 +344,7 @@ namespace Roguehalla.Client
                     else
                     {
                         Session.Input.Attack(_aimAngle, Session.Clock.RenderMs); _attackHeld = true;
+                        Arena?.LocalAttackCue(Session.PlayerId);
                         if (mouse.leftButton.wasReleasedThisFrame)
                         {
                             Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
@@ -335,8 +353,19 @@ namespace Roguehalla.Client
                 }
                 if (mouse.rightButton.wasPressedThisFrame)
                 {
-                    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) Session.Input.AttackMove(sx, sy);
-                    else OrderMove(sx, sy);
+                    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) { Session.Input.AttackMove(sx, sy); _orderBudget.Spend(now); _stopRetry.Cancel(); }
+                    else
+                    {
+                        OrderMove(sx, sy);
+                        // Holding the button keeps steering toward the cursor, like legacy holdMove.
+                        _rightHeld = true; _holdX = sx; _holdY = sy; _lastHold = now;
+                    }
+                }
+                else if (_rightHeld && mouse.rightButton.isPressed && !_steering && now - _lastHold >= HoldRepeatMs &&
+                    (sx - _holdX) * (sx - _holdX) + (sy - _holdY) * (sy - _holdY) > HoldMovedU * HoldMovedU && _orderBudget.TryTake(now))
+                {
+                    OrderMove(sx, sy, true);
+                    _holdX = sx; _holdY = sy; _lastHold = now;
                 }
             }
             var kb = Keyboard.current;
@@ -355,31 +384,52 @@ namespace Roguehalla.Client
             if (kb.qKey.wasPressedThisFrame) Session.Input.Swap();
             if (kb.eKey.wasPressedThisFrame) Session.Input.UseConsumable();
             if (kb.fKey.wasPressedThisFrame) PickupFocus();
-            // Server +y points down the screen. This sends destinations; it never simulates movement.
+            // Server +y points down the screen. This sends destinations; it never simulates movement. As in legacy
+            // keyboardMoveGoal, the destination is the first body-clear straight goal (held heading, then each axis of a
+            // diagonal, 64 down to 8 u) so steering into or along a wall slides instead of path-walking around it.
             bool arrows = Hud == null || !Hud.ConsumesArrowNavigation;
-            var dir = new Vector2((kb.dKey.isPressed || arrows && kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || arrows && kb.leftArrowKey.isPressed ? 1 : 0),
-                (kb.sKey.isPressed || arrows && kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || arrows && kb.upArrowKey.isPressed ? 1 : 0));
-            if (dir != Vector2.zero)
+            int keyX = (kb.dKey.isPressed || arrows && kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || arrows && kb.leftArrowKey.isPressed ? 1 : 0);
+            int keyY = (kb.sKey.isPressed || arrows && kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || arrows && kb.upArrowKey.isPressed ? 1 : 0);
+            if (keyX != 0 || keyY != 0)
             {
-                dir.Normalize();
-                if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
+                var dir = new Vector2(keyX, keyY);
+                bool have = Session.Map != null && KeyboardSteer.TryGoal(_steerPathfinder, Session.Map, myX, myY, keyX, keyY, out _steerGoalX, out _steerGoalY);
+                if (have)
                 {
-                    OrderMove(myX + dir.x * SteerAheadU, myY + dir.y * SteerAheadU);
-                    _lastDir = dir; _lastSteer = now; _steering = true;
+                    if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
+                    {
+                        OrderMove((float)_steerGoalX, (float)_steerGoalY);
+                        _lastDir = dir; _lastSteer = now; _steering = true;
+                    }
                 }
+                else if (_steering) { OrderStop(); _steering = false; }
             }
             else if (_steering) { OrderStop(); _steering = false; }
         }
 
-        void OrderMove(float x, float y)
+        void OrderMove(float x, float y, bool budgeted = false)
         {
+            if (!budgeted) _orderBudget.Spend(NowMs());
+            _stopRetry.Cancel(); // a newer move supersedes an unechoed Stop
             byte seq = Session.OrderMove(x, y);
             if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
         }
 
-        void OrderStop()
+        /// <summary>A move order from a map pixel: the same path as a world right-click. A repeat (held drag) is dropped when over the order budget.</summary>
+        public bool OrderMapMove(float x, float y, bool repeat)
         {
+            if (Session == null || Session.State != SessionState.InMatch) return false;
+            if (repeat && !_orderBudget.TryTake(NowMs())) return false;
+            OrderMove(x, y, repeat);
+            return true;
+        }
+
+        void OrderStop(bool fresh = true)
+        {
+            double now = NowMs();
+            _orderBudget.Spend(now);
             byte seq = Session.OrderStop();
+            _stopRetry.Sent(now, fresh);
             if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, seq, 0, 0);
         }
 
@@ -433,6 +483,15 @@ namespace Roguehalla.Client
                 if (drawn.Id == newest.Id) { x = drawn.X; y = drawn.Y; return; }
         }
 
+        void FollowCamera()
+        {
+            if (Cam == null || Arena == null) return;
+            if (Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.IsPeeking)
+            { var at = Hud.TacticalMap.PeekAt; Arena.FollowExact(Cam, at.x, at.y); }
+            else if (Session.Motion != null && Session.Motion.Initialized)
+                Arena.FollowSmoothed(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY, Time.unscaledDeltaTime, false);
+        }
+
         void Present()
         {
             if (Arena == null) return;
@@ -447,11 +506,6 @@ namespace Roguehalla.Client
                 foreach (var actor in _actors)
                     LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);
             }
-            if (Cam != null && Hud != null && Hud.TacticalMap != null && Hud.TacticalMap.IsPeeking)
-            {
-                var at = Hud.TacticalMap.PeekAt; Arena.Follow(Cam, at.x, at.y);
-            }
-            else if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }
     }
 }

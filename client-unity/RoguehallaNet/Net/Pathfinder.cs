@@ -123,6 +123,17 @@ namespace Roguehalla.Net
             return _outLen;
         }
 
+        /// <summary>
+        /// Can a disc of <paramref name="radius"/> slide straight from a to b? The mirror of rh-sim <c>segment_clear</c> (MASK_MOVE):
+        /// both end discs clear, the centre ray and the side rays clear. Read-only; used to choose which destination to send.
+        /// </summary>
+        public bool SegmentClear(MapBlob map, double ax, double ay, double bx, double by, double radius)
+        {
+            Prepare(map);
+            if (!CircleClear(ax, ay, radius) || !CircleClear(bx, by, radius)) return false;
+            return SegmentRaysClear(new PathPoint(ax, ay), new PathPoint(bx, by), radius);
+        }
+
         // ----------------------------------------------------------------------------------------------------------------
         // Planning (find_path_into)
 

@@ -64,6 +64,7 @@ pub(crate) fn after_weapons(cx: &mut Cx) {
     // factions.ts explicitly filters c.kind !== "player"); NPCs are corrected here instead.
     for i in 0..cx.w.fighter_count() {
         let ix = crate::fighter::FighterIx::of_slot(i);
+        // weapons::update sized attack_started to the fighter count, and no fighter joins between it and here.
         if !cx.w.standing(ix) || !cx.s.attack_started[i] {
             continue;
         }

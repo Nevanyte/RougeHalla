@@ -15,9 +15,9 @@ The raw inputs are three pinned atlases: dungeon and cave are reused from their 
 
 | Family | Source atlas | Dimensions | Useful source areas | Definition |
 |---|---|---:|---|---|
-| Dungeon | `tileset_dungeon.png` | 2167×3999 | stone floors/walls, hanging banners, barred doorways, torch, brazier, statues, plinths, chests, barrels, crates, chains, remains | `tileset_dungeon.txt` |
-| Cave | `tileset_cave.png` | 2057×3037 | cave floors/walls, rubble/bone clusters, stone spires, timber pieces, portal-ring family | `tileset_cave.txt` |
-| Grassland | `tileset_grassland.png` | 2180×3612 | grass/cliff surfaces, campfire, anvil, fence posts, vegetation, rocks, gravestones/crosses, trees/dead trees, building components | `tileset_grassland.txt` |
+| Dungeon | `tileset_dungeon.jpg` | 2167×3999 | stone floors/walls, hanging banners, barred doorways, torch, brazier, statues, plinths, chests, barrels, crates, chains, remains | `tileset_dungeon.txt` |
+| Cave | `tileset_cave.jpg` | 2057×3037 | cave floors/walls, rubble/bone clusters, stone spires, timber pieces, portal-ring family | `tileset_cave.txt` |
+| Grassland | `tileset_grassland.jpg` | 2180×3612 | grass/cliff surfaces, campfire, anvil, fence posts, vegetation, rocks, gravestones/crosses, trees/dead trees, building components | `tileset_grassland.txt` |
 
 Each `tile=` line is retained verbatim. Per the [official Tile Set Definitions format](https://github.com/flareteam/flare-engine/wiki/Tile-Set-Definitions), a row is `tile=index,left_x,top_y,width,height,offset_x,offset_y`; the last two numbers are Flare's draw offset relative to the source rect, with the offset point at the isometric grid-square center. They are **not** a Unity-normalized pivot. Use the raw values and preserve source orientation. If a tile has an `animation=` record, `candidate-tiles.json` stores it; a crop file shows only the base `tile=` rectangle, not the animation sequence.
 

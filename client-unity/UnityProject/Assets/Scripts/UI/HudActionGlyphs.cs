@@ -2,13 +2,14 @@ using UnityEngine;
 
 namespace Roguehalla.Client
 {
-    public enum HudActionGlyph { Help, Settings, Leave, Pickup }
+    public enum HudActionGlyph { Help, Settings, Leave, Pickup, Fullscreen }
 
     /// <summary>Cached, code-drawn neutral glyphs for compact HUD actions.</summary>
     public static class HudActionGlyphs
     {
-        const int Resolution = 64;
-        static readonly Sprite[] Sprites = new Sprite[4];
+        // Shapes are authored on a 64 unit grid, drawn at 4x and box-filtered down to 128 px, then mip-mapped (crisp at any HUD scale).
+        const int Design = 64, Super = 4, Hi = Design * Super, Resolution = 128;
+        static readonly Sprite[] Sprites = new Sprite[5];
 
         public static UnityEngine.UI.Image Icon(Transform parent, string name, HudActionGlyph glyph, float size = 40f)
         {
@@ -29,7 +30,7 @@ namespace Roguehalla.Client
         {
             int index = (int)glyph;
             if (Sprites[index] != null) return Sprites[index];
-            var pixels = new Color32[Resolution * Resolution];
+            var pixels = new Color32[Hi * Hi];
             switch (glyph)
             {
                 case HudActionGlyph.Help:
@@ -48,6 +49,13 @@ namespace Roguehalla.Client
                     Line(pixels, new Vector2(41, 21), new Vector2(52, 32), 6);
                     Line(pixels, new Vector2(52, 32), new Vector2(41, 43), 6);
                     break;
+                case HudActionGlyph.Fullscreen:
+                    // Four corner brackets.
+                    Polyline(pixels, new[] { new Vector2(10, 24), new Vector2(10, 10), new Vector2(24, 10) }, 5);
+                    Polyline(pixels, new[] { new Vector2(40, 10), new Vector2(54, 10), new Vector2(54, 24) }, 5);
+                    Polyline(pixels, new[] { new Vector2(54, 40), new Vector2(54, 54), new Vector2(40, 54) }, 5);
+                    Polyline(pixels, new[] { new Vector2(24, 54), new Vector2(10, 54), new Vector2(10, 40) }, 5);
+                    break;
                 case HudActionGlyph.Pickup:
                     FillRect(pixels, 11, 17, 42, 25);
                     ClearRect(pixels, 16, 22, 32, 15);
@@ -57,14 +65,22 @@ namespace Roguehalla.Client
                     Line(pixels, new Vector2(32, 7), new Vector2(42, 17), 5);
                     break;
             }
-            var texture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, false)
+            var small = new Color32[Resolution * Resolution]; int ratio = Hi / Resolution;
+            for (int y = 0; y < Resolution; y++)
+                for (int x = 0; x < Resolution; x++)
+                {
+                    int sum = 0;
+                    for (int dy = 0; dy < ratio; dy++) for (int dx = 0; dx < ratio; dx++) sum += pixels[(y * ratio + dy) * Hi + x * ratio + dx].a;
+                    small[y * Resolution + x] = new Color32(255, 255, 255, (byte)(sum / (ratio * ratio)));
+                }
+            var texture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, true)
             {
                 name = "Hud action " + glyph,
-                filterMode = FilterMode.Bilinear,
+                filterMode = FilterMode.Trilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
-            texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.SetPixels32(small);
+            texture.Apply(true, true);
             Sprites[index] = Sprite.Create(texture, new Rect(0, 0, Resolution, Resolution), new Vector2(.5f, .5f), Resolution, 0, SpriteMeshType.FullRect);
             Sprites[index].name = "Hud action " + glyph;
             return Sprites[index];
@@ -76,6 +92,7 @@ namespace Roguehalla.Client
             {
                 case HudActionGlyph.Help: return ShowcasePalette.Gold;
                 case HudActionGlyph.Settings: return ShowcasePalette.MutedText;
+                case HudActionGlyph.Fullscreen: return ShowcasePalette.Text;
                 case HudActionGlyph.Leave: return ShowcasePalette.Warning;
                 case HudActionGlyph.Pickup: return ShowcasePalette.Success;
                 default: return ShowcasePalette.Text;
@@ -102,13 +119,15 @@ namespace Roguehalla.Client
             for (int i = 1; i < points.Length; i++) Line(pixels, points[i - 1], points[i], width);
         }
 
+        // Every primitive takes design units (64 grid) and scales them to the hi-res buffer.
         static void Line(Color32[] pixels, Vector2 a, Vector2 b, float width)
         {
-            float radius = width * .5f;
+            a *= Super; b *= Super;
+            float radius = width * Super * .5f;
             int minX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.x, b.x) - radius));
-            int maxX = Mathf.Min(Resolution - 1, Mathf.CeilToInt(Mathf.Max(a.x, b.x) + radius));
+            int maxX = Mathf.Min(Hi - 1, Mathf.CeilToInt(Mathf.Max(a.x, b.x) + radius));
             int minY = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.y, b.y) - radius));
-            int maxY = Mathf.Min(Resolution - 1, Mathf.CeilToInt(Mathf.Max(a.y, b.y) + radius));
+            int maxY = Mathf.Min(Hi - 1, Mathf.CeilToInt(Mathf.Max(a.y, b.y) + radius));
             Vector2 segment = b - a;
             float lengthSq = segment.sqrMagnitude;
             float radiusSq = radius * radius;
@@ -120,40 +139,34 @@ namespace Roguehalla.Client
             }
         }
 
-        static void Circle(Color32[] pixels, int cx, int cy, int radius)
+        static void Circle(Color32[] pixels, int cx, int cy, int radius) { Disc(pixels, cx, cy, radius, Ink); }
+        static void ClearCircle(Color32[] pixels, int cx, int cy, int radius) { Disc(pixels, cx, cy, radius, new Color32(255, 255, 255, 0)); }
+
+        static void Disc(Color32[] pixels, int cx, int cy, int radius, Color32 value)
         {
-            int r2 = radius * radius;
-            for (int y = Mathf.Max(0, cy - radius); y <= Mathf.Min(Resolution - 1, cy + radius); y++)
-                for (int x = Mathf.Max(0, cx - radius); x <= Mathf.Min(Resolution - 1, cx + radius); x++)
-                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r2) Set(pixels, x, y, Ink);
+            float px = cx * Super, py = cy * Super, r = radius * Super, r2 = r * r;
+            for (int y = Mathf.Max(0, Mathf.FloorToInt(py - r)); y <= Mathf.Min(Hi - 1, Mathf.CeilToInt(py + r)); y++)
+                for (int x = Mathf.Max(0, Mathf.FloorToInt(px - r)); x <= Mathf.Min(Hi - 1, Mathf.CeilToInt(px + r)); x++)
+                    if ((x + .5f - px) * (x + .5f - px) + (y + .5f - py) * (y + .5f - py) <= r2) Set(pixels, x, y, value);
         }
 
-        static void ClearCircle(Color32[] pixels, int cx, int cy, int radius)
+        static void FillRect(Color32[] pixels, int x, int y, int width, int height) { FillArea(pixels, x, y, width, height, Ink); }
+        static void ClearRect(Color32[] pixels, int x, int y, int width, int height) { FillArea(pixels, x, y, width, height, new Color32(255, 255, 255, 0)); }
+
+        static void FillArea(Color32[] pixels, int x, int y, int width, int height, Color32 value)
         {
-            int r2 = radius * radius;
-            for (int y = Mathf.Max(0, cy - radius); y <= Mathf.Min(Resolution - 1, cy + radius); y++)
-                for (int x = Mathf.Max(0, cx - radius); x <= Mathf.Min(Resolution - 1, cx + radius); x++)
-                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r2) Set(pixels, x, y, new Color32(255, 255, 255, 0));
+            for (int py = Mathf.Max(0, y * Super); py < Mathf.Min(Hi, (y + height) * Super); py++)
+                for (int px = Mathf.Max(0, x * Super); px < Mathf.Min(Hi, (x + width) * Super); px++) Set(pixels, px, py, value);
         }
 
-        static void FillRect(Color32[] pixels, int x, int y, int width, int height)
+        static void FillPolygon(Color32[] pixels, Vector2[] design)
         {
-            for (int py = Mathf.Max(0, y); py < Mathf.Min(Resolution, y + height); py++)
-                for (int px = Mathf.Max(0, x); px < Mathf.Min(Resolution, x + width); px++) Set(pixels, px, py, Ink);
-        }
-
-        static void ClearRect(Color32[] pixels, int x, int y, int width, int height)
-        {
-            for (int py = Mathf.Max(0, y); py < Mathf.Min(Resolution, y + height); py++)
-                for (int px = Mathf.Max(0, x); px < Mathf.Min(Resolution, x + width); px++) Set(pixels, px, py, new Color32(255, 255, 255, 0));
-        }
-
-        static void FillPolygon(Color32[] pixels, Vector2[] points)
-        {
-            int minY = Resolution - 1, maxY = 0;
+            var points = new Vector2[design.Length];
+            for (int i = 0; i < points.Length; i++) points[i] = design[i] * Super;
+            int minY = Hi - 1, maxY = 0;
             for (int i = 0; i < points.Length; i++) { minY = Mathf.Min(minY, Mathf.FloorToInt(points[i].y)); maxY = Mathf.Max(maxY, Mathf.CeilToInt(points[i].y)); }
-            for (int y = Mathf.Max(0, minY); y <= Mathf.Min(Resolution - 1, maxY); y++)
-                for (int x = 0; x < Resolution; x++)
+            for (int y = Mathf.Max(0, minY); y <= Mathf.Min(Hi - 1, maxY); y++)
+                for (int x = 0; x < Hi; x++)
                 {
                     bool inside = false;
                     Vector2 p = new Vector2(x + .5f, y + .5f);
@@ -168,8 +181,8 @@ namespace Roguehalla.Client
 
         static void Set(Color32[] pixels, int x, int y, Color32 value)
         {
-            if ((uint)x >= Resolution || (uint)y >= Resolution) return;
-            pixels[y * Resolution + x] = value;
+            if ((uint)x >= Hi || (uint)y >= Hi) return;
+            pixels[y * Hi + x] = value;
         }
     }
 }

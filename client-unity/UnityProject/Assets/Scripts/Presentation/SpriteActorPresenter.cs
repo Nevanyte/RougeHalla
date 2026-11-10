@@ -12,7 +12,7 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, BodyRim, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public SpriteRenderer Body, BodyRim, BodyGlow, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
             public ShowcaseIdentityOwner Identity;
             public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
@@ -22,8 +22,13 @@ namespace Roguehalla.Client
             public ShowcasePointLight Light;
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
-            public float MovingUntil, AttackUntil;
+            public float AttackUntil;
+            public GaitState Gait;
+            public float StampTime;
+            public bool LocalCue;
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
+            public float WishAt, WishUntil; public byte WishClip;
+            public Color WishTint; public float WishTintAmount;
             public bool Dead, HoldDeathFrame;
             public WeaponId? WeaponId;
             public FactionId? Faction;
@@ -51,6 +56,7 @@ namespace Roguehalla.Client
 
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
+        public int ActiveCount { get { return _active.Count; } }
         public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {
@@ -64,8 +70,10 @@ namespace Roguehalla.Client
             foreach (var pair in _active)
             {
                 var a = pair.Value;
-                a.MovingUntil = a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
+                a.AttackUntil = a.HitUntil = a.BlockUntil = 0; a.WishUntil = 0;
+                a.Gait.Reset();
                 a.AttackAt = a.HitAt = a.BlockAt = a.DeadAt = 0;
+                a.LocalCue = false;
                 a.HoldDeathFrame = a.Dead;
             }
         }
@@ -74,12 +82,28 @@ namespace Roguehalla.Client
             if (_active.TryGetValue(id, out var art)) { position = art.Root.transform.position; return true; }
             position = default; return false;
         }
+        /// <summary>
+        /// Cosmetic swing at the moment of the owner's click, before the server answers. It carries no rule: hit, damage and
+        /// cooldown come only from the server. The clip simply ends if the server never confirms; the first confirmed swing
+        /// within <see cref="LocalCueWindow"/> adopts it instead of restarting it.
+        /// </summary>
+        public void LocalAttackCue(uint id)
+        {
+            if (!_active.TryGetValue(id, out var art) || art.Dead || !art.WeaponId.HasValue) return;
+            float now = Time.unscaledTime;
+            if (art.AttackUntil > now && !art.LocalCue) return; // a confirmed swing is already playing
+            art.AttackAt = now; art.LocalCue = true;
+            art.AttackUntil = now + ClipDuration(AttackFrames(art.Appearance, art.WeaponId.Value, out float fps), fps, .32f);
+        }
+        const float LocalCueWindow = .6f;
         public void ConfirmedCue(uint id, FxKind kind)
         {
             if (!_active.TryGetValue(id,out var art)) return;
             float now=Time.unscaledTime;
             if(kind==FxKind.Swing && art.WeaponId.HasValue)
             {
+                if(art.LocalCue && now-art.AttackAt<LocalCueWindow) { art.LocalCue=false; return; }
+                art.LocalCue=false;
                 art.AttackAt=now;
                 var clip=AttackFrames(art.Appearance,art.WeaponId.Value,out float fps);
                 art.AttackUntil=now+ClipDuration(clip,fps,.32f);
@@ -93,8 +117,40 @@ namespace Roguehalla.Client
                 art.BlockAt=now;art.BlockUntil=now+ClipDuration(art.Appearance?.Block,art.Appearance!=null ? art.Appearance.BlockFPS : 10,.2f);
             }
         }
+        /// <summary>
+        /// Plays the character clip that fits a delivered Wish cue on an observed actor: Cast for Freeze, Swarm and Trial, Attack
+        /// for Blaze Step, Block for Last Stand (each falling back to another clip when the character lacks it).
+        /// Presentation only; the cue was confirmed by the server's Wish fx record.
+        /// </summary>
+        public bool WishCue(uint id, AbilityId ability)
+        {
+            if (!_active.TryGetValue(id, out var art) || art.Dead) return false;
+            byte clip = ability == AbilityId.Blaze ? (byte)1 : ability == AbilityId.LastStand ? (byte)2 : (byte)0;
+            Sprite[] frames; float fps; WishFrames(art.Appearance, clip, out frames, out fps);
+            float now = Time.unscaledTime;
+            art.WishClip = clip; art.WishAt = now; art.WishUntil = now + ClipDuration(frames, fps, .4f);
+            return true;
+        }
+        static void WishFrames(ShowcaseCatalog.Appearance a, byte clip, out Sprite[] frames, out float fps)
+        {
+            frames = null; fps = 10;
+            if (a == null) return;
+            if (clip == 2 && a.Block != null && a.Block.Length > 0) { frames = a.Block; fps = a.BlockFPS; return; }
+            if (clip == 1 && a.Attack != null && a.Attack.Length > 0) { frames = a.Attack; fps = a.AttackFPS; return; }
+            if (a.Cast != null && a.Cast.Length > 0) { frames = a.Cast; fps = a.CastFPS; return; }
+            if (a.Attack != null && a.Attack.Length > 0) { frames = a.Attack; fps = a.AttackFPS; return; }
+            if (a.Block != null && a.Block.Length > 0) { frames = a.Block; fps = a.BlockFPS; }
+        }
+        /// <summary>Tints an observed actor's body toward <paramref name="tint"/> for the status it shows. Cleared by <see cref="ClearWishTints"/>.</summary>
+        public void SetWishTint(uint id, Color tint, float amount)
+        {
+            if (_active.TryGetValue(id, out var art)) { art.WishTint = tint; art.WishTintAmount = Mathf.Clamp01(amount); }
+        }
+        public void ClearWishTints() { foreach (var pair in _active) pair.Value.WishTintAmount = 0f; }
         static float ClipDuration(Sprite[] clip,float fps,float fallback)
         { return clip!=null && clip.Length>0 ? clip.Length/8f/Mathf.Max(1,fps) : fallback; }
+        static bool WishClipFrames(ShowcaseCatalog.Appearance a, byte clip, out Sprite[] frames, out float fps)
+        { WishFrames(a, clip, out frames, out fps); return frames != null && frames.Length > 0; }
         static Sprite[] AttackFrames(ShowcaseCatalog.Appearance a,WeaponId weapon,out float fps)
         {
             fps=a!=null ? a.AttackFPS : 10;
@@ -138,13 +194,24 @@ namespace Roguehalla.Client
             if (!_active.TryGetValue(id, out var a))
             {
                 a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
-                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.MovingUntil = a.AttackUntil = 0;
-                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;
+                a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.AttackUntil = 0;
+                a.Gait.Reset(); a.StampTime = Time.unscaledTime;
+                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
             }
             a.Stamp = _stamp;
             var position = ArenaView.WorldPoint(x, y);
-            if ((position - a.LastPosition).sqrMagnitude > .000001f) a.MovingUntil = Time.unscaledTime + .12f;
-            a.LastPosition = position; a.Root.transform.position = position;
+            // Gait reads displacement only (presentation). Present can run twice in a frame for NPCs: a zero-dt call leaves
+            // LastPosition alone so the next real frame still sees the whole displacement.
+            float gaitNow = Time.unscaledTime, gaitDt = gaitNow - a.StampTime;
+            if (gaitDt > 1e-4f)
+            {
+                float dxs = (position.x - a.LastPosition.x) / ArenaView.Scale;
+                float dys = -(position.y - a.LastPosition.y) / (ArenaView.Scale * ArenaView.GroundSquash);
+                float walkFps = a.Appearance != null ? a.Appearance.WalkFPS : 10f;
+                Gait.Advance(ref a.Gait, dxs, dys, gaitDt, facing, walkFps, local ? 0f : .12f);
+                a.StampTime = gaitNow; a.LastPosition = position;
+            }
+            a.Root.transform.position = position;
             int order = 2000 + Mathf.RoundToInt(y * .5f);
             bool neutral = kind == ActorKind.QuestGiver;
             Color color = faction.HasValue ? ShowcasePalette.Faction((int)faction.Value) : ShowcasePalette.MutedText;
@@ -162,19 +229,21 @@ namespace Roguehalla.Client
             var appearance = a.Appearance;
             Sprite[] frames=appearance?.Idle;
             float fps=appearance!=null ? appearance.IdleFPS : 10;
-            float elapsed=Time.unscaledTime;bool loop=true;
+            float elapsed=Time.unscaledTime;bool loop=true,walkPhase=false;
             if(appearance!=null)
             {
                 if(dead && appearance.Death!=null && appearance.Death.Length>0)
                 { frames=appearance.Death;fps=appearance.DeathFPS;elapsed-=a.DeadAt;loop=false; }
+                else if(a.WishUntil>Time.unscaledTime && WishClipFrames(appearance,a.WishClip,out frames,out fps))
+                { elapsed-=a.WishAt;loop=false; }
                 else if(a.BlockUntil>Time.unscaledTime && appearance.Block!=null && appearance.Block.Length>0)
                 { frames=appearance.Block;fps=appearance.BlockFPS;elapsed-=a.BlockAt;loop=false; }
                 else if(a.HitUntil>Time.unscaledTime && appearance.Hit!=null && appearance.Hit.Length>0)
                 { frames=appearance.Hit;fps=appearance.HitFPS;elapsed-=a.HitAt;loop=false; }
                 else if(a.AttackUntil>Time.unscaledTime && weapon.HasValue)
                 { frames=AttackFrames(appearance,weapon.Value,out fps);elapsed-=a.AttackAt;loop=false; }
-                else if(a.MovingUntil>Time.unscaledTime && appearance.Walk.Length>0)
-                { frames=appearance.Walk;fps=appearance.WalkFPS; }
+                else if(a.Gait.Walking && appearance.Walk.Length>0)
+                { frames=appearance.Walk;fps=appearance.WalkFPS;walkPhase=true; }
             }
             if (frames != null && frames.Length > 0)
             {
@@ -182,9 +251,9 @@ namespace Roguehalla.Client
                 int count = frames.Length / 8;
                 // Flare: SW,W,NW,N,NE,E,SE,S; server facing zero is screen east.
                 int direction = ((Mathf.RoundToInt(facing / (Mathf.PI / 4)) + 5) % 8 + 8) % 8;
-                int rawFrame=Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
+                int rawFrame=walkPhase ? 0 : Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
                 int frame = dead && a.HoldDeathFrame ? count - 1 :
-                    reduced ? (dead ? count-1 : 0) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
+                    reduced ? (dead ? count-1 : 0) : walkPhase ? Gait.FrameIndex(a.Gait.Phase,count) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
                 a.Body.sprite = frames[Mathf.Min(frames.Length - 1, direction * count + frame)];
                 float height = appearance.WorldHeight;
                 a.Body.transform.localScale = Vector3.one * height;
@@ -197,6 +266,7 @@ namespace Roguehalla.Client
                 a.Body.transform.localPosition = new Vector3(0, .55f, 0);
             }
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
+            if (!dead && a.WishTintAmount > 0f) a.Body.color = Color.Lerp(a.Body.color, a.WishTint, a.WishTintAmount);
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
             a.BodyRim.sprite = a.Body.sprite;
@@ -205,9 +275,17 @@ namespace Roguehalla.Client
             a.BodyRim.transform.localScale = a.Body.transform.localScale * 1.045f;
             a.BodyRim.sortingOrder = order-1;
             a.BodyRim.color = new Color(.008f,.012f,.02f,dead ? .35f : .88f);
+            // Light outer rim outside the dark outline: dark characters stay separable on dark ground (the dark outline carries pale ground).
+            a.BodyGlow.sprite = a.Body.sprite;
+            a.BodyGlow.transform.localPosition = a.Body.transform.localPosition;
+            a.BodyGlow.transform.localRotation = a.Body.transform.localRotation;
+            a.BodyGlow.transform.localScale = a.Body.transform.localScale * 1.13f;
+            a.BodyGlow.sortingOrder = order - 3;
+            AtmosphereShadows.ApplyRim(a.BodyGlow, x / 32f, y / 32f, dead ? .4f : 1f);
             int factionArt = faction.HasValue ? (int)faction.Value : -1;
             a.Identity.Present(factionArt,kind,mob,order,!dead);
             a.Shadow.sortingOrder = order - 8;
+            AtmosphereShadows.ApplyActor(a.Shadow, x / 32f, y / 32f);
             a.Halo.sortingOrder = order - 7;
             a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
             a.Halo.sprite = FactionIndicators.GetFootprint(factionArt);
@@ -230,7 +308,7 @@ namespace Roguehalla.Client
             const float unitWidth = .85f;
             float width = healthShare * unitWidth;
             float totalTrackWidth = Mathf.Max(.98f, unitWidth * (healthShare + barrierShare) + .04f);
-            a.HpBack.transform.localScale = new Vector3(totalTrackWidth, .11f, 1);
+            a.HpBack.transform.localScale = new Vector3(totalTrackWidth + .06f, .145f, 1);
             a.HpBack.transform.localPosition = new Vector3(-.49f + totalTrackWidth / 2, 1.8f, 0);
             a.Hp.transform.localScale = new Vector3(width, .055f, 1);
             a.Hp.transform.localPosition = new Vector3(-.49f + width / 2, 1.8f, 0);
@@ -301,11 +379,12 @@ namespace Roguehalla.Client
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
             a.BodyRim = ShowcaseSprites.Create(t, "Character contrast rim", "rune", 1, Color.black, Vector2.one, Vector3.zero, false);
+            a.BodyGlow = ShowcaseSprites.Create(t, "Character light rim", "rune", 0, Color.white, Vector2.one, Vector3.zero, false);
             a.Identity = ShowcaseIdentityOwner.Configure(t);
             a.Identity.StandaloneFactionBadge = false; // The existing tested backed faction mark remains canonical here.
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
             a.Rune = ShowcaseSprites.Create(t, "Faction insignia", "rune", 3, Color.white, Vector2.one, Vector3.zero, false);
-            a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.98f, .11f), new Vector3(0, 1.8f), false);
+            a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, (Color)UiTheme.Current.OutlineDark, new Vector2(1.04f, .145f), new Vector3(0, 1.8f), false);
             a.Hp = ShowcaseSprites.Create(t, "Confirmed health", "bar", 5, Color.white, Vector2.one, Vector3.zero, false);
             a.Barrier = ShowcaseSprites.Create(t, "Confirmed barrier", "bar", 6, ShowcasePalette.Gold, Vector2.one, Vector3.zero, false);
             a.BarrierRing = new SpriteRenderer[8];

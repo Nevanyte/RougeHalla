@@ -1,0 +1,212 @@
+[
+ {
+  "shot": "r2-sentenced-fire-1",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.336,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.049,
+    "darkEdge": 1.45,
+    "lightEdge": 3.5,
+    "contrast": 3.5
+   },
+   "bar": {
+    "ground": 0.042,
+    "darkEdge": 1.7,
+    "lightEdge": 6.49,
+    "contrast": 6.49
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-fire-2",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.336,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.05,
+    "darkEdge": 1.48,
+    "lightEdge": 3.45,
+    "contrast": 3.45
+   },
+   "bar": {
+    "ground": 0.042,
+    "darkEdge": 1.7,
+    "lightEdge": 6.48,
+    "contrast": 6.48
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-sentenced-1",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.338,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.049,
+    "darkEdge": 1.5,
+    "lightEdge": 3.35,
+    "contrast": 3.35
+   },
+   "bar": {
+    "ground": 0.041,
+    "darkEdge": 1.69,
+    "lightEdge": 6.51,
+    "contrast": 6.51
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-sentenced-2",
+  "region": "sentenced",
+  "mean": 0.206,
+  "p95": 0.339,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.049,
+    "darkEdge": 1.52,
+    "lightEdge": 3.99,
+    "contrast": 3.99
+   },
+   "bar": {
+    "ground": 0.041,
+    "darkEdge": 1.69,
+    "lightEdge": 6.51,
+    "contrast": 6.51
+   }
+  }
+ },
+ {
+  "shot": "r2-frost-plague-1",
+  "region": "frost",
+  "mean": 0.599,
+  "p95": 0.792,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.568,
+    "darkEdge": 6.57,
+    "lightEdge": 1.02,
+    "contrast": 6.57
+   },
+   "bar": {
+    "ground": 0.539,
+    "darkEdge": 10.08,
+    "lightEdge": 1.05,
+    "contrast": 10.08
+   }
+  }
+ },
+ {
+  "shot": "r2-frost-plague-2",
+  "region": "frost",
+  "mean": 0.599,
+  "p95": 0.792,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.568,
+    "darkEdge": 6.55,
+    "lightEdge": 1.02,
+    "contrast": 6.55
+   },
+   "bar": {
+    "ground": 0.537,
+    "darkEdge": 10.04,
+    "lightEdge": 1.06,
+    "contrast": 10.04
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-frost-1",
+  "region": "sentenced",
+  "mean": 0.214,
+  "p95": 0.352,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.056,
+    "darkEdge": 1.58,
+    "lightEdge": 3.08,
+    "contrast": 3.08
+   },
+   "bar": {
+    "ground": 0.043,
+    "darkEdge": 1.76,
+    "lightEdge": 6.32,
+    "contrast": 6.32
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-frost-2",
+  "region": "sentenced",
+  "mean": 0.214,
+  "p95": 0.352,
+  "clipped": 0.04,
+  "contrast": {
+   "sprite": {
+    "ground": 0.056,
+    "darkEdge": 1.58,
+    "lightEdge": 3.41,
+    "contrast": 3.41
+   },
+   "bar": {
+    "ground": 0.044,
+    "darkEdge": 1.79,
+    "lightEdge": 6.24,
+    "contrast": 6.24
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-holy-1",
+  "region": "sentenced",
+  "mean": 0.215,
+  "p95": 0.352,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.061,
+    "darkEdge": 1.47,
+    "lightEdge": 2.93,
+    "contrast": 2.93
+   },
+   "bar": {
+    "ground": 0.048,
+    "darkEdge": 1.8,
+    "lightEdge": 6.08,
+    "contrast": 6.08
+   }
+  }
+ },
+ {
+  "shot": "r2-sentenced-holy-2",
+  "region": "sentenced",
+  "mean": 0.215,
+  "p95": 0.352,
+  "clipped": 0.05,
+  "contrast": {
+   "sprite": {
+    "ground": 0.06,
+    "darkEdge": 1.48,
+    "lightEdge": 3.01,
+    "contrast": 3.01
+   },
+   "bar": {
+    "ground": 0.048,
+    "darkEdge": 1.81,
+    "lightEdge": 6.08,
+    "contrast": 6.08
+   }
+  }
+ }
+]

@@ -1,6 +1,6 @@
 # Rendered color review
 
-Open [color-review.html](color-review.html) locally to inspect the current **repaired staged showcase** (`evidence/repair/study.png`) and **live combat profile** (`evidence/repair/live.png`). Each is shown in original, grayscale, protanopia, deuteranopia, and tritanopia views. Use Fit for a page overview and 1:1 to inspect native image pixels, including insignias and labels. The HTML references the existing PNGs without modifying them and has no remote assets. Earlier evidence and its findings are retained below as a historical record.
+Open [color-review.html](color-review.html) locally to inspect the current **repaired staged showcase** (`evidence/repair/study.jpg`) and **live combat profile** (`evidence/repair/live.jpg`). Each is shown in original, grayscale, protanopia, deuteranopia, and tritanopia views. Use Fit for a page overview and 1:1 to inspect native image pixels, including insignias and labels. The HTML references the existing PNGs without modifying them and has no remote assets. Earlier evidence and its findings are retained below as a historical record.
 
 ## Method
 
@@ -12,14 +12,14 @@ The CVD matrices are associated with the physiologically based model described b
 
 **Status: BOUNDED REPAIR SAMPLE VISUAL CHECK SATISFIED, WITH LIMITATIONS. No game-wide accessibility pass is claimed.** The staged repair sample's non-hue marks and footprint geometry are visually distinguishable in this lineup. Coverage of all five factions in live play, crowded motion, and full telegraph readability remains OPEN.
 
-The parent rendered the page in headless Chromium at DPR 1 and a 2560 × 1440 viewport. Fit plus ten native-scale captures were aligned to image origin (x=0, y=0) and visually reviewed. Runtime revision: `4f37e9f0`. Render log and captures: `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/color-review-repair/` (`render-log.json`, `fit.png`, and ten per-variant PNGs). The staged image is 1280 × 900; the live profile is 2560 × 1440.
+The parent rendered the page in headless Chromium at DPR 1 and a 2560 × 1440 viewport. Fit plus ten native-scale captures were aligned to image origin (x=0, y=0) and visually reviewed. Runtime revision: `4f37e9f0`. Render log and captures: `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/color-review-repair/` (`render-log.json`, `fit.jpg`, and ten per-variant PNGs). The staged image is 1280 × 900; the live profile is 2560 × 1440.
 
 Current source capture dimensions and SHA-256 hashes:
 
 | Capture | Native size | SHA-256 |
 | --- | ---: | --- |
-| Repaired staged showcase `evidence/repair/study.png` | 1280 × 900 | `be11b83b293fbc3e1ae9c5891ef550a279d610fabd021bb9a2e59bebd696d531` |
-| Live combat profile `evidence/repair/live.png` | 2560 × 1440 | `e28deb66caa37d25ae52139baeeba0f121fbec26c701d95b19bc6b78e37382b5` |
+| Repaired staged showcase `evidence/repair/study.jpg` | 1280 × 900 | `be11b83b293fbc3e1ae9c5891ef550a279d610fabd021bb9a2e59bebd696d531` |
+| Live combat profile `evidence/repair/live.jpg` | 2560 × 1440 | `e28deb66caa37d25ae52139baeeba0f121fbec26c701d95b19bc6b78e37382b5` |
 
 Observed findings:
 
@@ -37,14 +37,14 @@ Remaining checks:
 
 ## Historical review of original captures
 
-This earlier review is retained for traceability; its source screenshots were `evidence/art-study.png` and `evidence/live-combat.png`. It was rendered in headless Chromium at DPR 1 with a 2560 px viewport. The Fit view and ten native-scale filter captures (five views for each image) were visually inspected. Its render log is at `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/color-review/render-log.json`.
+This earlier review is retained for traceability; its source screenshots were `evidence/art-study.jpg` and `evidence/live-combat.jpg`. It was rendered in headless Chromium at DPR 1 with a 2560 px viewport. The Fit view and ten native-scale filter captures (five views for each image) were visually inspected. Its render log is at `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/color-review/render-log.json`.
 
 Source capture dimensions and SHA-256 hashes:
 
 | Capture | Native size | SHA-256 |
 | --- | ---: | --- |
-| Staged showcase `evidence/art-study.png` | 1280 × 900 | `24c545d9a37007daddbcf2c1110e419f8e25c82cb803d4931a75689e3df0c1b3` |
-| Live combat `evidence/live-combat.png` | 2560 × 1440 | `bdfa1ffefa8580520a3ab1506727f928034d5fea06e254c5965cb008fb386720` |
+| Staged showcase `evidence/art-study.jpg` | 1280 × 900 | `24c545d9a37007daddbcf2c1110e419f8e25c82cb803d4931a75689e3df0c1b3` |
+| Live combat `evidence/live-combat.jpg` | 2560 × 1440 | `bdfa1ffefa8580520a3ab1506727f928034d5fea06e254c5965cb008fb386720` |
 
 Observed findings:
 

@@ -80,6 +80,10 @@ pub(crate) fn on_release(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 
 /// System (legacy weapons.updateWeapons): every standing fighter's weapon state machine, in join order.
 pub(crate) fn update(cx: &mut Cx) {
+    // A fighter can join mid-tick before this point without scratch access (a Plague zombie raised by a corpse consumed
+    // in the inputs phase, plague_zombies::raise_or_grow). Size the per-slot flags here, where they are rewritten, so
+    // weapons and frost::after_weapons can index every present slot. Allocates only when the actor count grows.
+    cx.s.reserve_actors(cx.w.fighter_count());
     cx.s.attack_started.fill(false);
     for i in 0..cx.w.fighter_count() {
         if cx.w.standing(FighterIx::of_slot(i)) {

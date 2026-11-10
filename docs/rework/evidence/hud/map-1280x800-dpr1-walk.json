@@ -1,0 +1,52 @@
+{
+  "minimap": {
+    "clickedAtCssPx": {
+      "x": 1079,
+      "y": 680
+    },
+    "targetWorld": {
+      "x": 1536,
+      "y": 3072
+    },
+    "playerBeforeWorld": {
+      "x": 1126.752799310937,
+      "y": 1414.284237726098
+    },
+    "playerAfterWorld": {
+      "x": 1298.962962962963,
+      "y": 1867.8518518518517
+    },
+    "distToTargetBefore": 1707.4849398349545,
+    "distToTargetAfter": 1227.2568270805882,
+    "walkedTowardTarget": true,
+    "orderTraceEvents": 0,
+    "lastTracedOrder": null,
+    "contextMenuEvents": 1,
+    "contextMenuNotPrevented": 0
+  },
+  "tab": {
+    "clickedAtCssPx": {
+      "x": 770,
+      "y": 288
+    },
+    "targetWorld": {
+      "x": 3584,
+      "y": 1536
+    },
+    "playerBeforeWorld": {
+      "x": 1320.875720164609,
+      "y": 1932.536625514404
+    },
+    "playerAfterWorld": {
+      "x": 1940.4011652101549,
+      "y": 1950.4153141905942
+    },
+    "distToTargetBefore": 2297.6015323277466,
+    "distToTargetAfter": 1695.0389913976098,
+    "walkedTowardTarget": true,
+    "orderTraceEvents": 0,
+    "lastTracedOrder": null,
+    "contextMenuEvents": 1,
+    "contextMenuNotPrevented": 0
+  }
+}

@@ -32,6 +32,8 @@ namespace Roguehalla.Client
             public uint Actor;
         }
 
+        /// <summary>Set by the region atmosphere audio once streamed beds are audible: the old catalog beds stay silent from then on.</summary>
+        public static bool LegacyMusicMuted, LegacyAmbienceMuted;
         MatchClient _client;
         Session _session;
         ShowcaseSettings _settings;
@@ -80,6 +82,8 @@ namespace Roguehalla.Client
             EnsureSources();
             ConfigureTracks();
             BindSettings();
+            if (LegacyMusicMuted && _music != null && (_music.clip != null || _music.isPlaying)) { _music.Stop(); _music.clip = null; }
+            if (LegacyAmbienceMuted && _ambience != null && (_ambience.clip != null || _ambience.isPlaying)) { _ambience.Stop(); _ambience.clip = null; }
 
             Session current = _client != null ? _client.Session : null;
             if (_session != current)
