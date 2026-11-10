@@ -242,3 +242,25 @@ history separately, preserve refusal of more than512 non-Card events, and measur
 beyond the old constants. Report actual generic Full8 layouts/reservations rather than the earlier planning estimate.
 The existing source/privacy/strict-intake gates remain mandatory. Rerun unchanged63-case source after final semantic
 changes and before the separately authorized derived-native recorder/pin refresh. No native admission is granted yet.
+
+
+### Root final capacity witness/accounting follow-up (2026-11-10)
+
+The bounded repair review finds the core non-Card512 / raw Q+T0 split, cold buffer reservations and u32 ordinal checks
+present; this is not final admission. Strengthen the accepted pending-Card history witness beyond BOTH512 and Q,
+through actual Clone/accepted restore, ordinary step and a freshly attached viewer that advances with zero historical
+Card output. Keep the separate restored-report600 witness. A three-row pending count with no viewer feed does not
+establish this boundary.
+
+Record a non-overlapping actual-capacity ledger for owned live containers, with actual type sizes/capacities/counts,
+including producer-segment AVL storage. Keep the conservative N_new planning allowance separate; adding already-priced
+internal buffers to it is not measured live heap. Separate cfg(test) observer buffers, inherited non-Card/world memory
+and allocator overhead. Add one bounded isolated actual-projector output capacity/allocation witness beyond the old
+legacy output constant, transparently labelled synthetic where applicable. No ordinary-source or whole-combat
+allocation-free claim follows from a synthetic component capacity witness.
+
+These are focused test/evidence corrections within the existing lease. Preserve the genuine post-semantic-repair
+63-case source pass and full-library881/0/15-ignored result with their exact code bindings. If only tests/evidence change,
+run affected focused checks plus applicable fmt/lint; do not repeat the13-minute full simulation run, source63 recorder
+or a new source-capture campaign solely for this witness delta. A production semantic change still requires its affected
+source/regression gates before any derived identity refresh. Root and the independent reviewer bind the final seal.
