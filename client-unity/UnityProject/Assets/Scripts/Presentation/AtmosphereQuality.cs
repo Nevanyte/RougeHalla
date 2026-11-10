@@ -11,7 +11,8 @@ namespace Roguehalla.Client
     /// (<c>EffectiveQuality</c>, <c>ReducedMotion</c>); <see cref="Apply"/> is the entry point a future Quality API calls.
     /// URL query overrides always win over a preset: <c>?fx.particles=0</c> (density multiplier, 0 off), <c>?fx.lights=0</c>
     /// (accent light cap, 0 off), <c>?fx.post=0</c>, <c>?fx.bloom=0</c>, <c>?fx.grading=0</c>, <c>?fx.vignette=0</c>,
-    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>, <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>, <c>?fx.quality=high</c>. Presentation only: nothing here reads or changes game state.
+    /// <c>?fx.haze=0</c>, <c>?fx.audio=0</c>, <c>?fx.sun=0</c>, <c>?fx.shadows=0</c>, <c>?fx.ice=0</c>, <c>?fx.shimmer=0</c>, <c>?fx.brightness=0.9</c>, <c>?fx.rays=0</c>, <c>?fx.quality=high</c>, and the render-pass switches <c>?fx.locallights</c>, <c>relief</c>, <c>lshadows</c>, <c>cookies</c>, <c>gloss</c>, <c>wind</c>,
+    /// <c>clouds</c>, <c>water</c>, <c>fireflies</c>, <c>emberlight</c>, <c>fxlights</c>, <c>sparks</c> (0|1) and <c>?fx.maxlights=N</c>. Presentation only: nothing here reads or changes game state.
     /// </summary>
     public static class AtmosphereQuality
     {
@@ -19,6 +20,8 @@ namespace Roguehalla.Client
         public const float MaxParticleDensity = 1.5f;
         /// <summary>Hard ceiling for simultaneously active accent point lights, whatever a preset asks for.</summary>
         public const int HardMaxLights = 6;
+        /// <summary>Hard ceiling for the analytic local lights the region shaders evaluate (LocalLightField.Max).</summary>
+        public const int HardMaxLocalLights = LocalLightField.Max;
 
         /// <summary>Multiplier on every screen-particle layer's emission rate and particle cap. 0 disables screen particles.</summary>
         public static float ParticleDensity = 1f;
@@ -50,8 +53,65 @@ namespace Roguehalla.Client
         public static float WorldBrightness = .9f;   // the browser build renders a little brighter than the editor: tuned against web screenshots
         public const float MinBrightness = .4f, MaxBrightness = 1.6f;
 
+        // ---- render-pass switches (each one an independent, measurable effect; see docs/rework/RENDER_PLAN.md) -----------------------------
+        /// <summary>Master: the region shaders light ground, walls and props from the analytic local-light field (off: the old flat Light2D look).</summary>
+        public static bool LocalLights = true;
+        /// <summary>Normal-mapped relief: lights shape surfaces instead of tinting them flat.</summary>
+        public static bool Relief = true;
+        /// <summary>Soft shadows from the wall grid for local lights (ground, walls and props only; never actors).</summary>
+        public static bool LocalShadows = true;
+        /// <summary>Procedural light cookies: grated lanterns, leaf dapple, stained glass.</summary>
+        public static bool Cookies = true;
+        /// <summary>Specular response on ice, water, polished stone.</summary>
+        public static bool Gloss = true;
+        /// <summary>Wind sway on trees, grass, reeds, cloth, and grass parting around presented actors.</summary>
+        public static bool Wind = true;
+        /// <summary>Drifting cloud shadows in the sunny zones.</summary>
+        public static bool Clouds = true;
+        /// <summary>Moving refraction, caustics and ripple glints in water, ice depth parallax.</summary>
+        public static bool Water = true;
+        /// <summary>Small wandering lights (Plague fireflies).</summary>
+        public static bool Fireflies = true;
+        /// <summary>Embers that light their surroundings.</summary>
+        public static bool EmberLight = true;
+        /// <summary>Wish and combat flashes that light the scene.</summary>
+        public static bool FxLights = true;
+        /// <summary>Projectile trails and impact sparks.</summary>
+        public static bool Sparks = true;
+        /// <summary>Cap on analytic local lights in view.</summary>
+        public static int MaxLocalLights = 16;
+        /// <summary>The number of analytic local lights allowed this frame (0 when the master switch is off).</summary>
+        public static int EffectiveLocalLights { get { return LocalLights ? Mathf.Clamp(MaxLocalLights, 0, HardMaxLocalLights) : 0; } }
+        /// <summary>Accent lights draw as analytic lights (and their Light2D twin only lights actors).</summary>
+        public static bool AnalyticLights { get { return LocalLights && EffectiveLocalLights > 0; } }
         /// <summary>Raised after any change made through this class, so effects re-read the switchboard (not per frame).</summary>
         public static event Action Changed;
+
+        // render-pass overrides, indexed like the Pass enum below
+        enum Pass { LocalLights, Relief, LShadows, Cookies, Gloss, Wind, Clouds, Water, Fireflies, EmberLight, FxLights, Sparks, Count }
+        static readonly bool?[] _ovPass = new bool?[(int)Pass.Count]; static int? _ovMaxLocal;
+
+        /// <summary>Per-preset defaults of the render-pass switches (Ultra: everything).</summary>
+        public static void ApplyPasses(ShowcaseQuality q)
+        {
+            bool low = q == ShowcaseQuality.Low, med = q == ShowcaseQuality.Medium, high = q == ShowcaseQuality.High, ultra = q == ShowcaseQuality.Ultra;
+            LocalLights = !low; Relief = !low; LocalShadows = ultra || high; Cookies = high || ultra; Gloss = high || ultra;
+            Wind = !low; Clouds = !low; Water = high || ultra; Fireflies = ultra; EmberLight = ultra || high; FxLights = !low; Sparks = !low;
+            MaxLocalLights = low ? 0 : med ? 6 : high ? 12 : 20;
+            for (int i = 0; i < _ovPass.Length; i++) if (_ovPass[i].HasValue) SetPass((Pass)i, _ovPass[i].Value);
+            if (_ovMaxLocal.HasValue) MaxLocalLights = Mathf.Clamp(_ovMaxLocal.Value, 0, HardMaxLocalLights);
+        }
+        /// <summary>Reduced motion: no sway, no drifting cloud shadows, no wandering lights (overrides from the URL still win afterwards through ApplyPasses only when set).</summary>
+        static void CalmMotion() { Wind = false; Clouds = false; Fireflies = false; }
+        static void SetPass(Pass p, bool v)
+        {
+            switch (p)
+            {
+                case Pass.LocalLights: LocalLights = v; break; case Pass.Relief: Relief = v; break; case Pass.LShadows: LocalShadows = v; break; case Pass.Cookies: Cookies = v; break;
+                case Pass.Gloss: Gloss = v; break; case Pass.Wind: Wind = v; break; case Pass.Clouds: Clouds = v; break; case Pass.Water: Water = v; break;
+                case Pass.Fireflies: Fireflies = v; break; case Pass.EmberLight: EmberLight = v; break; case Pass.FxLights: FxLights = v; break; case Pass.Sparks: Sparks = v; break;
+            }
+        }
 
         static float? _ovParticles; static int? _ovLights; static ShowcaseQuality? _ovQuality; static float? _ovBrightness; static bool? _ovRays; static bool? _ovPost, _ovBloom, _ovGrading, _ovVignette, _ovHaze, _ovAudio, _ovSun, _ovShadows, _ovIce, _ovShimmer;
 
@@ -82,6 +142,7 @@ namespace Roguehalla.Client
                 default:
                     Apply(reducedMotion ? 0f : 1f, true, 4, true, true, true, true); break;
             }
+            ApplyPasses(quality); if (reducedMotion) CalmMotion(); Raise();
         }
 
         /// <summary>Re-derive the defaults from <see cref="ShowcaseSettings.Current"/> (High when there is none).</summary>
@@ -96,6 +157,7 @@ namespace Roguehalla.Client
             Apply(reduced ? 0f : Quality.Particles, Quality.DynamicLights > 0, Quality.DynamicLights,
                 Quality.AnyPostProcessing, Quality.Bloom, Quality.ColorGrading, Quality.Vignette,
                 haze: !low, audio: true, sun: true, shadows: Quality.Shadows, ice: !low, shimmer: !low && !medium, rays: !low);
+            ApplyPasses(preset); if (reduced) CalmMotion(); Raise();
         }
 
         /// <summary>The quality the world is currently drawn at (a <c>?fx.quality=</c> override wins).</summary>
@@ -107,6 +169,7 @@ namespace Roguehalla.Client
         /// <summary>Parse <c>fx.*</c> query overrides from a page URL (empty or null clears them) and re-apply.</summary>
         public static void SetUrl(string url)
         {
+            for (int i = 0; i < _ovPass.Length; i++) _ovPass[i] = null; _ovMaxLocal = null;
             _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovQuality = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
             ApplyOverrides();
@@ -140,7 +203,7 @@ namespace Roguehalla.Client
                         else _ovLights = flag ? (int?)null : 0;
                         break;
                     case "fx.quality":     // force a preset regardless of the adaptive setting (evidence and A/B runs): low, medium or high
-                        if (value == "low") _ovQuality = ShowcaseQuality.Low; else if (value == "medium") _ovQuality = ShowcaseQuality.Medium; else if (value == "high") _ovQuality = ShowcaseQuality.High;
+                        if (value == "low") _ovQuality = ShowcaseQuality.Low; else if (value == "medium") _ovQuality = ShowcaseQuality.Medium; else if (value == "high") _ovQuality = ShowcaseQuality.High; else if (value == "ultra") _ovQuality = ShowcaseQuality.Ultra;
                         break;
                     case "fx.post": _ovPost = flag; break;
                     case "fx.rays": _ovRays = flag; break;
@@ -153,6 +216,19 @@ namespace Roguehalla.Client
                     case "fx.shadows": _ovShadows = flag; break;
                     case "fx.ice": _ovIce = flag; break;
                     case "fx.shimmer": _ovShimmer = flag; break;
+                    case "fx.locallights": _ovPass[(int)Pass.LocalLights] = flag; break;
+                    case "fx.relief": _ovPass[(int)Pass.Relief] = flag; break;
+                    case "fx.lshadows": _ovPass[(int)Pass.LShadows] = flag; break;
+                    case "fx.cookies": _ovPass[(int)Pass.Cookies] = flag; break;
+                    case "fx.gloss": _ovPass[(int)Pass.Gloss] = flag; break;
+                    case "fx.wind": _ovPass[(int)Pass.Wind] = flag; break;
+                    case "fx.clouds": _ovPass[(int)Pass.Clouds] = flag; break;
+                    case "fx.water": _ovPass[(int)Pass.Water] = flag; break;
+                    case "fx.fireflies": _ovPass[(int)Pass.Fireflies] = flag; break;
+                    case "fx.emberlight": _ovPass[(int)Pass.EmberLight] = flag; break;
+                    case "fx.fxlights": _ovPass[(int)Pass.FxLights] = flag; break;
+                    case "fx.sparks": _ovPass[(int)Pass.Sparks] = flag; break;
+                    case "fx.maxlights": if (int.TryParse(value, out int ml)) _ovMaxLocal = Mathf.Clamp(ml, 0, HardMaxLocalLights); break;
                 }
             }
         }
