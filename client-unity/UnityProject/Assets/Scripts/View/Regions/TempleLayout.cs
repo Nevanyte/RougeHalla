@@ -2,7 +2,7 @@
 // the isolated 3 x 3 wall blocks are its great piers on a 6 tile structural grid, the open floor between them is a grid of 3 tile
 // aisles, an open colonnade with a stepped plinth runs round the edge (grand portals on the south, east and west axes, an apse with
 // a dais at the north end), and four towers mark the corners. Nothing here is a wall: the footprint edge crosses ordinary floor.
-// (Previous header follows.) Generated Holy temple (presentation only). The map generator already places a dense hall of 3 x 3 tile pillar blocks inside Holy;
+// Detection: the map generator already places a dense hall of 3 x 3 tile pillar blocks inside Holy;
 // the client finds that hall from the collision tiles and the public region plane only (features are not on the wire), then grows a
 // square footprint around it that covers roughly 35 to 70 percent of the Holy region, as far as the terrain allows. Inside the
 // footprint the ground, the pillars, the steps and some props get a golden-temple skin; outside stays sand. Nothing here changes
@@ -12,6 +12,8 @@
 //   Contains(tx, ty)   tile is inside the footprint
 //   TryBlock(tx, ty)   tile belongs to a detected pillar block (column, row 0..2 inside the 3 x 3 block)
 //   WeightAt(tx, ty)   0..1 smooth "inside the temple" weight (interior lighting; edge transition about 4 tiles)
+//   InsideTemple(world) / SurfaceMap.InsideTemple(world)   the hook for ambience and footsteps
+//   Center, Portals, Apse*, Lamps, Props   the plan the ground shader, the props and the accent lights all read
 using System.Collections.Generic;
 using UnityEngine;
 using Roguehalla.Net.Protocol;
