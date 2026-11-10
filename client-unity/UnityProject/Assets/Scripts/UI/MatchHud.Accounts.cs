@@ -81,7 +81,7 @@ namespace Roguehalla.Client
         /// A centred card in legacy HUD units (its own stage inside the backdrop): slate fill, gold Cinzel title, a close button top right.
         /// The returned rect is the card; children are placed from its top-left in HUD units.
         /// </summary>
-        RectTransform ModalCard(RectTransform backdrop, string name, float width, float height, string title, Action close)
+        RectTransform ModalCard(RectTransform backdrop, string name, float width, float height, string title, Action close, bool closeButton = true)
         {
             var theme = UiTheme.Current;
             var stageGo = new GameObject("ModalStage", typeof(RectTransform), typeof(HudStage));
@@ -90,6 +90,8 @@ namespace Roguehalla.Client
             var card = HudUi.Box(stageGo.transform, name, HudAnchor.Center, 0, 0, width, height);
             HudUi.Surface(card, UiTheme.With(theme.Surface, 1f), theme.CornerRadiusLarge, theme.BorderStrong, true, true);
             LaunchUi.Text(card, name + "Title", 16f, 12f, width - 64f, 30f, title, 20f, theme.Accent, TextAlignmentOptions.MidlineLeft, true, UiFontRole.Display).characterSpacing = 1.5f;
+            LaunchUi.Bar(card, name + "TitleRule", 16f, 44f, width - 32f, 2f, theme.AccentDim);
+            if (!closeButton) return card;
             var x = LaunchUi.Button(card, name + "Close", width - 42f, 12f, 28f, 28f, LaunchUi.Look.Raised, () => close());
             LaunchUi.Text(x.transform, "Label", 0, 0, 28f, 28f, "x", 15f, theme.TextPrimary, TextAlignmentOptions.Center, true);
             return card;

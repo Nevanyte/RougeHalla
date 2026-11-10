@@ -94,7 +94,15 @@ namespace Roguehalla.Client
                 float y = .5f - Mathf.Sin((float)angle) * .34f;
                 string id = RingData[i];
                 var button = MythicUi.Button(_artRoot, "Weapon_" + id, Labels[id], new Vector2(x, y), new Vector2(x, y), () => Select(RingData[index]));
-                button.GetComponent<RectTransform>().sizeDelta = new Vector2(104, 46);
+                button.GetComponent<RectTransform>().sizeDelta = new Vector2(132, 46);
+                // A generated weapon icon on the left of the label and a state mark on the right replace the old "[ ]" text prefix.
+                var iconRect = MythicUi.Rect(button.transform, "WeaponIcon", new Vector2(0, .5f), new Vector2(0, .5f));
+                iconRect.sizeDelta = new Vector2(28, 28); iconRect.anchoredPosition = new Vector2(20, 0);
+                var iconImage = iconRect.gameObject.AddComponent<Image>(); iconImage.sprite = ShowcaseSprites.Get("weapon" + WeaponSpriteIndex(id)); iconImage.preserveAspect = true; iconImage.raycastTarget = false;
+                var label0 = button.GetComponentInChildren<TMPro.TMP_Text>(); label0.rectTransform.offsetMin = new Vector2(36, 3); label0.rectTransform.offsetMax = new Vector2(-24, -3); label0.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
+                var markRect = MythicUi.Rect(button.transform, "StateMark", new Vector2(1, .5f), new Vector2(1, .5f));
+                markRect.sizeDelta = new Vector2(20, 20); markRect.anchoredPosition = new Vector2(-14, 0);
+                var markText = markRect.gameObject.AddComponent<TMPro.TextMeshProUGUI>(); markText.font = UiTheme.Current.Font(UiFontRole.Body); markText.fontSize = 17; markText.fontStyle = TMPro.FontStyles.Bold; markText.alignment = TMPro.TextAlignmentOptions.Center; markText.raycastTarget = false;
                 button.GetComponent<LayoutElement>().minHeight = 44;
                 _nodes[i] = button;
                 button.navigation = new Navigation { mode = Navigation.Mode.Automatic };
@@ -108,6 +116,8 @@ namespace Roguehalla.Client
             _active = Normalize(activeWeapon);
             Redraw();
         }
+
+        static int WeaponSpriteIndex(string id) { switch (id) { case "sword": return 0; case "bow": return 1; case "wand": return 2; case "shield": return 3; case "axe": return 4; default: return 5; } }
 
         public string ActiveWeapon { get { return _active; } }
 
@@ -164,8 +174,11 @@ namespace Roguehalla.Client
                 string id = RingData[i];
                 bool selected = _active == id;
                 Matchups(id, out var wins, out var losses);
-                string mark = selected ? "[*] " : IsWheelWeapon(_active) && losses.Contains(_active) ? "[+] " : IsWheelWeapon(_active) && wins.Contains(_active) ? "[!] " : "[ ] ";
-                _nodes[i].GetComponentInChildren<TMPro.TMP_Text>().text = mark + Labels[id];
+                // "+" = this weapon has the advantage over the active one, "!" = the active weapon beats it (the legend's wording).
+                bool advantage = IsWheelWeapon(_active) && !selected && losses.Contains(_active), danger = IsWheelWeapon(_active) && !selected && wins.Contains(_active);
+                var mark = _nodes[i].transform.Find("StateMark").GetComponent<TMPro.TextMeshProUGUI>();
+                mark.text = advantage ? "+" : danger ? "!" : ""; mark.color = advantage ? (Color)UiTheme.Current.Success : (Color)UiTheme.Current.Warning;
+                _nodes[i].GetComponentInChildren<TMPro.TMP_Text>().text = Labels[id];
                 _nodes[i].GetComponent<Image>().color = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
             }
             _legend.text = IsWheelWeapon(_active)

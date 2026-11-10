@@ -30,8 +30,19 @@ namespace Roguehalla.Client
             // The server-owned damage projection is a separate coordinator packet. Never reconstruct
             // combat mirrors, scaling, critical hits or weapon rules from build IDs in the client.
             Set(_damageWeapon, me == null ? "—" : me.Weapon.ToString());
-            if (_championValue[0] != null) { Set(_championValue[0], "—"); Set(_championScaling[0], "not delivered"); }
-            if (_championValue[1] != null) { Set(_championValue[1], "—"); Set(_championScaling[1], "not delivered"); }
+            // The server delivers the owner's combat multipliers in milli (attack speed, windup, move speed); per-hit damage and the passive's
+            // numbers are not delivered, so those stay "not delivered" (docs/rework/LEGACY_INDICATORS.md, H3).
+            bool mult = me != null && me.OwnerCombat.HasValue;
+            if (_championValue[0] != null)
+            {
+                Set(_championValue[0], mult ? "Atk speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.AsMilli) : "—");
+                Set(_championScaling[0], mult ? "Windup " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.WindupMilli) + " · per-hit damage not delivered" : "not delivered");
+            }
+            if (_championValue[1] != null)
+            {
+                Set(_championValue[1], mult ? "Move speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.SpeedMilli) : "—");
+                Set(_championScaling[1], mult ? "passive numbers not delivered" : "not delivered");
+            }
             if (_championScaling[2] != null && me == null) { Set(_championValue[2], "—"); Set(_championScaling[2], ""); }
             if (_damageHint != null) _damageHint.Text = DamageUnavailable;
         }

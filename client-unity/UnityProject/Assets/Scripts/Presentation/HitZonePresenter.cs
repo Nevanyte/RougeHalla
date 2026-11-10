@@ -14,7 +14,7 @@ namespace Roguehalla.Client
     public sealed class HitZonePresenter
     {
         const int Arc = 24, Rings = 3, Order = 1235;
-        const float EdgeLight = 1.1f, EdgeDark = 2.6f; // sim units
+        const float EdgeLight = 1.3f, EdgeDark = 2.8f; // sim units: a light hairline outside a dark one, so the extent reads on any ground (the fill alpha is unchanged)
         // base fan (centre + rings) + 2 outline strips (dark, light) each = arc strip + two side strips
         const int FanVerts = 1 + Rings * (Arc + 1), StripVerts = 2 * (Arc + 1) + 8, TotalVerts = FanVerts + 2 * StripVerts;
 
@@ -157,7 +157,7 @@ namespace Roguehalla.Client
             for (int s = 0; s < 2; s++)
             {
                 float w = s == 0 ? EdgeDark : EdgeLight;
-                Color32 col = s == 0 ? Dark(.38f * fade) : White(HitZoneModel.EdgeAlpha * fade);
+                Color32 col = s == 0 ? Dark(.6f * fade) : White(HitZoneModel.EdgeAlpha * fade);
                 for (int i = 0; i <= Arc; i++)
                 {
                     float k = i / (float)Arc;

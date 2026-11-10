@@ -482,6 +482,18 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>UI-facing: the living fighter under the pointer (what a left click would lock), 0 when none or over the HUD. Display only.</summary>
+        uint HoverActor()
+        {
+            var mouse = Mouse.current;
+            if (mouse == null || Cam == null || Session.Me == null || Session.Me.Status != ActorStatus.Alive) return 0;
+            if (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return 0;
+            uint id = VisibleActorAt(mouse.position.ReadValue());
+            if (id == 0) return 0;
+            foreach (var a in _targetActors) if (a.Id == id) return a.Status == ActorStatus.Alive && a.Kind != ActorKind.QuestGiver ? id : 0;
+            return 0;
+        }
+
         uint VisibleActorAt(Vector2 pointer)
         {
             uint id = 0; float best = float.PositiveInfinity;
@@ -532,6 +544,7 @@ namespace Roguehalla.Client
             if (Arena == null) return;
             // Renderer membership is refreshed independently of optional audio components.
             Arena.RefreshVisibility(Session);
+            Arena.SetHover(HoverActor());
             Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (_traceLatency)

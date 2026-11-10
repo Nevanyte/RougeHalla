@@ -366,8 +366,7 @@ namespace Roguehalla.Client
         {
             for (int i = 0; i < _merchantButtons.Count; i++)
             {
-                var image = _merchantButtons[i] == null ? null : _merchantButtons[i].targetGraphic as UnityEngine.UI.Image;
-                if (image != null) image.color = MythicUi.Backdrop(i == _selectedMerchant ? MythicUi.SelectedFill : ShowcasePalette.PanelRaised);
+                if (_merchantButtons[i] != null) MythicUi.Select(_merchantButtons[i], i == _selectedMerchant);
             }
         }
 

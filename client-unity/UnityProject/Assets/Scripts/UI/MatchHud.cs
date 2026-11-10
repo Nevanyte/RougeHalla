@@ -19,7 +19,7 @@ namespace Roguehalla.Client
         RectTransform _root, _stage, _chromeStage, _menu, _hud, _rewards, _results, _settings;
         HudStage _stageScaler, _chromeScaler;
         TMP_InputField _nickname;
-        TMP_Text _banner, _vitals, _build, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
+        TMP_Text _banner, _vitals, _build, _wishCard, _rewardTitle, _resultTitle, _notice;
         RectTransform _healthBarFill, _barrierBarFill;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
         readonly UnityEngine.UI.Button[] _headerActions = new UnityEngine.UI.Button[3];
@@ -93,13 +93,7 @@ namespace Roguehalla.Client
             _skip = Button(_rewards, "Skip", "Skip", .06f, .05f, .47f, .19f, () => Choose(-1));
             Button(_rewards, "Next", "Next chest", .51f, .05f, .94f, .19f, () => { _chestIndex++; _dirty = _rewardsDirty = true; });
             foreach (var label in _rewards.GetComponentsInChildren<TMP_Text>(true)) SetBaseSize(label, label == _rewardTitle ? 13 : 12);
-            _results = Panel(_root, "Results", .22f, .28f, .78f, .85f);
-            _resultTitle = Text(_results, "ResultsTitle", "RUN RESULTS", .08f, .80f, .92f, .97f, 30);
-            _resultTitle.color = ShowcasePalette.Gold;
-            _resultText = MythicUi.ScrollText(_results, "ResultFacts", "", new Vector2(.08f, .44f), new Vector2(.92f, .79f), 23);
-            CreateSettlementRow();
-            Button(_results, "Rejoin", "Play again", .08f, .05f, .48f, .20f, JoinAgain);
-            Button(_results, "Menu", "Return to menu", .52f, .05f, .92f, .20f, () => _client.Leave());
+            CreateResultsCard();
             InitializeFeatures();
             InitializeTrainingConsole();
             _chromeStage.SetAsLastSibling();
@@ -291,15 +285,13 @@ namespace Roguehalla.Client
             if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult))
             {
                 _lastResult = _session.LastResult; var r = _lastResult;
-                _resultTitle.color = r.Outcome == 0 ? ShowcasePalette.Gold : r.Outcome == 2 ? ShowcasePalette.Warning : ShowcasePalette.Text;
-                _resultText.text = (r.Outcome < Outcomes.Length ? Outcomes[r.Outcome] : "Outcome " + r.Outcome) + "\nPlace " + r.Place + " / " + r.Players + " · " + r.Kills + " kills\nGV " + r.GvTotal + " (win " + r.GvWin + ")\nDuration " + r.DurationSec + "s" + (string.IsNullOrEmpty(r.KilledBy) ? "" : "\nKilled by " + r.KilledBy) + (r.WinBonusWithheld ? "\nWin bonus withheld by server" : "");
+                ShowResultFacts(r);
                 ClosePlayerFlows();
                 _results.gameObject.SetActive(true); _rewards.gameObject.SetActive(false);
             }
             if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null && !PlayerFlowVisible && !_menu.gameObject.activeSelf)
             {
-                _resultText.text = banner + "\nNo authoritative result received.";
-                _resultTitle.color = ShowcasePalette.Warning;
+                ShowResultMessage(banner + "\nNo authoritative result received.");
                 _results.gameObject.SetActive(true);
             }
             RefreshWorldHudVisibility();

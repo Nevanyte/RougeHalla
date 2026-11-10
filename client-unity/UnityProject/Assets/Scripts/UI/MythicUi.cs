@@ -136,11 +136,33 @@ namespace Roguehalla.Client
             colors.disabledColor = theme.SurfaceDisabled; colors.fadeDuration = .08f;
             button.colors = colors;
             button.onClick.AddListener(onClick);
+            UiFocusHalo.Attach(button, theme.CornerRadius); // keyboard focus ring, as on the launch screen
             var caption = Text(rect, "Label", label, Vector2.zero, Vector2.one, fontSize,
                 primary ? (Color)theme.OutlineDark : (Color)ShowcasePalette.Text,
                 TextAlignmentOptions.Center);
             if (primary) caption.fontStyle = FontStyles.Bold;
             return button;
+        }
+
+        /// <summary>
+        /// Marks a tab-like button selected or not through its colour block (the button's graphic stays white, so the fill is the theme token
+        /// and not a token multiplied by another token, which painted tabs near black). Primary-looking selection uses the accent fill.
+        /// </summary>
+        public static void Select(Button button, bool selected, bool accent = false)
+        {
+            var theme = UiTheme.Current;
+            if (button.targetGraphic is Image image) image.color = Color.white;
+            var colors = button.colors;
+            colors.normalColor = selected ? (accent ? theme.AccentDim : theme.SurfaceSelected) : theme.SurfaceRaised;
+            colors.highlightedColor = selected && accent ? theme.Accent : theme.SurfaceHover; colors.selectedColor = colors.highlightedColor;
+            button.colors = colors;
+        }
+
+        /// <summary>A thin accent rule under a panel heading (the settled skin's heading underline).</summary>
+        public static Image Rule(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var rect = Rect(parent, name, anchorMin, anchorMax);
+            var image = rect.gameObject.AddComponent<Image>(); image.color = UiTheme.With(UiTheme.Current.AccentDim, 1f); image.raycastTarget = false; return image;
         }
 
         public static ScrollRect ScrollView(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,

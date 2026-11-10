@@ -119,6 +119,9 @@ namespace Roguehalla.Client
             if (_panel != null) MythicUi.ApplyTextScale(_panel, _scale);
         }
 
+        /// <summary>Docks the panel in the shared hub panel area for the current window (see <see cref="HubPanelDock"/>).</summary>
+        public void ApplyViewport(HudViewport viewport) { HubPanelDock.Apply(_panel, viewport); }
+
         public void SetFaction(int faction)
         {
             _selectedFaction = Mathf.Clamp(faction, 0, Factions.Length - 1);
@@ -152,7 +155,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < _tabButtons.Length; i++)
             {
                 bool selected = i == (int)tab;
-                _tabButtons[i].GetComponent<Image>().color = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
+                MythicUi.Select(_tabButtons[i], selected);
                 var label = _tabButtons[i].GetComponentInChildren<TMP_Text>();
                 if (label != null) label.color = selected ? ShowcasePalette.Text : ShowcasePalette.MutedText;
             }
@@ -177,11 +180,11 @@ namespace Roguehalla.Client
             panelBlocker.targetGraphic = panelSurface;
             panelBlocker.onClick.AddListener(() => { });
             _panel.localScale = Vector3.one;
-            var head = MythicUi.Text(_panel, "Heading", "THE FIELD GUIDE", new Vector2(.035f, .91f), new Vector2(.72f, .99f), 27, ShowcasePalette.Gold);
+            var head = MythicUi.Text(_panel, "Heading", "THE FIELD GUIDE", new Vector2(.035f, .91f), new Vector2(.72f, .99f), 27, ShowcasePalette.Gold, heading: true);
             head.fontStyle = FontStyles.Bold;
             MythicUi.Text(_panel, "Subheading", "Champions, weapons, and the intended weapon matchups", new Vector2(.035f, .865f), new Vector2(.8f, .92f), 15, ShowcasePalette.MutedText);
 
-            var close = MythicUi.Button(_panel, "CloseGuide", "CLOSE  ×", new Vector2(.84f, .91f), new Vector2(.97f, .99f), () => SetVisible(false), MythicUi.ButtonStyle.Quiet);
+            var close = MythicUi.Button(_panel, "CloseGuide", "CLOSE  ×", new Vector2(.84f, .91f), new Vector2(.97f, .99f), () => SetVisible(false), MythicUi.ButtonStyle.Secondary);
             close.navigation = Navigation.defaultNavigation;
 
             string[] names = { "CHAMPIONS", "WEAPONS", "COUNTERS" };
@@ -282,7 +285,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < _factionButtons.Length; i++)
             {
                 bool selected = i == _selectedFaction;
-                _factionButtons[i].GetComponent<Image>().color = selected ? ShowcasePalette.GoldDim : ShowcasePalette.PanelRaised;
+                MythicUi.Select(_factionButtons[i], selected);
                 var text = _factionButtons[i].GetComponentInChildren<TMP_Text>();
                 if (text != null) text.color = selected ? ShowcasePalette.Text : ShowcasePalette.Faction(i);
             }

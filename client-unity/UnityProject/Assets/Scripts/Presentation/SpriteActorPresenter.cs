@@ -488,10 +488,12 @@ namespace Roguehalla.Client
         /// The delivered facts only the caller has (bounty, the local player's off-hand weapon, whether this actor is the attack lock), then the
         /// overhead cluster is drawn. Called once per actor right after <see cref="Present"/>.
         /// </summary>
-        public void PresentIndicators(uint id, int bounty, bool hasSecondary, WeaponId secondary, bool locked, int effectsOverride = -1)
+        public void PresentIndicators(uint id, int bounty, bool hasSecondary, WeaponId secondary, bool locked, int effectsOverride = -1,
+            bool hovered = false, bool hunted = false, int wishState = 0, byte wishAbility = 0)
         {
             if (!_active.TryGetValue(id, out var a)) return;
             var fx = a.IndFacts; fx.Bounty = bounty; fx.HasSecondary = hasSecondary; fx.Secondary = secondary; fx.Locked = locked; if (effectsOverride >= 0) fx.Effects = (ushort)effectsOverride;
+            fx.Hovered = hovered; fx.Hunted = hunted; fx.WishState = wishState; fx.WishAbility = wishAbility;
             a.IndFacts = fx; a.Ind.Update(in a.IndFacts);
             if (a.Fade.Entering || a.Fade.Opacity < .999f) a.Ind.ApplyOpacity(a.Fade.Opacity);
         }
