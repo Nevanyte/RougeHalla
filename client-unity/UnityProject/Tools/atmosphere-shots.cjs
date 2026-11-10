@@ -42,7 +42,8 @@ async function session(faction, label, body) {
   const page = await context.newPage();
   const errors = [], logs = [], audio = [];
   let matchStart = 0;
-  page.on('console', m => { logs.push(`[${m.type()}] ${m.text()}`); if (m.type() === 'error') errors.push(m.text()); });
+  let regionNow = 'unknown';
+  page.on('console', m => { const t = m.text(); logs.push(`[${m.type()}] ${t}`); const r = /\[atmosphere\] region (\w+)/.exec(t); if (r) regionNow = r[1].toLowerCase(); if (m.type() === 'error') errors.push(t); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('requestfinished', async r => {
     const u = r.url();
@@ -58,8 +59,8 @@ async function session(faction, label, body) {
   matchStart = Date.now();
   await page.waitForTimeout(Number(process.env.RH_SHOTS_MATCH_MS || 12000));
   const shot = async name => {
-    const f = path.join(outDir, `${tag}${name}.png`); const buf = await page.screenshot({ path: f });
-    const st = await lumaStats(page, buf); lumas.push({ shot: name, ...st });
+    const f = path.join(outDir, `${tag}${regionNow}-${name}.png`); const buf = await page.screenshot({ path: f });
+    const st = await lumaStats(page, buf); lumas.push({ shot: `${tag}${regionNow}-${name}`, region: regionNow, ...st });
     console.log('  wrote', path.relative(repo, f), `luma mean=${st.mean} p95=${st.p95} clipped(>0.9)=${st.clipped}%`);
   };
   await body(page, shot);

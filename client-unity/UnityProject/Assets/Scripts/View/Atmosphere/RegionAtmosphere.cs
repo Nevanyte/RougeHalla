@@ -102,6 +102,7 @@ namespace Roguehalla.Client
 
         void OnRegionChanged(RegionId previous, RegionId current)
         {
+            Debug.Log("[atmosphere] region " + current);   // one line per confirmed region change (the browser evidence script names shots from it)
             var row = RegionAtmosphereTable.Get(current);
             _particles.SetPreset(row.Particles, previous == RegionId.None);
             if (_matchActive) _audio.SetRegion(row);
