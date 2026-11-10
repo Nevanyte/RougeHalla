@@ -1,6 +1,6 @@
 # Fable prompt: Unity client rework ("bring Roguehalla to life")
 
-Owner direction recorded 2026-11-09, revised the same day after a fact-check of the codebase and a second decision round. Paste everything below the line into the Fable agent. Nothing above it is part of the prompt.
+Owner direction recorded 2026-11-09, revised the same day after a fact-check of the codebase and a second decision round, and again during the run (lighting by zone, gothic Sentenced, Holy temple, launch screen in scope, Tab map and minimap). Paste everything below the line into the Fable agent. Nothing above it is part of the prompt.
 
 ---
 
@@ -59,9 +59,17 @@ Out of scope:
 
 ## 4. Owner decisions (settled, do not re-ask)
 
-**Theme and layout.** Keep the legacy layout and information hierarchy exactly (where HUD, minimap, weapon bar, chat and menus sit). Replace only the look: colour, art, fonts, lighting, music. Do not invent new layouts. The target feel is Legend-of-Zelda / modern fantasy: vibrant colour and beautiful lighting. The Sentenced region is the one deliberately muted zone (hazy, harvest dusk, still readable). Holy (desert) and Plague (forgotten city) must both have plenty of nice greenery: Holy as oasis and garden pockets in golden sun, Plague as overgrown ruins with a sickly teal-green mood. Fire: warm volcanic ember light. Frost: cold blue-white with light snow particles on screen.
+**Theme and layout.** Keep the legacy layout and information hierarchy exactly (where HUD, minimap, weapon bar, chat and menus sit). Replace only the look: colour, art, fonts, lighting, music. Do not invent new layouts. The target feel is Legend-of-Zelda / modern fantasy: vibrant colour and beautiful lighting. The Sentenced region is the one deliberately muted zone. Holy (desert) and Plague (forgotten city) must both have plenty of nice greenery: Holy as oasis and garden pockets, Plague as overgrown, marshy ruins with a sickly teal-green mood. Frost: cold blue-white with light snow particles on screen.
 
-Screens by gate: the in-match HUD (chrome buttons, minimap, weapon bar, champion HUD, build HUD, chat, settings) is required for Gate 2. Hub/lobby, chest, trader and planning screens are required for Gate 3. The quest panel is re-skinned in place only.
+**Lighting by zone (owner direction 2026-11-09, supersedes earlier notes).** The first region build was far too bright; overall luminance comes down, with restrained bloom and no blown-out areas. One sun with a fixed direction lights the whole map; its hue and brightness grade gradually by position as you cross a zone. Props, walls and characters cast shadows along it. Every zone keeps a subtle passive light floor so the vision system never depends on region effects, and lighting is only computed for what the camera sees. Brightness order, brightest first:
+1. **Holy:** darker, richer sand with bright golden rays for contrast. A golden temple is generated over the dense square pillar zone: sand outside, mosque/cathedral-style architecture inside with decent even passive light. The temple footprint is found from the generated map: a roughly square area covering 35-70% of the Holy region, as the terrain allows.
+2. **Frost:** bright white sun, crisp shadows; lake ice slightly translucent.
+3. **Plague:** medium. Marshy, not dark and not bright, with plenty of light rays and green light filtering through the brush.
+4. **Fire:** the darkest passive light, made brighter locally by lava that lights its surroundings.
+5. **Sentenced:** the darkest zone, lit by lamps and torches. Gothic dungeon and graveyard: flagstone tiles, wrought-iron graveyard fences, gothic masonry, tombstones.
+Other light-emitting terrain: glowing bogs in Plague, light zones in Holy.
+
+Screens by gate: the in-match HUD (chrome buttons, minimap, weapon bar, champion HUD, build HUD, settings), the Tab map and the launch screen are required for Gate 2. Chest, trader and remaining screens are required for Gate 3. The Tab map is held to the same standard as the HUD; the minimap and Tab map tint each zone with its hue; right-clicking a spot on either walks the character there. Chat and a kill feed are not built (legacy has neither). The quest panel is re-skinned in place only.
 
 **Palette.** Choose palettes scientifically and record the research in `docs/art/PALETTE.md` (extend the existing doc and `tools/art/palette-check.cjs`). Method: define colours in a perceptual space (OKLCH), one palette per region on a 60/30/10 base/secondary/accent split, text contrast checked against WCAG, colour-blind simulation run, and faction identity carried by shape/icon and not hue alone (`docs/VISUAL_DIRECTION.md`). It must closely match the feel of the pre-port game's theme. The owner does not need to approve the palette; you do need the research and checks recorded.
 
