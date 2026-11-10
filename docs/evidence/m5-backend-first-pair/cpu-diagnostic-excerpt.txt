@@ -1,0 +1,38 @@
+Analysis of sampling rh-server (pid 20976) every 1 millisecond
+Process:         rh-server [20976]
+Path:            /Users/USER/*/rh-server
+Load Address:    0x100f3c000
+Identifier:      rh-server
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  node [20975]
+Target Type:     live task
+
+Date/Time:       2026-11-09 21:09:24.763 -0600
+Launch Time:     2026-11-09 21:08:55.218 -0600
+OS Version:      macOS 26.6.1 (25G76)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         8592K
+Physical footprint (peak):  8592K
+Idle exit:                  untracked
+----
+
+
+Sort by top of stack, same collapsed (when >= 5):
+        __psynch_cvwait  (in libsystem_kernel.dylib)        140491
+        kevent  (in libsystem_kernel.dylib)        7488
+        _RNvNtCseICNspD06wf_6rh_sim6vision18scene_line_blocked  (in rh-server)        73
+        _RNvNtCseICNspD06wf_6rh_sim6vision12reveals_tile  (in rh-server)        56
+        _RNvXs1_NtNtNtCskumHb0IaX0X_4core3ops8function5implsQNCINvNvXs0_NtNtNtBb_4iter8adapters10take_whileINtBZ_9TakeWhileppENtNtNtB13_6traits8iterator8Iterator8try_fold5checkRNtNtCseICNspD06wf_6rh_sim6vision6RevealuINtNtB9_12control_flow11ControlFlowmENCNvMs0_B2I_NtB2I_11VisionTrail13latest_reveal0NCINvNvB1R_8find_map5checkB2F_mNCB3X_s_0E0E0INtB7_5FnMutTuB2F_EE8call_mutB2K_  (in rh-server)        39
+        _RNvNtNtCseICNspD06wf_6rh_sim7systems5frost17structural_source  (in rh-server)        36
+        _RNvNtNtCseICNspD06wf_6rh_sim7systems9sentenced12mark_tier_on  (in rh-server)        20
+        _RNvMs3_NtNtCseICNspD06wf_6rh_sim9stat_fold4keysNtB5_8StatSums18from_source_values  (in rh-server)        16
+        _RINvMs0_NtCseICNspD06wf_6rh_sim6visionNtB6_11VisionTrail9remembersNtNtB8_9collision4ViewEB8_  (in rh-server)        13
+        __sendto  (in libsystem_kernel.dylib)        10
+        _platform_memcmp  (in libsystem_platform.dylib)        10
+        _platform_memmove  (in libsystem_platform.dylib)        10
+        _RINvXs0_NtNtNtCskumHb0IaX0X_4core4iter8adapters3mapINtB6_3MapINtNtNtBc_5slice4iter4IterNtNtCseICNspD06wf_6rh_sim11mob_runtime3MobENCNvNtNtB1r_7systems9sentenced5coress_0ENtNtNtBa_6traits8iterator8Iterator4foldhNCINvNtB8_6filter11filter_foldRNtNtB1r_7fighter11FighterCorehNCNvB28_16public_mark_tier0NCINvB6_8map_foldB3Q_hhNCB4n_s_0NCINvNvB2I_6max_by4foldhNvYhNtNtBc_3cmp3Ord3cmpE0E0E0EB1r_  (in rh-server)        5
+        _RNvNtNtCseICNspD06wf_6rh_sim7systems5frost12after_damage  (in rh-server)        5

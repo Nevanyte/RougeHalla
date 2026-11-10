@@ -13,6 +13,15 @@ coordination. The one approved local benchmark attempt ended before measurement 
 There is no FPS result and no retry is authorized under this pause. The [handoff](coordination/CLAUDE_UNITY_HANDOFF.md)
 records the current artifacts, WIP and evidence for Claude.
 
+**Backend measurement update, 2026-11-10 03:10 UTC:** the first [paired M5 Pro backend run](evidence/m5-backend-first-pair/README.md)
+now captures the same160×160 collision map, three ordinary Holy seats and a30-second movement window after warmup.
+Both deliver600 observed steps. Rust's inner~29s process samples use6.69% of one CPU and18.38–18.48MiB RSS;
+legacy uses5.46% and191.58–191.88MiB. This demonstrates about90.4% lower resident memory, **no CPU speedup**;
+one active-workstation run, different interest/publication/storage/mechanics and CPU-clock precision prevent a maximum-capacity
+or general regression claim. Both owned processes/listeners close independently. A separate10s native CPU sample points to
+vision-trail/LOS and Frost/Sentenced scans for investigation; it changes no gameplay or prior measurement. Unity/FPS work remains
+paused. Normal source CI at `02551405` also finishes green (all five foundation jobs plus separate latency checks).
+
 **Technical demo update 2026-11-10:** owner-authorized Claude Wave1/security and the reproduced stale-echo repair are
 composed at `fe0e2983`; 956 managed tests and 102 affected Rust tests pass at their recorded cuts. Web B
 `build_81371688fcdf` is the current local release: 14 files/107,046,886 bytes, manifest SHA
@@ -55,8 +64,8 @@ The finite M5 profiling runner is composed at `64327d70`:24 scoped Node controls
 asset/dependency preflight pass. It enables the Chromium sandbox, excludes unsafe SwiftShader fallback and classifies
 the actual renderer. The owner approved one local experiment; it failed before measurement and was cleaned up. The
 subsequent Unity pause now prevents Codex repair/retry. Its proposed30s local-WS/three-seat/48×40 window is not a matched legacy comparison.
-A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass; those artifacts
-have not yet been served or measured. The common full-map comparison still needs actual controlled runs.
+A fresh isolated Phaser production build and the actual shared160×160 map identity guard also pass. The first backend-only
+common-map pair is now captured above; a matched rendered client/FPS comparison remains open under Claude ownership.
 
 The bounded hosted Source protocol test now passes: two fresh normal accounts join the same WSS match, complete
 ordinary Plan/Ready, reach Active/alive/nontraining, and each send one Move/Stop with accepted sequence0→1→2 and
