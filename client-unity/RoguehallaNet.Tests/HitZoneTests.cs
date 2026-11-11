@@ -33,6 +33,23 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void LandedZoneFollowsItsAttackerAndFreezesWhenTheAttackerIsGone()
+        {
+            // Legacy FxView.advance (swing case): re-placed at the attacker's drawn position every frame; kept where it was when there is none.
+            float x = 10, y = 20;                                             // origin as the server reported the swing
+            float[][] path = { new[] { 12f, 20f }, new[] { 15f, 21f }, new[] { 19f, 23f } };
+            foreach (var p in path)
+            {
+                HitZoneFollow.Origin(x, y, true, p[0], p[1], out x, out y);
+                Assert.AreEqual(p[0], x, "follows x"); Assert.AreEqual(p[1], y, "follows y");
+            }
+            HitZoneFollow.Origin(x, y, false, 0, 0, out x, out y);            // attacker left sight or died
+            Assert.AreEqual(19f, x); Assert.AreEqual(23f, y);
+            HitZoneFollow.Origin(x, y, true, float.NaN, 5, out x, out y);     // an unusable position is no position
+            Assert.AreEqual(19f, x); Assert.AreEqual(23f, y);
+        }
+
+        [Test]
         public void OriginIsRaisedOnlyForABoxArchetype()
         {
             HitZoneModel.Origin(100, 200, 1, 30, out float ox, out float oy); Assert.AreEqual(100f, ox); Assert.AreEqual(170f, oy);
