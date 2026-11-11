@@ -5,7 +5,7 @@
 //!       [--hitboxes legacy|archetypes] (ADR0024; default legacy on every path; archetypes opts in to the measured boxes)
 //!       [--first-playable] (embedded small PvE/loot map; drain at4h, forced process stop by4h+180s)
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
-//!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
+//!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--lobby-timing legacy|matchmaking] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
 //!       [--bot-learning off|single-writer]   (default off; single-writer needs PostgreSQL and its exclusive lease)
 //!       [--new-profiles-per-hour 30] [--new-profiles-per-ip-per-hour 10] [--passcode-fails-per-minute 6]
@@ -130,6 +130,7 @@ fn first_playable_settings(args: &[String]) -> Result<Option<FirstPlayable>, Str
         "--fill-bots",
         "--lobby-seconds",
         "--fill-seconds",
+        "--lobby-timing",
     ] {
         if args.iter().any(|a| a.starts_with(&format!("{flag}="))) {
             return Err(format!("use {flag} with a separate value"));
@@ -649,11 +650,15 @@ async fn main() {
     // 8). The learning snapshot participates under the same BOT_STATS_FILE gate handled inside this composition.
     let cli_fill =
         runtime.is_some() || first_playable.is_some() || arg(&args, "--fill-bots").is_some();
-    let bot_fill = rh_server::bot_fill::server_fill_config(
+    let mut bot_fill = rh_server::bot_fill::server_fill_config(
         env_lookup,
         cli_fill.then_some(cfg.fill_bots_to),
         learning_snapshot,
     );
+    bot_fill.lobby_timing = rh_server::runtime::lobby_timing_flag(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid lobby timing: {e}");
+        std::process::exit(2);
+    });
     // Name exclusion is requested only for an active fill policy. Ordinary profile-only servers need no name snapshot.
     let bot_names = if bot_fill.fill_to > 0 {
         persistence

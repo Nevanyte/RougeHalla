@@ -803,8 +803,13 @@ impl Director {
     ) -> (MatchId, mpsc::Sender<RoomCmd>) {
         let id = random16();
         let (tx, rx) = mpsc::channel(INBOUND_CAP);
+        let fill = self.fill_policy(fill_bots_to);
+        let mut sim = self.cfg.sim.clone();
+        if let Some(fill) = &fill {
+            fill.apply_lobby_timing(&mut sim);
+        }
         let rc = RoomConfig {
-            sim: self.cfg.sim.clone(),
+            sim,
             arena: self.map.arena.clone(),
             welcome_map: self.map.welcome_map.clone(),
             fill_bots_to,
@@ -816,7 +821,7 @@ impl Director {
             linger: self.cfg.linger,
         };
         let mut room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
-        if let Some(fill) = self.fill_policy(fill_bots_to) {
+        if let Some(fill) = fill {
             room = room.with_bot_fill(fill).with_bot_names(self.bot_names());
             if let Some(sink) = self.learning.lock().expect("director").clone() {
                 room = room.with_learning(sink);

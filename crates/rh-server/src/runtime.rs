@@ -18,6 +18,21 @@ pub struct Settings {
     pub fill_seconds: f64,
     /// ADR0024 (P-HB-9): the live runtimes default to [`LIVE_DEFAULT_HITBOXES`]; `--hitboxes legacy|archetypes` overrides.
     pub hitboxes: rh_sim::archetype::HitboxMode,
+    /// `--lobby-timing legacy|matchmaking` (P-LOBBY-TIMING-1).
+    pub lobby_timing: crate::bot_fill::LobbyTiming,
+}
+
+/// `--lobby-timing legacy|matchmaking`, default legacy. `matchmaking` is a 15 s lobby with bots at second 13.
+pub fn lobby_timing_flag(args: &[String]) -> Result<crate::bot_fill::LobbyTiming, String> {
+    use crate::bot_fill::LobbyTiming;
+    match value(args, "--lobby-timing")? {
+        None | Some("legacy") => Ok(LobbyTiming::Legacy),
+        Some("matchmaking") => Ok(LobbyTiming::Matchmaking {
+            lobby_seconds: 15.,
+            bots_at_seconds: 13.,
+        }),
+        Some(_) => Err("--lobby-timing must be legacy or matchmaking".into()),
+    }
 }
 
 /// The hitbox mode of the LIVE runtimes (`--runtime source-arena`, `--runtime training` and `--first-playable`, the
@@ -154,7 +169,11 @@ impl Settings {
             lobby_seconds: seconds("--lobby-seconds", if training { 0. } else { 30. })?,
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
             hitboxes: hitboxes_flag(args, LIVE_DEFAULT_HITBOXES)?,
+            lobby_timing: lobby_timing_flag(args)?,
         };
+        if training && settings.lobby_timing != crate::bot_fill::LobbyTiming::Legacy {
+            return Err("training does not accept --lobby-timing matchmaking".into());
+        }
         if training && (settings.lobby_seconds != 0. || settings.fill_seconds != 0.) {
             return Err("training requires zero lobby and fill seconds".into());
         }
