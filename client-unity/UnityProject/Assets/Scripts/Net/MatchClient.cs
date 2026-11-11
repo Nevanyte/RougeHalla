@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 
 namespace Roguehalla.Client
 {
@@ -376,10 +377,16 @@ namespace Roguehalla.Client
                 Session.Input.Aim(_aimAngle);
                 if (mouse.leftButton.wasPressedThisFrame)
                 {
-                    // UI hit geometry only. The server resolves sight, eligibility and all targeting rules.
-                    uint target = VisibleActorAt(mouse.position.ReadValue());
-                    if (Session.Me != null && Session.Me.Weapon == WeaponId.Wand && target != 0)
-                        Session.Input.Target(target);
+                    // The wand locks the nearest candidate within the legacy snap radius (world units) and never fires an unlocked
+                    // shot; a miss sends nothing. The server still decides the lock (range, sight, hostility).
+                    var weapon = Session.Me != null ? (WeaponId?)Session.Me.Weapon : null;
+                    var click = TargetPick.Decide(weapon, weapon == WeaponId.Wand ? PickWorld(sx, sy) : 0);
+                    if (click.Kind == ClickOrderKind.Target)
+                    {
+                        Session.Input.Target(click.Target);
+                        Arena.LockDisplay.Note(click.Target, NowMs());
+                    }
+                    else if (click.Kind == ClickOrderKind.None) { }
                     else
                     {
                         Session.Input.Attack(_aimAngle, Session.Clock.RenderMs); _attackHeld = true;
@@ -449,6 +456,7 @@ namespace Roguehalla.Client
         void OrderMove(float x, float y, bool budgeted = false)
         {
             if (!budgeted) _orderBudget.Spend(NowMs());
+            Arena?.LockDisplay.Note(0, NowMs());
             _stopRetry.Cancel(); // a newer move supersedes an unechoed Stop
             byte seq = Session.OrderMove(x, y);
             if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
@@ -467,6 +475,7 @@ namespace Roguehalla.Client
         {
             double now = NowMs();
             _orderBudget.Spend(now);
+            Arena?.LockDisplay.Note(0, now);
             byte seq = Session.OrderStop();
             _stopRetry.Sent(now, fresh);
             if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, seq, 0, 0);
@@ -501,10 +510,24 @@ namespace Roguehalla.Client
             var mouse = Mouse.current;
             if (mouse == null || Cam == null || Session.Me == null || Session.Me.Status != ActorStatus.Alive) return 0;
             if (UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return 0;
-            uint id = VisibleActorAt(mouse.position.ReadValue());
-            if (id == 0) return 0;
-            foreach (var a in _targetActors) if (a.Id == id) return a.Status == ActorStatus.Alive && a.Kind != ActorKind.QuestGiver ? id : 0;
-            return 0;
+            if (Arena == null || !Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out float hx, out float hy)) return 0;
+            return PickWorld(hx, hy);
+        }
+
+        readonly List<PickCandidate> _pickList = new List<PickCandidate>();
+
+        /// <summary>Legacy pickTarget: nearest eligible actor to the cursor's world point, at drawn feet positions. OwnCompanion stays false: the wire carries no zombie owner.</summary>
+        uint PickWorld(float cx, float cy)
+        {
+            Session.Snapshots.Sample(Session.Snapshots.NewestMs, _targetActors);
+            _pickList.Clear();
+            foreach (var actor in _targetActors)
+            {
+                DrawnPosition(actor, out float x, out float y);
+                _pickList.Add(new PickCandidate { Id = actor.Id, X = x, Y = y, Kind = actor.Kind, Status = actor.Status, Effects = actor.Effects });
+            }
+            bool locked = Session.Collections.Arena.HasValue && Session.Collections.Arena.Value.GatesLocked;
+            return TargetPick.Pick(cx, cy, _pickList, Session.PlayerId, locked);
         }
 
         uint VisibleActorAt(Vector2 pointer)
