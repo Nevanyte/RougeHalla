@@ -18,12 +18,14 @@
 //! per-address bucket. Names are user data on every consumer: they are JSON-escaped here and must be rendered as text.
 
 use crate::api::limits::{limit_key, KeyedBuckets};
-use crate::api::{err, json, method_not_allowed, with_retry_after, PROFILE_TOKEN_HEADER};
+use crate::api::{
+    err, json, method_not_allowed, with_retry_after, CorsPolicy, PROFILE_TOKEN_HEADER,
+};
 use crate::director::{Director, LobbyView};
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode};
-use axum::middleware::map_response;
+use axum::middleware::{from_fn_with_state, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -64,6 +66,8 @@ pub struct LobbyConfig {
     pub trusted_proxies: Vec<IpAddr>,
     /// Bound on waiting for, and running, one token check.
     pub auth_timeout: Duration,
+    /// Which origins may read the responses (the account API's `--api-cors-origins`; standalone default `*`).
+    pub cors: CorsPolicy,
 }
 
 impl LobbyConfig {
@@ -73,6 +77,7 @@ impl LobbyConfig {
         Self {
             client_ip_header: api.client_ip_header.clone(),
             trusted_proxies: api.trusted_proxies.clone(),
+            cors: api.cors.clone(),
             ..Self::default()
         }
     }
@@ -91,6 +96,7 @@ impl Default for LobbyConfig {
             client_ip_header: None,
             trusted_proxies: vec![],
             auth_timeout: Duration::from_secs(2),
+            cors: CorsPolicy::Any,
         }
     }
 }
@@ -309,19 +315,33 @@ pub fn router(director: Arc<Director>, cfg: LobbyConfig) -> Router {
                 .options(preflight)
                 .fallback(|| async { method_not_allowed("POST, DELETE, OPTIONS") }),
         )
-        .layer(map_response(public_headers))
+        .layer(from_fn_with_state(st.clone(), public_headers))
         .with_state(st)
 }
 
-/// Every lobby response is uncached and readable from any origin: it is public and no credential rides on CORS (the
-/// token is a header the page sets itself).
-async fn public_headers(mut r: Response) -> Response {
+/// Every lobby response is uncached and carries the CORS answer of the rest of `/api` (`--api-cors-origins`): `*`, or the
+/// request's origin when it is on the allowlist (with `Vary: Origin`). No credential rides on CORS.
+async fn public_headers(State(st): State<St>, req: Request, next: Next) -> Response {
+    let origin = req
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let mut r = next.run(req).await;
     let h = r.headers_mut();
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    h.insert(
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        HeaderValue::from_static("*"),
-    );
+    let allow = match &st.cfg.cors {
+        CorsPolicy::Any => Some(HeaderValue::from_static("*")),
+        CorsPolicy::Origins(list) => origin
+            .filter(|o| list.iter().any(|a| a.eq_ignore_ascii_case(o)))
+            .and_then(|o| HeaderValue::from_str(&o).ok()),
+    };
+    if let Some(v) = allow {
+        h.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, v);
+    }
+    if matches!(st.cfg.cors, CorsPolicy::Origins(_)) {
+        h.append(header::VARY, HeaderValue::from_static("Origin"));
+    }
     r
 }
 
@@ -335,7 +355,7 @@ async fn preflight() -> Response {
     );
     h.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("x-profile-token, content-type"),
+        HeaderValue::from_static("x-profile-token, x-playtest-passcode, content-type"),
     );
     h.insert(
         header::ACCESS_CONTROL_MAX_AGE,

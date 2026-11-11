@@ -75,3 +75,39 @@ async fn the_binarys_proxy_settings_reach_the_lobby() {
         "another client is not locked out"
     );
 }
+
+/// The lobby answers CORS like the rest of `/api` (`--api-cors-origins`): only an allowlisted origin is echoed.
+#[tokio::test]
+async fn the_lobby_follows_the_api_cors_allowlist() {
+    let api = ApiConfig {
+        cors: rh_server::api::CorsPolicy::Origins(vec!["https://play.example".into()]),
+        ..ApiConfig::default()
+    };
+    let addr = start(director_cfg(), api, |l| l).await;
+    let r = http::get(addr, LOBBY, &[("Origin", "https://play.example")]).await;
+    assert_eq!(r.status, 200);
+    assert_eq!(
+        r.header("access-control-allow-origin"),
+        Some("https://play.example")
+    );
+    let r = http::get(addr, LOBBY, &[("Origin", "https://evil.example")]).await;
+    assert_eq!(r.status, 200);
+    assert_eq!(r.header("access-control-allow-origin"), None);
+    let pre = http::request(
+        addr,
+        "OPTIONS",
+        "/api/lobby/presence",
+        &[("Origin", "https://play.example")],
+        None,
+    )
+    .await;
+    assert_eq!(pre.status, 204);
+    assert_eq!(
+        pre.header("access-control-allow-origin"),
+        Some("https://play.example")
+    );
+    let allowed = pre
+        .header("access-control-allow-headers")
+        .unwrap_or_default();
+    assert!(allowed.contains("x-playtest-passcode"), "{allowed}");
+}
