@@ -91,13 +91,13 @@ float3 RhSunMul(float2 world, float ndl, out float strength, out float3 shadowMu
 // Fog of war grade (VisionFog.cs): the remembered ground outside current vision loses its colour and turns cool, on top of the fog quad that darkens it.
 // _RhFogTex is the fog mask the quad reads (alpha 0 = in vision, 1 = unseen), same uv as the ground; _RhFogGrade.x = desaturation at full fog (0 = off,
 // also the default when no fog exists), yzw = the cool tint the grey is multiplied by (about 1 in luminance). Luminance is kept: the quad does the darkening.
-TEXTURE2D(_RhFogTex); SAMPLER(sampler_RhFogTex);
+TEXTURE2D(_RhFogTex);   // shares sampler_RhRegA (bilinear clamp): the ground shader is at the 16 sampler-state limit of the Web target
 float4 _RhFogGrade;
 float3 RhFogGrade(float2 world, float3 rgb)
 {
     [branch] if (_RhFogGrade.x <= 0.001) return rgb;
     float2 uv = float2(world.x, -world.y / _RhMapInfo.z) / _RhMapInfo.xy;
-    float a = SAMPLE_TEXTURE2D_LOD(_RhFogTex, sampler_RhFogTex, uv, 0).a;
+    float a = SAMPLE_TEXTURE2D_LOD(_RhFogTex, sampler_RhRegA, uv, 0).a;
     float l = dot(rgb, float3(0.2126, 0.7152, 0.0722));
     return lerp(rgb, l * _RhFogGrade.yzw, a * _RhFogGrade.x);
 }
