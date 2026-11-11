@@ -84,7 +84,7 @@ namespace Roguehalla.Client.Tests
                 Assert.That(found, Is.Not.Null);
                 Assert.That(found.color.a, Is.EqualTo(1f));
                 for (int i = 0; i < 12; i++) { props.NoteActor(feet); props.Tick(.1f); }
-                Assert.That(found.color.a, Is.LessThanOrEqualTo(RegionProps.FadedAlpha + .02f), "a tall temple prop fades to nearly see-through over an actor");
+                Assert.That(found.color.a, Is.LessThanOrEqualTo(Roguehalla.Net.Ui.PropFade.FadedAlpha + .02f), "a tall temple prop fades to nearly see-through over an actor");
             }
             finally { if (props != null) props.Dispose(); Object.DestroyImmediate(root); }
         }
