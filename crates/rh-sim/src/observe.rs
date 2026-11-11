@@ -1479,3 +1479,7 @@ mod quest_gv_tests;
 #[cfg(test)]
 #[path = "observe/indicator_tests.rs"]
 mod indicator_tests;
+
+#[cfg(test)]
+#[path = "observe/hud_tests.rs"]
+mod hud_tests;
