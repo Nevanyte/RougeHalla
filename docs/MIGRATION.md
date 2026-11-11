@@ -4,6 +4,40 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integration 1 (2026-11-11 02:06 CST, unattended run)
+
+Integration branch `feature/unity-rework`, head `3ce3c031`, pushed to origin as a backup (owner pre-approval). **Full gate
+with Postgres: GATE PASS** (`.agent-runs/gate/20261111T013645-feature-unity-rework-full.log`, nothing skipped). Unity
+6000.0.85f2 EditMode batch on the same tree: 606 of 606. Identities: protocol 16, observation 24, checkpoint 31,
+replay 25, policy 18; **content hash `7d2d84b827af3ddc` -> `b35f23ed00df75b3`** (Holy camp lifesteal constant), so the
+Unity client must be rebuilt against the new server before any deploy.
+
+- **Merged (13 packets, 2 fix packets):** P-UNITY-TIMER-1, P-UNITY-WAND-LOCK-1, P-UNITY-MOB-DEATH-1 (+fix),
+  P-UNITY-SENTENCED-READ-1 (+fix), P-UNITY-SWING-FOLLOW-1, P-UNITY-OVERHEAD-1, P-UNITY-PROP-FADE-1, P-UNITY-RANGE-IND-1,
+  P-UNITY-LOBBY-ROSTER-1, P-LOBBY-TIMING-1, P-LOBBY-ACTIVITY-1, P-BALANCE-2, P-HOLY-DEMON-BLOOD-1. Implementers Sonnet
+  except P-LOBBY-ACTIVITY-1 (Opus, security); reviews Sonnet except P-LOBBY-ACTIVITY-1 and P-HOLY-DEMON-BLOOD-1 (Opus).
+- **Balance finding (P-BALANCE-2, 900 scenarios, seed 1, scripted Brawler, both hitbox modes):** Archetypes versus
+  LegacyCircle moves per-weapon totals by single digits (ticks to clear -2.6% to -7.8%, damage dealt -1.4% to +3.6%,
+  damage taken -0.5% to +2.0%; in fights cleared under both modes damage taken is +6.5%); about 5% of scenarios end
+  differently, in both directions. Inside the owner's 10-15% band: **no combat number was changed.** The earlier
+  explanation of "camps take little damage" by the hitbox mode is not supported by this measurement. Not established:
+  other seeds, real players, cards; the bench compares the two modes with each other, not with the live site.
+- **DEVIATIONS:** DEV-012 resolved; DEV-013 to DEV-016 drafted, pending owner signature.
+- **Process notes.** The gate treats stub files committed by the oracle author as oracle files; implementers gate against
+  `packet/<ID>-oracle` refs that restore the stubs to base (gate script unchanged). Unity implementers compile and run
+  EditMode in their own worktree through a copy-on-write clone of `client-unity/UnityProject/Library`. Worktree agents
+  run the quick gate; the coordinator ran quick gates per merge batch and one full gate on the batch (disk at 95%, a
+  full gate takes 30 to 120 minutes under load). `GarbageTests.DecodeIntoTheSpareMeetsTheBudgetAndIsFreeInSteadyState`
+  failed once under load in a worktree and passed unchanged on rerun: unconfirmed flake.
+- **Open, found by reviewers, not acted on:** the leech score in `crates/rh-sim/src/kill_augments.rs:368-369` groups
+  its sum differently from legacy (one ulp, matters only on an exact top-two tie); training practice camps never count
+  as camp clears in Rust; the range guide and swing zones have not been viewed in play.
+- **Deploy:** not done and cannot be done unattended: `.claude/settings.json` denies `aws cloudformation create-stack`,
+  `update-stack`, `deploy` and `delete-stack`; lifting it is the owner's action. The AWS identity was valid at 00:10.
+  The beta host expires 2026-11-11 13:26:29 UTC.
+- **In flight:** P-SIM-BUILDSUMMARY-1 (reviewed LAND, to merge), P-WIRE17-MAP-1 (implemented, Opus review), then
+  P-WIRE17-HUD-1 and the Unity HUD packets.
+
 ## Beta follow-up direction (owner, 2026-11-10, after the beta launch)
 
 Integration branch `feature/unity-rework` (`docs/agent/INTEGRATION_BRANCH`), head `893bfadd` (the agent process files,
