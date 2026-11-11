@@ -144,8 +144,15 @@ pub enum LobbyTiming {
 
 impl BotFillConfig {
     /// Adjusts the sim's lobby knobs for this timing. The director calls it on the room's `SimConfig` before the room
-    /// is built, so the sim's own deadline rule (legacy, unchanged) holds the timing. STUB: changes nothing.
-    pub fn apply_lobby_timing(&self, _sim: &mut rh_sim::SimConfig) {}
+    /// is built, so the sim's own deadline rule (legacy, unchanged) holds the timing. `Matchmaking` sets the lobby length and
+    /// makes the human-minimum pull-in unreachable (minimum = `MAX_PLAYERS`, fill seconds 0); `Legacy` changes nothing.
+    pub fn apply_lobby_timing(&self, sim: &mut rh_sim::SimConfig) {
+        if let LobbyTiming::Matchmaking { lobby_seconds, .. } = self.lobby_timing {
+            sim.lobby_seconds = lobby_seconds;
+            sim.min_players = MAX_PLAYERS;
+            sim.fill_seconds = 0.;
+        }
+    }
 }
 
 /// Source BOT_STATS_FILE: unset (the default profile-adjacent path), `off` (learning off) or an explicit file path. The
@@ -391,6 +398,24 @@ impl BotFillState {
         self.last_humans = humans;
         // A lobby with no human in it gets no bots (the last client leaving disposes the room anyway).
         if humans == 0 {
+            return out;
+        }
+        if let LobbyTiming::Matchmaking {
+            lobby_seconds,
+            bots_at_seconds,
+        } = self.cfg.lobby_timing
+        {
+            // Nothing before the mark; at the mark (and after, for a leaver) fill to the target at once.
+            if now < lobby_ends_at - (lobby_seconds - bots_at_seconds) * 1000. {
+                return out;
+            }
+            let mut shadow = Shadow::from(view);
+            while shadow.players < self.target {
+                match self.draw_bot(&mut shadow, &BotSeatOverrides::default()) {
+                    Some(spec) => out.push(spec),
+                    None => break,
+                }
+            }
             return out;
         }
         if !self.scheduled {
