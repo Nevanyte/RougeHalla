@@ -309,10 +309,10 @@ namespace Roguehalla.Client
         }
         float _nextHiddenAccountRefresh;
 
-        // In the lobby phase: the seated players in seat order (bots tagged) under an "n/m" count. The minimum comes from the last hub
-        // poll when exactly one room was gathering players then; otherwise the count stands alone. Names are plain text.
+        // In the lobby phase: the seated players in seat order (bots tagged) under a "Players n" count. The room's own minimum is not on
+        // the wire, so no "n/m" is shown in a match (the hub poll's numbers are never used here). Names are plain text.
         TMP_Text _lobbyRoster;
-        object _lobbyRosterSource, _lobbyRosterModel; bool _lobbyRosterOn;
+        object _lobbyRosterSource; bool _lobbyRosterOn;
         void TickLobbyRoster()
         {
             bool on = _session != null && _session.State == SessionState.InMatch && _hud != null && _hud.gameObject.activeSelf &&
@@ -325,25 +325,17 @@ namespace Roguehalla.Client
                 return;
             }
             var roster = _session.Collections.Roster;
-            var model = _hubLobby?.Model;
-            if (_lobbyRosterOn && ReferenceEquals(_lobbyRosterSource, roster) && ReferenceEquals(_lobbyRosterModel, model)) return;
+            if (_lobbyRosterOn && ReferenceEquals(_lobbyRosterSource, roster)) return;
             if (_lobbyRoster == null)
                 _lobbyRoster = MythicUi.Text(_hud, "LobbyRoster", "", new Vector2(.02f, .50f), new Vector2(.27f, .78f), 15, ShowcasePalette.Text, TextAlignmentOptions.TopLeft);
             _lobbyRoster.gameObject.SetActive(true);
-            _lobbyRosterOn = true; _lobbyRosterSource = roster; _lobbyRosterModel = model;
-            _lobbyRoster.text = ComposeLobbyRoster(roster, model);
+            _lobbyRosterOn = true; _lobbyRosterSource = roster;
+            _lobbyRoster.text = ComposeLobbyRoster(roster);
         }
 
-        public static string ComposeLobbyRoster(System.Collections.Generic.IReadOnlyList<RosterEntry> roster, Roguehalla.Net.Ui.LobbyActivityModel model)
+        public static string ComposeLobbyRoster(System.Collections.Generic.IReadOnlyList<RosterEntry> roster)
         {
-            int humans = 0;
-            foreach (var entry in roster) if (!entry.Bot) humans++;
-            int min = 0, fill = 0, gathering = 0;
-            if (model != null)
-                foreach (var room in model.Rooms)
-                    if (room.Phase == Roguehalla.Net.Ui.LobbyPhase.Lobby) { gathering++; min = room.HumanMin; fill = room.FillTarget; }
-            if (gathering != 1) { min = 0; fill = 0; }
-            var sb = new System.Text.StringBuilder("Players " + Roguehalla.Net.Ui.LobbyActivity.LobbyCount(humans, min, fill));
+            var sb = new System.Text.StringBuilder("Players " + roster.Count);
             foreach (string line in Roguehalla.Net.Ui.LobbyActivity.RosterLines(roster)) sb.Append('\n').Append(line);
             return sb.ToString();
         }

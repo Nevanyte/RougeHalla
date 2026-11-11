@@ -83,7 +83,7 @@ namespace Roguehalla.Client
                 }
                 Render();
             };
-            if (TryPresence(endpoint, out string name, out string token))
+            if (TryPresence(endpoint, out string name, out string token) && LobbyActivityTransport.PresenceBody(name, _tabId) != null)
             {
                 _presenceBase = endpoint.ApiBase; _presenceName = name; _presenceToken = token;
                 _transport.Heartbeat(endpoint.ApiBase, token, name, _tabId, done);
