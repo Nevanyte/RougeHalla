@@ -22,6 +22,7 @@ namespace Roguehalla.Client
         HubProgressView _hubProgress;
         AccountRecoveryView _recovery;
         HubCosmeticsView _hubCosmetics;
+        HubLobbyActivityView _hubLobby;
         bool AnyHubPanelVisible => (_recovery != null && _recovery.IsVisible) || (_hubGuide != null && _hubGuide.IsVisible) || (_hubProgress != null && _hubProgress.IsVisible) || (_hubCosmetics != null && _hubCosmetics.IsVisible);
         public string OwnershipKey => _ownershipKey != null ? _ownershipKey.text : "";
         public string PlaytestPasscode => _passcode != null ? _passcode.text : "";
@@ -133,6 +134,7 @@ namespace Roguehalla.Client
             _recovery = gameObject.AddComponent<AccountRecoveryView>(); _recovery.Initialize(_root, _client.AccountFlow, ReadRecoveryKey);
             _hubProgress = gameObject.AddComponent<HubProgressView>(); _hubProgress.Initialize(_root, _client.AccountOwner);
             _hubCosmetics = gameObject.AddComponent<HubCosmeticsView>(); _hubCosmetics.Initialize(_root, _client.AccountOwner);
+            _hubLobby = gameObject.AddComponent<HubLobbyActivityView>(); _hubLobby.Initialize(_root, _client);
             _launch.Atrium.SetStationHandler(destination =>
             {
                 if (!_menu.gameObject.activeSelf || _signIn.gameObject.activeSelf || _settings.gameObject.activeSelf) return;
@@ -157,6 +159,7 @@ namespace Roguehalla.Client
             bool menu = _menu.gameObject.activeSelf;
             _launch.Atrium.SetVisible(menu && !AnyHubPanelVisible); // hub panels get the vista to themselves
             _backdrop?.SetVisible(menu);
+            _hubLobby?.SetHub(menu, !AnyHubPanelVisible && !_signIn.gameObject.activeSelf);
             if (!menu) return;
             if (_focusCallsignPending && !AnyHubPanelVisible && !ResumeChooserVisible && !_signIn.gameObject.activeSelf && _nickname != null &&
                 string.IsNullOrEmpty(_nickname.text) && EventSystem.current != null && !(_client != null && _client.LaunchPending))
