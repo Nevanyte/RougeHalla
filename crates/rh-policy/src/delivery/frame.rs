@@ -115,6 +115,11 @@ impl CollectionView {
         message.try_encode()?;
         let mut next = self.clone();
         for item in items {
+            // P-WIRE17-HUD-1 stub: key 13 is not decodable yet; the implementer widens `seen` (MAX_STATE_KEYS = 13)
+            // and stores the summary.
+            if matches!(item, StateItem::BuildSummary(_)) {
+                continue;
+            }
             next.seen[(item.key() - 1) as usize] = true;
             match item {
                 StateItem::Inventory(v) => next.inventory = *v,
@@ -129,6 +134,7 @@ impl CollectionView {
                 StateItem::Quests(v) => next.quests = v.clone(),
                 StateItem::Trade(v) => next.trade = v.clone(),
                 StateItem::Roster(v) => next.roster = v.clone(),
+                StateItem::BuildSummary(_) => {}
             }
         }
         rh_protocol::validate_quest_props(&next.props, next.quests.as_ref())?;

@@ -182,6 +182,10 @@ fn state_group(item: &StateItem) -> Value {
             "stats":value.as_ref().map_or(0,|v|v.stats.len()),
             "merchants":value.as_ref().map_or(0,|v|v.merchants.len())
         }),
+        StateItem::BuildSummary(value) => json!({
+            "key":key,"group":"buildSummary","available":value.is_some(),
+            "rows":value.as_ref().map_or(0,|v|v.mob_rows.len())
+        }),
     }
 }
 

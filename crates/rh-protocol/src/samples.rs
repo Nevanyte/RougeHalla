@@ -391,6 +391,8 @@ fn state_sample() -> ServerMsg {
                 state: 2,
                 cleared_at: 1000.,
                 respawn_at: 181000.,
+                reward: None,
+                ward: None,
             }]),
             StateItem::Projectiles(vec![
                 WireProjectile {
@@ -669,6 +671,8 @@ fn state_all_max_budget() -> ServerMsg {
             state: 2,
             cleared_at: f64::MAX / 2.0,
             respawn_at: f64::MAX,
+            reward: None,
+            ward: None,
         })
         .collect();
     let projectiles = (0..512)
@@ -1336,7 +1340,9 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         alive: 512,
                         state: 0,
                         cleared_at: 0.,
-                        respawn_at: 0.
+                        respawn_at: 0.,
+                        reward: None,
+                        ward: None,
                     };
                     512
                 ])],

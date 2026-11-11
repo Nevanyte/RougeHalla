@@ -8,6 +8,8 @@ fn camp() -> WireCamp {
         state: 2,
         cleared_at: 1000.,
         respawn_at: 181000.,
+        reward: None,
+        ward: None,
     }
 }
 

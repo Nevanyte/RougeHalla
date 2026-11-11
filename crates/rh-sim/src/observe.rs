@@ -310,10 +310,74 @@ pub struct Observation {
     pub fields: Vec<crate::status_runtime::FieldView>,
     pub visible: Vec<ActorView>,
     pub camps: Vec<crate::mob_runtime::CampRoster>,
+    /// P-WIRE17-HUD-1: one row per `camps` row, same order and length: the camp's reward and its ward as this viewer
+    /// sees it. Observation-side only (never checkpoint state).
+    pub camp_hud: Vec<CampHudView>,
+    /// P-WIRE17-HUD-1: the viewer's own GAINED strip ([`crate::build_summary::build_summary`] of the viewer); None
+    /// when the viewer is not seated. Never another seat's (C-OBS).
+    pub summary: Option<SummaryView>,
     pub events: Vec<SeenEvent>,
     /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
     /// carries no position, faction, health or sight fact.
     pub roster: Vec<RosterRow>,
+}
+
+/// The nine GAINED stats in the legacy strip order (`buildModel.ts` `buildGains`); also the stat a camp reward grants.
+/// The wire code is the variant index (0..=8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HudStat {
+    Offense,
+    SoulOffense,
+    Damage,
+    AttackSpeed,
+    LifeSteal,
+    Health,
+    Defense,
+    SoulDefense,
+    MoveSpeed,
+}
+
+/// A camp ward as one viewer sees it (C-OBS: a verdict, never the owner's id).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WardVerdict {
+    #[default]
+    None,
+    Yours,
+    Other,
+}
+
+/// A camp's per-kill reward (public content): the stat and the farm table's per-stack value (a fraction for a
+/// percent stat, points for a flat one).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CampReward {
+    pub stat: HudStat,
+    pub amount: f64,
+}
+
+/// P-WIRE17-HUD-1: the HUD facts of one camp for one viewer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CampHudView {
+    pub reward: Option<CampReward>,
+    pub ward: WardVerdict,
+    /// The ward's expiry (server ms) when `ward` is not None; 0 otherwise.
+    pub ward_expires_at: f64,
+}
+
+/// One "Mob bonuses" row of the viewer's summary (catalog order).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SummaryMobRow {
+    pub mob: crate::mob_catalog::MobTypeId,
+    pub stacks: u64,
+    pub stat: HudStat,
+    pub total: f64,
+}
+
+/// P-WIRE17-HUD-1: the viewer's GAINED strip: `gains` indexed by [`HudStat`] (unrounded, units as
+/// [`crate::build_summary::BuildSummary`]), owned mob rows in catalog order.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SummaryView {
+    pub gains: [f64; 9],
+    pub mob_rows: Vec<SummaryMobRow>,
 }
 
 /// One seated player of the match roster (ADR0026).
@@ -564,6 +628,8 @@ impl Default for Observation {
             fields: Vec::new(),
             visible: Vec::new(),
             camps: Vec::new(),
+            camp_hud: Vec::new(),
+            summary: None,
             events: Vec::new(),
             roster: Vec::new(),
         }

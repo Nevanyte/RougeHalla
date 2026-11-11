@@ -870,6 +870,8 @@ pub enum StateItem {
     /// Key 12 (protocol 16, ADR0026): every player seated in the match, by ascending actor id: display name and bot flag.
     /// The same for every viewer; it carries no position, faction, health or sight fact.
     Roster(Vec<WireRosterRow>),
+    /// Key 13 (P-WIRE17-HUD-1): the viewer's own build summary; never another seat's. None when unseated.
+    BuildSummary(Option<WireBuildSummary>),
 }
 
 /// One seated player (State key 12): its actor id (the id its actor row carries when delivered), the bot flag and its
@@ -912,6 +914,56 @@ pub struct WireCamp {
     pub state: u8,
     pub cleared_at: f64,
     pub respawn_at: f64,
+    /// P-WIRE17-HUD-1: the stat reward one kill of this camp's normal mob type grants (public content, as legacy's
+    /// reward badges). Appended after `respawn_at`: u8 `0` none / `1 + stat code`, then the amount u16 LE in
+    /// [`HUD_QUANTUM`] units only when present.
+    pub reward: Option<WireCampReward>,
+    /// P-WIRE17-HUD-1: the camp ward as a verdict for THIS viewer, never an owner id. Appended after the reward: u8 `0`
+    /// none / `1` yours / `2` another player's, then the expiry f64 LE (server ms) only when not none.
+    pub ward: Option<WireWard>,
+}
+
+/// The fixed-point unit of every HUD number on the wire: 1e-4 (a fraction 0.0025 is 25, 1.25 points is 12500).
+pub const HUD_QUANTUM: f64 = 1e-4;
+/// The most "Mob bonuses" rows a build summary carries (the 20 normal mob types of the farm table).
+pub const MAX_SUMMARY_MOB_ROWS: usize = 20;
+/// The nine GAINED stats in the legacy strip order (`buildModel.ts` `buildGains`); also a camp reward's stat. Codes:
+/// 0 Offense, 1 Soul Offense, 2 Damage, 3 Attack speed, 4 Life steal, 5 Health, 6 Defense, 7 Soul Defense,
+/// 8 Move speed.
+pub const HUD_STAT_COUNT: u8 = 9;
+
+/// A camp's per-kill reward: the HUD stat code (`< HUD_STAT_COUNT`) and the amount in [`HUD_QUANTUM`] units (`> 0`):
+/// a fraction for Damage/Attack speed/Life steal/Health(% max hp)/Move speed, points for the flat four.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WireCampReward {
+    pub stat: u8,
+    pub amount: u16,
+}
+
+/// A live camp ward as this viewer sees it: `yours` or another player's, and its expiry in server ms.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireWard {
+    pub yours: bool,
+    pub expires_at: f64,
+}
+
+/// One "Mob bonuses" row of the owner's build summary: mob type code, HUD stat code, stacks (`>= 1`) and the
+/// cumulative total in [`HUD_QUANTUM`] units.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WireMobBonusRow {
+    pub mob_type: u8,
+    pub stat: u8,
+    pub stacks: u32,
+    pub total: i32,
+}
+
+/// State key 13 (P-WIRE17-HUD-1): the owning seat's GAINED strip. `gains` in HUD stat code order, each in
+/// [`HUD_QUANTUM`] units (fractions for 2,3,4,8; points for 0,1,5,6,7); `mob_rows` strictly ascending by `mob_type`,
+/// at most [`MAX_SUMMARY_MOB_ROWS`].
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WireBuildSummary {
+    pub gains: [i32; 9],
+    pub mob_rows: Vec<WireMobBonusRow>,
 }
 /// Visible projectile fact, with no global projectile ID.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -988,6 +1040,9 @@ impl WireCamp {
             state: r.u8()?,
             cleared_at: r.f64()?,
             respawn_at: r.f64()?,
+            // P-WIRE17-HUD-1 stub: the reward and ward bytes are not on the wire yet.
+            reward: None,
+            ward: None,
         };
         if v.valid() {
             Ok(v)
@@ -1710,6 +1765,7 @@ impl StateItem {
             Self::Quests(_) => 10,
             Self::Trade(_) => 11,
             Self::Roster(_) => 12,
+            Self::BuildSummary(_) => 13,
         }
     }
     pub(crate) fn encoded_len(&self) -> usize {
@@ -1742,6 +1798,8 @@ impl StateItem {
                         .map(|row| varint_len(row.id) + 1 + 1 + row.name.len())
                         .sum::<usize>()
                 }
+                // P-WIRE17-HUD-1 stub: not encodable yet (check refuses it).
+                Self::BuildSummary(_) => 1,
             }
     }
     pub(crate) fn check(&self) -> Result<(), EncodeError> {
@@ -1832,6 +1890,10 @@ impl StateItem {
                     return Err(EncodeError::BadValue(why));
                 }
             }
+            // P-WIRE17-HUD-1 stub: the layout is fixed in the packet brief; the implementer encodes it.
+            Self::BuildSummary(_) => {
+                return Err(EncodeError::BadValue("build summary not implemented"));
+            }
         }
         Ok(())
     }
@@ -1900,6 +1962,8 @@ impl StateItem {
                     w.str(&row.name);
                 }
             }
+            // P-WIRE17-HUD-1 stub: never reached (check refuses the item).
+            Self::BuildSummary(_) => w.u8(0),
         }
     }
     pub(crate) fn read(r: &mut Reader<'_>, key: u32) -> Result<Self, DecodeError> {

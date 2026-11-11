@@ -424,6 +424,9 @@ fn camps(observation: &Observation) -> Vec<WireCamp> {
             state: c.state,
             cleared_at: c.cleared_at,
             respawn_at: c.respawn_at,
+            // P-WIRE17-HUD-1 stub: projected from `observation.camp_hud` by the implementer.
+            reward: None,
+            ward: None,
         })
         .collect()
 }
@@ -631,6 +634,8 @@ impl PendingState {
                 StateItem::Trade(v) => publisher.trade = v,
                 StateItem::Roster(v) => publisher.roster = v,
                 StateItem::RewardChests(_) => {}
+                // P-WIRE17-HUD-1 stub: never sent yet.
+                StateItem::BuildSummary(_) => {}
             }
         }
         publisher.sent = true;
