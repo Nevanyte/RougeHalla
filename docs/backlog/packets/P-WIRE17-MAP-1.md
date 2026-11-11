@@ -37,6 +37,10 @@ ground-variant plane.
 - `tools/protocol-js/` decoder and checks; `tools/unity-browser-reload-proof` pins; `client-unity/UnityProject/Tools`
   markers that name the protocol version
 - `protocol/fixtures/v17.json`
+- Added by the oracle author (the JS decoder actually lives there, see `crates/rh-protocol/AGENTS.md`):
+  `crates/rh-server/web/probe.html` (its "protocol v16" codec block, `const PROTOCOL`, the map extension reader).
+- Existing tests that pin protocol 16 (listed under "Version pins" below). Editing them needs **owner approval**
+  (existing tests stay as they are unless the owner approves): the coordinator asks before dispatch.
 
 ## 6. Contracts and references
 - C-OBS: only data legacy made public. Not sent: the seed, spawn pool, crate and ground spots, the feature list.
@@ -58,8 +62,114 @@ ground-variant plane.
 - C# and JS decode the same `v17.json` samples byte for byte and expose the camp list, gates and bush plane.
 - The seed-1 map's blob stays under the 256 KiB frame limit (print the size).
 
+## Byte layout (fixed by the oracle; `crates/rh-protocol/tests/map_public.rs` holds a byte-exact reference builder)
+
+All integers little-endian. The collision head and runs are unchanged. The extension keeps its shape:
+`ext_len u32 | section_version u8 | presence u8 | semantic_hash u32 | sections... | terrain_mode u8 | context_hash u32`,
+`ext_len` counting everything after itself (6 + sections + 5).
+
+- **Section version 2** (`ground::SECTION_VERSION`). Version 1 is refused (`BadMap("section version")`), also for maps
+  with no new section: every protocol 17 map is version 2, so every map's semantic hash changes (the version byte is hashed).
+- **Presence bits** (bits 0-1 unchanged): `0x01` terrain, `0x02` regions, `0x04` camps, `0x08` coliseum, `0x10` bushes,
+  `0x20` props, `0x40` ground variants. `0x80` is refused (`"presence"`).
+- **Section order** on the wire is the bit order: terrain, regions, camps, coliseum, bushes, props, ground variants.
+- **Absence**: a clear bit means no bytes; it decodes to `camps: []`, `coliseum: None`, `bushes: None`, `props: []`,
+  `ground_variants: None`. The encoder emits a list section only when non-empty and a plane/coliseum only when `Some`;
+  `MapPublic::default()` encodes byte-identical to a map that never had sections. A present list with count 0 is refused.
+- **Camps** (`0x04`): `count u8` (1..=`MAX_MAP_CAMPS` = 64; legacy has 5 zones x 10), then per camp
+  `x u16, y u16, r u16, zone u8` (7 bytes). `x, y` = legacy `CampDef.x/.y` (world units, tile centres), `r` = legacy
+  `CampDef.r` (clearing radius in world units, 80 in legacy: `CAMP_R * TILE`), `zone` = `Zone::code` 1..=5. Order =
+  `map.camps` order, the same order as the `WireCamp` rows. Refusals: `"camp count"` (0 or > 64), `"camp zone"`
+  (0 or > 5). No position check.
+- **Coliseum** (`0x08`): `x u16, y u16, w u16, h u16` (tiles; `w, h >= 1`, `x + w <= map w`, `y + h <= map h`, else
+  `"coliseum rect"`), `gate_count u8` (0..=`MAX_COLISEUM_GATES` = 8, else `"gate count"`), then per gate `side u8`
+  (0 n, 1 e, 2 s, 3 w = `GateSide` declaration order; else `"gate side"`), `tile_count u8` (1..=`MAX_GATE_TILES` = 16,
+  else `"gate tiles"`), then `tile_count x (x u16, y u16)` tile coordinates (each `< map w / h`, else `"gate tile"`). Gate
+  and tile order = legacy `ColiseumDef.gates` / `GateDef.tiles` order. `GateDef.x/.y`, `centre`, `inner_spawns` not sent.
+- **Bushes** (`0x10`): an RLE plane exactly like terrain/regions: `run_count u32` then `(value u8, len u16)` runs, maximal
+  runs of at most 65534 cells, covering exactly `w*h` cells (short: `"length"`; zero count or zero-length run: `"run"`;
+  bytes missing: `DecodeError::Truncated`). Value 0 = no bush, else the legacy bush id (`MapLayers::bush_at_world`,
+  `crates/rh-sim/src/mapdata/mod.rs:121`: feature index + 1, only where the feature is `FeatureKind::Bush`). Any u8 decodes.
+- **Props** (`0x20`, reserved, the server ships it absent): `count u16` (1..=`MAX_MAP_PROPS` = 8192, else
+  `"prop count"`), then per prop `kind u8, x u16, y u16, variant u8, flags u8` (7 bytes; x, y world units). No value checks.
+- **Ground variants** (`0x40`, reserved, shipped absent): an RLE plane as for bushes, any u8.
+- **Range and count checks run in the preflight pass before the semantic and context hash checks** (as today), so a
+  refusal names the fault, not the hash. The two new planes count toward the cumulative run budget, and
+  `MAX_CUMULATIVE_RUNS` / `MAX_DECODED_PLANES` rise from `3 *` to `5 * MAX_MAP_TILES` (five planes).
+- **Semantic hash** (domain unchanged, `"rh-ground/1\0"`): FNV-1a 32 over domain, `w u32`, `h u32`,
+  `[section_version, presence]`, then in wire order: terrain cells, region cells, the camps section's wire bytes (count
+  included), the coliseum section's wire bytes, bush cells, the props section's wire bytes (count included),
+  ground-variant cells. Planes hash decoded cells, lists hash their wire bytes. The context hash formula is unchanged.
+- **Encoder** (`MapBlob::with_public`, `MapBlob::check`, `EncodedMap::from_public`): refuses with `EncodeError::BadMap`
+  and the same reason strings, plus `"plane length"` for a bush/variant plane that is not `w*h`; never clamps or drops.
+  `EncodedMap::from_public(..).write_with_mode(mode)` is byte-identical to `MapBlob::write`. `matches_slices` (or a
+  successor taking `&MapPublic`) must compare the new sections too, so the room cache cannot reuse a stale blob.
+
+Public API added by the stub commit (keep the names; the oracle uses them): `map::{MapPublic, MapCamp, MapColiseum,
+MapGate, MapTile, MapProp, MAX_MAP_CAMPS, MAX_COLISEUM_GATES, MAX_GATE_TILES, MAX_MAP_PROPS}`, field `MapBlob::public`,
+`MapBlob::with_public(self, MapPublic) -> Result<MapBlob, EncodeError>`,
+`EncodedMap::from_public(w, h, tiles, terrain, regions, &MapPublic) -> Result<EncodedMap, EncodeError>`.
+
+## Implementer duties beyond the oracle
+
+- Bump `PROTOCOL_VERSION` to 17 and generate `protocol/fixtures/v17.json` with
+  `cargo run -p rh-protocol --bin protocol-fixtures`; the oracle author did neither. `samples.rs` gains Welcome samples
+  carrying the new sections (one with all five; one with camps + coliseum + bushes as the server ships) and malformed
+  samples for each refusal reason above, so the C# and JS decoders are held to them through `v17.json`. The hand-built
+  `welcome_map` / `ground_welcome_bytes` helpers in `samples.rs` move to section version 2.
+- `public_ground.rs`: fill camps (`CampDef.x/.y/.r` to u16, refusing a non-integral or out-of-range value rather than
+  rounding), the coliseum (`ColiseumDef.rect`, gates with the `GateSide` code and tiles) and the bush plane (from
+  `feature_grid` where the feature kind is `Bush`, else 0; absent when the map has no bush). Props and ground variants stay
+  absent. Maps without layers send no new section.
+- Print the seed-1 Welcome size and keep it under `MAX_SERVER_FRAME`.
+
+## Version pins that must move to 17 (grep `16` / `v16` again before finishing)
+
+- `crates/rh-protocol/src/lib.rs:191` `PROTOCOL_VERSION`; `crates/rh-protocol/src/scene_candidate/mod.rs:26`
+  (`14 | 16`); "(protocol 16)" comments in `crates/rh-protocol/src/samples.rs`.
+- `client-unity/RoguehallaNet/Protocol/Codec.cs:9` `ProtocolVersion`; `client-unity/RoguehallaNet/Protocol/SceneCandidate.cs:17`
+  (`14`/`16`); then `bash client-unity/sync-net.sh` (copies under `client-unity/UnityProject/Assets/RoguehallaNet/`).
+- `crates/rh-server/web/probe.html:18,25,122` (prose, the codec block marker `// ---- protocol v16 `, `const PROTOCOL = 16`).
+- `tools/unity-browser-reload-proof/`: `wire-metadata.js:2,15,65,96,113`, `normal-companion.mjs:6,22,24,27`,
+  `wire-tap-proposal.js:49,52,55,59`, `check.mjs:66,67,102`.
+- Existing tests (owner approval needed to edit): `crates/rh-protocol/tests/envelope.rs:34`,
+  `crates/rh-server/tests/ending_metadata.rs:50`, `crates/rh-server/src/wire.rs:1213`,
+  `client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs:37` (`FixtureIsProtocolV16`),
+  `tools/unity-browser-reload-proof/normal-companion.test.mjs:6,13,58,77,80,142,161`,
+  `tools/unity-browser-reload-proof/check.test.mjs:27,37,178,179,237,238`; comment only:
+  `client-unity/RoguehallaNet.Tests/WeaponRangeTests.cs:10`.
+- `tools/protocol-js/check-vectors.mjs` reads the version from probe.html (no pin); its `version >= 16` branch stays.
+- `client-unity/UnityProject/Tools`: no protocol-16 pin found (only unrelated `16`s).
+
+## Acceptance checks for the implementer (not oracle files)
+
+- C#: `MapBlob.cs` decodes and exposes `Camps` (x, y, r, zone), `Coliseum` (rect, gates with side and tiles), `Bushes`,
+  `Props`, `GroundVariants`, computes the version-2 semantic hash, and refuses every malformed v17 map sample with the
+  same reason. A test in `client-unity/RoguehallaNet.Tests` (a new `MapBlobPublicTests.cs` or an extension of
+  `MapBlobGroundTests.cs`) decodes the v17 all-sections Welcome, asserts the camp list, gates and bush plane, and
+  re-encodes it byte for byte; `ProtocolVectorTests` passes against `v17.json`.
+- JS: probe.html's map reader decodes the new sections into `m.map.camps / coliseum / bushes / props / groundVariants`;
+  `node tools/protocol-js/check-vectors.mjs` asserts them for the all-sections sample and that each malformed v17 map
+  sample is refused; `node tools/protocol-js/check-first-playable.mjs` passes.
+
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-WIRE17-MAP-1` (Rust encode/decode tests against stub types)
+- `crates/rh-protocol/tests/map_public.rs` (18 tests)
+- `protocol/fixtures/v17.json` once generated by the documented command, through the unchanged
+  `crates/rh-protocol/tests/vectors.rs`, which requires it
+
+Stub-only commit: `c07e069f` (types and entry points; sections ignored). Every test in `map_public.rs` fails on an
+assertion against it: `protocol_version_is_17` (left 16, right 17); the refusal tests (left
+`Err(BadMap("section version"))`); layout, round-trip and absence tests (bytes differ, decoded `MapPublic` empty);
+`version_1_sections_are_refused` (left `Ok(..)`).
+
+## Design notes
+- Only `CampDef.r` (clearing radius) is sent. `CampDef.radius` (territory reach, non-integral world units,
+  `packages/shared/src/mapgen.ts:942`) is not; add it in a later version if the HUD needs the leash circle.
+- Camp and prop coordinates are not range-checked by the decoder (the protocol does not know the tile size); 160 tiles
+  x 32 = 5120 fits u16.
+- Legacy publicity: `packages/shared/src/schema.ts:387-391` (the map is never synced; clients run `generateMap`), camp
+  fields `packages/shared/src/map.ts:115-137`, coliseum gates `packages/shared/src/coliseum.ts:127-140` (4 gates x
+  `GATE_W` = 4 tiles).
 
 ## 9. Validation commands
 - `cargo test -p rh-protocol`, `cargo run -p rh-protocol --bin protocol-fixtures`
