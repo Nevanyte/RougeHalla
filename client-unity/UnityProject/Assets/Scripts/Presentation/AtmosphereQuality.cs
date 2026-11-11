@@ -189,9 +189,13 @@ namespace Roguehalla.Client
             var s = ShowcaseSettings.Current; return _ovQuality ?? (s != null ? s.EffectiveQuality : ShowcaseQuality.High);
         }
 
+        /// <summary>The last URL (or flag string) given to <see cref="SetUrl"/>: the zone-table tuning overrides (<c>atm.&lt;zone&gt;.&lt;field&gt;</c>, RegionAtmosphereTable.Overrides) read it.</summary>
+        public static string LastUrl = "";
+
         /// <summary>Parse <c>fx.*</c> query overrides from a page URL (empty or null clears them) and re-apply.</summary>
         public static void SetUrl(string url)
         {
+            LastUrl = url ?? "";
             for (int i = 0; i < _ovPass.Length; i++) _ovPass[i] = null; _ovMaxLocal = null;
             _ovParticles = null; _ovLights = null; _ovBrightness = null; _ovRays = null; _ovQuality = null; _ovTracks = _ovRipples = _ovFootsteps = _ovGlisten = null; _ovPost = _ovBloom = _ovGrading = _ovVignette = _ovHaze = _ovAudio = _ovSun = _ovShadows = _ovIce = _ovShimmer = null;
             ParseOverrides(url);
@@ -297,6 +301,7 @@ namespace Roguehalla.Client
         {
             string url = ""; try { url = Application.absoluteURL; } catch (Exception) { }
             SetUrl(url);
+            RegionAtmosphereTable.Reload();     // picks up atm.<zone>.<field> tuning from the page URL (diagnostics only)
             RefreshFromSettings();
         }
     }

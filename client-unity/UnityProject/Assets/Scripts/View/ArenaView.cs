@@ -129,7 +129,7 @@ namespace Roguehalla.Client
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
             _hitZones.Position = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
-            _worldMarks = new WorldMarks(Child("World markers"));
+            _worldMarks = new WorldMarks(Child("World markers"), _catalog);
             _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);

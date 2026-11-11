@@ -17,7 +17,7 @@ namespace Roguehalla.Client
     {
         public const byte TaxedBit = 16, SuppressedBit = 32, ExecBlockedBit = 64;
         const float RingK = .86f / .80f;
-        readonly SpriteRenderer _fill, _ring, _edge, _elite1, _elite2, _star, _cueBack;
+        readonly SpriteRenderer _fill, _ring, _edge, _elite1, _elite2, _star, _starBack, _cueBack;
         readonly TextMeshPro _cue;
         readonly SpriteRenderer[] _pips = new SpriteRenderer[4], _statEdge = new SpriteRenderer[2], _statBack = new SpriteRenderer[2], _statIcon = new SpriteRenderer[2];
         readonly SpriteRenderer _pipTop, _brand, _immune, _roam1, _roam2;
@@ -34,6 +34,7 @@ namespace Roguehalla.Client
             _elite1 = Make(root, "Elite ring outer", GroundMarkArt.Ring(theme.Accent, false, .02f), -1);
             _elite2 = Make(root, "Elite ring inner", GroundMarkArt.Ring(theme.Accent, false, .02f), -1);
             _star = Make(root, "Elite star", IndicatorArt.Get("star"), -1);
+            _starBack = Make(root, "Elite star plate", Disc(), -1);     // a dark disc under the gold star: with the figure outlines off the star alone vanished on sand and snow
             _cueBack = Make(root, "Signature cue plate", ShowcaseSprites.Get("bar"), -1);
             for (int i = 0; i < 4; i++) _pips[i] = Make(root, "Mark pip " + (i + 1), ShowcaseSprites.Get("bar"), -1);
             _pipTop = Make(root, "Mark top pip outline", ShowcaseSprites.Get("bar"), -1);
@@ -65,7 +66,7 @@ namespace Roguehalla.Client
 
         public void HideAll()
         {
-            _fill.enabled = _ring.enabled = _edge.enabled = _elite1.enabled = _elite2.enabled = _star.enabled = _cueBack.enabled = false;
+            _fill.enabled = _ring.enabled = _edge.enabled = _elite1.enabled = _elite2.enabled = _star.enabled = _starBack.enabled = _cueBack.enabled = false;
             foreach (var r in _pips) r.enabled = false;
             _pipTop.enabled = _brand.enabled = _immune.enabled = _roam1.enabled = _roam2.enabled = false;
             for (int i = 0; i < 2; i++) _statEdge[i].enabled = _statBack[i].enabled = _statIcon[i].enabled = false;
@@ -201,11 +202,14 @@ namespace Roguehalla.Client
         public float EliteStar(in OverheadIndicators.Facts f, float cursor, UiTheme theme)
         {
             bool on = !f.Dead && f.Elite;
-            _star.enabled = on;
+            _star.enabled = on; _starBack.enabled = on;
             if (!on) return cursor;
             const float size = .3f;
             _star.color = (Color)theme.Accent; _star.sortingOrder = f.Order + 12;
             _star.transform.localPosition = new Vector3(0, cursor + size * .5f, 0); _star.transform.localScale = new Vector3(size, size, 1);
+            var plate = (Color)theme.OutlineDark; plate.a = .92f;
+            _starBack.color = plate; _starBack.sortingOrder = f.Order + 11;
+            _starBack.transform.localPosition = _star.transform.localPosition; _starBack.transform.localScale = new Vector3(size * 1.4f, size * 1.4f, 1);
             return cursor + size + .04f;
         }
 

@@ -99,6 +99,7 @@ Shader "Roguehalla/RegionLitMesh"
                         lit.rgb += (main.rgb * _Exposure * dif * hr + spc * saturate(hr + 0.05)) * main.a;
                     }
                 }
+                lit.rgb = RhFogGrade(i.world, lit.rgb);
                 return lit;
             }
             ENDHLSL

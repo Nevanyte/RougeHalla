@@ -26,7 +26,7 @@ namespace Roguehalla.Client
 
         readonly Transform _root;
         readonly List<Label> _labels = new List<Label>(); int _labelsUsed;
-        readonly List<SpriteRenderer> _markers = new List<SpriteRenderer>(); int _markersUsed;
+        readonly List<SpriteRenderer> _markers = new List<SpriteRenderer>(), _markerPlates = new List<SpriteRenderer>(); int _markersUsed;
         readonly List<Decal> _decals = new List<Decal>(MaxDecals);
         readonly List<ChestRing> _rings = new List<ChestRing>(); int _ringsUsed;
         readonly Dictionary<uint, float> _born = new Dictionary<uint, float>();
@@ -63,6 +63,9 @@ namespace Roguehalla.Client
                         var m = NextMarker();
                         m.sprite = IndicatorArt.Get(p.QuestFetch ? "crate" : "diamond"); m.color = (Color)theme.Accent; m.enabled = true;
                         m.transform.position = at + new Vector3(0, .78f, 0); m.transform.localScale = new Vector3(.5f, .5f, 1); m.sortingOrder = 2000 + Mathf.RoundToInt(p.Y * .5f) + 6;
+                        // A dark plate under the glyph: the quest accent alone (gold, white) vanished on sand and snow once the outlines were off.
+                        var plate = _markerPlates[_markersUsed - 1]; var pc = (Color)theme.OutlineDark; pc.a = .92f;
+                        plate.enabled = true; plate.color = pc; plate.transform.position = m.transform.position; plate.transform.localScale = new Vector3(.66f, .66f, 1); plate.sortingOrder = m.sortingOrder - 1;
                         if (p.Focused) text = "Quest item";
                     }
                     if (text == null) continue;
@@ -78,7 +81,7 @@ namespace Roguehalla.Client
                 }
             }
             for (int i = _labelsUsed; i < _labels.Count; i++) { _labels[i].Plate.enabled = false; _labels[i].Text.gameObject.SetActive(false); }
-            for (int i = _markersUsed; i < _markers.Count; i++) _markers[i].enabled = false;
+            for (int i = _markersUsed; i < _markers.Count; i++) { _markers[i].enabled = false; _markerPlates[i].enabled = false; }
             for (int i = _ringsUsed; i < _rings.Count; i++) HideRing(_rings[i]);
             TickDecals(now, canSee);
         }
@@ -213,7 +216,11 @@ namespace Roguehalla.Client
         // ---- labels and markers --------------------------------------------------------------------------------------------------
         SpriteRenderer NextMarker()
         {
-            if (_markersUsed == _markers.Count) _markers.Add(ShowcaseSprites.Create(_root, "Quest item marker", "bar", LabelOrder - 2, Color.white, Vector2.one, Vector3.zero, false));
+            if (_markersUsed == _markers.Count)
+            {
+                _markers.Add(ShowcaseSprites.Create(_root, "Quest item marker", "bar", LabelOrder - 2, Color.white, Vector2.one, Vector3.zero, false));
+                var back = ShowcaseSprites.Create(_root, "Quest item marker plate", "bar", LabelOrder - 3, Color.white, Vector2.one, Vector3.zero, false); back.enabled = false; _markerPlates.Add(back);
+            }
             return _markers[_markersUsed++];
         }
 

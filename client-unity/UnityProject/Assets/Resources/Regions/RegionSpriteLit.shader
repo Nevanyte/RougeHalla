@@ -126,6 +126,7 @@ Shader "Roguehalla/RegionSpriteLit"
                         lit.rgb += (albedo * dif * hr + spc * saturate(hr + 0.05)) * main.a;
                     }
                 }
+                lit.rgb = RhFogGrade(i.world, lit.rgb);
                 return lit;
             }
             ENDHLSL

@@ -364,7 +364,7 @@ namespace Roguehalla.Client
             bool elite = false; string label = null;
             if (kind == ActorKind.RegionalMob && mob.HasValue && ShowcaseIdentityAssets.TryGetMobInfo(mob.Value, out var mobInfo)) { elite = mobInfo.Elite; label = mobInfo.DisplayName; }
             // A regional mob's bar shows when it is hurt (and always for an elite); the "fighting" case is not on the wire.
-            bool barOn = !dead && (kind != ActorKind.RegionalMob || Indicators.MobBarVisible(elite, false, hp, false) || a.IndFacts.M.Engaged);
+            bool barOn = !dead && kind != ActorKind.QuestGiver && (kind != ActorKind.RegionalMob || Indicators.MobBarVisible(elite, false, hp, false) || a.IndFacts.M.Engaged);
             a.Hp.enabled = barOn; a.HpBack.enabled = barOn;
             float barrierWidth = barrierShare * unitWidth;
             a.Barrier.transform.localScale = new Vector3(barrierWidth, .095f, 1);

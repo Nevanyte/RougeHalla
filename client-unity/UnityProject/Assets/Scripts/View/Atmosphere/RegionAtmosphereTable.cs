@@ -24,7 +24,9 @@ namespace Roguehalla.Client
     public static class RegionAtmosphereTable
     {
         public const int RowCount = 7;
-        static readonly RegionAtmosphereRow[] Rows = Build();
+        static RegionAtmosphereRow[] Rows = Build();
+        /// <summary>Rebuilds every row, picking up the <c>atm.*</c> tuning overrides of the current URL or harness flags (diagnostics: <see cref="Overrides"/>).</summary>
+        public static void Reload() { Rows = Build(); }
 
         /// <summary>Row for a region id (None uses the coliseum row, like the palette).</summary>
         public static RegionAtmosphereRow Get(RegionId region)
@@ -63,6 +65,39 @@ namespace Roguehalla.Client
         static Color Toning(Color c, float strength) { var o = Color.Lerp(new Color(.5f, .5f, .5f, 1f), c, strength); o.a = 1f; return o; }
         static Color A(Color c, float a) { c.a = a; return c; }
 
+        /// <summary>
+        /// DIAGNOSTICS ONLY (never set by a player): live tuning of a zone row from the URL or the harness flags, so a lighting change can be judged on the real
+        /// build without one 7-minute build per guess. <c>atm.&lt;zone&gt;.&lt;field&gt;=&lt;number&gt;</c> with zone fire, sentenced, plague, frost, holy, coliseum, temple and field
+        /// <c>sun</c> (SunStrength), <c>amb</c> (AmbientColor x), <c>sunc</c> (SunColor x), <c>floor</c> (PassiveFloor x), <c>scale</c> (LightScale), <c>exposure</c>, <c>contrast</c>,
+        /// <c>bloomi</c>, <c>bloomt</c>, <c>sat</c>, <c>haze</c> (alpha). Unknown keys are ignored; the shipped table is unchanged without them.
+        /// </summary>
+        public static void Overrides(string zone, ref AtmosphereParams p)
+        {
+            string url = AtmosphereQuality.LastUrl; if (string.IsNullOrEmpty(url) || url.IndexOf("atm.", System.StringComparison.OrdinalIgnoreCase) < 0) return;
+            int q = url.IndexOf('?'); string query = q >= 0 ? url.Substring(q + 1) : url;
+            string prefix = "atm." + zone + ".";
+            foreach (var pair in query.Split('&'))
+            {
+                int eq = pair.IndexOf('='); if (eq <= 0) continue;
+                string key = pair.Substring(0, eq).ToLowerInvariant(); if (!key.StartsWith(prefix, System.StringComparison.Ordinal)) continue;
+                if (!float.TryParse(pair.Substring(eq + 1), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v)) continue;
+                switch (key.Substring(prefix.Length))
+                {
+                    case "sun": p.SunStrength = v; break;
+                    case "amb": p.AmbientColor = new Color(p.AmbientColor.r * v, p.AmbientColor.g * v, p.AmbientColor.b * v, p.AmbientColor.a); break;
+                    case "sunc": p.SunColor = new Color(p.SunColor.r * v, p.SunColor.g * v, p.SunColor.b * v, p.SunColor.a); break;
+                    case "floor": p.PassiveFloor = new Color(p.PassiveFloor.r * v, p.PassiveFloor.g * v, p.PassiveFloor.b * v, p.PassiveFloor.a); break;
+                    case "scale": p.LightScale = v; break;
+                    case "exposure": p.PostExposure = v; break;
+                    case "contrast": p.Contrast = v; break;
+                    case "bloomi": p.BloomIntensity = v; break;
+                    case "bloomt": p.BloomThreshold = v; break;
+                    case "sat": p.Saturation = v; break;
+                    case "haze": { var h = p.Haze; h.a = v; p.Haze = h; break; }
+                }
+            }
+        }
+
         static RegionAtmosphereRow Row(RegionId id)
         {
             var key = Palette(id, RegionPaletteGenerated.Key); var amb = Palette(id, RegionPaletteGenerated.Ambient);
@@ -85,11 +120,11 @@ namespace Roguehalla.Client
             {
                 case RegionId.Frost:     // bright, whiter, cold sunlight; crisp long shadows; snow
                     row.Name = "Frost";
-                    p.SunColor = Tint(key, .45f); p.SunStrength = .92f; p.ShadowLength = 1.4f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
+                    p.SunColor = Tint(key, .45f); p.SunStrength = .80f; p.ShadowLength = 1.4f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
                     p.LightColor = Tint(Mix(amb, key, .4f), .1f);
-                    p.LightScale = .8f; p.PostExposure = -.1f; p.Contrast = 12f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);
+                    p.LightScale = .8f; p.PostExposure = -.1f; p.Contrast = 0f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);   // polish: snow keeps its detail (was sun .92, contrast 12: 6 to 9% of a frame above .9 luminance; PostExposure stays at the -.1 floor FairnessDarknessNeverHidesActors pins, so the contrast curve carries it)
                     p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .1f); p.SplitBalance = -15f;
-                    p.BloomThreshold = .97f; p.BloomIntensity = .25f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
+                    p.BloomThreshold = .97f; p.BloomIntensity = .15f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
                     p.VignetteIntensity = .16f; p.Haze = A(fog, .075f);
                     p.Lift = new Vector4(.80f, .90f, 1f, .02f); p.Gain = new Vector4(1f, 1f, 1f, 0f);        // cold, clean blacks; neutral white snow
                     row.Particles = ParticlePresetId.Snow; row.Music = "music_frost"; row.Ambience = "amb_frost";
@@ -135,7 +170,7 @@ namespace Roguehalla.Client
                     row.Name = "Holy";
                     p.SunColor = Tint(key, .6f); p.LightScale = 1.22f; p.SunStrength = 1.0f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .46f;   // brightest passive level; the sand itself is darker and richer, rays carry the brightness
                     p.LightColor = Tint(Mix(amb, key, .6f), .15f);
-                    p.PostExposure = -.04f; p.Contrast = 6f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
+                    p.PostExposure = -.1f; p.Contrast = 2f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;
                     p.BloomThreshold = .96f; p.BloomIntensity = .22f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .7f);
                     p.VignetteIntensity = .1f; p.Haze = A(fog, .09f);
@@ -152,6 +187,7 @@ namespace Roguehalla.Client
                     row.Particles = ParticlePresetId.None; row.Music = "music_coliseum"; row.Ambience = null;
                     break;
             }
+            Overrides(row.Name == "Coliseum" ? "coliseum" : row.Name.ToLowerInvariant(), ref p);
             row.Params = p;
             return row;
         }
@@ -172,8 +208,9 @@ namespace Roguehalla.Client
             // Indoors: cooler, softer and more even than the sand outside (the sun is the stone's own cool ivory; the warm light is the lamps and the gold inlay).
             var cool = new Color(.80f, .88f, 1f, 1f);
             p.SunColor = Tint(Mix(key, cool, .5f), .42f); p.SunStrength = .3f; p.ShadowLength = .4f; p.AmbientColor = Tint(Mix(Mix(amb, key, .5f), cool, .4f), .45f) * .8f;
-            p.PostExposure = 0f; p.Contrast = 4f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
+            p.PostExposure = -.1f; p.Contrast = 0f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
             p.PassiveFloor = Tint(amb, .3f) * .55f;
+            Overrides("temple", ref p);
             TempleLamp = new AccentLightSpec { Lantern = true, Color = Tint(Mix(key, Palette(RegionId.Fire, RegionPaletteGenerated.Accent), .25f), .8f), Intensity = 1.5f, Radius = 3.6f, Flicker = .3f };
             return new RegionAtmosphereRow { Region = RegionId.Holy, Name = "HolyTempleInterior", Params = p, Particles = ParticlePresetId.None, Music = "music_holy", Ambience = "amb_holy" };
         }

@@ -64,6 +64,22 @@ namespace Roguehalla.Client.Tests
             return null;
         }
 
+        // ---- the unseen ground is about a third of what it would be lit (owner direction 2026-11) ----------------------------------------------
+        [Test]
+        public void Unseen_ground_keeps_about_a_third_of_its_luminance_in_every_zone_and_is_greyed_cool()
+        {
+            // Linear luminances of lit ground in the zones, from the browser captures (Sentenced and Fire dark, Frost and Holy bright).
+            foreach (float lit in new[] { .05f, .10f, .20f, .35f, .55f, .80f })
+            {
+                float ratio = VisionFog.UnseenLuminance(lit) / lit;
+                Assert.That(ratio, Is.InRange(.28f, lit < .15f ? .50f : .40f), "unseen/seen at lit luminance " + lit);
+                Assert.Less(VisionFog.UnseenLuminance(lit), lit - .02f, "a visible step even on dark ground");
+            }
+            Assert.That(1f - VisionFog.Dim, Is.InRange(.28f, .35f), "the quad keeps 0.28 to 0.35 of the lit colour");
+            Assert.GreaterOrEqual(VisionFog.Desaturation, .7f, "a clear desaturation, not only darkening");
+            Assert.Greater(VisionFog.CoolTint.z, VisionFog.CoolTint.x, "the grey is cool");
+        }
+
         [Test]
         public void An_alive_actor_that_leaves_sight_fades_in_place_instead_of_popping()
         {

@@ -89,6 +89,7 @@ namespace Roguehalla.Client
             // The render-pass switches (fx.relief, fx.wind, ...) live in AtmosphereQuality: page URL first, the harness flags after (later keys win).
             string page = ""; try { page = Application.absoluteURL ?? ""; } catch (System.Exception) { }
             string extra = string.IsNullOrEmpty(query) ? "" : (page.IndexOf('?') >= 0 ? "&" : "?") + query;
+            AtmosphereQuality.LastUrl = page + extra; RegionAtmosphereTable.Reload();     // atm.<zone>.<field> tuning flags (diagnostics only): the table is rebuilt before SetUrl raises the change that uploads it
             AtmosphereQuality.SetUrl(page + extra); AtmosphereQuality.RefreshFromSettings();
         }
 
