@@ -103,6 +103,7 @@ namespace Roguehalla.Client
                     if (tile == MapBlob.Low)
                     {
                         // Fences and low walls: one full-width cell, joined with neighbours. Contact shadow under it.
+                        if (kind == (int)TerrainKind.Fence) { _kind = 4f; Rect(px0, py, px1, py + ArenaView.GroundSquash, RegionWallAtlas.FenceGround, new Color32(255, 255, 255, 255)); }   // darker ground under the fence (RegionWallAtlas.FenceTileGround)
                         _kind = 4f; Rect(px0, py - .26f, px1, py + .02f, contact, new Color32(255, 255, 255, 190)); _kind = 1f;
                         Rect(px0 - .004f, py - 6f / RegionWallAtlas.TileW, px1 + .004f, py - 6f / RegionWallAtlas.TileW + RegionWallAtlas.LowH / (float)RegionWallAtlas.TileW,
                             set.Low[v % RegionWallAtlas.LowVariants], col);

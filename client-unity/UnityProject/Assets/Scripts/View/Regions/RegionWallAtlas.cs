@@ -23,10 +23,18 @@ namespace Roguehalla.Client
         }
         public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants]; public Cell Rim; }
 
-        static Texture2D _atlas; static Set[] _sets; static Cell _contact;
+        static Texture2D _atlas; static Set[] _sets; static Cell _contact, _fenceGround;
         public static Texture2D Atlas { get { Ensure(); return _atlas; } }
         public static Set SetFor(WallStyle style) { Ensure(); return _sets[(int)style]; }
         public static Cell Contact { get { Ensure(); return _contact; } }
+        /// <summary>A flat decal cell (the fence's iron at alpha .3) drawn over the ground of a fence tile, as legacy drawFenceTile does.</summary>
+        public static Cell FenceGround { get { Ensure(); return _fenceGround; } }
+        static readonly Color FenceGroundIron = new Color(.11f, .114f, .133f, .3f);
+        /// <summary>Ground colour (sRGB) under a fence tile for an open floor colour: the iron tint at alpha .3, about 30% darker.</summary>
+        public static Color FenceTileGround(Color floorSrgb)
+        {
+            var c = Color.Lerp(floorSrgb, FenceGroundIron, FenceGroundIron.a); c.a = 1f; return c;
+        }
 
         const int AtlasW = 1024;
 
@@ -63,6 +71,8 @@ namespace Roguehalla.Client
                 _sets[s] = set;
             }
             _contact = Place(PaintContact(), ref x, ref y, ref rowH);
+            var fg = new RegionCanvas(4, 4); for (int i = 0; i < fg.Px.Length; i++) fg.Px[i] = FenceGroundIron;
+            _fenceGround = Place(fg, ref x, ref y, ref rowH);
             _atlas = new Texture2D(AtlasW, atlasH, TextureFormat.RGBA32, true, false) { name = "Region walls atlas", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, anisoLevel = 2 };
             _atlas.SetPixelData(px, 0); _atlas.Apply(true, !Application.isEditor);
         }
@@ -370,7 +380,7 @@ namespace Roguehalla.Client
             {
                 // Graveyard fence: wrought-iron railings with spear finials between stone posts (see-through), or, on some tiles, a low
                 // crumbling stone wall. Continuous across tiles (bars repeat every 8 px; the 128 px tile ends on a post).
-                Color iron = Mix(new Color(.09f, .09f, .12f), th.AccentSrgb, .12f), ironL = Mix(iron, Color.white, .22f);
+                Color iron = Mix(new Color(.52f, .53f, .59f), th.AccentSrgb, .12f), ironL = Mix(iron, Color.white, .22f);
                 Color stone = Mix(th.WallFace, th.WallTop, .4f), stoneL = Mix(stone, Color.white, .25f), stoneD = Shade(stone, .5f);
                 if (variant % 3 == 2)
                 {
