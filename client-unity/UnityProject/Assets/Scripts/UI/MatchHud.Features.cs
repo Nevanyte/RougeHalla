@@ -166,15 +166,12 @@ namespace Roguehalla.Client
             if (_session == null || _session.State != SessionState.InMatch) { _phaseStrip.text = ""; return; }
             if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
             if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
-            var arena = _session.Collections.Arena;
-            double elapsed = arena.HasValue ? System.Math.Max(0, (_session.ServerTimeMs - arena.Value.RaidStartedAt) / 1000) : 0;
-            _phaseStrip.text = _session.Collections.Plan != null ? "PLANNING" : _session.Phase == MatchPhase.Active ? "RAID · " + ((int)elapsed / 60).ToString("00") + ":" + ((int)elapsed % 60).ToString("00") : "FORMING MATCH";
-            // The legacy arena line (hud.ts:259): "Coliseum m:ss", warn while the gates are locked, red "sudden death" after the deadline.
-            if (_session.Phase == MatchPhase.Active && arena.HasValue && _session.Collections.Plan == null)
-            {
-                var line = Roguehalla.Net.Ui.Indicators.ArenaLine(_session.ServerTimeMs, arena.Value.SuddenDeathAt, arena.Value.GatesLocked, arena.Value.PatienceEndsAt, out var lineTone);
-                if (line != null) _phaseStrip.text += " · <color=" + (lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffca28" : "#eceff1") + ">" + line + "</color>";
-            }
+            // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
+            var phase = _session.Collections.Plan != null ? MatchPhase.Planning : _session.Phase;
+            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, out var lineTone);
+            if (text == null) { _phaseStrip.text = ""; return; }
+            string hex = lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
+            _phaseStrip.text = hex == null ? text : "<color=" + hex + ">" + text + "</color>";
         }
         void ToggleBuild()
         {

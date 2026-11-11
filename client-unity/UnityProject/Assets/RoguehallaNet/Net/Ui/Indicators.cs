@@ -141,35 +141,45 @@ namespace Roguehalla.Net.Ui
         public static float WindupProgress(float ageMs, float ms) { return ms <= 0f ? 1f : Math.Max(0f, Math.Min(1f, ageMs / ms)); }
 
         public enum ArenaLineTone : byte { None, Normal, Warn, Danger }
-        /// <summary>hud.ts:259-286: "Coliseum m:ss" until the deadline (warn colour while the gates are locked), then "Coliseum - sudden death" in red; none without a deadline.</summary>
+        /// <summary>hud.ts:15-18 fmtSeconds: ceil(ms / 1000) clamped at 0, "m:ss" (minutes unpadded).</summary>
+        static string FmtSeconds(double ms)
+        {
+            int s = (int)Math.Max(0d, Math.Ceiling(ms / 1000d));
+            return (s / 60).ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + (s % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        /// <summary>hud.ts:259-276 updateArena: locked with a sudden-death time counts to it; otherwise a gate-lock time counts to that; amber, red at sudden death; none without a deadline.</summary>
         public static string ArenaLine(double serverMs, double suddenDeathAt, bool locked, double? patienceEndsAt, out ArenaLineTone tone)
         {
-            tone = ArenaLineTone.None;
-            if (!(suddenDeathAt > 0d)) return null;
-            double target = locked && patienceEndsAt.HasValue && patienceEndsAt.Value > serverMs ? patienceEndsAt.Value : suddenDeathAt;
-            if (serverMs >= suddenDeathAt && !(locked && patienceEndsAt.HasValue && patienceEndsAt.Value > serverMs)) { tone = ArenaLineTone.Danger; return "Coliseum - sudden death"; }
-            int secs = (int)Math.Ceiling(Math.Max(0d, target - serverMs) / 1000d);
-            tone = locked ? ArenaLineTone.Warn : ArenaLineTone.Normal;
-            return "Coliseum " + (secs / 60) + ":" + (secs % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+            if (locked && suddenDeathAt > 0d)
+            {
+                if (serverMs >= suddenDeathAt) { tone = ArenaLineTone.Danger; return "Coliseum \u00b7 sudden death"; }
+                tone = ArenaLineTone.Warn; return "Coliseum " + FmtSeconds(suddenDeathAt - serverMs);
+            }
+            if (patienceEndsAt.HasValue && patienceEndsAt.Value > 0d) { tone = ArenaLineTone.Warn; return "Coliseum " + FmtSeconds(patienceEndsAt.Value - serverMs); }
+            tone = ArenaLineTone.None; return null;
         }
 
         /// <summary>
         /// The top-centre phase strip for <paramref name="phase"/>: hud.ts statusLine (lobby, planning) and the arena line (active).
-        /// STUB (P-UNITY-TIMER-1 oracle): returns today's MatchHud.Features.cs:171 text ("FORMING MATCH", "PLANNING",
-        /// "RAID · mm:ss" counting up, then the arena line) so the oracle compiles; the packet replaces the body.
+        /// <paramref name="minPlayers"/> &lt;= 0 (not delivered to the client) drops the "/min" part of the lobby line.
         /// </summary>
         public static string PhaseLine(MatchPhase phase, double serverMs, ArenaView? arena, int playerCount, int minPlayers, out ArenaLineTone tone)
         {
             tone = ArenaLineTone.Normal;
-            if (phase == MatchPhase.Planning) return "PLANNING";
-            if (phase != MatchPhase.Active) return "FORMING MATCH";
-            double elapsed = arena.HasValue ? Math.Max(0, (serverMs - arena.Value.RaidStartedAt) / 1000) : 0;
-            string text = "RAID · " + ((int)elapsed / 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture) + ":" + ((int)elapsed % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
-            if (!arena.HasValue) return text;
-            var line = ArenaLine(serverMs, arena.Value.SuddenDeathAt, arena.Value.GatesLocked, arena.Value.PatienceEndsAt, out var lineTone);
-            if (line == null) return text;
-            tone = lineTone;
-            return text + " · " + line;
+            switch (phase)
+            {
+                case MatchPhase.Lobby:
+                    if (!arena.HasValue) return "FORMING MATCH";
+                    return "Waiting for players " + playerCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + (minPlayers > 0 ? "/" + minPlayers.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")
+                        + " \u2014 run starts in " + FmtSeconds(arena.Value.LobbyEndsAt - serverMs);
+                case MatchPhase.Planning:
+                    return arena.HasValue && arena.Value.PlanEndsAt > 0d ? "Planning " + FmtSeconds(arena.Value.PlanEndsAt - serverMs) : "Planning";
+                case MatchPhase.Active:
+                    if (!arena.HasValue) { tone = ArenaLineTone.None; return null; }
+                    return ArenaLine(serverMs, arena.Value.SuddenDeathAt, arena.Value.GatesLocked, arena.Value.PatienceEndsAt, out tone);
+                default:
+                    return "FORMING MATCH";
+            }
         }
 
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>
