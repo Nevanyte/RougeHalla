@@ -135,6 +135,19 @@ async function session(faction, label, body) {
   return { errors, audio };
 }
 
+
+// RH_SHOTS_VARIANTS (needs &perf=1 in RH_SHOTS_QUERY): the same spot once per switch set, flipped live ("base:" = no override), so the pixels compare 1:1.
+async function shootVariants(page, shot, name) {
+  const variants = (process.env.RH_SHOTS_VARIANTS || '').split(';').filter(Boolean);
+  if (!variants.length) { await shot(name); return; }
+  for (const v of variants) {
+    const [vn, flags = ''] = v.split(':');
+    await page.evaluate(fl => window.unityInstance.SendMessage('Frame-time recorder', 'SetFlags', fl), flags);
+    await page.waitForTimeout(Number(process.env.RH_SHOTS_SETTLE_MS || 1800)); await shot(`${name}-${vn}`);
+  }
+  await page.evaluate(() => window.unityInstance.SendMessage('Frame-time recorder', 'SetFlags', ''));
+}
+
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
   let failed = false;
@@ -176,12 +189,12 @@ async function session(faction, label, body) {
         for (const spec of temple.split(',')) {
           if (Date.now() - t0 > budgetMs) { console.log('  out of time, skipping', spec); continue; }
           const [name, x, y] = spec.split(':');
-          if (x === 'here') { await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(900); await shot(name); continue; }      // shoot where the hero stands
+          if (x === 'here') { await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(900); await shootVariants(page, shot, name); continue; }      // shoot where the hero stands
           const tx = Number(x), ty = Number(y);
           const pos = await walkTo(page, tx, ty, Number(process.env.RH_SHOTS_WALK_MS || 60000));
           console.log(`  ${name}: wanted ${tx},${ty} hero at`, pos ? `${pos.tx.toFixed(1)},${pos.ty.toFixed(1)}` : 'unknown');
           await page.mouse.move(W / 2, H / 3); await page.waitForTimeout(1200);
-          await shot(name);
+          await shootVariants(page, shot, name);
         }
       });
       errs = errs.concat(errors);

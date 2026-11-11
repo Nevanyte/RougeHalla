@@ -96,7 +96,7 @@ namespace Roguehalla.Client
         void OnQualityChanged()
         {
             if (this == null || _arena == null) { AtmosphereQuality.Changed -= OnQualityChanged; return; }
-            PushSwitches(); _particles.RefreshQuality(); _lights.MarkDirty(); _rectKey = int.MinValue;
+            UploadSunTable(); PushSwitches(); _particles.RefreshQuality(); _lights.MarkDirty(); _rectKey = int.MinValue;   // the table is re-read: the atm.* tuning flags (diagnostics) rebuild it
             if (_volume != null) _volume.enabled = AtmosphereQuality.PostProcessing;
             Apply();
         }

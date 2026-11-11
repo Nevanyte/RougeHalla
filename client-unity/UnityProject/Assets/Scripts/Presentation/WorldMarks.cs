@@ -12,14 +12,21 @@ namespace Roguehalla.Client
 {
     public sealed class WorldMarks
     {
-        sealed class Mark { public SpriteRenderer Glyph, GlyphPlate, LabelPlate, Figure, Shadow; public TextMeshPro Label; public string Text; }
+        sealed class Mark { public SpriteRenderer Glyph, GlyphPlate, LabelPlate, Figure, Shadow, Cast, Goods; public Transform FigureRoot; public TextMeshPro Label; public string Text; }
         readonly Transform _root;
+        readonly ShowcaseCatalog _catalog;
         readonly List<Mark> _marks = new List<Mark>();
         int _used;
         public int Used { get { return _used; } }
         const int Order = 29000;
 
-        public WorldMarks(Transform root) { _root = root; }
+        /// <summary>The look catalog the merchants' figures are drawn from (null: the neutral silhouette, as before).</summary>
+        public WorldMarks(Transform root, ShowcaseCatalog catalog = null) { _root = root; _catalog = catalog; }
+
+        /// <summary>Same scale as every observed actor (SpriteActorPresenter.ActorVisualScale), so a trader is as tall as a fighter drawn from the same look.</summary>
+        const float FigureScale = 1.2f;
+        /// <summary>Catalog looks a merchant is drawn from: an existing robed character per kind (stats and barter), standing with a barrel of goods.</summary>
+        public static string LookKey(TradeKind kind) { return kind == TradeKind.Stats ? "mage" : "mage-female"; }
 
         /// <param name="canSee">True when the ground at a sim position is not fogged; null shows everything (no fog yet).</param>
         public void Update(CollectionsView c, System.Func<float, float, bool> canSee)
@@ -35,7 +42,7 @@ namespace Roguehalla.Client
                         float x = (float)q.GiverX, y = (float)q.GiverY;
                         if (canSee != null && !canSee(x, y)) continue;
                         bool accepted = q.OwnerAccepted;
-                        var m = Next(); m.Figure.enabled = m.Shadow.enabled = false;
+                        var m = Next(); HideFigure(m);
                         Place(m, ArenaView.WorldPoint(x, y) + new Vector3(0, 2.55f, 0), IndicatorArt.Get(Indicators.QuestMark(accepted) == '!' ? "bang" : "query"), (Color)theme.Accent, accepted ? .6f : 1f, .5f);
                         bool turnIn = accepted && q.OwnerReady;
                         SetLabel(m, turnIn ? "Turn in here" : q.GiverLabel, turnIn ? theme.Accent : theme.TextPrimary, new Vector3(0, -.2f, 0), 2.3f, 1f);
@@ -47,12 +54,13 @@ namespace Roguehalla.Client
                         if (canSee != null && !canSee(x, y)) continue;
                         var m = Next();
                         Color tone = (Color)(t.Kind == TradeKind.Stats ? theme.Info : theme.Accent);
-                        Place(m, ArenaView.WorldPoint(x, y) + new Vector3(0, 2.2f, 0), IndicatorArt.Get("diamond"), tone, 1f, .46f);
-                        Figure(m, ArenaView.WorldPoint(x, y), 2000 + Mathf.RoundToInt(y * .5f), tone);   // the trader stands there: the marker needs a body to point at (lab finding)
+                        // The trader stands there: the marker needs a body to point at (lab finding). Figure first: its top decides where the marker and the name sit.
+                        float top = Figure(m, t.Kind, ArenaView.WorldPoint(x, y), x / 32f, y / 32f, 2000 + Mathf.RoundToInt(y * .5f), tone);
+                        Place(m, ArenaView.WorldPoint(x, y) + new Vector3(0, top + .62f, 0), IndicatorArt.Get("diamond"), tone, 1f, .46f);
                         SetLabel(m, t.Name, theme.TextPrimary, new Vector3(0, -.2f, 0), 2.3f, 1f);
                     }
             }
-            for (int i = _used; i < _marks.Count; i++) { _marks[i].Figure.enabled = false; _marks[i].Shadow.enabled = false; _marks[i].Glyph.enabled = false; _marks[i].GlyphPlate.enabled = false; _marks[i].LabelPlate.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
+            for (int i = _used; i < _marks.Count; i++) { HideFigure(_marks[i]); _marks[i].Glyph.enabled = false; _marks[i].GlyphPlate.enabled = false; _marks[i].LabelPlate.enabled = false; _marks[i].Label.gameObject.SetActive(false); }
         }
 
         Mark Next()
@@ -65,8 +73,13 @@ namespace Roguehalla.Client
                 m.LabelPlate = ShowcaseSprites.Create(_root, "World marker label plate", "bar", Order - 1, Color.white, Vector2.one, Vector3.zero, false);
                 m.GlyphPlate.enabled = m.LabelPlate.enabled = false;
                 m.Glyph = ShowcaseSprites.Create(_root, "World marker", "bar", Order, Color.white, Vector2.one, Vector3.zero, false);
-                m.Figure = ShowcaseSprites.Create(_root, "Trader figure", "bar", 2000, Color.white, Vector2.one, Vector3.zero, false); m.Figure.enabled = false;
-                m.Shadow = ShowcaseSprites.Create(_root, "Trader contact shadow", "shadow", 1990, Color.white, new Vector2(1.45f, .54f), Vector3.zero, false); m.Shadow.enabled = false;
+                // Same parts and scale as an observed actor (SpriteActorPresenter.Create): contact and cast shadow, the authored body lit by the field, drawn under one 1.2x root.
+                var fr = new GameObject("Trader"); fr.transform.SetParent(_root, false); fr.transform.localScale = new Vector3(FigureScale, FigureScale, 1f); m.FigureRoot = fr.transform;
+                m.Shadow = ShowcaseSprites.Create(m.FigureRoot, "Trader contact shadow", "actorshadow", 1990, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false); m.Shadow.enabled = false;
+                m.Cast = ShowcaseSprites.Create(m.FigureRoot, "Trader cast shadow", "actorshadow", 1989, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false); m.Cast.enabled = false;
+                m.Goods = ShowcaseSprites.Create(m.FigureRoot, "Trader goods", "bar", 2000, Color.white, Vector2.one, Vector3.zero); m.Goods.enabled = false;
+                m.Figure = ShowcaseSprites.Create(m.FigureRoot, "Trader figure", "bar", 2000, Color.white, Vector2.one, Vector3.zero); m.Figure.enabled = false;
+                m.Figure.sharedMaterial = ShowcaseSprites.ActorLit;
                 var go = new GameObject("World marker label"); go.transform.SetParent(_root, false);
                 m.Label = go.AddComponent<TextMeshPro>();
                 var font = Resources.Load<TMP_FontAsset>("Showcase/NunitoBold");
@@ -79,14 +92,52 @@ namespace Roguehalla.Client
             return _marks[_used++];
         }
 
-        /// <summary>A neutral silhouette (the quest giver's) in the merchant's kind colour, with a contact shadow, standing at the delivered position.</summary>
-        static void Figure(Mark m, Vector3 feet, int order, Color tone)
+        static void HideFigure(Mark m)
         {
-            m.Figure.enabled = true; m.Figure.sprite = ShowcaseIdentityAssets.GetFactionSilhouette(-1);
-            m.Figure.color = Color.Lerp(Color.white, tone, .5f); m.Figure.sortingOrder = order;
-            m.Figure.transform.position = feet + new Vector3(0, .66f, 0); m.Figure.transform.localScale = new Vector3(.96f, 1.62f, 1);
-            m.Shadow.enabled = true; m.Shadow.sortingOrder = order - 8; m.Shadow.transform.position = feet + new Vector3(.1f, -.04f, 0);
+            m.Figure.enabled = m.Shadow.enabled = m.Cast.enabled = m.Goods.enabled = false;
         }
+
+        /// <summary>
+        /// A merchant's figure: an existing robed look from the catalog (see <see cref="LookKey"/>) idling facing the camera, with a barrel of goods beside it, a contact and a
+        /// cast shadow exactly as an observed actor gets (AtmosphereShadows.ApplyActor), standing at the delivered position. Without a catalog the neutral silhouette in the
+        /// kind colour is drawn as before. Returns the figure's top above its feet, in world units, so the marker sits above the head.
+        /// </summary>
+        float Figure(Mark m, TradeKind kind, Vector3 feet, float tileX, float tileY, int order, Color tone)
+        {
+            m.FigureRoot.position = feet;
+            var look = _catalog != null ? _catalog.Find(LookKey(kind)) : null;
+            m.Figure.enabled = true; m.Figure.sortingOrder = order;
+            m.Shadow.enabled = true; m.Shadow.sortingOrder = order - 8; m.Cast.sortingOrder = order - 9;
+            AtmosphereShadows.ApplyActor(m.Shadow, tileX, tileY, 0f, 0f, m.Cast);
+            var frames = look != null ? look.Idle : null;
+            if (frames == null || frames.Length < 8)
+            {
+                m.Figure.sprite = ShowcaseIdentityAssets.GetFactionSilhouette(-1); m.Figure.color = Color.Lerp(Color.white, tone, .5f);
+                m.Figure.transform.localScale = new Vector3(.8f, 1.35f, 1f); m.Figure.transform.localPosition = new Vector3(0, .55f, 0);
+                m.Goods.enabled = false;
+                return (.55f + .675f) * FigureScale;
+            }
+            int count = frames.Length / 8; bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
+            int frame = reduced ? 0 : Mathf.FloorToInt(Time.unscaledTime * Mathf.Max(1f, look.IdleFPS)) % Mathf.Max(1, count);
+            var sprite = frames[Mathf.Min(frames.Length - 1, FacingSouth * count + frame)];
+            m.Figure.sprite = sprite; m.Figure.color = Color.Lerp(Color.white, tone, .12f);
+            m.Figure.transform.localScale = Vector3.one * look.WorldHeight; m.Figure.transform.localPosition = new Vector3(0, .08f, 0);
+            float top = (.08f + sprite.bounds.max.y * look.WorldHeight);
+            var barrel = _catalog.Barrel;
+            if (barrel != null && barrel.bounds.size.y > 1e-4f)
+            {
+                m.Goods.enabled = true; m.Goods.sprite = barrel; m.Goods.sortingOrder = order + 1;
+                float s = GoodsHeight / barrel.bounds.size.y;       // the barrel reads as a stall's goods, about knee to hip high beside the figure
+                m.Goods.transform.localScale = new Vector3(s, s, 1f);
+                m.Goods.transform.localPosition = new Vector3(GoodsSide, .02f - barrel.bounds.min.y * s, 0f);
+                m.Goods.color = Color.white;
+            }
+            else m.Goods.enabled = false;
+            return top * FigureScale;
+        }
+        /// <summary>Catalog direction index facing the camera (flare order SW,W,NW,N,NE,E,SE,S, as SpriteActorPresenter).</summary>
+        const int FacingSouth = 7;
+        const float GoodsHeight = .62f, GoodsSide = .62f;
 
         static void Place(Mark m, Vector3 at, Sprite sprite, Color color, float alpha, float size)
         {

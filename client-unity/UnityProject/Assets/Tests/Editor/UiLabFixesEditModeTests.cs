@@ -103,9 +103,32 @@ namespace Roguehalla.Client.Tests
                 var view = new CollectionsView();
                 typeof(CollectionsView).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, new object[] { state });
                 marks.Update(view, null);
-                var figure = root.transform.Find("Trader figure"); Assert.IsNotNull(figure); Assert.IsTrue(figure.GetComponent<SpriteRenderer>().enabled);
+                var figure = root.transform.Find("Trader/Trader figure"); Assert.IsNotNull(figure); Assert.IsTrue(figure.GetComponent<SpriteRenderer>().enabled);
                 marks.Update(null, null);
                 Assert.IsFalse(figure.GetComponent<SpriteRenderer>().enabled, "no merchant, no figure");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test] public void A_merchant_is_drawn_from_a_catalog_look_with_goods_and_the_shadow_pair_of_any_figure()
+        {
+            var catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog"); Assert.IsNotNull(catalog);
+            Assert.AreNotEqual(WorldMarks.LookKey(TradeKind.Stats), WorldMarks.LookKey(TradeKind.Barter), "the two kinds do not share one body");
+            foreach (var kind in new[] { TradeKind.Stats, TradeKind.Barter }) Assert.IsNotNull(catalog.Find(WorldMarks.LookKey(kind)), "catalog look for " + kind);
+            var root = new GameObject("marks");
+            try
+            {
+                var marks = new WorldMarks(root.transform, catalog);
+                var state = new ServerMsg.State { Tick = 1, Items = new StateItem[] { new TradeState { Available = true, Value = new WireTradeView { Merchants = new[] { new WireMerchant { Kind = TradeKind.Barter, X = 300, Y = 300, Name = "Tessa" } } } } } };
+                var view = new CollectionsView();
+                typeof(CollectionsView).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, new object[] { state });
+                marks.Update(view, null);
+                var figure = root.transform.Find("Trader/Trader figure").GetComponent<SpriteRenderer>();
+                Assert.AreNotEqual(ShowcaseIdentityAssets.GetFactionSilhouette(-1), figure.sprite, "a real figure, not the neutral silhouette");
+                Assert.IsTrue(root.transform.Find("Trader/Trader goods").GetComponent<SpriteRenderer>().enabled, "the stall's goods stand beside it");
+                Assert.IsTrue(root.transform.Find("Trader/Trader contact shadow").GetComponent<SpriteRenderer>().enabled, "shadowed like any figure");
+                Assert.AreEqual(1.2f, root.transform.Find("Trader").localScale.x, 1e-4f, "the observed actors' scale");
+                var glyph = root.transform.Find("World marker"); Assert.Greater(glyph.position.y, figure.bounds.max.y, "the marker is above the head");
             }
             finally { Object.DestroyImmediate(root); }
         }

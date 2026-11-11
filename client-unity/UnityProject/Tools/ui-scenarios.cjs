@@ -628,6 +628,55 @@ scenarios.trader = async (variant) => {
   await run.finish();
 };
 
+// A creature wind-up telegraph and a critical-hit number in a REAL bot match: the hero walks camp to camp (map camps of the seed1 fixture, nearest first) and fights
+// what it meets, and every time the probe counters `windupFx` / `windupDrawn` (a Windup fx received / the telegraph drawn) or `critFx` (a critical Hit fx) increase it
+// takes a full frame and a crop around the nearest creature. The counters and their last values are printed at the end (the proof, with or without a frame).
+//   --scenario windupcrit:sentenced   [--minutes 6]
+const CAMPS = { fixture: path.resolve(__dirname, '../../../crates/rh-sim/src/mapdata/fixtures/seed1.map.json') };
+scenarios.windupcrit = async (variant) => {
+  const faction = FACTIONS[variant || 'sentenced'] ?? 1;
+  const run = await open('windupcrit-' + (variant || 'sentenced'), { faction });
+  await startArena(run); await sleep(7000);
+  const map = JSON.parse(fs.readFileSync(CAMPS.fixture, 'utf8')).map;
+  const camps = [].concat(...map.regions.map(r => r.mobCamps.map(c => ({ id: c.id, x: c.x, y: c.y, elite: c.elite }))));
+  const seen = new Set(), last = { windupFx: 0, windupDrawn: 0, critFx: 0 }, log = [];
+  const t0 = Date.now(); let lastWalk = 0, target = null, tries = 0;
+  while (Date.now() - t0 < MINUTES * 60000) {
+    const p = await run.probe();
+    if (!p || !p.me) { await sleep(500); continue; }
+    if (p.result) { await run.snap('results-card'); break; }
+    const me = p.me;
+    // A Windup fx with ms 0 (fists, the player's own melee press) is received but never drawn by design: only the telegraphs that were drawn (windupDrawn), a
+    // received windup that carried a duration (windupMs > 0) and critical hits (critFx) are events worth a frame.
+    if (p.windupFx > last.windupFx && !(p.windupMs > 0)) last.windupFx = p.windupFx;
+    for (const k of ['windupFx', 'windupDrawn', 'critFx']) if (p[k] > last[k]) {
+      const near = (p.actors || []).filter(a => a.kind !== 0 && a.status === 1).map(a => ({ a, d: Math.hypot(a.sx - me.sx, a.sy - me.sy) })).sort((x, y) => x.d - y.d)[0];
+      const c = near ? await run.css(near.a.sx, near.a.sy) : await run.css(me.sx, me.sy);
+      const note = `${k} ${last[k]} -> ${p[k]} at ${((Date.now() - t0) / 1000).toFixed(0)} s; windupMs ${p.windupMs} weapon ${p.windupWeapon}; rejected ${p.windupRej} waited ${p.windupWait}`;
+      log.push(note); console.log('  ' + note);
+      if (log.length <= 14) await run.snap(k, { crop: [c.x, c.y - 40, 520, 380], note });
+      last[k] = p[k];
+    }
+    const mobs = (p.actors || []).filter(a => (a.kind === 1 || a.kind === 2) && a.status === 1).map(a => ({ a, d: Math.hypot(a.sx - me.sx, a.sy - me.sy) })).sort((x, y) => x.d - y.d);
+    if (me.status !== 1) { await sleep(800); continue; }
+    if (mobs[0] && mobs[0].d < 330) {
+      const h = mobs[0].a, c = await run.css(h.sx, h.sy);
+      await run.leftClickAt(h.sx, h.sy, 100);
+      for (let k = 0; k < 4; k++) { await run.page.mouse.click(c.x, c.y, { delay: 40 }); await sleep(150); }
+    } else if (mobs[0] && mobs[0].d < 900) { await stepToward(run, me, mobs[0].a.sx, mobs[0].a.sy, 420); }
+    else if (Date.now() - lastWalk > 9000) {
+      const rest = camps.filter(c => !seen.has(c.id)).map(c => ({ c, d: Math.hypot(c.x - me.x, c.y - me.y) })).sort((x, y) => x.d - y.d);
+      target = rest[0] ? rest[0].c : camps[tries++ % camps.length]; if (rest[0] && rest[0].d < 200) seen.add(target.id);
+      await run.walkWorld(target.x, target.y); lastWalk = Date.now();
+    }
+    await sleep(200);
+  }
+  const fin = await run.probe();
+  console.log('  FINAL counters', JSON.stringify({ windupFx: fin && fin.windupFx, windupDrawn: fin && fin.windupDrawn, windupRej: fin && fin.windupRej, windupLastMs: fin && fin.windupMs, critFx: fin && fin.critFx, hitFx: fin && fin.hitFx, minutes: ((Date.now() - t0) / 60000).toFixed(1) }));
+  fs.writeFileSync(path.join(run.dir, 'counters.json'), JSON.stringify({ final: fin && { windupFx: fin.windupFx, windupDrawn: fin.windupDrawn, critFx: fin.critFx, hitFx: fin.hitFx }, events: log }, null, 1));
+  await run.snap('final'); await run.finish();
+};
+
 const names = process.argv.slice(2).filter((a, i, all) => all[i - 1] === '--scenario').join(',').split(',').filter(Boolean);
 if (args.includes('--list')) { console.log(Object.keys(scenarios).join('\n')); process.exit(0); }
 (async () => {
