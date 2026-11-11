@@ -3,10 +3,10 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v14 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v17 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 16;
+        public const ushort ProtocolVersion = 17;
         /// <summary>Most ticks a snapshot delta's base may be behind it (a writer that skipped more sends a Full snapshot).</summary>
         public const uint MaxDeltaAge = 64;
         /// <summary>Milliseconds per server tick: a snapshot without a source-time override defaults to Tick * TickMs.</summary>
@@ -22,8 +22,8 @@ namespace Roguehalla.Net.Protocol
         public const int MaxCommandsPerInput = 16;
         public const int MaxActors = 512;
         public const int MaxMapTiles = 1024 * 1024;
-        public const int MaxMapRuns = 3 * MaxMapTiles;
-        public const int MaxMapDecodedBytes = 3 * MaxMapTiles;
+        public const int MaxMapRuns = 5 * MaxMapTiles;
+        public const int MaxMapDecodedBytes = 5 * MaxMapTiles;
     }
 
     public enum DecodeError { Truncated, TooLarge, TooMany, BadTag, BadUtf8, NonFinite, Trailing, BadMap, BadVarint, BadField }
