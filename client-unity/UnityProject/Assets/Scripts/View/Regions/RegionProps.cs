@@ -58,7 +58,7 @@ namespace Roguehalla.Client
                 if (pick < 0) continue;
                 var chosen = rules[pick];
                 // With the map's bush plane the real concealment cells are drawn below; a decorative bush would only imitate concealment.
-                if (map.Bushes != null && chosen.Art.EndsWith(".bush")) continue;
+                if (map.Bushes != null && (chosen.Art.EndsWith(".bush") || chosen.Art == "holy.shrub")) continue;
                 if (occupied[i]) continue;
                 if (!Clear(tiles, terrain, w, h, x, y, chosen.WallClearance)) continue;
                 // Spacing-only list: it decides which props may not touch. It is NOT the fade rule (that is the art's Tall flag, via PropFade).

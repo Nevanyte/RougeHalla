@@ -156,10 +156,14 @@ namespace Roguehalla.Client.Tests
             foreach (var p in after)
                 if (p.Art.EndsWith(".bush") || p.Art == "holy.shrub")
                 {
-                    if (p.Art == "holy.shrub" && plane[p.Ty * map.W + p.Tx] == 0) continue;   // holy shrubs are also ordinary decoration
                     bushes++; Assert.That(plane[p.Ty * map.W + p.Tx], Is.Not.EqualTo(0), "a bush stands only on a real concealment cell");
                 }
             Assert.That(bushes, Is.EqualTo(real), "every real cell has its bush");
+            int holyCells = 0;
+            for (int i = 0; i < plane.Length; i++) if (map.Regions[i] == (byte)RegionId.Holy && map.Tiles[i] == MapBlob.Floor && (holyCells++ % 7) == 0) plane[i] = 1;
+            Assert.That(holyCells, Is.GreaterThan(0));
+            foreach (var p in RegionProps.Scatter(map.WithPublic(null, null, plane, null, null)))
+                if (p.Art == "holy.shrub") Assert.That(plane[p.Ty * map.W + p.Tx], Is.Not.EqualTo(0), "in Holy every shrub is a real bush cell");
         }
 
         [Test]

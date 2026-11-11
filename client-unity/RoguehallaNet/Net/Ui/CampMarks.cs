@@ -39,13 +39,29 @@ namespace Roguehalla.Net.Ui
                 var state = r.State == 1 ? CampMarkState.Engaged : r.State == 2 ? CampMarkState.Cleared : CampMarkState.Idle;
                 string countdown = null;
                 if (active && state == CampMarkState.Cleared && r.RespawnAt > 0)
-                    countdown = Seconds(r.RespawnAt, serverNowMs).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    countdown = Digits(Seconds(r.RespawnAt, serverNowMs));
                 into.Add(new CampMarkRow
                 {
                     Index = i, WorldX = camps[i].X, WorldY = camps[i].Y, Zone = camps[i].Zone,
                     Elite = r.Elite != null, State = state, Countdown = countdown,
                 });
             }
+        }
+
+        const int CacheCap = 1024;
+        static readonly string[] DigitCache = new string[CacheCap], RespawnCache = new string[CacheCap];
+
+        /// <summary>Cached whole-second text, so a steady presentation allocates nothing; above the cap it formats.</summary>
+        static string Digits(long s)
+        {
+            if (s >= CacheCap) return s.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return DigitCache[s] ?? (DigitCache[s] = s.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        static string Respawn(long s)
+        {
+            if (s >= CacheCap) return "RESPAWN " + Digits(s) + "s";
+            return RespawnCache[s] ?? (RespawnCache[s] = "RESPAWN " + Digits(s) + "s");
         }
 
         static long Seconds(double respawnAt, double now)
@@ -67,7 +83,7 @@ namespace Roguehalla.Net.Ui
                 {
                     Index = i, WorldX = camps[i].X, WorldY = camps[i].Y,
                     Text = r.RespawnAt > serverNowMs
-                        ? "RESPAWN " + Seconds(r.RespawnAt, serverNowMs).ToString(System.Globalization.CultureInfo.InvariantCulture) + "s"
+                        ? Respawn(Seconds(r.RespawnAt, serverNowMs))
                         : "RESPAWN READY",
                 });
             }
