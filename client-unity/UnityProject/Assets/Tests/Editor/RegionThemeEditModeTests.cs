@@ -210,6 +210,102 @@ namespace Roguehalla.Client.Tests
             return new MapBlob(160, 160, Read("tiles"), Read("terrain"), Read("regionGrid"));
         }
 
+        // ---- Sentenced readability (packet P-UNITY-SENTENCED-READ-1) -----------------------------------------------------------
+        // The same three pairs as Tools/contrast-lib.test.cjs, measured on the generated wall atlas (not on palette expressions): wall top,
+        // rim and fence bars against the zone's floor colour (RegionThemes Sentenced BaseSrgb, the ground shader's base; the baked flagstone
+        // detail and the zone lighting are NOT applied here, they need a screenshot). Each is WCAG relative luminance, at least 3:1.
+        // Not run by scripts/gate.sh (no Unity in the gate): run through the Unity EditMode batch runner with the Editor closed.
+
+        const float ReadableRatio = 3f;
+
+        static double Lin(double v) { return v <= .04045 ? v / 12.92 : System.Math.Pow((v + .055) / 1.055, 2.4); }
+        static double Luminance(double r, double g, double b) { return .2126 * Lin(r) + .7152 * Lin(g) + .0722 * Lin(b); }
+        static double Luminance(Color c) { return Luminance(c.r, c.g, c.b); }
+        static double Ratio(double a, double b) { double hi = System.Math.Max(a, b), lo = System.Math.Min(a, b); return (hi + .05) / (lo + .05); }
+
+        static Color SentencedFloor { get { return RegionThemes.Get(RegionId.Sentenced).BaseSrgb; } }
+
+        /// <summary>The atlas pixels of one cell: x0, y0 of its lower-left texel, in atlas texels (cells are stored with their canvas row order).</summary>
+        static Color32[] CellPixels(RegionWallAtlas.Cell cell, int w, int h)
+        {
+            var atlas = RegionWallAtlas.Atlas; int x0 = Mathf.RoundToInt(cell.Min.x * atlas.width), y0 = Mathf.RoundToInt(cell.Min.y * atlas.height);
+            var all = atlas.GetPixels32(); var o = new Color32[w * h];
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) o[y * w + x] = all[(y0 + y) * atlas.width + x0 + x];
+            return o;
+        }
+
+        /// <summary>
+        /// The contract the implementer adds to RegionWallAtlas: <c>public static Color FenceTileGround(Color floorSrgb)</c>, the ground colour (sRGB)
+        /// under a fence tile for an open floor colour (legacy: the fence's iron at alpha .3 over the ground, zoneStyle.ts drawFenceTile). Looked up by
+        /// reflection so this file compiles before it exists; the same function must colour the fence tile's ground in the picture.
+        /// </summary>
+        static Color FenceTileGround(Color floorSrgb)
+        {
+            var m = typeof(RegionWallAtlas).GetMethod("FenceTileGround", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, null, new[] { typeof(Color) }, null);
+            Assert.That(m, Is.Not.Null, "RegionWallAtlas.FenceTileGround(Color) does not exist yet: add it (public static Color FenceTileGround(Color floorSrgb)) and draw the fence tile ground with it");
+            Assert.That(m.ReturnType, Is.EqualTo(typeof(Color)));
+            return (Color)m.Invoke(null, new object[] { floorSrgb });
+        }
+
+        static double Median(List<double> v) { v.Sort(); return v.Count == 0 ? 0 : v[v.Count / 2]; }
+
+        static Color MeanOpaque(Color32[] px)
+        {
+            double r = 0, g = 0, b = 0; int n = 0;
+            foreach (var c in px) if (c.a >= 250) { r += c.r / 255.0; g += c.g / 255.0; b += c.b / 255.0; n++; }
+            Assert.That(n, Is.GreaterThan(0), "cell has no opaque pixels");
+            return new Color((float)(r / n), (float)(g / n), (float)(b / n), 1f);
+        }
+
+        [Test]
+        public void SentencedWallTopTextureReadsAgainstTheFloor()
+        {
+            var set = RegionWallAtlas.SetFor(WallStyle.Timber); var floor = Luminance(SentencedFloor);
+            for (int v = 0; v < RegionWallAtlas.TopVariants; v++)
+            {
+                var top = MeanOpaque(CellPixels(set.Top[v], RegionWallAtlas.TileW, RegionWallAtlas.TopH)); double r = Ratio(Luminance(top), floor);
+                Assert.That(r, Is.GreaterThanOrEqualTo(ReadableRatio), "Sentenced wall top variant " + v + " (mean " + (Color32)top + ") against the floor " + SentencedFloor + " measured " + r.ToString("F3") + ":1");
+            }
+        }
+
+        [Test]
+        public void SentencedWallRimTextureReadsAgainstTheFloor()
+        {
+            var set = RegionWallAtlas.SetFor(WallStyle.Timber); var floor = Luminance(SentencedFloor);
+            var top = MeanOpaque(CellPixels(set.Top[0], RegionWallAtlas.TileW, RegionWallAtlas.TopH));
+            var rim = CellPixels(set.Rim, RegionWallAtlas.TileW, RegionWallAtlas.RimH);
+            // Rows 0-1 are the dark outline; row 2 is the brightest light row. The rim is drawn over the wall top, so composite it there.
+            var c = rim[2 * RegionWallAtlas.TileW + RegionWallAtlas.TileW / 2]; float a = c.a / 255f;
+            double r = Ratio(Luminance(c.r / 255.0 * a + top.r * (1 - a), c.g / 255.0 * a + top.g * (1 - a), c.b / 255.0 * a + top.b * (1 - a)), floor);
+            Assert.That(r, Is.GreaterThanOrEqualTo(ReadableRatio), "Sentenced rim, brightest light row (" + c + " over the wall top) against the floor measured " + r.ToString("F3") + ":1");
+        }
+
+        [Test]
+        public void SentencedFenceBarsReadAgainstTheFenceTileGround()
+        {
+            var set = RegionWallAtlas.SetFor(WallStyle.Timber); var ground = Luminance(FenceTileGround(SentencedFloor));
+            for (int v = 0; v < RegionWallAtlas.LowVariants; v++)
+            {
+                var px = CellPixels(set.Low[v], RegionWallAtlas.TileW, RegionWallAtlas.LowH);
+                // The bars stand every 8 px from x = 4 (RegionWallAtlas.PaintLow, Timber railings); the median opaque pixel of a bar column is the bar body
+                // (the two rails and the finial are a few rows of it).
+                var lums = new List<double>();
+                for (int k = 0; k < 16; k++) for (int y = 0; y < RegionWallAtlas.LowH; y++)
+                { var c = px[y * RegionWallAtlas.TileW + 4 + k * 8]; if (c.a >= 250) lums.Add(Luminance(c.r / 255.0, c.g / 255.0, c.b / 255.0)); }
+                Assert.That(lums.Count, Is.GreaterThan(64), "variant " + v + " has bar pixels");
+                double r = Ratio(Median(lums), ground);
+                Assert.That(r, Is.GreaterThanOrEqualTo(ReadableRatio), "Sentenced fence bar variant " + v + " against the fence tile ground measured " + r.ToString("F3") + ":1");
+            }
+        }
+
+        [Test]
+        public void ASentencedFenceTileHasADarkerGroundThanOpenFloor()
+        {
+            // Legacy shades the blocked tile (zoneStyle.ts drawFenceTile: the fence's iron colour at alpha .3 over the ground), so the line reads as blocking.
+            var floor = SentencedFloor; var fenced = FenceTileGround(floor);
+            Assert.That(Luminance(fenced), Is.LessThan(Luminance(floor)), "the fence tile ground " + (Color32)fenced + " must be darker than open floor " + floor);
+        }
+
         // ---- batching (no GPU) -----------------------------------------------------------------------------------------------------
 
         [Test]

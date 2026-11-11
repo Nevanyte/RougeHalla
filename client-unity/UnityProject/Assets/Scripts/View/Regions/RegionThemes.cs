@@ -100,7 +100,7 @@ namespace Roguehalla.Client
                                  new PropRule("fire.crystal", 1.4f, .8f, 1.2f), new PropRule("fire.vent", 1.1f, .9f, 1.1f) }; }
             // 2 sentenced: the muted zone. Gothic crypt-yard: dark masonry, iron railings, tombstones, hazy.
             { var th = t[2]; th.Wall = WallStyle.Timber;
-              th.WallTop = Mix(Sec(2), B(2), .55f); th.WallFace = Mix(Sec(2), B(2), .35f); th.WallEdge = Mix(Sec(2), B(2), .7f);
+              th.WallTop = new Color(.46f, .47f, .52f); th.WallFace = Mix(Sec(2), B(2), .35f); th.WallEdge = new Color(.58f, .59f, .65f);
               th.GroundParams = new Vector4(.55f, .6f, 0, 0); th.GroundParams2 = new Vector4(.22f, 0, .15f, 0);
               th.Props = new[] { new PropRule("sent.tomb", 2.6f, .9f, 1.15f), new PropRule("sent.cross", 1.7f, .9f, 1.15f), new PropRule("sent.slab", 1.4f, .9f, 1.15f),
                                  new PropRule("sent.deadgrass", 6f, .85f, 1.2f), new PropRule("sent.deadtree", 1.1f, .85f, 1.2f), new PropRule("sent.lantern", 3.6f, .95f, 1.05f, wallClearance: 1),

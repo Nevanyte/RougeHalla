@@ -240,3 +240,72 @@ test('fillHoles closes enclosed gaps (text glyphs in a plate) and leaves open no
   assert.equal(m[1 * w + 6], 0, 'the open notch stays open');
   assert.equal(n, 35);
 });
+
+// ---- Sentenced readability (packet P-UNITY-SENTENCED-READ-1) ------------------------------------------------------------------------
+// The C# computes Sentenced's wall, rim and fence colours from the generated palette; readSentencedColours evaluates those expressions from the
+// sources (Unity does not run here). Floor = the zone's Base colour, the ground shader's _PalBase. The three assertions below are the packet's
+// oracle: each must reach 3:1 (WCAG). They measure the palette, not the lit picture (exposure .55, saturation -22): the lit numbers are a
+// screenshot / EditMode matter (RegionThemeEditModeTests). Command: node --test client-unity/UnityProject/Tools/contrast-lib.test.cjs
+// Not run by scripts/gate.sh: the reviewer runs it.
+const fs = require('node:fs');
+const path = require('node:path');
+const REGIONS = path.join(__dirname, '..', 'Assets', 'Scripts', 'View', 'Regions');
+const LEGACY_PALETTE = path.join(__dirname, '..', '..', '..', 'packages', 'client', 'src', 'render', 'zoneArt', 'palette.ts');
+const read = f => fs.readFileSync(f, 'utf8');
+const sentenced = () => L.readSentencedColours({ generated: read(path.join(REGIONS, 'RegionPaletteGenerated.cs')), themes: read(path.join(REGIONS, 'RegionThemes.cs')), atlas: read(path.join(REGIONS, 'RegionWallAtlas.cs')) });
+const THRESHOLD = 3;
+const fmt = (name, a, b) => `${name} ${L.ratioOf(a, b).toFixed(3)}:1 (${L.hex(a)} on ${L.hex(b)})`;
+const rgb = h => [0, 2, 4].map(o => parseInt(h.slice(o, o + 2), 16) / 255);
+
+test('C# colour expressions evaluate like Unity (Mix clamps t, Shade scales, new Color, names, calls)', () => {
+  const env = { 'th.Edge': [0.2, 0.4, 0.6] };
+  const f = { Mix: (a, b, t) => a.map((v, k) => v + (b[k] - v) * Math.max(0, Math.min(1, t))), Shade: (c, k) => c.map(v => v * k), B: id => [id / 10, 0, 0] };
+  assert.deepEqual(L.evalCsColor('Mix(new Color(.1f, .2f, .3f), Color.white, .5f)', env, f).map(v => +v.toFixed(6)), [0.55, 0.6, 0.65]);
+  assert.deepEqual(L.evalCsColor('Mix(th.Edge, Color.white, 2f)', env, f), [1, 1, 1]);
+  assert.deepEqual(L.evalCsColor('Shade(B(5), .5f)', env, f), [0.25, 0, 0]);
+  assert.equal(L.csAssignment('th.WallTop = Mix(Sec(2), B(2), .55f); th.X = 1;', 'th.WallTop').expr, 'Mix(Sec(2), B(2), .55f)');
+  assert.equal(L.csAssignment('Color iron = Mix(a, b, .1f), ironL = Mix(iron, Color.white, .22f);', 'Color iron').expr, 'Mix(a, b, .1f)');
+});
+
+test('the Sentenced reader finds the generated palette and every colour the oracle measures', () => {
+  const c = sentenced();
+  near(c.floor[0] * 255, 31, 1e-9); near(c.floor[1] * 255, 30, 1e-9); near(c.floor[2] * 255, 37, 1e-9);   // RegionPaletteGenerated region 2 Base
+  for (const k of ['wallTop', 'wallFace', 'wallEdge', 'rim', 'rimDrawn', 'fenceBar', 'fenceRail']) assert.ok(c[k].length === 3 && c[k].every(Number.isFinite), k);
+  assert.ok(c.rimAlpha > 0 && c.rimAlpha < 1);
+});
+
+test('LEGACY (pinned): Sentenced zoneArt contrast the port is measured against, read from packages/client/.../palette.ts', () => {
+  // palette.ts:32-36 sentenced {floor 0x3a3b42, wallTop 0x7b7e8a, wallFront 0x4b4e58, wallRim 0xa4a8b6}; palette.ts:57 fence {iron 0x1c1d22, highlight 0x8d93a3};
+  // zoneStyle.ts:333-335 rim() draws wallRim along the open north side, Sentenced at alpha .6 (zoneStyle.ts:374); zoneStyle.ts:519-543 drawFenceTile(): iron at alpha .3 over the tile, then highlight bars.
+  const text = read(LEGACY_PALETTE), block = /sentenced:\s*\{([^}]*)\}/.exec(text)[1], fence = text.slice(text.indexOf('fence: {'));
+  const get = k => rgb(new RegExp(`${k}:\\s*0x([0-9a-f]{6})`).exec(block)[1]);
+  const floor = get('floor'), top = get('wallTop'), front = get('wallFront'), rim = get('wallRim');
+  const bar = rgb(/highlight:\s*0x([0-9a-f]{6})/.exec(fence)[1]), iron = rgb(/iron:\s*0x([0-9a-f]{6})/.exec(fence)[1]);
+  const shaded = floor.map((v, k) => v + (iron[k] - v) * 0.3);
+  near(L.ratioOf(top, floor), 2.756, 0.002, 'wall top on floor');
+  near(L.ratioOf(rim, floor), 4.700, 0.002, 'rim (full strength) on floor');
+  near(L.ratioOf(front, floor), 1.343, 0.002, 'wall front on floor');
+  near(L.ratioOf(top.map((v, k) => v + (rim[k] - v) * 0.6), floor), 3.837, 0.002, 'rim as drawn (zoneStyle.ts:374 alpha .6 over the wall top) on floor');
+  near(L.ratioOf(bar, floor), 3.628, 0.002, 'fence bar on plain floor');
+  near(L.ratioOf(bar, shaded), 4.156, 0.002, 'fence bar on the 30% shaded fence tile');
+  // Legacy is itself below 3:1 for the wall top: the packet asks for more than legacy there, by the owner's 3:1 rule. Flagged in the brief.
+  assert.ok(L.ratioOf(top, floor) < THRESHOLD);
+});
+
+test('Sentenced wall top reads against the floor: at least 3:1 (WCAG)', () => {
+  const c = sentenced(), r = L.ratioOf(c.wallTop, c.floor);
+  assert.ok(r >= THRESHOLD, `${fmt('wall top / floor', c.wallTop, c.floor)} is below ${THRESHOLD}:1 (legacy 2.756:1; th.WallTop in the Sentenced block of RegionThemes.cs)`);
+});
+
+test('Sentenced wall rim reads against the floor: at least 3:1 (WCAG), at full strength and as drawn on its brightest row', () => {
+  const c = sentenced(), full = L.ratioOf(c.rim, c.floor), drawn = L.ratioOf(c.rimDrawn, c.floor);
+  const msg = `${fmt('rim colour / floor', c.rim, c.floor)}; ${fmt(`rim as drawn (alpha ${c.rimAlpha.toFixed(2)} over the wall top) / floor`, c.rimDrawn, c.floor)}; both must be >= ${THRESHOLD}:1 (legacy rim 4.700:1)`;
+  assert.ok(full >= THRESHOLD && drawn >= THRESHOLD, msg);
+});
+
+test('Sentenced fence bar and rail read against the fenced-tile ground: at least 3:1 (WCAG) on the plain floor', () => {
+  // Legacy darkens the fenced tile (30% iron), which only helps light bars, so the plain floor is the conservative ground to measure. That the
+  // fenced tile is darker than open floor is checked on the generated textures in RegionThemeEditModeTests.
+  const c = sentenced(), bar = L.ratioOf(c.fenceBar, c.floor), rail = L.ratioOf(c.fenceRail, c.floor);
+  assert.ok(bar >= THRESHOLD && rail >= THRESHOLD, `${fmt('fence bar (iron) / floor', c.fenceBar, c.floor)}; ${fmt('fence rail (ironL) / floor', c.fenceRail, c.floor)}; both must be >= ${THRESHOLD}:1 (legacy bar 3.628:1)`);
+});

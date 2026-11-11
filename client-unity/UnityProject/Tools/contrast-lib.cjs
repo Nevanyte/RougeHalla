@@ -344,7 +344,108 @@ function parseArgs(argv) {
   return o;
 }
 
+// ---- Region colours read from the C# sources ---------------------------------------------------------------------------------------
+// The Sentenced packet (docs/backlog/packets/P-UNITY-SENTENCED-READ-1.md) measures wall, rim and fence colours that the C# computes from the generated
+// palette (Mix, Shade, a few literals). Unity does not run in the gate, so this evaluates exactly those expressions: a recursive-descent reader for
+// `Name(args)`, `new Color(r, g, b)`, `Color.white`, numbers like `.55f`, and identifiers looked up in an environment. Colours are [r, g, b] in 0..1 sRGB.
+
+function csTokens(text) {
+  const out = [], re = /\s*(new\s+Color|[A-Za-z_][A-Za-z_0-9.]*|[0-9]*\.?[0-9]+f?|[(),])/y;
+  let m; re.lastIndex = 0;
+  while (re.lastIndex < text.length && (m = re.exec(text))) out.push(m[1].replace(/\s+/g, ' '));
+  if (re.lastIndex < text.replace(/\s+$/, '').length) throw new Error(`cannot tokenise C# expression: ${text}`);
+  return out;
+}
+/** Evaluates one C# colour expression. `env` maps identifiers (`th.WallTop`, `iron`) to [r,g,b]; `fns` maps function names to JS functions of evaluated args. */
+function evalCsColor(text, env, fns) {
+  const t = csTokens(text); let i = 0;
+  const num = tok => parseFloat(tok.replace(/f$/, ''));
+  const expr = () => {
+    const tok = t[i++];
+    if (tok === 'new Color') { const a = args(); return a.slice(0, 3); }
+    if (/^[0-9.]/.test(tok)) return num(tok);
+    if (t[i] === '(') { const f = fns[tok]; if (!f) throw new Error(`unknown C# function ${tok} in: ${text}`); return f(...args()); }
+    if (tok === 'Color.white') return [1, 1, 1];
+    if (tok === 'Color.black') return [0, 0, 0];
+    if (!(tok in env)) throw new Error(`unknown C# name ${tok} in: ${text}`);
+    return env[tok];
+  };
+  const args = () => { i++; const a = []; while (t[i] !== ')') { a.push(expr()); if (t[i] === ',') i++; } i++; return a; };
+  const v = expr();
+  if (i !== t.length) throw new Error(`trailing tokens in C# expression: ${text}`);
+  return v;
+}
+/** The text of `Name = <expr>` up to the next top-level `;` or `,` (parenthesis depth 0), searching from `from`; null when absent. */
+function csAssignment(src, name, from = 0) {
+  const m = new RegExp(`\\b${name.replace(/\./g, '\\.')}\\s*=\\s*`, 'g'); m.lastIndex = from;
+  const hit = m.exec(src); if (!hit) return null;
+  let depth = 0, j = m.lastIndex;
+  for (; j < src.length; j++) {
+    const c = src[j];
+    if (c === '(') depth++; else if (c === ')') depth--; else if (depth === 0 && (c === ';' || c === ',')) break;
+  }
+  return { expr: src.slice(m.lastIndex, j).trim(), end: j };
+}
+const lerp = (a, b, t) => { t = Math.max(0, Math.min(1, t)); return a.map((v, k) => v + (b[k] - v) * t); };
+const CS_FNS = { Mix: lerp, Shade: (c, k) => c.map(v => Math.max(0, Math.min(1, v * k))) };
+/** WCAG relative luminance of a [r,g,b] colour in 0..1 sRGB (unrounded, unlike relativeLuminance which takes byte codes). */
+function luminanceOf(c) {
+  const lin = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+}
+function ratioOf(a, b) { return contrastRatio(luminanceOf(a), luminanceOf(b)); }
+const hex = c => '#' + c.map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+
+/** The generated palette rows: srgb[region][slot] = [r,g,b] (0..1) from RegionPaletteGenerated.Srgb. */
+function readGeneratedSrgb(src) {
+  const at = src.indexOf('Color32[][] Srgb'); if (at < 0) throw new Error('RegionPaletteGenerated.Srgb not found');
+  const rows = [], re = /new Color32\((\d+),\s*(\d+),\s*(\d+),\s*255\)/g; re.lastIndex = at;
+  const rowRe = /new\[\] \{ \/\/ (\d+)/g; rowRe.lastIndex = at;
+  const starts = []; let m; while ((m = rowRe.exec(src))) starts.push({ id: +m[1], at: m.index });
+  for (let k = 0; k < starts.length; k++) {
+    const body = src.slice(starts[k].at, k + 1 < starts.length ? starts[k + 1].at : src.length), row = [], r2 = /new Color32\((\d+),\s*(\d+),\s*(\d+),\s*255\)/g;
+    while ((m = r2.exec(body))) row.push([+m[1] / 255, +m[2] / 255, +m[3] / 255]);
+    rows[starts[k].id] = row;
+  }
+  return rows;
+}
+/**
+ * Sentenced colours as the C# computes them. `regions` = the files under Assets/Scripts/View/Regions as { generated, themes, atlas } source text.
+ *   floor    the ground base colour (RegionPaletteGenerated Base, region 2): what RegionGround feeds the shader as _PalBase
+ *   wallTop, wallFace, wallEdge   th.WallTop / WallFace / WallEdge of region 2 (RegionThemes.cs)
+ *   rim      `Color rim = ...` in RegionWallAtlas.PaintRim (the lit rim colour before its alpha ramp); rimAlpha its alpha on the brightest light row;
+ *            rimDrawn that row composited over the wall top
+ *   fenceBar `iron` and fenceRail `ironL` of the Timber branch of RegionWallAtlas.PaintLow (the graveyard fence every zone uses, RegionWalls.cs)
+ */
+function readSentencedColours({ generated, themes, atlas }) {
+  const srgb = readGeneratedSrgb(generated), slot = { Base: 0, Secondary: 1, Accent: 2 };
+  const pal = (id, s) => srgb[id][s];
+  const fns = { ...CS_FNS, B: id => pal(id, 0), Sec: id => pal(id, 1), Acc: id => pal(id, 2), S: (id, s) => pal(id, s) };
+  const start = themes.indexOf('var th = t[2];'); if (start < 0) throw new Error('Sentenced block (var th = t[2]) not found in RegionThemes.cs');
+  const env = { 'th.AccentSrgb': pal(2, slot.Accent), 'th.SecondarySrgb': pal(2, slot.Secondary), 'th.BaseSrgb': pal(2, slot.Base) };
+  const th = {};
+  for (const k of ['WallTop', 'WallFace', 'WallEdge']) {
+    const a = csAssignment(themes, `th.${k}`, start); if (!a) throw new Error(`th.${k} not found in the Sentenced block`);
+    th[k] = evalCsColor(a.expr, env, fns); env[`th.${k}`] = th[k];
+  }
+  const rimAt = atlas.indexOf('static RegionCanvas PaintRim'); const rimA = rimAt < 0 ? null : csAssignment(atlas, 'Color rim', rimAt);
+  if (!rimA) throw new Error('`Color rim =` not found in RegionWallAtlas.PaintRim');
+  const rim = evalCsColor(rimA.expr, env, fns);
+  const lowAt = atlas.indexOf('static RegionCanvas PaintLow'), timberAt = atlas.indexOf('WallStyle.Timber', lowAt);
+  const ironA = csAssignment(atlas, 'Color iron', timberAt); if (!ironA) throw new Error('`Color iron =` not found in the Timber branch of PaintLow');
+  const iron = evalCsColor(ironA.expr, env, fns); env.iron = iron;
+  const ironLA = csAssignment(atlas, 'ironL', ironA.end); if (!ironLA) throw new Error('`ironL =` not found after iron');
+  const ironL = evalCsColor(ironLA.expr, env, fns);
+  // The rim as drawn: PaintRim fades `rim` in with alpha Pow(1 - t, p) * k, t = y / (RimH - 1), over the wall top; rows 0-1 are a dark outline,
+  // so the brightest light row is y = 2. Keep that expression form (or change this reader together with the oracle).
+  const ramp = /Mathf\.Pow\(1f - t,\s*([0-9.]+)f\)\s*\*\s*([0-9.]+)f/.exec(atlas.slice(rimAt)), rimH = /RimH\s*=\s*(\d+)/.exec(atlas);
+  if (!ramp || !rimH) throw new Error('rim alpha ramp `Mathf.Pow(1f - t, p) * k` or RimH not found in RegionWallAtlas.cs');
+  const rimAlpha = Math.pow(1 - 2 / (+rimH[1] - 1), +ramp[1]) * +ramp[2];
+  return { floor: pal(2, slot.Base), wallTop: th.WallTop, wallFace: th.WallFace, wallEdge: th.WallEdge, rim, rimAlpha, rimDrawn: lerp(th.WallTop, rim, rimAlpha), fenceBar: iron, fenceRail: ironL };
+}
+
 module.exports = {
+  evalCsColor, csAssignment, readGeneratedSrgb, readSentencedColours, luminanceOf, ratioOf, hex,
   linearise, relativeLuminance, encodeSrgb, contrastRatio, luminancePlane, median, percentile, decodePng, encodePng, CLASS, CLASS_NAMES, classifyMaskPixel, decodeMask,
   distanceTo, erode, dilate, fillHoles, regions, centroid, sectorOf, sectorContrast, analyzeCell, frameConsistency, cellKind, parseOnly, parseArgs, parseSizes, ZONES, DEFAULTS,
 };
