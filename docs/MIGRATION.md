@@ -4,6 +4,23 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Paused by the owner (2026-11-11, about 02:20 CST): state to resume from
+
+Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.
+- **Pushed to origin:** `3ce3c031` (full gate PASS, EditMode 606/606). **Not pushed and not yet gated:** the commits after
+  it (checkpoint docs, the P-SIM-BUILDSUMMARY-1 merge `1639287d`, the P-UNITY-HUD-CAMPS-1 brief). Run the full gate with
+  Postgres before pushing or building from them.
+- **Implemented, awaiting review:** `agent/opus/P-WIRE17-MAP-1` @ `bc796e4a` (protocol 17 map sections; quick gate PASS;
+  the Opus review was stopped at the pause and must be run again). Worktree `.claude/worktrees/agent-a1b76e41004d3449e`
+  is clean and can be removed.
+- **Next in order:** review and merge P-WIRE17-MAP-1; oracle and implementation of P-WIRE17-HUD-1 (Opus) and
+  P-UNITY-HUD-CAMPS-1 (Sonnet); then P-UNITY-HUD-BUILD-1, P-UNITY-OVERHEAD-2 (status art on the body) and the remaining
+  plan (legacy Nov 4 changes, map pool, signature terrain, dressing, bots).
+- **Deploy:** not done (see integration 1). The beta host expires 2026-11-11 13:26:29 UTC.
+- **How to resume the gate:** `export PGBIN=/opt/homebrew/opt/postgresql@16/bin LC_ALL=en_US.UTF-8; eval "$(tools/pgtest/start.sh)";
+  scripts/gate.sh --coordinator`. Both variables are needed: without `LC_ALL` the throwaway Postgres will not start, and
+  without `PGBIN` one rh-server recovery test fails. Oracle refs for the path check are the `packet/<ID>-oracle` branches.
+
 ## Beta follow-up integration 1 (2026-11-11 02:06 CST, unattended run)
 
 Integration branch `feature/unity-rework`, head `3ce3c031`, pushed to origin as a backup (owner pre-approval). **Full gate
