@@ -76,6 +76,34 @@ async fn the_binarys_proxy_settings_reach_the_lobby() {
     );
 }
 
+/// A real room with fill bots seated in its lobby: the listing shows them, tagged `"kind": "bot"`, after the human.
+#[tokio::test]
+async fn bot_seats_appear_in_the_listing() {
+    let mut cfg = director_cfg();
+    cfg.fill_bots_to = 3;
+    let addr = start(cfg, ApiConfig::default(), |l| l).await;
+    let _alpha = ws::try_join(&format!("ws://{addr}/ws"), "Alpha", "", None)
+        .await
+        .expect("seated");
+    let until = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+    let players = loop {
+        let s = http::get(addr, LOBBY, &[]).await.json();
+        let p = s["rooms"][0]["players"].clone();
+        if p.as_array().is_some_and(|p| p.len() == 3) || tokio::time::Instant::now() > until {
+            break p;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    assert_eq!(
+        players,
+        serde_json::json!([
+            { "name": "Alpha", "kind": "human" },
+            { "name": "bot1", "kind": "bot" },
+            { "name": "bot2", "kind": "bot" },
+        ])
+    );
+}
+
 /// The lobby answers CORS like the rest of `/api` (`--api-cors-origins`): only an allowlisted origin is echoed.
 #[tokio::test]
 async fn the_lobby_follows_the_api_cors_allowlist() {

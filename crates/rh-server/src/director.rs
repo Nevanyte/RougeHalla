@@ -116,6 +116,8 @@ struct RoomEntry {
 struct PublicRoom {
     /// Callsigns seated (a `Seat` report `Seated` until its `Gone`), in arrival order.
     humans: Vec<String>,
+    /// Bot callsigns seated (`BotSeat` reports), in arrival order.
+    bots: Vec<String>,
     started_at_ms: Option<u64>,
     human_min: usize,
     fill_target: usize,
@@ -1299,6 +1301,21 @@ impl Director {
                         crate::metrics::process().note_admit_to_seat(took);
                     }
                 }
+                RoomReport::BotSeat {
+                    match_id,
+                    name,
+                    seated,
+                } => {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
+                        let bots = &mut r.public.bots;
+                        if seated {
+                            bots.push(name);
+                        } else if let Some(i) = bots.iter().position(|b| *b == name) {
+                            bots.remove(i);
+                        }
+                    }
+                }
                 RoomReport::Phase { match_id, phase } => {
                     let mut inner = this.inner.lock().expect("director");
                     if let Some(r) = inner.rooms.get_mut(&match_id) {
@@ -1410,7 +1427,7 @@ impl Director {
     /// The public lobby endpoint's copy of the rooms (P-LOBBY-ACTIVITY-1): plain data, copied under the lock. A training
     /// server's rooms are private runs (legacy lists only non-training rooms): their players only count as seated.
     ///
-    /// Players are the seated humans the rooms reported; fill bots are not reported to the director, so none is listed.
+    /// Players are the seated humans (`Seat` reports), then the seated bots (`BotSeat` reports), each in arrival order.
     pub fn lobby_view(&self) -> LobbyView {
         let inner = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         let training = self.cfg.sim.training;
@@ -1432,13 +1449,11 @@ impl Director {
                 started_at_ms: r.public.started_at_ms,
                 human_min: r.public.human_min,
                 fill_target: r.public.fill_target,
-                players: r
-                    .public
-                    .humans
-                    .iter()
-                    .map(|name| LobbyPlayerView {
+                players: (r.public.humans.iter().map(|n| (n, false)))
+                    .chain(r.public.bots.iter().map(|n| (n, true)))
+                    .map(|(name, bot)| LobbyPlayerView {
                         name: name.clone(),
-                        bot: false,
+                        bot,
                     })
                     .collect(),
             });
