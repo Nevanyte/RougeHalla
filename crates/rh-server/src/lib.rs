@@ -51,11 +51,12 @@ pub fn public_router(director: Arc<Director>) -> Router {
 
 /// [`public_router`] plus the account service (`/api/*`, `/readyz`): profile claim/open, shop, leaderboard, health. Serve it
 /// with [`serve`], which provides the peer address the per-address caps are keyed by.
+/// It also serves the public lobby activity endpoint (`/api/lobby`, `/api/lobby/presence`) with its default settings.
 pub fn public_router_with_api(director: Arc<Director>, api: api::AccountApi) -> Router {
-    public_router(director.clone()).merge(api::router(director, api))
+    public_router_with_lobby(director, api, lobby::LobbyConfig::default())
 }
 
-/// [`public_router_with_api`] with the lobby activity endpoint's settings. STUB.
+/// [`public_router_with_api`] with the lobby activity endpoint's settings (limits, forwarded-address header).
 pub fn public_router_with_lobby(
     director: Arc<Director>,
     api: api::AccountApi,
