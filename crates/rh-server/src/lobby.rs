@@ -66,6 +66,18 @@ pub struct LobbyConfig {
     pub auth_timeout: Duration,
 }
 
+impl LobbyConfig {
+    /// The defaults with the account API's forwarded-address settings (`--client-ip-header`, `--trusted-proxies`). The
+    /// server binary builds the lobby this way, so behind its proxy each client keeps its own bucket.
+    pub fn from_api(api: &crate::api::ApiConfig) -> Self {
+        Self {
+            client_ip_header: api.client_ip_header.clone(),
+            trusted_proxies: api.trusted_proxies.clone(),
+            ..Self::default()
+        }
+    }
+}
+
 impl Default for LobbyConfig {
     fn default() -> Self {
         Self {
