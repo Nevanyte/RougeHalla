@@ -26,10 +26,10 @@ additions are gone, and the layout is produced by a pure function with tests.
 - `docs/rework/LEGACY_INDICATORS.md` sections 1-2.3 and `docs/rework/LEGACY_LAYOUT.md`: existing write-ups
 
 ## 4. New paths
-- `client-unity/RoguehallaNet/Net/Ui/OverheadLayout.cs` (pure layout; name may change) and its test file
+- `client-unity/RoguehallaNet/Net/Ui/OverheadStack.cs`: the pure layout, `OverheadStack.Build(in OverheadFacts, List<OverheadElement>)`. (`OverheadLayout` is taken by an older struct in `Indicators.cs`, whose tests stay.) A stub exists (today's Unity arrangement); the implementer replaces its body and deletes the four extra `OverheadKind` members (`InsigniaPlate`, `SignatureIcon`, `NamePlate`, `StatusBadge`).
 
 ## 5. Exclusive write scope
-- `client-unity/RoguehallaNet/Net/Ui/OverheadLayout.cs` and its synced copy
+- `client-unity/RoguehallaNet/Net/Ui/OverheadStack.cs` and its synced copy; `Indicators.cs` only if a helper is needed (its tests are oracle files)
 - `client-unity/UnityProject/Assets/Scripts/Presentation/OverheadIndicators.cs`
 - `client-unity/UnityProject/Assets/Scripts/Presentation/OverheadExtras.cs`
 - `client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs` (overhead wiring and name-overlap
@@ -54,7 +54,7 @@ additions are gone, and the layout is produced by a pure function with tests.
 - EditMode: `HudLegacyLayoutEditModeTests` asserts the presenter draws exactly the layout's elements.
 
 ## Oracle files (read-only for implementers)
-- `client-unity/RoguehallaNet.Tests/OverheadLayoutTests.cs` (new)
+- `client-unity/RoguehallaNet.Tests/OverheadLayoutTests.cs` (new; 21 cases, 20 red on the stub)
 - `client-unity/UnityProject/Assets/Tests/Editor/HudLegacyLayoutEditModeTests.cs`
 
 ## 9. Validation commands
@@ -71,5 +71,21 @@ Sonnet. Medium: several elements move; the pure layout keeps it testable. Split 
 - Hiding an overlapping name (`SpriteActorPresenter.cs:196`) is a Unity addition: legacy shows every name.
 - Pixel sizes are legacy screen pixels at legacy zoom: convert once, in the layout, and test the conversion.
 - Status art on the body uses fixed anchors per status kind; do not derive them from sprite bounds.
+
+## Legacy layout as verified (oracle author)
+Units in the layout: legacy px, y up from the feet, `Y` = bottom edge, `X` = centre. BODY_LIFT 14 + FIGURE_RADIUS 13.2.
+- Hp bar: top 35.2 (`PlayerView.ts:285`), 4 px high (`FighterArt.ts:354`); width 28 player, 36 mob/dummy, 48 elite (`MobView.ts:19-20,175`). Fill colour from hp/maxHp: above 50% `66bb6a`, above 25% `ffca28`, else `ef5350` (`FighterArt.ts:383`); barrier `81d4fa` segment after the fill, bar scale `max(maxHp, hp+barrier)`, widths rounded to half a pixel (`hpView.ts:20`, `FighterArt.ts:378-392`).
+- Name: bottom 45.2, 11 px, own `#b9f6ca`, others `#eceff1` (`PlayerView.ts:65,171-174`); mob `#b0bec5`, elite `#ffd54f` (`MobView.ts:23-24`); `[BOT]` tag `displayName.ts:6`. Every name shows (no overlap hiding).
+- Wish icon: 15 px, right edge = name left edge - 3, centre y 51.7, grey when not ready; width falls back to 6 px/char unmeasured (`PlayerView.ts:394-410`).
+- Mark pips: 4 of 5x3 px, gap 4, top 57.2 / bottom 54.2, just ABOVE the name and BELOW the crown (`MarkPlate.ts:25-37`, `PlayerView.ts:175`). The task text listed pips last; the code says otherwise.
+- Crown: base (bottom) 60.2 (not 61.2 as `LEGACY_INDICATORS.md` P7 says), 22x13 scaled `1 + .5*min(1, bounty/150)`; number bottom at `60.2 + 13s + 1` (`PlayerView.ts:34-39,492`).
+- Build row: three FIXED spots x = -18 (secondary weapon), 0, +18 (stats), never re-centred; centre y 72.2, or `60.2 + 13s + 14` with a crown; 18 px squares (`PlayerView.ts:453-480`).
+- Statuses are body art at fixed anchors (`StatusArt.ts:20,259-291`: stun at head y 38, silence x +21, attack-slow x -21, anti-heal x -(barHalf+9)); NOT in the layout and not pinned by this oracle.
+
+## Size and split
+The pure layout plus rewiring `OverheadIndicators.cs`/`OverheadExtras.cs` for bar, name, Wish, crown, build row and pips, and removing insignia, signature row, name plate and overlap hiding, is likely near 300 lines of Unity diff. Moving the status glyphs from the badge row to their fixed body anchors is a separate `P-UNITY-OVERHEAD-2` (no layout oracle yet; this packet keeps the existing status glyphs working while the badge row stays).
+
+## Pinned legacy oddities
+Pips overlap the name's top 2 px; the build row never re-centres when the secondary weapon is missing; bar rounding is to half a pixel with JS `Math.round` (use floor(x + .5), not banker's rounding).
 
 ## Notes from previous attempts

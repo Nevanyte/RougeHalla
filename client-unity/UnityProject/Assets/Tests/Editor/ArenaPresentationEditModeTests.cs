@@ -280,7 +280,6 @@ namespace Roguehalla.Client.Tests
             Assert.That(actor.gameObject.activeSelf, Is.True);
             AssertRendererEnabled(actor, "Authored character");
             AssertRendererEnabled(actor, "Faction footprint");
-            AssertRendererEnabled(actor, "Faction insignia");
             AssertRendererEnabled(actor, "Confirmed health");
             Assert.That(actor.GetComponentInChildren<ShowcasePointLight>(true).AccurateVariant.enabled, Is.False);
         }
@@ -327,16 +326,11 @@ namespace Roguehalla.Client.Tests
                         arena.Present(new List<InterpActor>(), me, null, 0);
                         actor = FindDirectChild(arena.transform, "Observed actor");
                         var footprint = FindDirectChild(actor, "Faction footprint").GetComponent<SpriteRenderer>();
-                        var backplate = FindDirectChild(actor, "Faction insignia backplate").GetComponent<SpriteRenderer>();
-                        var rune = FindDirectChild(actor, "Faction insignia").GetComponent<SpriteRenderer>();
                         Assert.That(footprint.sprite, Is.SameAs(footprints[faction]));
                         Assert.That(footprint.sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
                         Assert.That(footprint.enabled, Is.True);
-                        Assert.That(backplate.enabled, Is.True);
-                        Assert.That(backplate.sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
-                        Assert.That(rune.enabled, Is.True);
-                        Assert.That(rune.sprite.name, Is.EqualTo("sigil" + faction));
-                        Assert.That(rune.transform.localScale.x, Is.EqualTo(.4f).Within(.001f));
+                        Assert.That(FindDirectChild(actor, "Faction insignia backplate"), Is.Null, "legacy draws no faction insignia plate");
+                        Assert.That(FindDirectChild(actor, "Faction insignia"), Is.Null);
                     }
                 }
                 if (quality < 2) settings.CycleQuality();
@@ -346,15 +340,11 @@ namespace Roguehalla.Client.Tests
             arena.Present(new List<InterpActor>(), me, null, 0);
             var unknownRoot = FindDirectChild(arena.transform, "Observed actor");
             var unknownFootprintRenderer = FindDirectChild(unknownRoot, "Faction footprint").GetComponent<SpriteRenderer>();
-            var unknownRuneRenderer = FindDirectChild(unknownRoot, "Faction insignia").GetComponent<SpriteRenderer>();
             Assert.That(unknownFootprintRenderer.sprite, Is.SameAs(unknownFootprint));
             Assert.That(unknownFootprintRenderer.color, Is.EqualTo((Color)ShowcasePalette.MutedText));
-            Assert.That(unknownRuneRenderer.sprite.name, Is.EqualTo("rune"), "unknown factions must not borrow a known faction sigil");
-            Assert.That(unknownRuneRenderer.color, Is.EqualTo((Color)ShowcasePalette.MutedText));
 
             arena.Present(new List<InterpActor>(), null, null, 0);
             Assert.That(unknownRoot.gameObject.activeSelf, Is.False, "pooled actor hides every marker with its root");
-            Assert.That(FindDirectChild(unknownRoot, "Faction insignia backplate").gameObject.activeInHierarchy, Is.False);
             Assert.That(FindDirectChild(unknownRoot, "Faction footprint").gameObject.activeInHierarchy, Is.False);
         }
 

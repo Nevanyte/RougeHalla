@@ -14,7 +14,7 @@ namespace Roguehalla.Client.Tests
         GameObject _go; OverheadIndicators _ind;
         [SetUp] public void Up() { ShowcaseSprites.Initialize(); _go = new GameObject("actor"); _ind = new OverheadIndicators(_go.transform); }
         [TearDown] public void Down() { Object.DestroyImmediate(_go); }
-        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, SigTopY = 1.8f, HpPct = 100f }; }
+        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, HpPct = 100f }; }
         SpriteRenderer Find(string name) { var t = _go.transform.Find(name); return t == null ? null : t.GetComponent<SpriteRenderer>(); }
 
         // ---- barrier bubble (P5) ---------------------------------------------------------------------------------------------------
@@ -40,12 +40,13 @@ namespace Roguehalla.Client.Tests
             Assert.Less(top, glyph.transform.localPosition.y - glyph.transform.localScale.y * .4f, "the bubble top stays below the status glyph row");
         }
 
-        // ---- bounty number plate (P7) ----------------------------------------------------------------------------------------------
-        [Test] public void The_bounty_number_sits_in_the_middle_of_its_plate()
+        // ---- bounty number (legacy: outlined text, no plate) ----------------------------------------------------------------------------
+        [Test] public void The_bounty_number_is_plain_outlined_text_just_above_the_crown()
         {
             var f = Facts(); f.Bounty = 90; _ind.Update(f);
-            var text = _go.transform.Find("Bounty number"); var plate = Find("Bounty number plate");
-            Assert.AreEqual(text.localPosition.y, plate.transform.localPosition.y, .001f, "the digits were half outside the plate (lab finding)");
+            var text = _go.transform.Find("Bounty number"); Assert.IsNull(_go.transform.Find("Bounty number plate"), "legacy draws no plate");
+            var crown = Find("Bounty crown");
+            Assert.Greater(text.localPosition.y, crown.transform.localPosition.y, "the number sits above the crown");
         }
 
         // ---- elite marks (M4) --------------------------------------------------------------------------------------------------------
@@ -133,7 +134,7 @@ namespace Roguehalla.Client.Tests
             finally { Object.DestroyImmediate(root); }
         }
 
-        // ---- a dead fighter keeps no insignia plate (D5) and the damage number has a plate (D4) ----------------------------------------------
+        // ---- no faction insignia plate (D5) and the damage number has a plate (D4) ----------------------------------------------
         GameObject _arenaGo; ArenaView _arena;
         void MakeArena()
         {
@@ -142,17 +143,16 @@ namespace Roguehalla.Client.Tests
         }
         [TearDown] public void DownArena() { if (_arenaGo != null) Object.DestroyImmediate(_arenaGo); _arenaGo = null; }
 
-        [Test] public void A_dead_creature_hides_its_faction_insignia_plate()
+        [Test] public void A_creature_has_no_faction_insignia_plate_alive_or_dead()
         {
             MakeArena();
             var rows = new List<InterpActor> { new InterpActor { Id = 5, Faction = FactionId.Plague, Status = ActorStatus.Alive, HpPct = 100, X = 300, Y = 300, Kind = ActorKind.RegionalMob, MobType = MobTypeId.PlagueRat } };
             _arena.Present(rows, null, null, 0f);
             var root = _arenaGo.transform.Find("Observed actor");
-            Assert.IsTrue(root.Find("Faction insignia").GetComponent<SpriteRenderer>().enabled);
+            Assert.IsNull(root.Find("Faction insignia"), "legacy draws no insignia plate");
             rows[0] = new InterpActor { Id = 5, Faction = FactionId.Plague, Status = ActorStatus.Dead, HpPct = 0, X = 300, Y = 300, Kind = ActorKind.RegionalMob, MobType = MobTypeId.PlagueRat };
             _arena.Present(rows, null, null, 0f);
-            Assert.IsFalse(root.Find("Faction insignia").GetComponent<SpriteRenderer>().enabled);
-            Assert.IsFalse(root.Find("Faction insignia backplate").GetComponent<SpriteRenderer>().enabled);
+            Assert.IsNull(root.Find("Faction insignia")); Assert.IsNull(root.Find("Faction insignia backplate"));
         }
 
         [Test] public void A_damage_number_has_a_dark_plate_under_it()

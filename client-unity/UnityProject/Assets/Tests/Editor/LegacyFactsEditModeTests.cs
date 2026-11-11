@@ -14,7 +14,7 @@ namespace Roguehalla.Client.Tests
         GameObject _go; OverheadIndicators _ind;
         [SetUp] public void Up() { ShowcaseSprites.Initialize(); _go = new GameObject("actor"); _ind = new OverheadIndicators(_go.transform); WeaponShapes.Clear(); }
         [TearDown] public void Down() { Object.DestroyImmediate(_go); WeaponShapes.Clear(); if (_arenaGo != null) Object.DestroyImmediate(_arenaGo); }
-        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, SigTopY = 1.8f, HpPct = 100f }; }
+        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, HpPct = 100f }; }
         SpriteRenderer Find(string n) { var t = _go.transform.Find(n); return t == null ? null : t.GetComponent<SpriteRenderer>(); }
 
         [Test] public void The_welcome_weapon_table_becomes_the_hit_zone_shapes()
@@ -76,7 +76,7 @@ namespace Roguehalla.Client.Tests
             var f = Facts(); f.HasSecondary = true; f.Secondary = WeaponId.Bow; f.M.Top1 = (byte)StatKey.Ad; f.M.Top2 = (byte)StatKey.Armor; _ind.Update(f);
             Assert.IsTrue(Find("Stat mark 1").enabled); Assert.IsTrue(Find("Stat mark 2").enabled);
             float x0 = _go.transform.Find("Secondary weapon icon").localPosition.x, x1 = Find("Stat mark 1").transform.localPosition.x, x2 = Find("Stat mark 2").transform.localPosition.x;
-            Assert.Less(x0, x1); Assert.Less(x1, x2); Assert.AreEqual(0f, x1, .001f, "legacy: weapon at -18, stats at 0 and +18");
+            Assert.AreEqual(Roguehalla.Net.Ui.OverheadStack.ToUnits(-18f), x0, .001f); Assert.AreEqual(0f, x1, .001f); Assert.AreEqual(Roguehalla.Net.Ui.OverheadStack.ToUnits(18f), x2, .001f, "legacy: weapon at -18, stats at 0 and +18 px");
             f.M.Top2 = 0; _ind.Update(f); Assert.IsFalse(Find("Stat mark 2").enabled);
         }
 
