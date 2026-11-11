@@ -21,7 +21,10 @@ namespace Roguehalla.Client
             public readonly Vector2 Min, Max;
             public Cell(Vector2 min, Vector2 max) { Min = min; Max = max; }
         }
-        public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants]; public Cell Rim; }
+        public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants], LowDark = new Cell[LowVariants]; public Cell Rim; }
+        /// <summary>Fence iron per region id (index 0 unused): true where the dark iron set reads better than the light one against the zone's fence tile ground (measured on the palette: Frost, Holy, Coliseum have light ground).</summary>
+        static readonly bool[] DarkIronRegion = { false, false, false, false, true, true, true };
+        public static bool DarkIronFor(int region) { return region >= 0 && region < DarkIronRegion.Length && DarkIronRegion[region]; }
 
         static Texture2D _atlas; static Set[] _sets; static Cell _contact, _fenceGround;
         public static Texture2D Atlas { get { Ensure(); return _atlas; } }
@@ -66,6 +69,7 @@ namespace Roguehalla.Client
                 else
                 {
                     for (int v = 0; v < LowVariants; v++) set.Low[v] = Place(PaintLow(style, th, v), ref x, ref y, ref rowH);
+                    for (int v = 0; v < LowVariants; v++) set.LowDark[v] = style == WallStyle.Timber ? Place(PaintLow(style, th, v, true), ref x, ref y, ref rowH) : set.Low[v];
                     set.Rim = Place(PaintRim(th), ref x, ref y, ref rowH);
                 }
                 _sets[s] = set;
@@ -371,7 +375,7 @@ namespace Roguehalla.Client
 
         // ---- low obstacles ------------------------------------------------------------------------------------------------------
 
-        static RegionCanvas PaintLow(WallStyle style, RegionTheme th, int variant)
+        static RegionCanvas PaintLow(WallStyle style, RegionTheme th, int variant, bool darkIron = false)
         {
             var cv = new RegionCanvas(TileW, LowH); int seed = 500 + variant * 11 + (int)style * 3;
             Color face = th.WallFace, top = th.WallTop, edge = th.WallEdge;
@@ -381,6 +385,7 @@ namespace Roguehalla.Client
                 // Graveyard fence: wrought-iron railings with spear finials between stone posts (see-through), or, on some tiles, a low
                 // crumbling stone wall. Continuous across tiles (bars repeat every 8 px; the 128 px tile ends on a post).
                 Color iron = Mix(new Color(.52f, .53f, .59f), th.AccentSrgb, .12f), ironL = Mix(iron, Color.white, .22f);
+                if (darkIron) { iron = Mix(new Color(.09f, .09f, .12f), th.AccentSrgb, .12f); ironL = Mix(iron, Color.black, .25f); }   // for light grounds: dark bars, rails a touch darker still
                 Color stone = Mix(th.WallFace, th.WallTop, .4f), stoneL = Mix(stone, Color.white, .25f), stoneD = Shade(stone, .5f);
                 if (variant % 3 == 2)
                 {
