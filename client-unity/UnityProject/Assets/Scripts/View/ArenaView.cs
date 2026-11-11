@@ -39,6 +39,9 @@ namespace Roguehalla.Client
         bool _fadeDemo; uint _demoId; float _demoNext = 8f, _demoUntil;
         HitboxOverlay _overlay;
         HitZonePresenter _hitZones;
+        WeaponRangePresenter _weaponRange;
+        /// <summary>Set by the caller while the Tab map, a minimap peek, a pending teleport or a pending death is up: legacy hides the weapon range guide then (RaidScene.ts:1637-1638).</summary>
+        public bool WeaponRangeSuppressed;
         WorldMarks _worldMarks;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
@@ -131,6 +134,7 @@ namespace Roguehalla.Client
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
             _hitZones = new HitZonePresenter(Child("Melee hit zones"), id => _actors.Contains(id), UrlSearch());
             _hitZones.Position = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
+            _weaponRange = new WeaponRangePresenter(Child("Weapon range guide"));
             _worldMarks = new WorldMarks(Child("World markers"), _catalog);
             _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
@@ -304,6 +308,21 @@ namespace Roguehalla.Client
             _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
             PerfMarks.End(PerfMarks.Sec.WishFx, pm);
             _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
+            TickWeaponRange(me, motion, aimAngle);
+        }
+
+        // Legacy WeaponRangeView/RaidScene: the local fighter's own guide, at its drawn (predicted) position; the aim is the cursor angle the caller passes.
+        void TickWeaponRange(SelfView me, LocalMotion motion, float aimAngle)
+        {
+            if (_weaponRange == null) return;
+            var s = _visionSession;
+            bool member = me != null && (!_hasMembership || _membership.Contains(me.Id));
+            var row = member ? LegacyFacts.WeaponRow(me.Weapon) : null;
+            bool initialized = motion != null && motion.Initialized;
+            float x = member ? (initialized ? motion.DrawnX : me.X) : 0f, y = member ? (initialized ? motion.DrawnY : me.Y) : 0f;
+            bool active = s != null && s.State == SessionState.InMatch && s.Phase == MatchPhase.Active && s.LastResult == null;
+            if (!member || !WeaponRangePresenter.ShouldShow(active, me.Status == ActorStatus.Alive, row != null, WeaponRangeSuppressed, x, y)) { _weaponRange.Hide(); return; }
+            _weaponRange.Show(row, WeaponRangePresenter.BodyHalfWidth(_archetypes, me.Archetype), aimAngle, LegacyFacts.IsBallWeapon(me.Weapon), x, y);
         }
 
         // DIAGNOSTICS ONLY (UI lab, ?uilab=1): the two things a Session binding gives the match that a serverless gallery has to ask for. Not called in normal play.
