@@ -98,13 +98,24 @@ cost is why `CLAUDE.md` caps parallel Rust implementers at three. After integrat
 
 | Mode | Runs |
 |---|---|
-| `--quick` | Path checks; fmt; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI); the parity report if sim/policy/parity changed; JS vector checks if the protocol changed; C# tests and the Unity copy check if the net library or vectors changed; Postgres suites when `DATABASE_URL` is set |
-| full (default) | Path checks; fmt; workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; JS vectors; C# tests and Unity copy check; a release headless smoke on `parity/maps/seed1.map.json` |
+| `--quick` | Path checks; fmt; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI); the parity report if sim/policy/parity changed; JS vector checks if the protocol changed; C# tests and the Unity copy check if the net library or vectors changed; the Unity EditMode suite (`client-unity/UnityProject/Tools/editmode.sh`) if a path under `UnityProject/Assets/` changed; the Unity tool tests (`node --test`) if a path under `UnityProject/Tools/` changed; Postgres suites when `DATABASE_URL` is set |
+| full (default) | Path checks; fmt; workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; JS vectors; C# tests and Unity copy check; the Unity EditMode suite and the Unity tool tests; a release headless smoke on `parity/maps/seed1.map.json` |
 | CI only | Source-witness `capture.sh --check` runs (Docker, Node 22.23.4), perfproof (valgrind, Linux), cross-architecture determinism, browser proof, legacy recapture |
 
 Path checks: protected paths need `--allow-protected` (owner approval), shared records `--coordinator`, wire packets
-`--regen-fixtures`; with `--oracle packet/<ID>`, every file the oracle commits touched plus all captures and golden
-vectors must be unchanged. A skipped suite is printed on the result line, and a reviewer treats it as unproven.
+`--regen-fixtures`. With `--oracle packet/<ID>`, the oracle files are the files touched by the commits in
+`merge-base..packet/<ID>` whose subject does not start with `stub:` (the oracle author commits `stub: <ID> ...` first,
+then `oracle: <ID> ...`): a file touched only by `stub:` commits is the implementer's to replace, any other must stay
+unchanged, as must all captures and golden vectors. A branch with no `stub:` commit treats every touched file as oracle.
+
+Environment: with `DATABASE_URL` set the gate resolves `PGBIN` (Homebrew's `/opt/homebrew/opt/postgresql@16/bin`, else
+`/usr/lib/postgresql/*/bin`) and exports it, or fails before any build naming `PGBIN`; on exit it stops every
+`rh-pgtest` cluster that appeared during its run, never the one `DATABASE_URL` points at. `tools/pgtest/start.sh` sets a
+locale when `LC_ALL` is unset (PostgreSQL 16 on macOS needs one). `editmode.sh` exits 3 when no Unity Editor is installed
+or the project is open; the gate then prints "Unity EditMode (no Editor / project open)" on the result line. Unity tool
+tests that fail on the integration branch are excluded by name in `UNITY_TOOL_TEST_EXCLUDE` in `scripts/gate.sh`.
+A skipped suite is printed on the result line, and a reviewer treats it as unproven. `bash scripts/gate.test.sh` checks
+the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`).
 
 Before the first packet on a new integration branch the coordinator runs the full gate there with Postgres: a red base
 makes every later result meaningless.
