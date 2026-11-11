@@ -9,6 +9,7 @@ pub mod control;
 pub mod director;
 pub mod hosting;
 pub mod lobby;
+pub mod map_pool;
 pub mod metrics;
 pub mod outbox;
 pub mod pacer;
