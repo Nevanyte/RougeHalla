@@ -268,6 +268,10 @@ pub(crate) struct Readable<'a> {
     pub(crate) max_hp: f64,
     pub(crate) farm_rows: &'a [EffectRow<'static>],
     pub(crate) kill: &'a KillStats,
+    /// Legacy `ReadableFighter.campClears` (`Player.camps_cleared`): feeds Holy's camp lifesteal in the leech score
+    /// (combatReadability.ts:133). Stub input added by the P-HOLY-DEMON-BLOOD-1 oracle; not yet read by [`invested_scores`].
+    #[allow(dead_code)]
+    pub(crate) camp_clears: u16,
 }
 impl<'a> Readable<'a> {
     pub(crate) fn of(p: &'a crate::state::Player, farm_rows: &'a [EffectRow<'static>]) -> Self {
@@ -278,6 +282,7 @@ impl<'a> Readable<'a> {
             max_hp: p.vitals.max_hp,
             farm_rows,
             kill: &p.kill_stats,
+            camp_clears: p.camps_cleared,
         }
     }
 }

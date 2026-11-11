@@ -118,6 +118,10 @@ mod tests;
 #[cfg(test)]
 mod fighter_churn_tests;
 
+/// P-HOLY-DEMON-BLOOD-1 oracle: the captured Holy camp-lifesteal corpus.
+#[cfg(test)]
+mod holy_demon_blood_tests;
+
 #[cfg(test)]
 mod loot_world_tests;
 
