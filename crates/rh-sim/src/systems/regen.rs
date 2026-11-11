@@ -84,6 +84,13 @@ mod tests {
     use crate::{arenas::practice_arena, FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
 
     fn sim(regen: bool) -> Sim {
+        sim_with(SimConfig {
+            regen,
+            ..Default::default()
+        })
+    }
+
+    fn sim_with(config: SimConfig) -> Sim {
         let ps: Vec<_> = (0..3)
             .map(|i| Placement {
                 profile: format!("p{i}"),
@@ -99,15 +106,7 @@ mod tests {
                 weapon1: None,
             })
             .collect();
-        let mut sim = Sim::reset_active(
-            SimConfig {
-                regen,
-                ..Default::default()
-            },
-            practice_arena(),
-            Secrets::from_seed(1),
-            &ps,
-        );
+        let mut sim = Sim::reset_active(config, practice_arena(), Secrets::from_seed(1), &ps);
         sim.w.server_time = 1000.0;
         for p in sim.w.players.iter_mut() {
             p.vitals.hp = 400.0;
@@ -236,5 +235,48 @@ mod tests {
         }
         clear(&mut sim.w);
         assert!(sim.w.players.iter().all(|p| p.regen_at.is_none()));
+    }
+
+    /// P-REGEN-COMBAT-1 (legacy f8cd956e): with `regen_in_combat = Off` a player heals passively only out of combat. The
+    /// attacker and victim of this tick's hit, and a player hit 2.7 s ago, regain nothing; an untouched player and one last
+    /// hit exactly 3 s ago regain the out-of-combat share, unchanged.
+    #[test]
+    fn with_regen_in_combat_off_a_fight_heals_nothing_and_quiet_players_heal_as_before() {
+        let mut sim = sim_with(SimConfig {
+            regen: true,
+            regen_in_combat: crate::RegenInCombat::Off,
+            ..Default::default()
+        });
+        let max: Vec<f64> = sim.w.players.iter().map(|p| p.vitals.max_hp).collect();
+        let before: Vec<f64> = sim.w.players.iter().map(|p| p.vitals.hp).collect();
+        let ev = run(&mut sim, &[landed(1, 2)]);
+        assert_eq!(
+            sim.w.players[0].vitals.hp, before[0],
+            "attacker heals in a fight"
+        );
+        assert_eq!(
+            sim.w.players[1].vitals.hp, before[1],
+            "victim heals in a fight"
+        );
+        assert_eq!(sim.w.players[2].vitals.hp, before[2] + out_share(max[2]));
+        assert!(ev.is_empty());
+
+        sim.w.server_time = 1000.0 + PLAYER_REGEN_QUIET_MS * 0.9;
+        let mid: Vec<f64> = sim.w.players.iter().map(|p| p.vitals.hp).collect();
+        run(&mut sim, &[]);
+        assert_eq!(
+            sim.w.players[0].vitals.hp, mid[0],
+            "still in the quiet window"
+        );
+        assert_eq!(
+            sim.w.players[1].vitals.hp, mid[1],
+            "still in the quiet window"
+        );
+
+        sim.w.server_time = 1000.0 + PLAYER_REGEN_QUIET_MS;
+        let quiet: Vec<f64> = sim.w.players.iter().map(|p| p.vitals.hp).collect();
+        run(&mut sim, &[]);
+        assert_eq!(sim.w.players[0].vitals.hp, quiet[0] + out_share(max[0]));
+        assert_eq!(sim.w.players[1].vitals.hp, quiet[1] + out_share(max[1]));
     }
 }
