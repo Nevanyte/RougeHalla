@@ -185,6 +185,8 @@ impl Settings {
         SimConfig {
             walk_hints: Some(true),
             regen: true,
+            // Owner decision 2026-11-10 (legacy f8cd956e): passive regeneration out of combat only (P-REGEN-COMBAT-1).
+            regen_in_combat: rh_sim::RegenInCombat::Off,
             quests: !training,
             training,
             dummies: training,

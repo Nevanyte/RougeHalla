@@ -660,6 +660,35 @@ fn mob_spacing_off_state() -> (&'static str, Sim) {
     ("mob spacing off (measurement A/B)", sim)
 }
 
+/// `SimConfig::regen_in_combat = Off` (P-REGEN-COMBAT-1, the live profiles): serializes as a string like `mob_spacing = Off`;
+/// restoring it as `null` (`Legacy`) must change the hash, so a live run never passes for a legacy-regen one.
+fn regen_in_combat_off_state() -> (&'static str, Sim) {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            regen: true,
+            regen_in_combat: rh_sim::RegenInCombat::Off,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(74),
+        &[Placement {
+            profile: "hash-regen".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    assert_eq!(
+        serde_json::to_value(&sim).unwrap()["statics"]["config"]["regen_in_combat"],
+        serde_json::json!("off")
+    );
+    ("regen in combat off (live profiles)", sim)
+}
+
 /// Admitted Training worlds produce their hints through ordinary validated movement.
 /// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
 fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
@@ -870,6 +899,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     states.extend(declared);
     states.extend(produced_walk_hint_states());
     states.push(mob_spacing_off_state());
+    states.push(regen_in_combat_off_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),

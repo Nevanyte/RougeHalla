@@ -1,6 +1,7 @@
 //! Passive player health regeneration (legacy `regen.ts`): slow and always on when the config asks for it. Out of
 //! combat (no hit dealt or taken for `PLAYER_REGEN_QUIET_MS`) a standing player regains `PLAYER_REGEN_SHARE_OUT` of max
-//! hp a second; in a fight a quarter of that. It runs as a system after the damage pass, so this tick's hits have already
+//! hp a second; in a fight a quarter of that, or nothing under `SimConfig::regen_in_combat = Off` (unreleased legacy
+//! f8cd956e, "out of combat only"; the live profiles opt in, P-REGEN-COMBAT-1). It runs as a system after the damage pass, so this tick's hits have already
 //! stamped its clock, and it heals through the shared funnel (anti-heal and the heal-taken cards apply) and is quiet: no
 //! fx, no event. Off unless `SimConfig.regen`.
 //!
@@ -51,9 +52,16 @@ fn pass_inner(k: &MatchStatic, w: &mut World, landed: &[LandedHit], ev: &mut Vec
             .is_none_or(|last| now - last >= PLAYER_REGEN_QUIET_MS);
         let share = if quiet {
             PLAYER_REGEN_SHARE_OUT
+        } else if k.config.regen_in_combat == crate::RegenInCombat::Off {
+            // Unreleased legacy f8cd956e: PLAYER_REGEN_SHARE_IN is 0 there (P-REGEN-COMBAT-1).
+            0.0
         } else {
             PLAYER_REGEN_SHARE_IN
         };
+        // Legacy f8cd956e `regen.ts`: `if (share <= 0) continue;`.
+        if share <= 0.0 {
+            continue;
+        }
         heal::apply(w, ev, i, max_hp * share * dt, heal::Kind::QuietRegen);
     }
 }
