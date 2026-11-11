@@ -18,7 +18,7 @@ namespace Roguehalla.Net.Ui
         public float Direction;
     }
 
-    /// <summary>Pure geometry of legacy's weapon range guide (WeaponRangeView.weaponRangeGeometry). STUB: draws nothing until implemented.</summary>
+    /// <summary>Pure geometry of legacy's weapon range guide (WeaponRangeView.weaponRangeGeometry). Lane/circle/arc by the row's kind; the caller says whether a projectile is a ball.</summary>
     public static class WeaponRange
     {
         /// <param name="row">The weapon's Welcome table row, or null.</param>
@@ -27,7 +27,20 @@ namespace Roguehalla.Net.Ui
         /// <param name="ball">True for a projectile that is a ball (legacy wand), drawn as a circle; the wire does not say.</param>
         public static WeaponRangeShape Of(WireWeapon row, float bodyHalfWidth, float aim, bool ball)
         {
-            return default(WeaponRangeShape);
+            var s = default(WeaponRangeShape);
+            if (row == null) return s;
+            float dir = float.IsNaN(aim) || float.IsInfinity(aim) ? 0f : aim;
+            if (row.Kind == WireWeapon.KindArc)
+            {
+                s.Kind = WeaponRangeKind.Arc; s.Length = (float)row.Reach; s.HalfArc = (float)row.HalfArc; s.Direction = dir;
+            }
+            else if (row.Kind == WireWeapon.KindProjectile)
+            {
+                s.Length = (float)row.Reach;
+                if (ball) s.Kind = WeaponRangeKind.Circle;
+                else { s.Kind = WeaponRangeKind.Lane; s.Width = 2f * (bodyHalfWidth + (float)row.Radius); s.Direction = dir; }
+            }
+            return s;
         }
     }
 }
