@@ -181,6 +181,23 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void CampMarkersComeFromTheMapCampsAndTheDeliveredRowsAndAreDroppedUnderAContact()
+        {
+            var map = new MapBlob(4, 4, new byte[16]).WithPublic(new[] { new MapCamp(96, 96, 8, 1), new MapCamp(32, 32, 8, 3) }, null, null, null, null);
+            var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(map);
+            marks.Present(_session, null); Assert.AreEqual(0, marks.CampMarkerCount, "no camp rows delivered yet");
+            _transport.Deliver(new ServerMsg.State { Tick = 3, Items = new StateItem[] { new CampsState { Rows = new[] {
+                new WireCamp { MobType = 0, Elite = 0, Alive = 3, State = 0 },
+                new WireCamp { MobType = 0, Elite = 0, Alive = 0, State = 2, ClearedAt = 1000, RespawnAt = 181000 } } } } });
+            marks.Present(_session, null);
+            Assert.AreEqual(2, marks.CampMarkerCount);
+            _transport.Deliver(new ServerMsg.Snapshot { Tick = 4, Phase = 1, Actors = new[] { new WireActor { Id = 2, X = 96, Y = 96, HpPct = 100, Status = 1 } } });
+            marks.Present(_session, null);
+            Canvas.ForceUpdateCanvases();
+            Assert.AreEqual(2, marks.CampMarkerCount, "the model still has both camps");
+        }
+
+        [Test]
         public void DisconnectClearsMapContactsAndCannotRetainAHiddenGhost()
         {
             var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(_session.Map);

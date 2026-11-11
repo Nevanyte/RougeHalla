@@ -28,6 +28,8 @@ namespace Roguehalla.Client
         public int MerchantCount { get; private set; }
         public int QuestGiverCount { get; private set; }
         public int QuestObjectiveCount { get; private set; }
+        readonly List<CampMarkRow> _camps = new List<CampMarkRow>();
+        readonly List<TMP_Text> _campClocks = new List<TMP_Text>();
         MapBlob _map;
         Vector2? _self;
         uint _selfId;
@@ -35,6 +37,12 @@ namespace Roguehalla.Client
         bool[] _zoneFound = new bool[MapZones.Count + 1];
         double[] _zoneX = new double[MapZones.Count + 1], _zoneY = new double[MapZones.Count + 1];
         public int ContactCount => _actors.Count;
+        /// <summary>Camp markers the model produced for the last presentation (map knowledge, drawn regardless of sight).</summary>
+        public int CampMarkerCount => _camps.Count;
+        /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>
+        public int CampMarkersDrawn { get; private set; }
+        /// <summary>Legacy minimapMarkers.ts:87-88: a camp mark is dropped where a contact sits this close.</summary>
+        public const float CampDropPx = 8f;
         /// <summary>The zones that have an icon (0 when the map has no region plane).</summary>
         public int ZoneIconCount { get { int n = 0; for (int r = 1; r <= MapZones.Count; r++) if (_zoneFound[r]) n++; return n; } }
         public bool PingActive => _ping.Active && _ping.Progress(NowMs) >= 0d;
@@ -73,9 +81,10 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _camps.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
+                if (_map != null) CampMarks.Markers(_map.Camps, session.Collections.Camps, session.ServerTimeMs, !session.Training, _camps);
                 session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
@@ -104,6 +113,7 @@ namespace Roguehalla.Client
                     }
                 }
             }
+            RefreshCampClocks();
             SetVerticesDirty();
         }
 
@@ -139,6 +149,64 @@ namespace Roguehalla.Client
             }
         }
 
+        bool ContactNear(Vector2 p)
+        {
+            foreach (var actor in _actors)
+                if (actor.Id != _selfId && (At(new Vector2(actor.X, actor.Y)) - p).sqrMagnitude < CampDropPx * CampDropPx) return true;
+            return false;
+        }
+
+        /// <summary>Respawn countdowns of cleared camps: pooled labels, reused across presentations.</summary>
+        void RefreshCampClocks()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _camps.Count; i++)
+                {
+                    var camp = _camps[i];
+                    if (camp.Countdown == null) continue;
+                    var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
+                    if (ContactNear(p)) continue;
+                    if (used >= _campClocks.Count)
+                    {
+                        var label = HudUi.Label(transform, "CampClock" + used, "", 9f, new Color32(0xb4, 0xc9, 0xdc, 255), TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(48f, 14f);
+                        label.raycastTarget = false;
+                        _campClocks.Add(label);
+                    }
+                    var text = _campClocks[used++];
+                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+                    if (text.text != camp.Countdown) text.text = camp.Countdown;
+                    text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -10f);
+                }
+            for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
+        }
+
+        void DrawCamps(VertexHelper vh, UiTheme theme, Color32 ink, float s)
+        {
+            CampMarkersDrawn = 0;
+            foreach (var camp in _camps)
+            {
+                var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
+                if (ContactNear(p)) continue;
+                CampMarkersDrawn++;
+                float size = (camp.Elite ? 9.2f : 6.8f) * s;
+                Color zone = theme.ZoneColor(camp.Zone);
+                var glyph = MapGlyphs.ForShape(MapZones.Shape(camp.Zone));
+                bool cleared = camp.State == CampMarkState.Cleared;
+                float a = cleared ? .38f : 1f;
+                Glyph(vh, p, size + 3f, glyph, Alpha(ink, a));
+                Glyph(vh, p, size, glyph, Alpha(zone, a));
+                if (camp.State == CampMarkState.Engaged) Glyph(vh, p, size + 5f, MapGlyph.Ring, Alpha(theme.TextSecondary, .7f));
+                if (cleared)
+                {
+                    Glyph(vh, p, size + 3f, MapGlyph.Cross, ink);
+                    Glyph(vh, p, size, MapGlyph.Cross, new Color32(0xec, 0xef, 0xf1, 255));
+                }
+                if (camp.Elite) Marker(vh, p + new Vector2(0f, size + 3f), 6f * s, MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), ink);
+            }
+        }
+
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear(); if (_map == null) return;
@@ -162,6 +230,7 @@ namespace Roguehalla.Client
                 Glyph(vh, p, size, glyph, Alpha(zone, Large ? 1f : .9f));
                 if (region == MapZones.Holy) Glyph(vh, p, size * .28f, MapGlyph.Disc, Alpha(zone, 1f));
             }
+            DrawCamps(vh, theme, ink, s);
             for (int i = 1; i < _route.Count; i++) LineAA(vh, At(_route[i - 1]), At(_route[i]), 2f, Alpha(theme.Accent, .8f));
             foreach (var point in _route) Marker(vh, At(point), 7f, MapGlyph.Disc, theme.Accent, ink);
             foreach (var point in _chests) Marker(vh, At(point), 11f * s, MapGlyph.Plus, theme.Accent, ink);

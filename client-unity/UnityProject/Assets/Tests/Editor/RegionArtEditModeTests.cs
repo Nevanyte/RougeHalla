@@ -143,6 +143,26 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void RealBushCellsGetBushArtAndNoDecorativeBushStandsElsewhere()
+        {
+            var map = Load("seed1.map.json");
+            var before = RegionProps.Scatter(map);
+            var plane = new byte[map.W * map.H]; int real = 0;
+            for (int i = 0; i < plane.Length && real < 20; i++) if (map.Tiles[i] == MapBlob.Floor && map.Regions[i] == (byte)RegionId.Frost) { plane[i] = 1; real++; }
+            Assert.That(real, Is.GreaterThan(0));
+            var withBushes = map.WithPublic(null, null, plane, null, null);
+            var after = RegionProps.Scatter(withBushes);
+            int bushes = 0;
+            foreach (var p in after)
+                if (p.Art.EndsWith(".bush") || p.Art == "holy.shrub")
+                {
+                    if (p.Art == "holy.shrub" && plane[p.Ty * map.W + p.Tx] == 0) continue;   // holy shrubs are also ordinary decoration
+                    bushes++; Assert.That(plane[p.Ty * map.W + p.Tx], Is.Not.EqualTo(0), "a bush stands only on a real concealment cell");
+                }
+            Assert.That(bushes, Is.EqualTo(real), "every real cell has its bush");
+        }
+
+        [Test]
         public void ColiseumPropsStayOffTheOpenFloorAndAreDeterministic()
         {
             var map = Load("seed1.map.json"); var a = RegionProps.Scatter(map); var b = RegionProps.Scatter(map);
