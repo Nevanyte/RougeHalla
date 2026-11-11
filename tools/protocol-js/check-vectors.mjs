@@ -120,7 +120,7 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:3,value:[publicField,publicField]},
   {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
-  {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
+  {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000,reward:null,ward:null}]},
   {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1,height:30},{kind:0,x:800,y:900,facing:12345,owner:1,height:30}]},
   {key:8,value:null}, {key:9,value:null}, {key:10,value:null}, {key:11,value:null}
 ]), "all reliable public facts");
@@ -530,7 +530,18 @@ if (!allMaxStateVector) throw new Error("missing all-key maximum State budget ve
 const allMaxStateFrame = bytes(allMaxStateVector.hex);
 eq(allMaxStateFrame.byteLength, 247696, "all eleven maximum collections remain within the exact aggregate byte bound");
 eq(allMaxStateFrame.byteLength < 262144, true, "all-key maximum State remains below MAX_SERVER_FRAME");
-eqJson(decode(allMaxStateFrame).items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10,11], "max aggregate State decodes every replacement collection");
+eqJson(decode(allMaxStateFrame).items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10,11,13], "max aggregate State decodes every replacement collection");
+// P-WIRE17-HUD-1: camp reward/ward verdicts and the owner build summary (State key 13), quantized integers kept.
+const campHud = decode(bytes(fx.server.find(v => v.name === "state_camp_hud").hex)).items[0].value;
+eqJson(campHud.map(c => [c.reward, c.ward]), [
+  [{stat:6,amount:12500,value:12500*1e-4},{verdict:1,yours:true,expiresAt:61000}],
+  [{stat:8,amount:50,value:50*1e-4},{verdict:2,yours:false,expiresAt:90500.5}],
+  [null,null]], "camp reward and ward verdict");
+const summaryItem = decode(bytes(fx.server.find(v => v.name === "state_build_summary").hex)).items[0];
+eq(summaryItem.key, 13, "build summary key");
+eqJson(summaryItem.value.gains, [120000,50000,905,1900,-337,850000,65000,-32500,600], "build summary gains keep sign");
+eqJson(summaryItem.value.mobRows.map(r => [r.mobType, r.stat, r.stacks, r.total]), [[0,2,7,700],[4,6,300,3750000]], "build summary mob rows");
+eq(decode(bytes(fx.server.find(v => v.name === "state_build_summary_none").hex)).items[0].value, null, "unseated build summary");
 const emptyTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_empty").hex));
 eqJson(emptyTradeVector.items.find(item => item.key === 11)?.value?.offers, [], "available empty Trade preserves empty offers");
 const unavailableTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_unavailable").hex));
