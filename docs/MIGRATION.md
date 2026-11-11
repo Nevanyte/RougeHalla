@@ -4,6 +4,24 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integration 2 (2026-11-11 03:54 CST)
+
+Integration branch `feature/unity-rework`, head `e43e8cf6`, pushed to origin. **Full gate with Postgres: GATE PASS**
+(`.agent-runs/gate/`, the `full` log started 03:22). Unity EditMode on the same tree: 608 of 608. **Identities: protocol
+16 -> 17** (`protocol/fixtures/v17.json`, map section version 2), observation 24, checkpoint 31, replay 25, policy 18,
+content hash `b35f23ed00df75b3`. Client and server must be built together: a protocol-16 client is refused.
+
+- **Merged since integration 1:** P-SIM-BUILDSUMMARY-1 (Sonnet; GAINED strip values, pure function), P-WIRE17-MAP-1
+  (Opus; map blob carries camp markers, coliseum and gates, bush plane; Opus review LAND), P-UNITY-OVERHEAD-2 (Sonnet;
+  statuses at the legacy anchors, badge row removed). On top, not yet in a full gate: P-UNITY-HUD-CAMPS-1 (`00d19d64`;
+  camp markers, respawn clocks, world label, real bushes; EditMode 610 of 610 in its worktree).
+- **Flake recorded:** `rh-server` `result_recovery::a_full_spool_falls_back_to_memory_retry_loudly_and_loses_nothing`
+  failed once in a full gate (left 1, right 2) and passed 3 of 3 alone; unrelated to the merged work as far as read.
+- **In flight:** P-WIRE17-HUD-1 implemented on `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (camp reward, ward verdict,
+  owner build summary key 13; observation 25, policy 19), in Opus review. Split off: P-WIRE17-HUD-2 (champion panel
+  values, weapon scaling). Written, waiting on the wire: P-UNITY-HUD-BUILD-1.
+- **Beta host:** expired 2026-11-11 13:26:29 UTC; not redeployed (see integration 1).
+
 ## Paused by the owner (2026-11-11, about 02:20 CST): state to resume from
 
 Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.
