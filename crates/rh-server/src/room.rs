@@ -193,6 +193,12 @@ pub enum RoomReport {
         profile: String,
         event: SeatEvent,
     },
+    /// A bot took (`seated`) or gave up its seat, by callsign: only the public lobby listing reads it (no lease logic).
+    BotSeat {
+        match_id: MatchId,
+        name: String,
+        seated: bool,
+    },
 }
 
 /// What happened to a human's seat (see [`RoomReport::Seat`]).
@@ -925,6 +931,7 @@ impl Room {
             let Some(id) = self.sim.add_player(&name, None, true) else {
                 break;
             };
+            self.report_bot(&name, true);
             let seed = match self.fixed_bot_seed {
                 Some(s) => s.wrapping_add(self.bot_seq),
                 None => u64::from(random_u32()) << 32 | u64::from(random_u32()),
@@ -1147,6 +1154,7 @@ impl Room {
         let Some(id) = self.sim.add_player(&name, Some(spec.faction), true) else {
             return;
         };
+        self.report_bot(&name, true);
         let policy: Box<dyn Policy> = Box::new(HumanBot::new(spec.tier, spec.persona));
         let interval = policy.spec().decision_interval_ticks;
         self.record(ReplayInput::Join {
@@ -1170,6 +1178,15 @@ impl Room {
         self.bot_lines.push((id, DelayLine::new()));
     }
 
+    /// A bot took (`seated`) or gave up its seat: the director's public lobby listing (P-LOBBY-ACTIVITY-1) shows bot seats.
+    fn report_bot(&self, name: &str, seated: bool) {
+        let _ = self.reports.send(RoomReport::BotSeat {
+            match_id: self.id,
+            name: name.to_owned(),
+            seated,
+        });
+    }
+
     /// The newest bot gives its seat up (legacy BotManager.yieldSeat): the fill policy forgets it and the player leaves.
     fn yield_newest_bot(&mut self) -> bool {
         let Some((id, name)) = self
@@ -1189,6 +1206,7 @@ impl Room {
         }
         self.record(ReplayInput::Leave { player: id });
         self.sim.remove_player(id);
+        self.report_bot(&name, false);
         self.bots.retain(|seat| seat.player() != id);
         self.bot_specs.retain(|(player, _)| *player != id);
         self.bot_lines.retain(|(player, _)| *player != id);

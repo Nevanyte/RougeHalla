@@ -107,6 +107,46 @@ struct RoomEntry {
     /// Admissions that picked this room and have not been seated yet (their durable lease may still be pending). Kept
     /// apart from `seated` so a report of the seated count can never erase them.
     reserved: usize,
+    /// What the public lobby endpoint may show of this room.
+    public: PublicRoom,
+}
+
+/// The public lobby facts of one room, kept from its reports (P-LOBBY-ACTIVITY-1).
+#[derive(Clone, Debug, Default)]
+struct PublicRoom {
+    /// Callsigns seated (a `Seat` report `Seated` until its `Gone`), in arrival order.
+    humans: Vec<String>,
+    /// Bot callsigns seated (`BotSeat` reports), in arrival order.
+    bots: Vec<String>,
+    started_at_ms: Option<u64>,
+    human_min: usize,
+    fill_target: usize,
+}
+
+impl PublicRoom {
+    fn on_seat(&mut self, profile: &str, event: crate::room::SeatEvent) {
+        use crate::room::SeatEvent;
+        match event {
+            SeatEvent::Seated => {
+                if !self.humans.iter().any(|h| h.eq_ignore_ascii_case(profile)) {
+                    self.humans.push(profile.to_owned());
+                }
+            }
+            SeatEvent::Gone(_) => self.humans.retain(|h| !h.eq_ignore_ascii_case(profile)),
+            SeatEvent::Away { .. } | SeatEvent::Back => {}
+        }
+    }
+
+    /// Legacy `raidStartedAtEpoch`: the wall time the room first reported its raid running.
+    fn on_phase(&mut self, phase: Phase) {
+        if phase == Phase::Active && self.started_at_ms.is_none() {
+            self.started_at_ms = Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_millis() as u64),
+            );
+        }
+    }
 }
 
 impl RoomEntry {
@@ -114,6 +154,38 @@ impl RoomEntry {
     fn committed(&self) -> usize {
         self.seated + self.reserved
     }
+}
+
+/// One player of a room as the public lobby endpoint may show it (`lobby.rs`): a display name and the bot flag, nothing else.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LobbyPlayerView {
+    pub name: String,
+    pub bot: bool,
+}
+
+/// One room as the public lobby endpoint may show it. No match id, session, address or position.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LobbyRoomView {
+    pub phase: Phase,
+    /// Unix epoch milliseconds the raid started (the room first reported `Active`); None before.
+    pub started_at_ms: Option<u64>,
+    /// The room's human minimum (its sim's `min_players`) and the count bots top the lobby up to (0: no fill).
+    pub human_min: usize,
+    pub fill_target: usize,
+    pub players: Vec<LobbyPlayerView>,
+}
+
+/// A read-only copy of what the public lobby endpoint shows, taken under the director's lock and released at once.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LobbyView {
+    /// Public (non-training) rooms, in a stable order.
+    pub rooms: Vec<LobbyRoomView>,
+    /// Lower-cased callsigns seated in any room (training included): they are not "waiting".
+    pub occupied: Vec<String>,
+    pub room_count: usize,
+    pub room_limit: usize,
+    /// A lobby has a free seat, or another room may open.
+    pub joinable: bool,
 }
 
 /// The lobby the next admission joins: among lobbies with a free seat (counting reservations), the fullest, so matches fill
@@ -808,6 +880,11 @@ impl Director {
         if let Some(fill) = &fill {
             fill.apply_lobby_timing(&mut sim);
         }
+        let public = PublicRoom {
+            human_min: sim.min_players,
+            fill_target: fill_bots_to,
+            ..PublicRoom::default()
+        };
         let rc = RoomConfig {
             sim,
             arena: self.map.arena.clone(),
@@ -836,6 +913,7 @@ impl Director {
                 phase: Phase::Lobby,
                 seated: 0,
                 reserved: 0,
+                public,
             },
         );
         (id, tx)
@@ -1203,6 +1281,7 @@ impl Director {
                         r.reserved = r.reserved.saturating_sub(1);
                         r.seated = humans;
                         r.phase = phase;
+                        r.public.on_phase(phase);
                     }
                     inner.control.on_phase(match_id, phase);
                 }
@@ -1211,20 +1290,37 @@ impl Director {
                     profile,
                     event,
                 } => {
-                    let took = this
-                        .inner
-                        .lock()
-                        .expect("director")
-                        .control
-                        .on_seat(match_id, &profile, event);
+                    let took = {
+                        let mut inner = this.inner.lock().expect("director");
+                        if let Some(r) = inner.rooms.get_mut(&match_id) {
+                            r.public.on_seat(&profile, event);
+                        }
+                        inner.control.on_seat(match_id, &profile, event)
+                    };
                     if let Some(took) = took {
                         crate::metrics::process().note_admit_to_seat(took);
+                    }
+                }
+                RoomReport::BotSeat {
+                    match_id,
+                    name,
+                    seated,
+                } => {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
+                        let bots = &mut r.public.bots;
+                        if seated {
+                            bots.push(name);
+                        } else if let Some(i) = bots.iter().position(|b| *b == name) {
+                            bots.remove(i);
+                        }
                     }
                 }
                 RoomReport::Phase { match_id, phase } => {
                     let mut inner = this.inner.lock().expect("director");
                     if let Some(r) = inner.rooms.get_mut(&match_id) {
                         r.phase = phase;
+                        r.public.on_phase(phase);
                     }
                     inner.control.on_phase(match_id, phase);
                 }
@@ -1326,6 +1422,48 @@ impl Director {
             "resultsRefused": inner.results_refused,
             "closedRooms": inner.closed.iter().rev().take(8).collect::<Vec<_>>(),
         })
+    }
+
+    /// The public lobby endpoint's copy of the rooms (P-LOBBY-ACTIVITY-1): plain data, copied under the lock. A training
+    /// server's rooms are private runs (legacy lists only non-training rooms): their players only count as seated.
+    ///
+    /// Players are the seated humans (`Seat` reports), then the seated bots (`BotSeat` reports), each in arrival order.
+    pub fn lobby_view(&self) -> LobbyView {
+        let inner = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+        let training = self.cfg.sim.training;
+        let mut ids: Vec<&MatchId> = inner.rooms.keys().collect();
+        ids.sort();
+        let mut view = LobbyView {
+            room_limit: self.cfg.max_rooms,
+            ..LobbyView::default()
+        };
+        for id in ids {
+            let r = &inner.rooms[id];
+            view.occupied
+                .extend(r.public.humans.iter().map(|h| h.to_ascii_lowercase()));
+            if training {
+                continue;
+            }
+            view.rooms.push(LobbyRoomView {
+                phase: r.phase,
+                started_at_ms: r.public.started_at_ms,
+                human_min: r.public.human_min,
+                fill_target: r.public.fill_target,
+                players: (r.public.humans.iter().map(|n| (n, false)))
+                    .chain(r.public.bots.iter().map(|n| (n, true)))
+                    .map(|(name, bot)| LobbyPlayerView {
+                        name: name.clone(),
+                        bot,
+                    })
+                    .collect(),
+            });
+        }
+        view.room_count = view.rooms.len();
+        view.joinable = !training
+            && !self.lifecycle.draining()
+            && (open_lobby(&inner.rooms, rh_sim::constants::MAX_PLAYERS).is_some()
+                || inner.rooms.len() < self.cfg.max_rooms);
+        view
     }
 
     // ---- the control API (docs/hosting/CONTROL_API.md); the HTTP layer is `control_http` in lib.rs ----
@@ -1972,6 +2110,7 @@ mod tests {
             phase,
             seated,
             reserved,
+            public: PublicRoom::default(),
         }
     }
 
@@ -2181,6 +2320,7 @@ mod tests {
                 phase: Phase::Lobby,
                 seated,
                 reserved: 0,
+                public: PublicRoom::default(),
             },
         );
     }
@@ -2884,6 +3024,7 @@ mod tests {
                 phase: Phase::Lobby,
                 seated: 0,
                 reserved: 0,
+                public: PublicRoom::default(),
             },
         );
         let now = tokio::time::Instant::now();
@@ -2946,6 +3087,7 @@ mod tests {
                 phase: Phase::Lobby,
                 seated: 0,
                 reserved: 0,
+                public: PublicRoom::default(),
             },
         );
         let d2 = d.clone();

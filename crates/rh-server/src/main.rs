@@ -677,6 +677,8 @@ async fn main() {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
     });
+    // The lobby endpoint keys its per-address caps (and its CORS) by the account API's own settings.
+    let lobby_cfg = rh_server::lobby::LobbyConfig::from_api(&api_cfg);
     #[cfg(feature = "postgres")]
     let account = match &auth {
         Auth::Postgres(store) => AccountApi::postgres(store.clone(), api_cfg),
@@ -747,7 +749,7 @@ async fn main() {
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
     director.recover_spooled();
-    let app = rh_server::public_router_with_api(director.clone(), account);
+    let app = rh_server::public_router_with_lobby(director.clone(), account, lobby_cfg);
 
     if let Some(control) = arg(&args, "--control") {
         let addr: SocketAddr = control.parse().expect("--control");
