@@ -70,6 +70,7 @@ fn config(kind: &str) -> SimConfig {
         faction_mode: FactionMode::Off,
         hitboxes: crate::archetype::HitboxMode::LegacyCircle,
         mob_spacing: Default::default(),
+        regen_in_combat: crate::RegenInCombat::Legacy,
     }
 }
 

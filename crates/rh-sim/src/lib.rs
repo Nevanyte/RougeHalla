@@ -86,7 +86,7 @@ pub use state::{
 };
 pub mod terrain;
 pub mod traders;
-pub use statics::FactionMode;
+pub use statics::{FactionMode, RegenInCombat};
 pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;

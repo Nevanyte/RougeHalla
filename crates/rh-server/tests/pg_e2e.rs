@@ -113,6 +113,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
             SimConfig {
                 hitboxes: Default::default(),
                 mob_spacing: Default::default(),
+                regen_in_combat: rh_sim::RegenInCombat::Legacy,
                 walk_hints: None,
                 regen: false,
                 quests: false,
@@ -379,6 +380,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
             SimConfig {
                 hitboxes: Default::default(),
                 mob_spacing: Default::default(),
+                regen_in_combat: rh_sim::RegenInCombat::Legacy,
                 walk_hints: None,
                 regen: false,
                 quests: false,

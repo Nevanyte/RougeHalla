@@ -48,6 +48,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let sim = SimConfig {
         hitboxes: Default::default(),
         mob_spacing: Default::default(),
+        regen_in_combat: rh_sim::RegenInCombat::Legacy,
         walk_hints: None,
         regen: false,
         quests: false,
