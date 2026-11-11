@@ -7,7 +7,7 @@ use crate::delta::{
     AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP,
     DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
-use crate::map::MapBlob;
+use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use crate::state::{
     MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
     MAX_VISIBLE_PROPS,
@@ -873,8 +873,108 @@ pub fn write_weapon_table_for_tests(w: &mut Writer, rows: &[WireWeapon]) {
 }
 
 /// Bytes between the Welcome header and the map in the hand-built frames below: an empty archetype table, the default
-/// vision block and an empty weapon table (protocol 16).
+/// vision block and an empty weapon table (protocol 16 and later).
 const PRE_MAP_LEN: usize = 1 + crate::vision::VISION_BLOCK_LEN + 1;
+
+const PUBLIC_W: u16 = 8;
+const PUBLIC_H: u16 = 6;
+
+/// An 8 x 6 map with protocol 17 public sections. `all` adds the reserved props and ground variants the server does not
+/// ship yet; without it the map carries what the server ships (terrain, regions, camps, coliseum, bushes).
+fn public_map(all: bool) -> MapBlob {
+    let (w, h) = (PUBLIC_W as usize, PUBLIC_H as usize);
+    let total = w * h;
+    let mut tiles = vec![0u8; total];
+    for x in 0..w {
+        tiles[x] = 1;
+        tiles[(h - 1) * w + x] = 1;
+    }
+    tiles[2 * w + 3] = 2;
+    let terrain: Vec<u8> = tiles.iter().map(|&c| if c == 0 { 4 } else { 1 }).collect();
+    let regions: Vec<u8> = (0..total).map(|i| (i % 7) as u8).collect();
+    let mut bushes = vec![0u8; total];
+    bushes[w + 1] = 1;
+    bushes[w + 2] = 1;
+    bushes[3 * w + 6] = 7;
+    let public = MapPublic {
+        camps: vec![
+            MapCamp {
+                x: 80,
+                y: 48,
+                r: 80,
+                zone: 1,
+            },
+            MapCamp {
+                x: 208,
+                y: 144,
+                r: 80,
+                zone: 5,
+            },
+            MapCamp {
+                x: 112,
+                y: 80,
+                r: 80,
+                zone: 3,
+            },
+        ],
+        coliseum: Some(MapColiseum {
+            x: 2,
+            y: 1,
+            w: 4,
+            h: 3,
+            gates: vec![
+                MapGate {
+                    side: 0,
+                    tiles: vec![MapTile { x: 3, y: 1 }, MapTile { x: 4, y: 1 }],
+                },
+                MapGate {
+                    side: 1,
+                    tiles: vec![MapTile { x: 5, y: 2 }],
+                },
+                MapGate {
+                    side: 2,
+                    tiles: vec![MapTile { x: 3, y: 3 }, MapTile { x: 4, y: 3 }],
+                },
+                MapGate {
+                    side: 3,
+                    tiles: vec![MapTile { x: 2, y: 2 }],
+                },
+            ],
+        }),
+        bushes: Some(bushes),
+        props: if all {
+            vec![
+                MapProp {
+                    kind: 3,
+                    x: 100,
+                    y: 60,
+                    variant: 2,
+                    flags: 1,
+                },
+                MapProp {
+                    kind: 9,
+                    x: 250,
+                    y: 180,
+                    variant: 0,
+                    flags: 0,
+                },
+            ]
+        } else {
+            Vec::new()
+        },
+        ground_variants: all.then(|| (0..total).map(|i| (i / 5 % 3) as u8).collect()),
+    };
+    MapBlob::new_with_ground(
+        PUBLIC_W,
+        PUBLIC_H,
+        tiles,
+        Some(terrain),
+        Some(regions),
+        crate::GroundMode::Map,
+    )
+    .and_then(|map| map.with_public(public))
+    .expect("the public sample map is valid")
+}
 
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     // The sample rectangle needs a map of at least 3 x 2 tiles; smaller sample maps carry no coliseum.
@@ -1830,6 +1930,9 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     .unwrap(),
             ),
         ),
+        // Protocol 17 public sections: every section, then what the server ships (camps, coliseum, bushes).
+        ("welcome_public_all", welcome_map_msg(public_map(true))),
+        ("welcome_public_shipped", welcome_map_msg(public_map(false))),
         (
             "reject",
             ServerMsg::Reject {
@@ -2524,7 +2627,7 @@ fn welcome_archetypes(rows: &[(u8, u8)]) -> Vec<u8> {
     out
 }
 
-/// A Welcome on a valid 2 x 2 map whose vision block is these raw bytes (protocol 16).
+/// A Welcome on a valid 2 x 2 map whose vision block is these raw bytes (protocol 16 and later).
 fn welcome_vision_bytes(block: &[u8]) -> Vec<u8> {
     let good = welcome_map(2, 2, None, &[(1, 4)]);
     let mut out = good[..WELCOME_HEADER_LEN + 1].to_vec();
@@ -2616,7 +2719,7 @@ fn malformed_vision() -> Vec<(&'static str, Vec<u8>)> {
     ]
 }
 
-/// A Welcome on a valid 2 x 2 map whose weapon table is these raw bytes (protocol 16).
+/// A Welcome on a valid 2 x 2 map whose weapon table is these raw bytes (protocol 16 and later).
 fn welcome_weapon_bytes(table: &[u8]) -> Vec<u8> {
     let good = welcome_map(2, 2, None, &[(1, 4)]);
     let at = WELCOME_HEADER_LEN + PRE_MAP_LEN - 1;
@@ -2814,7 +2917,7 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
-    // An empty archetype table, the default vision block and an empty weapon table (protocol 16).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later).
     b.u8(0);
     crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
     b.u8(0);
@@ -2840,6 +2943,294 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.finish()
 }
 
+/// Run-length wire bytes of a plane (`u32` run count, then `value u8, len u16` maximal runs), for hand-built frames.
+fn rle_wire(cells: &[u8]) -> Vec<u8> {
+    let mut runs: Vec<(u8, u16)> = Vec::new();
+    for &c in cells {
+        match runs.last_mut() {
+            Some((v, n)) if *v == c && *n < u16::MAX - 1 => *n += 1,
+            _ => runs.push((c, 1)),
+        }
+    }
+    let mut out = (runs.len() as u32).to_le_bytes().to_vec();
+    for (v, n) in runs {
+        out.push(v);
+        out.extend_from_slice(&n.to_le_bytes());
+    }
+    out
+}
+
+/// One hand-built extension section: its wire bytes and what the semantic hash covers (cells for a plane, the wire bytes
+/// for a list).
+struct RawSection {
+    wire: Vec<u8>,
+    hashed: Vec<u8>,
+}
+fn raw_list(wire: Vec<u8>) -> RawSection {
+    RawSection {
+        hashed: wire.clone(),
+        wire,
+    }
+}
+fn raw_plane(cells: &[u8]) -> RawSection {
+    RawSection {
+        wire: rle_wire(cells),
+        hashed: cells.to_vec(),
+    }
+}
+
+const RAW_W: u16 = 4;
+const RAW_H: u16 = 3;
+
+/// A Welcome on a 4 x 3 all-floor map whose extension is written by hand (protocol 17): `version`, `flags` and the
+/// sections as given, with the semantic hash over them, or (`stale_hash`) the hash of a map without those sections.
+fn welcome_public_raw(
+    version: u8,
+    flags: u8,
+    sections: &[RawSection],
+    stale_hash: bool,
+) -> Vec<u8> {
+    let tiles = vec![0u8; usize::from(RAW_W) * usize::from(RAW_H)];
+    let layer = crate::map::layer_hash(u32::from(RAW_W), u32::from(RAW_H), &tiles);
+    let mut b = Writer::default();
+    b.u8(0x81);
+    b.u16(PROTOCOL_VERSION);
+    b.u64(0x1234);
+    b.bytes(&[7; 16]);
+    b.u32(1);
+    b.bytes(&[9; 16]);
+    b.u8(20);
+    b.u32(0);
+    b.f64(0.0);
+    // An empty archetype table, the default vision block and an empty weapon table.
+    b.u8(0);
+    crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
+    b.u8(0);
+    b.u16(RAW_W);
+    b.u16(RAW_H);
+    b.u32(layer);
+    b.bytes(&rle_wire(&tiles));
+    let semantic = if stale_hash {
+        crate::ground::semantic_hash_parts(RAW_W, RAW_H, flags, [])
+    } else {
+        crate::ground::semantic_hash_parts(
+            RAW_W,
+            RAW_H,
+            flags,
+            sections.iter().map(|s| s.hashed.as_slice()),
+        )
+    };
+    let mut ext = Writer::default();
+    ext.u8(version);
+    ext.u8(flags);
+    ext.u32(semantic);
+    for section in sections {
+        ext.bytes(&section.wire);
+    }
+    ext.u8(crate::GroundMode::Off as u8);
+    ext.u32(crate::ground::context_hash(
+        layer,
+        semantic,
+        crate::GroundMode::Off,
+    ));
+    let ext = ext.finish();
+    b.u32(ext.len() as u32);
+    b.bytes(&ext);
+    b.finish()
+}
+
+fn raw_camps(rows: &[(u16, u16, u16, u8)]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(rows.len() as u8);
+    for &(x, y, r, zone) in rows {
+        w.u16(x);
+        w.u16(y);
+        w.u16(r);
+        w.u8(zone);
+    }
+    w.finish()
+}
+
+/// A gate in a hand-built coliseum section: its side code and its tiles.
+type RawGate<'a> = (u8, &'a [(u16, u16)]);
+
+/// `rect` (x, y, w, h) then the gates.
+fn raw_coliseum(rect: (u16, u16, u16, u16), gates: &[RawGate<'_>]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u16(rect.0);
+    w.u16(rect.1);
+    w.u16(rect.2);
+    w.u16(rect.3);
+    w.u8(gates.len() as u8);
+    for &(side, tiles) in gates {
+        w.u8(side);
+        w.u8(tiles.len() as u8);
+        for &(x, y) in tiles {
+            w.u16(x);
+            w.u16(y);
+        }
+    }
+    w.finish()
+}
+
+/// Protocol 17 map extensions every decoder refuses, each with the reason it must name (a `DecodeError::BadMap` reason,
+/// or "truncated" for `DecodeError::Truncated`). Written to the vectors as `malformedMap`.
+pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
+    let cells = usize::from(RAW_W) * usize::from(RAW_H);
+    fn g(side: u8, tiles: &[(u16, u16)]) -> RawGate<'_> {
+        (side, tiles)
+    }
+    fn col(gates: &[RawGate<'_>]) -> RawSection {
+        raw_list(raw_coliseum((0, 0, RAW_W, RAW_H), gates))
+    }
+    let camps_over: Vec<(u16, u16, u16, u8)> = (0..=crate::map::MAX_MAP_CAMPS as u16)
+        .map(|i| (16 + i, 16, 80, 1))
+        .collect();
+    let mut bush_truncated = rle_wire(&vec![0; cells]);
+    bush_truncated[0..4].copy_from_slice(&5u32.to_le_bytes());
+    let props_over = ((crate::map::MAX_MAP_PROPS + 1) as u16)
+        .to_le_bytes()
+        .to_vec();
+    vec![
+        (
+            "map17_section_version_1",
+            welcome_public_raw(1, 0, &[], false),
+            "section version",
+        ),
+        (
+            "map17_presence_unknown",
+            welcome_public_raw(2, 0x80, &[], false),
+            "presence",
+        ),
+        (
+            "map17_camp_count_zero",
+            welcome_public_raw(2, 0x04, &[raw_list(vec![0])], false),
+            "camp count",
+        ),
+        (
+            "map17_camp_count_over",
+            welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&camps_over))], false),
+            "camp count",
+        ),
+        (
+            "map17_camp_zone_zero",
+            welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&[(16, 16, 80, 0)]))], false),
+            "camp zone",
+        ),
+        (
+            "map17_camp_zone_six",
+            welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&[(16, 16, 80, 6)]))], false),
+            "camp zone",
+        ),
+        (
+            "map17_coliseum_rect_empty",
+            welcome_public_raw(
+                2,
+                0x08,
+                &[raw_list(raw_coliseum((0, 0, 0, RAW_H), &[]))],
+                false,
+            ),
+            "coliseum rect",
+        ),
+        (
+            "map17_coliseum_rect_outside",
+            welcome_public_raw(2, 0x08, &[raw_list(raw_coliseum((2, 0, 3, 1), &[]))], false),
+            "coliseum rect",
+        ),
+        (
+            "map17_gate_count",
+            welcome_public_raw(
+                2,
+                0x08,
+                &[col(&[g(0, &[(0, 0)]); crate::map::MAX_COLISEUM_GATES + 1])],
+                false,
+            ),
+            "gate count",
+        ),
+        (
+            "map17_gate_side",
+            welcome_public_raw(2, 0x08, &[col(&[g(4, &[(0, 0)])])], false),
+            "gate side",
+        ),
+        (
+            "map17_gate_tiles_zero",
+            welcome_public_raw(2, 0x08, &[col(&[g(0, &[])])], false),
+            "gate tiles",
+        ),
+        (
+            "map17_gate_tiles_over",
+            welcome_public_raw(
+                2,
+                0x08,
+                &[col(&[g(0, &[(0, 0); crate::map::MAX_GATE_TILES + 1])])],
+                false,
+            ),
+            "gate tiles",
+        ),
+        (
+            "map17_gate_tile_x",
+            welcome_public_raw(2, 0x08, &[col(&[g(0, &[(RAW_W, 0)])])], false),
+            "gate tile",
+        ),
+        (
+            "map17_gate_tile_y",
+            welcome_public_raw(2, 0x08, &[col(&[g(2, &[(0, RAW_H)])])], false),
+            "gate tile",
+        ),
+        (
+            "map17_bush_short",
+            welcome_public_raw(2, 0x10, &[raw_plane(&vec![0; cells - 1])], false),
+            "length",
+        ),
+        (
+            "map17_bush_run_zero",
+            welcome_public_raw(
+                2,
+                0x10,
+                &[RawSection {
+                    wire: 0u32.to_le_bytes().to_vec(),
+                    hashed: Vec::new(),
+                }],
+                false,
+            ),
+            "run",
+        ),
+        (
+            "map17_bush_truncated",
+            welcome_public_raw(
+                2,
+                0x10,
+                &[RawSection {
+                    wire: bush_truncated,
+                    hashed: vec![0; cells],
+                }],
+                false,
+            ),
+            "truncated",
+        ),
+        (
+            "map17_prop_count_zero",
+            welcome_public_raw(2, 0x20, &[raw_list(vec![0, 0])], false),
+            "prop count",
+        ),
+        (
+            "map17_prop_count_over",
+            welcome_public_raw(2, 0x20, &[raw_list(props_over)], false),
+            "prop count",
+        ),
+        (
+            "map17_variants_short",
+            welcome_public_raw(2, 0x40, &[raw_plane(&vec![1; cells - 1])], false),
+            "length",
+        ),
+        (
+            "map17_semantic_hash",
+            welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&[(16, 16, 80, 1)]))], true),
+            "semantic hash",
+        ),
+    ]
+}
+
 fn ground_welcome_bytes(
     terrain: Option<Vec<u8>>,
     regions: Option<Vec<u8>>,
@@ -2856,7 +3247,7 @@ fn ground_welcome_bytes(
     w.u8(20);
     w.u32(0);
     w.f64(0.0);
-    // An empty archetype table, the default vision block and an empty weapon table (protocol 16).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later).
     w.u8(0);
     crate::vision::write_vision_for_tests(&mut w, &WireVision::default());
     w.u8(0);
@@ -4350,7 +4741,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             mutate_ground_welcome(
                 ground_welcome_bytes(None, None, crate::GroundMode::Off),
                 79,
-                &[2],
+                &[1],
             ),
         ),
         (
@@ -4358,12 +4749,12 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             mutate_ground_welcome(
                 ground_welcome_bytes(None, None, crate::GroundMode::Off),
                 80,
-                &[4],
+                &[0x80],
             ),
         ),
         ("map_ext_run_zero", {
             let mut frame = ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off);
-            // Offsets include the one-byte empty archetype table (protocol 16); the vision block and the empty weapon
+            // Offsets include the one-byte empty archetype table (protocol 16 and later); the vision block and the empty weapon
             // table after it move the map further.
             let v = PRE_MAP_LEN - 1;
             frame[86 + v..90 + v].copy_from_slice(&0u32.to_le_bytes());
@@ -6013,8 +6404,54 @@ fn decoded_map_json(m: &ServerMsg) -> String {
     let plane = |values: Option<&[u8]>| {
         values.map_or_else(|| "null".to_string(), |v| format!("[{}]", nums(v)))
     };
+    let public = &map.public;
+    let camps = public
+        .camps
+        .iter()
+        .map(|c| {
+            format!(
+                "{{\"x\":{},\"y\":{},\"r\":{},\"zone\":{}}}",
+                c.x, c.y, c.r, c.zone
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let map_coliseum = public.coliseum.as_ref().map_or_else(
+        || "null".to_string(),
+        |c| {
+            let gates = c
+                .gates
+                .iter()
+                .map(|g| {
+                    let tiles = g
+                        .tiles
+                        .iter()
+                        .map(|t| format!("{{\"x\":{},\"y\":{}}}", t.x, t.y))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    format!("{{\"side\":{},\"tiles\":[{tiles}]}}", g.side)
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "{{\"x\":{},\"y\":{},\"w\":{},\"h\":{},\"gates\":[{gates}]}}",
+                c.x, c.y, c.w, c.h
+            )
+        },
+    );
+    let props = public
+        .props
+        .iter()
+        .map(|p| {
+            format!(
+                "{{\"kind\":{},\"x\":{},\"y\":{},\"variant\":{},\"flags\":{}}}",
+                p.kind, p.x, p.y, p.variant, p.flags
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
     format!(
-        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"weapons\":[{weapons}],\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
+        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"weapons\":[{weapons}],\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{},\"camps\":[{camps}],\"coliseum\":{map_coliseum},\"bushes\":{},\"props\":[{props}],\"groundVariants\":{}}}}}",
         map.w,
         map.h,
         nums(&map.tiles),
@@ -6024,6 +6461,8 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         map.terrain_mode as u8,
         map.semantic_hash,
         map.context_hash,
+        plane(public.bushes.as_deref()),
+        plane(public.ground_variants.as_deref()),
     )
 }
 
@@ -6253,6 +6692,16 @@ pub fn manifest() -> String {
             ));
         }
     }
+    // Protocol 17 map refusals carry the reason every decoder must name.
+    out.push_str("  ],\n  \"malformedMap\": [\n");
+    let maps = malformed_map();
+    for (i, (name, bytes, reason)) in maps.iter().enumerate() {
+        out.push_str(&format!(
+            "    {{\"name\": \"{name}\", \"hex\": \"{}\", \"reason\": \"{reason}\"}}{}\n",
+            hex(bytes),
+            if i + 1 < maps.len() { "," } else { "" }
+        ));
+    }
     out.push_str("  ],\n  \"chains\": [\n");
     let chains = chain_samples();
     for (i, (name, steps)) in chains.iter().enumerate() {
@@ -6283,4 +6732,56 @@ pub fn manifest() -> String {
 
 fn escape(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(test)]
+mod map_public_samples {
+    use super::*;
+    use crate::DecodeError;
+
+    #[test]
+    fn every_malformed_map_is_refused_for_its_reason() {
+        for (name, bytes, reason) in malformed_map() {
+            let got = ServerMsg::decode(&bytes).expect_err(name);
+            let want = if reason == "truncated" {
+                DecodeError::Truncated
+            } else {
+                DecodeError::BadMap(reason)
+            };
+            assert_eq!(got, want, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_hand_built_public_map_with_valid_sections_decodes() {
+        // The builder itself is sound: in-range sections decode.
+        let ok = welcome_public_raw(
+            2,
+            0x04 | 0x08,
+            &[
+                raw_list(raw_camps(&[(16, 16, 80, 5)])),
+                raw_list(raw_coliseum(
+                    (0, 0, RAW_W, RAW_H),
+                    &[(3, &[(RAW_W - 1, RAW_H - 1)][..])],
+                )),
+            ],
+            false,
+        );
+        let ServerMsg::Welcome { map, .. } = ServerMsg::decode(&ok).expect("valid") else {
+            panic!("welcome")
+        };
+        assert_eq!(map.public.camps.len(), 1);
+        assert_eq!(map.public.coliseum.as_ref().map(|c| c.gates.len()), Some(1));
+    }
+
+    #[test]
+    fn public_welcome_samples_carry_their_sections() {
+        let all = public_map(true).public;
+        assert_eq!(all.camps.len(), 3);
+        assert_eq!(all.props.len(), 2);
+        assert!(all.bushes.is_some() && all.ground_variants.is_some());
+        let shipped = public_map(false).public;
+        assert!(shipped.props.is_empty() && shipped.ground_variants.is_none());
+        assert!(shipped.coliseum.is_some() && shipped.bushes.is_some());
+    }
 }

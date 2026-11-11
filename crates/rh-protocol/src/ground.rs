@@ -1,4 +1,4 @@
-//! Version 14 public ground metadata wire primitives.
+//! Public map extension wire primitives: ground planes (protocol 14) and the public sections (protocol 17).
 
 use crate::{DecodeError, EncodeError};
 
@@ -23,9 +23,17 @@ impl GroundMode {
     }
 }
 
-pub(crate) const SECTION_VERSION: u8 = 1;
-pub(crate) const PRESENCE_TERRAIN: u8 = 1;
-pub(crate) const PRESENCE_REGIONS: u8 = 2;
+/// Map extension layout version. Protocol 17 is version 2 (public sections); version 1 is refused.
+pub(crate) const SECTION_VERSION: u8 = 2;
+pub(crate) const PRESENCE_TERRAIN: u8 = 0x01;
+pub(crate) const PRESENCE_REGIONS: u8 = 0x02;
+pub(crate) const PRESENCE_CAMPS: u8 = 0x04;
+pub(crate) const PRESENCE_COLISEUM: u8 = 0x08;
+pub(crate) const PRESENCE_BUSHES: u8 = 0x10;
+pub(crate) const PRESENCE_PROPS: u8 = 0x20;
+pub(crate) const PRESENCE_GROUND_VARIANTS: u8 = 0x40;
+/// Every presence bit a decoder accepts.
+pub(crate) const PRESENCE_KNOWN: u8 = 0x7f;
 pub(crate) const SEMANTIC_DOMAIN: &[u8] = b"rh-ground/1\0";
 pub(crate) const CONTEXT_DOMAIN: &[u8] = b"rh-map-context/1\0";
 
@@ -45,6 +53,17 @@ pub(crate) fn semantic_hash(
     terrain: Option<&[u8]>,
     regions: Option<&[u8]>,
 ) -> u32 {
+    semantic_hash_parts(w, h, presence, [terrain, regions].into_iter().flatten())
+}
+
+/// FNV-1a 32 over the domain, `w u32`, `h u32`, `[section version, presence]`, then each part in wire order: a plane's
+/// decoded cells, a list section's wire bytes (count included).
+pub(crate) fn semantic_hash_parts<'a>(
+    w: u16,
+    h: u16,
+    presence: u8,
+    parts: impl IntoIterator<Item = &'a [u8]>,
+) -> u32 {
     fnv1a(
         SEMANTIC_DOMAIN
             .iter()
@@ -52,8 +71,7 @@ pub(crate) fn semantic_hash(
             .chain((w as u32).to_le_bytes())
             .chain((h as u32).to_le_bytes())
             .chain([SECTION_VERSION, presence])
-            .chain(terrain.into_iter().flatten().copied())
-            .chain(regions.into_iter().flatten().copied()),
+            .chain(parts.into_iter().flatten().copied()),
     )
 }
 
