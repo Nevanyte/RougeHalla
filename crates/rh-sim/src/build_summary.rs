@@ -101,7 +101,9 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
         for row in &rows[..n] {
             if let EffectKind::Stat { stat, v } = row.kind {
                 match stat {
-                    EffectStat::Damage if row.requires.is_empty() && !row.needs_status => damage += v,
+                    EffectStat::Damage if row.requires.is_empty() && !row.needs_status => {
+                        damage += v
+                    }
                     EffectStat::Lifesteal => ls_rows += v,
                     _ => {}
                 }
@@ -115,7 +117,11 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
         farm_ls += f64::from(p.camps_cleared) * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR;
     }
     let max_hp = p.core.vitals.max_hp;
-    let hp_frac = if max_hp > 0. { p.core.vitals.hp / max_hp } else { 1. };
+    let hp_frac = if max_hp > 0. {
+        p.core.vitals.hp / max_hp
+    } else {
+        1.
+    };
     let mult = if p.build.count(CardId::Bloodthirst) > 0 && hp_frac < 0.5 {
         2.
     } else {
