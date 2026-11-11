@@ -32,7 +32,7 @@ namespace Roguehalla.Client
         public static List<Placement> Scatter(MapBlob map)
         {
             var list = new List<Placement>(2048);
-            if (map.Regions == null) return list;
+            if (map.Regions == null) { AddRealBushes(map, list); return list; }
             int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;     // props avoid every terrain tile, drawn or not
             int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
             var occupied = new bool[w * h]; var tallAt = new bool[w * h];
@@ -57,6 +57,8 @@ namespace Roguehalla.Client
                 }
                 if (pick < 0) continue;
                 var chosen = rules[pick];
+                // With the map's bush plane the real concealment cells are drawn below; a decorative bush would only imitate concealment.
+                if (map.Bushes != null && (chosen.Art.EndsWith(".bush") || chosen.Art == "holy.shrub")) continue;
                 if (occupied[i]) continue;
                 if (!Clear(tiles, terrain, w, h, x, y, chosen.WallClearance)) continue;
                 // Spacing-only list: it decides which props may not touch. It is NOT the fade rule (that is the art's Tall flag, via PropFade).
@@ -74,7 +76,21 @@ namespace Roguehalla.Client
             foreach (var d in temple.Props)
                 list.Add(new Placement { Art = d.Art, X = d.X, Y = d.Y, Scale = d.Scale, Flip = d.Flip, Tx = Mathf.FloorToInt(d.X), Ty = Mathf.FloorToInt(d.Y + (d.Bias > 0 ? 1.5f : 0f)), Bias = d.Bias });
             ColiseumProps.Add(map, list, seed);
+            AddRealBushes(map, list);
             return list;
+        }
+
+        /// <summary>One bush per real concealment cell of the map blob's bush plane (protocol 17), in the zone's own bush art.</summary>
+        static void AddRealBushes(MapBlob map, List<Placement> list)
+        {
+            var bushes = map.Bushes; if (bushes == null || bushes.Length != map.W * map.H) return;
+            for (int y = 0; y < map.H; y++) for (int x = 0; x < map.W; x++)
+            {
+                int i = y * map.W + x; if (bushes[i] == 0) continue;
+                int region = map.Regions != null && map.Regions.Length == map.W * map.H ? map.Regions[i] : 0;
+                string art = region == 4 ? "frost.bush" : region == 5 ? "holy.shrub" : "plague.bush";
+                list.Add(new Placement { Art = art, X = x + .5f, Y = y + .5f, Scale = 1f, Flip = ((x * 7 + y * 13) & 1) == 1, Tx = x, Ty = y });
+            }
         }
 
         static bool Clear(byte[] tiles, byte[] terrain, int w, int h, int x, int y, int radius)
