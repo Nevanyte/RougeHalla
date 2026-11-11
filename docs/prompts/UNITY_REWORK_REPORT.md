@@ -227,3 +227,123 @@ The contrast lab landed after this report. It measures the outermost 2 pixels of
 Cause: characters have no real outline. On dark ground a dark outline cannot exceed about 2:1, and on pale ground a half-transparent pale halo covers the dark outline.
 
 Fix under way (`rework/contrast`): an opaque neutral outline whose colour is chosen against the ground behind it, black on bright ground and white on dark ground. One of the two always gives at least about 4.5:1 on any ground, so the landscape does not have to change. Faction-coloured outlines are not used. The gate tool must exit clean on the full matrix before Gate 3.
+
+## Gate 3: complete (2026-11-11)
+
+Branch `feature/unity-rework`, verified at `b43e19f5` (the polish pass merges after this and is recorded in the addendum below). Nothing has been
+pushed. `optimization_port` and `main` have not been moved. `packages/` is untouched.
+
+### Decisions and facts that need your attention
+
+1. **The 3:1 contrast gate is not met, by your decision.** You ruled out the line outline ("a lot of visual artifacts", then "lets have no outline
+   for now") and accepted the risk. Strict edge contrast at 1080p High: 62 of 931 cases pass with no outline (428 with the thin outline, 251 with
+   the inner rim). Body contrast is fine on snow and the temple floor (medians 6.9 and 4.4) and poor on dark ground (about 1.4 in Fire, Sentenced
+   and Plague). Both variants stay available behind `?fx.outline=1` and `?fx.rim=1`. Numbers and captures: [CONTRAST_GATE.md](../rework/CONTRAST_GATE.md),
+   [evidence](../rework/evidence/contrast/README.md).
+2. **Hit boxes differ by faction, and the refit widened the gap.** Boxes follow the sprite of the look, and looks are fixed per faction. After
+   stripping the baked shadow and refitting widths, body half-width by faction is Fire and Sentenced 17, Plague 16, Holy 14, Frost 13; half-height
+   is 35 for Fire, Sentenced and Frost and 28 for Plague and Holy. The largest box (Fire, Sentenced) has about a third more area than the smallest
+   (Holy). This is live. It follows your rule that the hit box matches the sprite, but it is a balance asymmetry in a competitive game; a single
+   player box for all factions would remove it. Not changed without your say.
+3. **Lighting flicker and lights switching off: parked by you.** Leading explanation, not confirmed: the default automatic quality mode steps
+   down when frames are missed on an overloaded machine (20, 12, 6 then 0 local lights). `?quality=ultra` pins the quality. Unfinished experiments
+   are on branch `rework/flicker`, unmerged.
+4. **Bots stand on the player** and read as a doubled character; you deferred a bot stand-off to a later cycle. The hit-box review also found a
+   bot loop (one seed: bots swinging at targets far beyond reach), a bot-policy defect for the backend backlog.
+5. **The roster names every seated player** (as legacy did), including players you cannot see. This widens the observation contract on purpose and
+   needs your wording in CONTRACTS.
+6. **Browser reach.** The build targets newer WebAssembly features for speed: Chrome and Edge 95, Firefox 100, Safari 16.4 or newer. Only Chromium was
+   run. `RH_WEB_WASM2023=0` builds for older browsers. You chose Chrome for now.
+7. **Second-tier indicators are deferred** (camp badges, wards, patience outline, quest carrier flag, champion HUD attack and passive numbers, own mob
+   bonuses). The HUD shows only what the server delivers.
+8. **Deviations awaiting your sign-off:** DEV-009 (hit boxes), DEV-010 (shots at chest height), DEV-011 (mob spacing), DEV-012 (build marks omit the
+   unported Holy camp-lifesteal term).
+9. **Repository size.** The branch history holds old screenshot blobs and the backend union adds about 84 MB of files (mostly evidence and parity
+   fixtures). Squash when merging into `optimization_port`.
+10. **Process files.** Another session rewrote `CLAUDE.md` and `AGENTS.md` and added `.claude/agents/`, `docs/agent/` and nested instruction files in
+    this checkout. They are uncommitted and not part of this branch.
+
+### What was delivered
+
+- **Controls and feel:** WASD and mouse aim kept; the client now mirrors the server's own attack pause (wand from the server's wind-up event, bow from
+  two values the server already sends). Browser pull-back per shot: bow 34.0 u to a median of 0, wand 34.2 u to 0.17
+  ([note](../rework/RANGED_PAUSE_PREDICTION.md), ADR 0008 amendment).
+- **Hit boxes (ADR 0024):** foot box for walls, body box for hits, shots at chest height, live by default (`--hitboxes legacy` restores the disc;
+  parity runs the disc and is unchanged). Widths refitted to the shadow-free sprites (change 23).
+- **Mob spacing:** packs of any size come to rest without stacking where room exists; chasing packs fan out. Stacked-while-engaged share on the full
+  map: 15.3% to 4.6%.
+- **Fog of war and vision:** aligned with the server's rule; fighters and creatures fade at the edge instead of popping.
+- **Zones:** Holy is one temple interior with sand outside; Sentenced gothic flagstone with lanterns; Plague dark greens with walkable water and bog;
+  Frost white sun with translucent ice; Fire lit by lava. One sun whose colour and strength grade across zones; baked wall shadows, light cookies,
+  wind, cloud shadows, water caustics, fireflies, embers ([render evidence](../rework/evidence/render/README.md)).
+- **Characters:** no outline, no ghost copies, baked ground shadow stripped from all 12 actor atlases, our own contact and cast shadows from the one
+  sun.
+- **Combat readability:** weapon hit-zone drawn from the server's weapon table; wind-up telegraph for creature attacks and wand casts; projectile
+  trails, impact sparks, Wish effects with light.
+- **HUD and UI in the legacy layout and new skin:** launch screen, planning, in-match HUD, Tab map with zone tint and right-click-to-walk, chest
+  panel, traders, quest journal, hunt picker, results card, hub panels; overhead indicators incl. names, off-hand weapon, top-two stats, Wish
+  ready, mark plate, statuses, elites, bounty, crit and heal numbers; credits page. An indicator gallery (`?uilab=1`) shows every row on dark,
+  bright and snow ground ([verification](../rework/UI_VERIFICATION.md)).
+- **Audio:** per-zone music and ambience with crossfades, footsteps per surface, levels evened; measured by a browser probe
+  ([evidence](../rework/evidence/audio/README.md)).
+- **Surface effects:** footprints in sand and snow for 10 seconds, ripples in water and bog.
+- **Backend union:** the finished backend (quests, cards, private bot Brain not wired to live bots, host bundle packager) is merged in.
+
+### Verification on the final tree (`b43e19f5`)
+
+| Check | Result |
+|---|---|
+| `cargo test --workspace` with Postgres | 2,508 passed, 0 failed, 21 ignored |
+| `parity-report` | 109 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH |
+| `cargo clippy --all-targets --all-features -D warnings`, `cargo fmt --check` | clean |
+| Fixtures regenerated (`protocol-fixtures`, `hitbox-fixtures`) | no diff |
+| `dotnet test client-unity/RoguehallaNet.Tests` | 1,311 passed |
+| JS: `check-vectors`, `check-first-playable`, reload-proof tests | v16 agrees (54,205 checks); 66 checks; 33 of 33 |
+| Browser proof (`tools/browser-proof/proof.mjs`) | PASS |
+| Palette check | 396 of 396 |
+| Unity EditMode | 592 of 592 at `6e51235f`; re-run after the polish merge (addendum) |
+| WebGL build | builds with no shader errors; 53.7 MB compressed (limit 150 MB) |
+| Real matches in the browser, all five factions, Ultra | start, play, correct music per zone, console clean |
+
+Identities: protocol 16, observation 24, `rh-checkpoint/31`, `rh-replay/25`, policy 18, content hash `7d2d84b827af3ddc`.
+
+### Performance ([full report](../rework/PERF_REPORT.md))
+
+Ultra at 2560x1440 with vsync on, on the 144 Hz display: 0% dropped frames in all 18 measured windows (six zones, standing, walking, map), 1% lows
+115 to 120 fps. Each window is 4 to 6 seconds and the machine was busy with other builds, so vsync-off headroom (medians 3.4 to 6.7 ms) is an upper
+bound; Frost and Holy are GPU bound and have the least headroom. Fixes kept every effect: the release code-optimisation setting, a per-frame resource
+load, creatures drawn twice, lights sorted and culled to the view, damage numbers no longer rebuilding text every frame. Not measured: an idle
+machine, Firefox, Safari, a multi-minute full-crowd match.
+
+### Rust, protocol and fixture changes made by the Unity rework (for review)
+
+| Change | Where | Record | Independent review |
+|---|---|---|---|
+| Room-killing crashes (attack list out of bounds; ledger victim slots shifting when a zombie is removed mid-pass) | `rh-sim` weapons, ledger; soak test in `rh-headless` | commits `a1f1d129`, `406279b3` | Opus: correct |
+| Hit-box archetypes, foot and body boxes, projectile height, live default | `rh-sim` `archetype.rs`, movement, walk, pathfind, melee, projectiles, checkpoint, observe; `rh-server` runtime, `--hitboxes`; protocol 16 Welcome table | ADR 0024, DEV-009, DEV-010; `archetypes_v1.json`, `pathfinding_v2.json`, `server_walk_v2.json`, `v16.json` | Opus: land after fixes, fixes done |
+| Vision parameters in Welcome | `rh-protocol`, `rh-server`; test-only `vision/golden.rs` | `sight_v1.json` | covered by the final review |
+| Mob spacing and the Welcome weapon table | `rh-sim` `systems/mob_spacing.rs`, `mob_ai.rs`, `SimConfig::mob_spacing`; `rh-server` wire | ADR 0024 addendum, DEV-011 | Opus twice: land |
+| Legacy indicator facts on protocol 16 (append-only) | `rh-sim` observe, events, kill augments, `fx_report.rs`; `rh-protocol`; `rh-policy` delivery; C# and JS decoders | ADR 0026, DEV-012; `v16.json`, `parity/build-marks/legacy.json` | Opus twice: land |
+| Review follow-ups (tests, a debug assertion, comments) | `rh-sim`, `rh-policy` | commit `0fb8d3f4` | coordinator read the diff: no behaviour change |
+| Attack-pause prediction vectors (no sim or wire change) | `rh-parity` test; `ranged_pause_v2.json` | ADR 0008 amendment | covered by the final review |
+| Body half-widths refitted to the shadow-free sprites | `rh-sim` `archetype.rs` (ten values) | ADR 0024 change 23; content hash `7d2d84b827af3ddc` | Opus: land after doc fixes, done |
+| JS tools repinned to protocol 16 | `tools/protocol-js`, `tools/unity-browser-reload-proof`, `probe.html` marker | `docs/MIGRATION.md` | none needed |
+
+The backend union's own changes were reviewed in its lane ([evidence](../evidence/backend-unity-union/README.md)).
+
+### Not done, and known defects
+
+- Contrast gate not met (item 1). Faction box asymmetry (item 2). Lighting flicker parked (item 3). Bots overlap the player (item 4).
+- Never seen on screen in a real match: a critical-hit number and a wind-up telegraph frame (both verified in the gallery and by tests).
+- Performance proposals in the character-drawing code (look caching, change-guarded renderer writes, overhead text fades) are not implemented; they
+  are not needed for 144 Hz on this machine and would help weaker ones.
+- `client-unity/UnityProject/Tools/profile-hub14.cjs` still looks for the old probe marker; `tools/hitbox-measure/measure.mjs --check` encodes the
+  older fitting rule and fails.
+- No purchased assets were used or requested (CAD 0).
+
+### Launch
+
+Target: https://play.rougehalla.com on the repository's only deploy path, a disposable single AWS host (ca-west-1) with a hard expiry of at most 12
+hours and no persistence, about CAD 10 (you accepted this on 2026-11-11). Order: polish merge, Opus final review of the combined tree, Linux server
+binary and bundle built from that exact commit, local dry run, your AWS login and go-ahead for the AWS commands, Cloudflare A record (DNS-only) by
+you, live check. The runbook is in [UNITY_REWORK_STATE.md](UNITY_REWORK_STATE.md).
