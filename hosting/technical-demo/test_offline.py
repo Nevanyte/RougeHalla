@@ -251,6 +251,8 @@ class Offline(unittest.TestCase):
             self.assertNotIn('--api-cors-origins https://rougehalla.com ', unit)
             self.assertNotIn('play.roguehalla.com', unit)
             self.assertNotIn('password', unit)
+            # Owner approval 2026-11-11: the learner runs on Source only; rh-server refuses it in training.
+            self.assertIn('--bot-learning off ' if training else '--bot-learning single-writer ', unit)
 
 
 if __name__ == '__main__':
