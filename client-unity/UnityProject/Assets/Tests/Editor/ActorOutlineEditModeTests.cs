@@ -189,7 +189,7 @@ namespace Roguehalla.Client.Tests
         {
             Present(42, ActorKind.Player, hp: 60);
             var root = Root();
-            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Status plate flame" })
+            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Status flame" })
             {
                 var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
                 Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), name + ": an overhead plate is not part of the ground a stroke is judged against");
