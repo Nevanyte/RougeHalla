@@ -21,7 +21,11 @@ behaviour is right, including the cases legacy actually has.
 5. Write the smallest set of tests that pins the behaviour. Stub signatures where needed so each test fails on an
    assertion, then run them and confirm the failure reason.
 6. List every oracle file under "Oracle files", fill the routing block (serves, tier, reviewer, D-rules, write scope).
-7. Commit on `packet/<ID>` and stop.
+7. Commit on `packet/<ID>` in two commits, then stop. First `stub: <ID> ...`: everything the implementer will replace
+   or edit (stub types and functions, `mod` lines, changes to existing tests, synced copies). Then `oracle: <ID> ...`: only
+   the new tests, captures and the packet. The gate treats the files of every commit that is not `stub:` as read-only for
+   the implementer. Done when `git show --stat HEAD` lists every oracle file, the formatter is clean on them
+   (`cargo fmt --all -- --check`), and `git status --porcelain` is empty.
 
 Pin legacy even where it looks like a bug, and flag it in the packet. Leave existing tests and captures exactly as they
 are; a packet that must change one says so for the owner to approve.

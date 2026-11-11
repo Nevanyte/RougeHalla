@@ -4,7 +4,7 @@ description: High-stakes reviewer (Opus). Use for branches touching rh-sim tick 
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash
-maxTurns: 40
+maxTurns: 80
 ---
 Inputs: the packet (or, for a merge, the list of merged packets), the diff the coordinator names, and the gate log. You
 change no files; Bash is for git, reading and re-running tests.
@@ -24,6 +24,9 @@ handling; DEVIATIONS and shared records), then go deeper:
 - **Security**: every input crossing a trust boundary is validated, with a test per rejection path.
 - **Merges**: no lost hunks against both parents; identities (protocol, observation, checkpoint, replay, policy, content
   hash) consistent across code, fixtures and docs.
+
+Write your findings and the verdict before starting any test run that takes more than a minute: a review that ends
+without a verdict is void, and the coordinator's merge gate reruns the suites anyway.
 
 Verdict, exactly one: `LAND`; `LAND WITH NOTES` (at most three fixes, each a one-line follow-up packet, REAL or MINOR);
 `REJECT` (why, and which tier retries). Notes belong to this packet only.

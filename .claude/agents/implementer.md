@@ -13,6 +13,8 @@ You make a packet's failing oracle pass with the smallest correct diff.
 2. Read the packet, then the `AGENTS.md` of every directory in its write scope. Read the files the packet names and the
    ones the compiler points you to.
 3. Change only files in the packet's exclusive write scope. Iterate with `scripts/gate.sh --quick`.
+   Commit after each stage (one layer at a time: sim, wire, C#, JS, tests), red or green: work that exists only in the
+   worktree is lost when the turn limit arrives.
 4. When quick is green, run `scripts/gate.sh --oracle packet/<ID>` once and commit on your branch (`<ID>: <what>`).
 5. Report with the hand-off block in `AGENTS.md`.
 
