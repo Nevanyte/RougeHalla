@@ -13,7 +13,13 @@ fn room() -> Arena {
     let rows: Vec<String> = (0..h)
         .map(|y| {
             (0..w)
-                .map(|x| if x == 0 || y == 0 || x == w - 1 || y == h - 1 { '#' } else { '.' })
+                .map(|x| {
+                    if x == 0 || y == 0 || x == w - 1 || y == h - 1 {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                })
                 .collect()
         })
         .collect();
@@ -122,7 +128,14 @@ fn a_mixed_holy_build_reports_the_legacy_gains() {
 
     // "Mob bonuses": one row per owned type with its stacks and cumulative reward.
     assert_eq!(s.mob_row_count(), 9);
-    let row = |m: M| s.mob_rows.iter().flatten().find(|r| r.mob == m).copied().expect("row");
+    let row = |m: M| {
+        s.mob_rows
+            .iter()
+            .flatten()
+            .find(|r| r.mob == m)
+            .copied()
+            .expect("row")
+    };
     assert_eq!(row(M::PlagueRat).stacks, 10);
     near("plague rat total", row(M::PlagueRat).total, 0.10);
     assert_eq!(row(M::Bailiff).stacks, 4);
