@@ -24,6 +24,11 @@ namespace Roguehalla.Net
         public int Handle;
         public MobLook Look;
         public float X, Y, SeenAt;
+        /// <summary>The body lay dead when last delivered; <see cref="DiedAt"/> is when its death clip started (presenter clock).</summary>
+        public bool Dead;
+        public float DiedAt;
+        /// <summary>Set by <see cref="MobContinuity.Adopt"/> once a successor took the body over; a claimed candidate is not offered again.</summary>
+        public bool Claimed;
     }
 
     /// <summary>
@@ -51,6 +56,32 @@ namespace Roguehalla.Net
                 float dx = pool[i].X - x, dy = pool[i].Y - y, d2 = dx * dx + dy * dy;
                 if (d2 <= bestD) { bestD = d2; best = i; }
             }
+            return best;
+        }
+
+        /// <summary>
+        /// Pick plus ownership, for living creatures and dead bodies alike (P-UNITY-MOB-DEATH-1). Returns the index of the candidate the
+        /// sighting continues (and sets its <see cref="MobCandidate.Claimed"/>), or -1. A dead sighting may continue a living or a dead
+        /// candidate; a living sighting never continues a dead one. <paramref name="diedAt"/> is the death start the art must keep: the
+        /// candidate's own when it was already dead, otherwise <paramref name="now"/> (also when nothing is adopted).
+        /// </summary>
+        public static int Adopt(MobCandidate[] pool, int count, in MobLook look, bool dead, float x, float y, float now, out float diedAt)
+        {
+            diedAt = now;
+            int best = -1; float bestD = RenewRadius * RenewRadius;
+            if (pool == null) return -1;
+            for (int i = 0; i < count && i < pool.Length; i++)
+            {
+                if (pool[i].Claimed) continue;
+                if (pool[i].Dead && !dead) continue;
+                if (now - pool[i].SeenAt > StaleSeconds || now < pool[i].SeenAt - 1e-3f) continue;
+                if (!pool[i].Look.Equals(look)) continue;
+                float dx = pool[i].X - x, dy = pool[i].Y - y, d2 = dx * dx + dy * dy;
+                if (d2 <= bestD) { bestD = d2; best = i; }
+            }
+            if (best < 0) return -1;
+            pool[best].Claimed = true;
+            if (pool[best].Dead) diedAt = pool[best].DiedAt;
             return best;
         }
 
