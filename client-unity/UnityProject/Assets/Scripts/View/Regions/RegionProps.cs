@@ -6,12 +6,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 
 namespace Roguehalla.Client
 {
     public sealed class RegionProps : System.IDisposable
     {
-        public const float FadedAlpha = .30f, FadeRate = 9f;
         public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias; }
 
         struct Prop
@@ -21,6 +21,7 @@ namespace Roguehalla.Client
         }
 
         readonly List<Prop> _props = new List<Prop>(2048);
+        readonly float[] _noteX = new float[1], _noteY = new float[1];
         readonly List<int> _active = new List<int>(64);
         readonly Dictionary<int, List<int>> _tallByCell = new Dictionary<int, List<int>>();
         readonly List<Object> _owned = new List<Object>();
@@ -58,6 +59,8 @@ namespace Roguehalla.Client
                 var chosen = rules[pick];
                 if (occupied[i]) continue;
                 if (!Clear(tiles, terrain, w, h, x, y, chosen.WallClearance)) continue;
+                // Spacing-only list: it decides which props may not touch. It is NOT the fade rule (that is the art's Tall flag, via PropFade).
+                // It stays as it was so placement is unchanged; the dressing bake replaces Scatter later.
                 // Keep a couple of tiles between regions' edges and tall props, and never stack tall props next to each other.
                 bool tall = chosen.Art.EndsWith("pine") || chosen.Art.EndsWith("pine2") || chosen.Art.EndsWith("tree") || chosen.Art.EndsWith("palm") || chosen.Art.EndsWith("spire")
                             || chosen.Art.EndsWith("stump") || chosen.Art.EndsWith("deadtree") || chosen.Art.EndsWith("scarecrow") || chosen.Art.EndsWith("column") || chosen.Art.EndsWith("pillar");
@@ -133,16 +136,15 @@ namespace Roguehalla.Client
             if (_tallByCell.Count == 0) return;
             int tx = Mathf.FloorToInt(feet.x), ty = Mathf.FloorToInt(-feet.y / ArenaView.GroundSquash);
             int frame = Time.frameCount;
-            // Props that can cover this actor stand up to ~3 tiles south (in front) and 1 tile sideways.
-            for (int dy = 0; dy <= 3; dy++) for (int dx = -2; dx <= 2; dx++)
+            // Props that can cover this actor stand up to ~3 tiles south (in front), or one tile north (actor inside the footprint).
+            _noteX[0] = feet.x; _noteY[0] = feet.y;
+            for (int dy = -1; dy <= 3; dy++) for (int dx = -2; dx <= 2; dx++)
             {
                 if (!_tallByCell.TryGetValue(Cell(tx + dx, ty + dy), out var cell)) continue;
                 for (int k = 0; k < cell.Count; k++)
                 {
                     var p = _props[cell[k]];
-                    if (p.FootY >= feet.y) continue;                                  // not in front of (south of) the actor
-                    if (Mathf.Abs(p.FootX - feet.x) > p.HalfW + .35f) continue;
-                    if (feet.y + 1.3f < p.FootY || feet.y > p.FootY + p.Height) continue;
+                    if (PropFade.TargetAlpha(p.FootX, p.FootY, p.HalfW, p.Height, PropFade.FootDepth, _noteX, _noteY, 1) >= 1f) continue;
                     p.MarkFrame = frame;
                     if (!p.InActive) { p.InActive = true; _active.Add(cell[k]); }
                     _props[cell[k]] = p;
@@ -157,8 +159,8 @@ namespace Roguehalla.Client
             for (int i = _active.Count - 1; i >= 0; i--)
             {
                 int idx = _active[i]; var p = _props[idx];
-                float target = frame - p.MarkFrame <= 1 ? FadedAlpha : 1f;
-                p.Alpha = Mathf.MoveTowards(p.Alpha, target, FadeRate * Mathf.Max(dt, 0f));
+                float target = frame - p.MarkFrame <= 1 ? PropFade.FadedAlpha : 1f;
+                p.Alpha = Mathf.MoveTowards(p.Alpha, target, PropFade.FadeRate * Mathf.Max(dt, 0f));
                 var c = p.Base; c.a = p.Alpha; p.Renderer.color = c;
                 if (p.Alpha >= 1f && target >= 1f) { p.InActive = false; _active.RemoveAt(i); }
                 _props[idx] = p;

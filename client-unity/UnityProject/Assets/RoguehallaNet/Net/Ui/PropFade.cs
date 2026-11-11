@@ -6,8 +6,9 @@ namespace Roguehalla.Net.Ui
     /// </summary>
     public static class PropFade
     {
-        public const float FadedAlpha = .30f;        // alpha of a prop that covers or contains an actor
-        public const float HorizontalMargin = .35f;  // extra half-width, in world units, added to the prop's half-width
+        public const float FadedAlpha = .18f;        // alpha of a prop that covers or contains an actor
+        public const float HorizontalMargin = .5f;  // extra half-width, in world units, added to the prop's half-width
+        public const float FootDepth = .5f;          // how far a prop's footprint extends south of its base, for callers
         public const float FadeRate = 9f;            // alpha units per second toward the target
 
         /// <summary>
@@ -17,12 +18,12 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static float TargetAlpha(float footX, float footY, float halfW, float height, float footDepth, float[] xs, float[] ys, int count)
         {
+            float reach = halfW + HorizontalMargin;
             for (int i = 0; i < count; i++)
             {
-                if (footY >= ys[i]) continue;
-                if (System.Math.Abs(footX - xs[i]) > halfW + HorizontalMargin) continue;
-                if (ys[i] > footY + height) continue;
-                return FadedAlpha;
+                if (System.Math.Abs(footX - xs[i]) > reach) continue;
+                float dy = ys[i] - footY;
+                if (dy > 0f ? dy <= height : -dy <= footDepth) return FadedAlpha;   // behind the upper body, or inside the footprint
             }
             return 1f;
         }
