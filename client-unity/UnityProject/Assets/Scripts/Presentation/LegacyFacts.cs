@@ -14,11 +14,23 @@ namespace Roguehalla.Client
         public static void SyncWeapons(WireWeapon[] table)
         {
             if (table == null || table.Length == 0 || ReferenceEquals(table, _lastWeapons)) return;
-            _lastWeapons = table;
+            _lastWeapons = table;                  // the full rows stay available (Speed and Radius too) for the range guide
             var rows = new List<WeaponShape>(table.Length);
             foreach (var w in table) rows.Add(new WeaponShape { Weapon = w.Id, Kind = w.Kind, Reach = (float)w.Reach, HalfArc = (float)w.HalfArc });
             WeaponShapes.Set(rows);
         }
+
+        /// <summary>The Welcome table row of a weapon (every field, including projectile Speed and Radius), or null when the table does not list it.</summary>
+        public static WireWeapon WeaponRow(WeaponId weapon)
+        {
+            if (_lastWeapons == null) return null;
+            foreach (var w in _lastWeapons) if (w.Id == (byte)weapon) return w;
+            return null;
+        }
+
+        /// <summary>Whether a projectile weapon is drawn as a ball (a circle of its range) rather than an arrow lane. The wire row does not say, so this is
+        /// the one place the weapon id decides it (legacy: the wand). Replace this body if the wire gains a flag.</summary>
+        public static bool IsBallWeapon(WeaponId weapon) { return weapon == WeaponId.Wand; }
 
         static readonly Dictionary<uint, string> Names = new Dictionary<uint, string>(); static Session _namesFor; static int _namesCount = -1;
         /// <summary>The overhead name of a fighter: the roster name, "[BOT] name" for a bot, null when the roster does not know it. Cached per id.</summary>
