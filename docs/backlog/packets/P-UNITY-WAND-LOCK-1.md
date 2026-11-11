@@ -30,25 +30,59 @@ when their dependencies land; the approved plan lists them.
 
 ## 1. ID and outcome
 A wand click near an enemy locks that enemy, as in the legacy game. Today a click must land within 22 screen pixels of
-the target's feet or inside its body box, dead and friendly actors are accepted (the server then refuses silently), and
+the target's feet or inside its body box, dead actors and every kind but the local player are accepted (`VisibleActorAt`
+filters only self; the server then refuses silently), and
 a miss falls back to an unlocked directional shot. When this lands: the client picks the nearest valid target within
 the legacy snap radius in world units, a wand never sends a directional attack, and the lock ring shows at once.
 
 ## 2. Dependencies
 none
 
-## 3. Relevant legacy paths
-- `packages/client/src/render/targeting.ts`: nearest-target picker, candidate filters, the 500 ms instant lock ring
-  (oracle author: cite the exact lines for the picker, the filters and the ring)
-- `packages/shared/src/constants.ts:401`: `TARGET_SNAP_RADIUS = 64`; `:406` `TARGET_RANGE = 640`
-- `packages/client/src/scenes/RaidScene.ts`: the wand click path sends a lock order only (cite the lines)
+## 3. Relevant legacy paths (verified 2026-11-10 by the oracle author)
+- `packages/client/src/render/targeting.ts:17-30` `pickTarget(cursor, candidates, radius = TARGET_SNAP_RADIUS)`: Euclidean distance in
+  world units on the ground plane from the cursor's world point to each candidate's drawn feet (`:21-23`); the nearest wins;
+  the test is strict (`sq < bestSq`, `:24`, initial `bestSq = radius*radius`), so a candidate exactly 64 away is NOT picked;
+  an exact tie goes to the lower id (`c.id < best`, `:24`; string comparison in legacy). Nothing in range gives `null`.
+- `targeting.ts:8-10` `targetableMob`: a mob is a candidate unless `kind === "quest"`, or `ownerId === localId` (own
+  companion), or the gates are locked and it is not a zombie. Players are not subject to the gate rule.
+- `targeting.ts:37-39` `targetable(effects)`: not `EFFECT_HIDDEN` (256) and not `EFFECT_UNTARGETABLE` (128)
+  (`packages/shared/src/status.ts:45-46`). Every other effect bit leaves the actor pickable.
+- `packages/client/src/scenes/RaidScene.ts:1366-1380` `targetCandidates()`: every player except the local one, plus mobs
+  passing `targetableMob`; each must be `status === "alive"` and `targetable(effects)` and have a drawn position
+  (`this.rendered`). There is NO friendly/team filter beyond the own companion: the server refuses the rest
+  (`plague_zombies::hostile`, `crates/rh-sim/src/systems/targeting.rs:44`).
+- `RaidScene.ts:1403-1409` `clickAttack`: with a wand in hand (`localWeapon(me) === "wand"`) the click calls `sendTarget` and
+  returns; it never reaches the directional `sendInput("attack")` at `:1412`. `RaidScene.ts:1476-1485` `sendTarget`: when
+  `pickTarget` is `null` it returns having sent and noted nothing; otherwise it sends `target {id}`, and calls
+  `lockDisplay.note(id, now)`. Non-wand weapons never call `pickTarget` on click; they send the directional attack.
+- `targeting.ts:58-84` `OPTIMISTIC_LOCK_MS = 500` and `LockDisplay`: `note(id, now)` then `shown(synced, now)` returns `id`
+  while `now < until`, else the synced `attackTarget`; so a refused order's ring ends after 500 ms. `RaidScene.ts:1648`
+  draws `lockDisplay.shown(me.attackTarget, now)` for a wand only.
+- `RaidScene.ts:1644-1647`: hover uses the same `pickTarget` and candidates (legacy hover and click agree).
+- `packages/shared/src/constants.ts:401` `TARGET_SNAP_RADIUS = 64`; `:406` `TARGET_RANGE = 640` (server only).
+- Legacy tests: `packages/client/test/targeting.test.ts:26-64` (pickTarget), `:15-24` (targetableMob), `:174-191`
+  (targetable), `:66-108` (LockDisplay). Their values are copied into the oracle.
+
+### Legacy behaviour that looks wrong (pinned, not fixed)
+- Exactly on the radius is outside (strict `<`).
+- Legacy ties compare ids as strings; the wire id is numeric, so the oracle pins numeric lower-id (a port decision, not legacy).
+- Other players are offered regardless of faction/friendliness: the click can lock a player the server then refuses.
+- The wand falls silent (no order, no ring) on a miss, even though the player expects feedback.
+
+### Gap the implementer must resolve (not established)
+- The Unity wire carries no zombie owner (`InterpActor` has no owner field; `ActorKind.Zombie` only), so
+  `PickCandidate.OwnCompanion` has no source in the observation today. The oracle pins the filter given the flag. The
+  implementer sets it from whatever the client genuinely knows; if nothing, leave it false and report it (the server
+  refuses a lock on an own zombie, `hostile()`); do not add wire fields (that is another packet).
 
 ## 4. New paths
-- `client-unity/RoguehallaNet/Net/Ui/TargetPick.cs` (pure picker; name may change)
+- `client-unity/RoguehallaNet/Net/Ui/TargetPick.cs` (pure picker, click decision and `LockDisplay`; a compiling stub is
+  committed with the oracle)
 - `client-unity/RoguehallaNet.Tests/TargetPickTests.cs`
 
 ## 5. Exclusive write scope
-- `client-unity/RoguehallaNet/Net/Ui/TargetPick.cs`, its synced copy under `client-unity/UnityProject/Assets/RoguehallaNet/`
+- `client-unity/RoguehallaNet/Net/Ui/TargetPick.cs` (the stub: implement it; signatures are fixed by the oracle), its synced
+  copy under `client-unity/UnityProject/Assets/RoguehallaNet/` (run `bash client-unity/sync-net.sh`)
 - `client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs` (wand branch `:377-392`, `VisibleActorAt` `:510`)
 - `client-unity/UnityProject/Assets/Scripts/View/ActorPick.cs`
 - `client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs` (lock target/ring only, around `:252`)
@@ -63,16 +97,21 @@ none
 ## 7. Behaviour to preserve
 - Wire bytes and command kinds: no protocol change.
 - Non-wand weapons keep their current click behaviour.
-- Body-box picking for hover and inspection is unchanged unless the legacy picker replaces it for the wand.
+- Body-box picking for hover and inspection is unchanged unless the legacy picker replaces it for the wand. (Legacy hover
+  uses the same picker, `RaidScene.ts:1646`; using it for hover too is allowed but not required.)
 
 ## 8. Acceptance checks
 - `scripts/gate.sh --oracle packet/P-UNITY-WAND-LOCK-1` passes (full).
-- Unit tests: nearest of several candidates inside 64 world units wins; none inside 64 gives no target; dead actors,
-  the local player's own companions, friendly actors and quest NPCs are never returned; ties resolve as legacy does.
-- A wand click with no candidate sends nothing that fires an unlocked shot (assert on the produced command).
+- `TargetPickTests` (all green): nearest valid candidate strictly inside 64 world units wins; none gives 0; dead/MIA,
+  self, own companions, quest NPCs, hidden/untargetable actors and (gates locked) non-zombie mobs are never returned; ties
+  go to the lower id; `TargetPick.Decide(Wand, 0)` is `None` and `Decide(Wand, id)` is `Target`; other weapons always
+  `DirectionalAttack`; `LockDisplay` shows an ordered lock for 500 ms then the synced one.
+- Wiring (not unit-testable in the gate, report in the hand-off): `MatchClient` calls `Decide` for the click, builds
+  candidates from `_targetActors` at their drawn positions, uses the cursor's world point (`sx, sy`), and `ArenaView`
+  draws the lock from `LockDisplay.Shown`.
 
 ## Oracle files (read-only for implementers)
-- `client-unity/RoguehallaNet.Tests/TargetPickTests.cs`
+- `client-unity/RoguehallaNet.Tests/TargetPickTests.cs` (31 tests; 20 fail against the stub, on assertions)
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`
