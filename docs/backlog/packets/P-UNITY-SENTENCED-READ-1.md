@@ -124,7 +124,7 @@ Sonnet. The gate does not run Unity, so the node contrast test is the machine ch
   State both measurements.
 - Fences in every zone use the Sentenced fence style (`RegionWalls.cs:92`) and the Sentenced theme colours
   (`RegionWallAtlas.ThemeOf(Timber)`), so lightening the bars lightens them over every zone's ground. Light bars on a light
-  ground (Holy Base `#9e8f7a`-class, Coliseum `#aea394`) can lose contrast that they had as dark iron. The oracle only
+  ground (Coliseum Base `#aea394`; check Holy and Frost) can lose contrast that they had as dark iron. The oracle only
   covers Sentenced; the implementer reports the bar/Base ratio for all six zones (same `ratioOf`) and checks their screenshots.
 - The fence tile's ground comes from the zone's ground shader, not the wall atlas; darkening it is the one part that has to be
   wired outside the pure colour constants (via `FenceTileGround`).
