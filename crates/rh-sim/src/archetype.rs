@@ -199,17 +199,17 @@ pub const ARCHETYPES: [Archetype; 13] = [
         hull: Hull::Circle { r: PLAYER_RADIUS },
         chest: 0.0,
     },
-    player(1, "hero", 16.0, 35.0, 30.0),
-    player(2, "hero-female", 15.0, 35.0, 33.0),
-    player(3, "mage", 17.0, 28.0, 25.0),
-    player(4, "mage-female", 17.0, 28.0, 27.0),
-    player(5, "knight", 18.0, 37.0, 35.0),
-    boxes(6, "goblin", 17.0, 22.0, 19.0),
+    player(1, "hero", 17.0, 35.0, 30.0),
+    player(2, "hero-female", 13.0, 35.0, 33.0),
+    player(3, "mage", 16.0, 28.0, 25.0),
+    player(4, "mage-female", 14.0, 28.0, 27.0),
+    player(5, "knight", 12.0, 37.0, 35.0),
+    boxes(6, "goblin", 15.0, 22.0, 19.0),
     boxes(7, "skeleton", 18.0, 40.0, 31.0),
-    boxes(8, "mob-goblin-elite", 13.0, 18.0, 16.0),
-    boxes(9, "mob-antlion", 20.0, 18.0, 11.0),
-    boxes(10, "mob-skeleton-archer", 14.0, 24.0, 21.0),
-    boxes(11, "mob-skeleton-mage", 14.0, 23.0, 21.0),
+    boxes(8, "mob-goblin-elite", 11.0, 18.0, 16.0),
+    boxes(9, "mob-antlion", 18.0, 18.0, 11.0),
+    boxes(10, "mob-skeleton-archer", 13.0, 24.0, 21.0),
+    boxes(11, "mob-skeleton-mage", 13.0, 23.0, 21.0),
     boxes(12, "mob-zombie", 9.0, 21.0, 21.0),
 ];
 
@@ -512,7 +512,7 @@ mod tests {
     fn the_body_box_is_centred_on_the_chest() {
         let hero = ArchetypeId::HERO.row();
         let b = hero.body_box(Vec2::new(100.0, 200.0)).unwrap();
-        assert_eq!((b.x0, b.x1, b.y0, b.y1), (84.0, 116.0, 135.0, 205.0));
+        assert_eq!((b.x0, b.x1, b.y0, b.y1), (83.0, 117.0, 135.0, 205.0));
         assert_eq!(b.centre(), Vec2::new(100.0, 200.0 - hero.chest));
         let mage = ArchetypeId::MAGE.row();
         let m = mage.body_box(Vec2::new(100.0, 200.0)).unwrap();

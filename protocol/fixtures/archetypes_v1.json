@@ -13,7 +13,7 @@
       "chest": 30.0,
       "hull": {
         "body": [
-          16.0,
+          17.0,
           35.0
         ],
         "bodyOffset": [
@@ -33,7 +33,7 @@
       "chest": 30.0,
       "hull": {
         "body": [
-          15.0,
+          13.0,
           35.0
         ],
         "bodyOffset": [
@@ -53,7 +53,7 @@
       "chest": 30.0,
       "hull": {
         "body": [
-          17.0,
+          16.0,
           28.0
         ],
         "bodyOffset": [
@@ -73,7 +73,7 @@
       "chest": 30.0,
       "hull": {
         "body": [
-          17.0,
+          14.0,
           28.0
         ],
         "bodyOffset": [
@@ -93,7 +93,7 @@
       "chest": 30.0,
       "hull": {
         "body": [
-          18.0,
+          12.0,
           37.0
         ],
         "bodyOffset": [
@@ -113,7 +113,7 @@
       "chest": 19.0,
       "hull": {
         "body": [
-          17.0,
+          15.0,
           22.0
         ],
         "bodyOffset": [
@@ -153,7 +153,7 @@
       "chest": 16.0,
       "hull": {
         "body": [
-          13.0,
+          11.0,
           18.0
         ],
         "bodyOffset": [
@@ -173,7 +173,7 @@
       "chest": 11.0,
       "hull": {
         "body": [
-          20.0,
+          18.0,
           18.0
         ],
         "bodyOffset": [
@@ -193,7 +193,7 @@
       "chest": 21.0,
       "hull": {
         "body": [
-          14.0,
+          13.0,
           24.0
         ],
         "bodyOffset": [
@@ -213,7 +213,7 @@
       "chest": 21.0,
       "hull": {
         "body": [
-          14.0,
+          13.0,
           23.0
         ],
         "bodyOffset": [
@@ -297,7 +297,7 @@
     "zombie": 12
   },
   "axes": "sim units; +x east, +y south (north is -y); the body box is centred at feet + bodyOffset; chest = -bodyOffset.y",
-  "contentHash": "a2d1022ebe713382",
+  "contentHash": "7d2d84b827af3ddc",
   "format": "rh-hitbox-archetypes/1",
   "source": "crates/rh-sim/src/archetype.rs (ADR0024); the live client reads the same table from the protocol-16 Welcome"
 }
