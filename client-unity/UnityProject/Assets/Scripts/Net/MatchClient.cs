@@ -582,6 +582,7 @@ namespace Roguehalla.Client
             Arena.RefreshVisibility(Session, presentFollows: true);   // Present below draws the creatures, cues and fades once
             Arena.SetHover(HoverActor());
             Arena.PresentCollections(Session.Collections);
+            Arena.WeaponRangeSuppressed = Hud != null && Hud.TacticalMap != null && (Hud.TacticalMap.IsOpen || Hud.TacticalMap.IsPeeking);   // legacy hides the range guide over the map and a peek
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (_traceLatency)
             {
