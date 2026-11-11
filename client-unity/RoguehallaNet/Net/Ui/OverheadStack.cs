@@ -6,17 +6,15 @@ namespace Roguehalla.Net.Ui
     public enum OverheadActorKind : byte { Player, Mob, Elite, Dummy }
 
     /// <summary>
-    /// What an overhead element is. The first ten are the legacy stack (PlayerView.ts / MobView.ts / MarkPlate.ts). The last four are
-    /// today's Unity additions: the implementer deletes them (and every use) so that the layout can no longer emit them.
+    /// What an overhead element is. The legacy stack (PlayerView.ts / MobView.ts / MarkPlate.ts).
     /// </summary>
     public enum OverheadKind : byte
     {
         HpBack, HpFill, BarrierFill, Name, WishIcon, MarkPips, BountyCrown, BountyNumber, SecondaryWeapon, StatMark,
-        InsigniaPlate, SignatureIcon, NamePlate, StatusBadge,
     }
 
     /// <summary>Colour state of an element; the real colours come from the theme.</summary>
-    public enum OverheadTone : byte { None, Green, Amber, Red, Barrier, NameOwn, NameOther, NameMob, NameElite, WishReady, WishRecharging, Faction, Gold }
+    public enum OverheadTone : byte { None, Green, Amber, Red, Barrier, NameOwn, NameOther, NameMob, NameElite, WishReady, WishRecharging, Gold }
 
     /// <summary>The facts the client already has for one actor (protocol 16). Percent values are 0..100 of max hp.</summary>
     public struct OverheadFacts
@@ -51,34 +49,52 @@ namespace Roguehalla.Net.Ui
         public const float UnitsPerPx = .026f;
         public static float ToUnits(float px) { return px * UnitsPerPx; }
 
-        /// <summary>STUB: today's Unity arrangement, to be replaced. Clears <paramref name="into"/> and fills it bottom to top.</summary>
+        static float Half(float x) { return (float)Math.Floor(x * 2f + .5f) / 2f; }   // JS Math.round to half a pixel (hpView.ts:20)
+
+        /// <summary>Clears <paramref name="into"/> and fills it bottom to top, as PlayerView/MobView/MarkPlate draw the stack. Dead actors draw nothing.</summary>
         public static void Build(in OverheadFacts f, List<OverheadElement> into)
         {
             into.Clear();
             if (f.Dead) return;
-            into.Add(new OverheadElement { Kind = OverheadKind.InsigniaPlate, Y = 40, W = 18, H = 18 });
-            into.Add(new OverheadElement { Kind = OverheadKind.HpBack, Y = 69, W = 40, H = 5.5f });
-            into.Add(new OverheadElement { Kind = OverheadKind.HpFill, Y = 69, W = 40f * f.HpPct / 100f, H = 5.5f, Tone = OverheadTone.Faction });
-            if (f.BarrierPct > 0) into.Add(new OverheadElement { Kind = OverheadKind.BarrierFill, Y = 69, W = 40f * f.BarrierPct / 100f, H = 5.5f, Tone = OverheadTone.Gold });
-            into.Add(new OverheadElement { Kind = OverheadKind.SignatureIcon, Y = 78, W = 12, H = 12 });
-            into.Add(new OverheadElement { Kind = OverheadKind.StatusBadge, Y = 78, W = 12, H = 12 });
-            string name = Indicators.DisplayName(f.Name, false);
+            bool player = f.Kind == OverheadActorKind.Player;
+            // Hp bar (FighterArt.ts:354-392, MobView.ts:19-20,173-175): mobs show it only when hurt; elites and dummies always.
+            bool bar = player || f.Kind != OverheadActorKind.Mob || f.HpPct < 100f;
+            if (bar)
+            {
+                float w = f.Kind == OverheadActorKind.Elite ? 48f : player ? 28f : 36f;
+                const float h = 4f, y = 31.2f;
+                float total = Math.Max(100f, f.HpPct + f.BarrierPct);
+                float fillW = Half(f.HpPct / total * w), barW = f.BarrierPct > 0 ? Half(f.BarrierPct / total * w) : 0f;
+                var tone = f.HpPct > 50f ? OverheadTone.Green : f.HpPct > 25f ? OverheadTone.Amber : OverheadTone.Red;
+                into.Add(new OverheadElement { Kind = OverheadKind.HpBack, X = 0, Y = y, W = w, H = h });
+                into.Add(new OverheadElement { Kind = OverheadKind.HpFill, X = -w / 2 + fillW / 2, Y = y, W = fillW, H = h, Tone = tone });
+                if (barW > 0) into.Add(new OverheadElement { Kind = OverheadKind.BarrierFill, X = -w / 2 + fillW + barW / 2, Y = y, W = barW, H = h, Tone = OverheadTone.Barrier });
+            }
+            // Name (PlayerView.ts:65,171-174; MobView.ts:23-24): every name shows.
+            string name = Indicators.DisplayName(f.Name, f.Bot);
+            float nameW = f.NameWidthPx > 0 ? f.NameWidthPx : 6f * (name == null ? 0 : name.Length);
             if (name != null)
             {
-                into.Add(new OverheadElement { Kind = OverheadKind.NamePlate, Y = 90, W = 60, H = 10 });
-                into.Add(new OverheadElement { Kind = OverheadKind.Name, Y = 90, W = 60, H = 11, Text = name, Tone = OverheadTone.NameOther });
+                var tone = f.Kind == OverheadActorKind.Elite ? OverheadTone.NameElite : f.Kind == OverheadActorKind.Player
+                    ? (f.Local ? OverheadTone.NameOwn : OverheadTone.NameOther) : OverheadTone.NameMob;
+                into.Add(new OverheadElement { Kind = OverheadKind.Name, X = 0, Y = 45.2f, W = nameW, H = 11f, Text = name, Tone = tone });
             }
-            if (f.WishState != 0) into.Add(new OverheadElement { Kind = OverheadKind.WishIcon, X = 0, Y = 102, W = 15, H = 15, Tone = OverheadTone.WishReady });
+            if (!player) return;
+            if (f.WishState != 0)
+                into.Add(new OverheadElement { Kind = OverheadKind.WishIcon, X = -nameW / 2 - 3f - 7.5f, Y = 44.2f, W = 15f, H = 15f, Tone = f.WishState == 1 ? OverheadTone.WishReady : OverheadTone.WishRecharging });
+            if (f.MarkTier > 0)
+                into.Add(new OverheadElement { Kind = OverheadKind.MarkPips, X = 0, Y = 54.2f, W = 32f, H = 3f, Lit = f.MarkTier });
+            float rowCentre = 72.2f;
             if (f.Bounty > 0)
             {
-                into.Add(new OverheadElement { Kind = OverheadKind.BountyCrown, Y = 120, W = 22, H = 13 });
-                into.Add(new OverheadElement { Kind = OverheadKind.BountyNumber, Y = 135, W = 20, H = 11, Text = f.Bounty.ToString() });
+                float s = 1f + .5f * Math.Min(1f, f.Bounty / 150f);
+                into.Add(new OverheadElement { Kind = OverheadKind.BountyCrown, X = 0, Y = 60.2f, W = 22f * s, H = 13f * s });
+                into.Add(new OverheadElement { Kind = OverheadKind.BountyNumber, X = 0, Y = 60.2f + 13f * s + 1f, W = 20f, H = 11f, Text = f.Bounty.ToString(System.Globalization.CultureInfo.InvariantCulture), Tone = OverheadTone.Gold });
+                rowCentre = 60.2f + 13f * s + 14f;
             }
-            int slots = (f.HasSecondary ? 1 : 0) + (f.Stat1 != 0 ? 1 : 0) + (f.Stat2 != 0 ? 1 : 0);
-            float x = -(slots - 1) * 9.5f;
-            if (f.HasSecondary) { into.Add(new OverheadElement { Kind = OverheadKind.SecondaryWeapon, X = x, Y = 150, W = 17, H = 17, Variant = f.Secondary }); x += 19; }
-            if (f.Stat1 != 0) { into.Add(new OverheadElement { Kind = OverheadKind.StatMark, X = x, Y = 150, W = 17, H = 17, Variant = f.Stat1 }); x += 19; }
-            if (f.Stat2 != 0) into.Add(new OverheadElement { Kind = OverheadKind.StatMark, X = x, Y = 150, W = 17, H = 17, Variant = f.Stat2 });
+            if (f.HasSecondary) into.Add(new OverheadElement { Kind = OverheadKind.SecondaryWeapon, X = -18f, Y = rowCentre - 9f, W = 18f, H = 18f, Variant = f.Secondary });
+            if (f.Stat1 != 0) into.Add(new OverheadElement { Kind = OverheadKind.StatMark, X = 0, Y = rowCentre - 9f, W = 18f, H = 18f, Variant = f.Stat1 });
+            if (f.Stat2 != 0) into.Add(new OverheadElement { Kind = OverheadKind.StatMark, X = 18f, Y = rowCentre - 9f, W = 18f, H = 18f, Variant = f.Stat2 });
         }
     }
 }
