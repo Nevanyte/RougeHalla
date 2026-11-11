@@ -132,24 +132,10 @@ namespace Roguehalla.Client
             var pc = (Color)theme.OutlineDark; pc.a = 1f; _cueBack.color = pc;
         }
 
-        /// <summary>Mark plate pips and brand ring (B5), teleport immunity (B7) and the Fire roam glow (B8).</summary>
+        /// <summary>Brand ring (B5), teleport immunity (B7) and the Fire roam glow (B8). The mark pips come from the layout (<see cref="Pips"/>).</summary>
         void Marks(in OverheadIndicators.Facts f, UiTheme theme)
         {
             var m = f.M; bool alive = !f.Dead;
-            // Pips (markPresentation.ts:2): four 5 x 3 px pips, lit up to the tier, the top lit one outlined white.
-            int tier = alive ? Mathf.Clamp(m.Tier, 0, 4) : 0;
-            for (int i = 0; i < 4; i++)
-            {
-                var r = _pips[i]; r.enabled = tier > 0; if (tier == 0) continue;
-                var c = Rgb(Indicators.TierColours[i]); c.a = i < tier ? 1f : .2f; r.color = c;
-                r.transform.localPosition = new Vector3((i - 1.5f) * .22f, f.BarY - .13f, 0); r.transform.localScale = new Vector3(.17f, .1f, 1); r.sortingOrder = f.Order + 9;
-            }
-            _pipTop.enabled = tier > 0;
-            if (tier > 0)
-            {
-                _pipTop.color = new Color(1, 1, 1, .85f); _pipTop.transform.localPosition = _pips[tier - 1].transform.localPosition;
-                _pipTop.transform.localScale = new Vector3(.22f, .15f, 1); _pipTop.sortingOrder = f.Order + 8;
-            }
             // Brand (G7): a violet floor ring that fills in as the brand grows to 100 and pulses when full.
             bool brand = alive && m.Brand > 0;
             _brand.enabled = brand;
@@ -180,20 +166,41 @@ namespace Roguehalla.Client
             }
         }
 
-        /// <summary>The top two stat marks (B2): 18 px dark squares with the stat glyph in its colour, placed after the secondary weapon in the build row.</summary>
-        public void StatMarks(in OverheadIndicators.Facts f, float y, float x, float pitch, UiTheme theme)
+        /// <summary>Hides the pips and stat marks; the layout's elements switch them on again (<see cref="Pips"/>, <see cref="StatMark"/>).</summary>
+        public void ClearBuildMarks()
         {
-            byte[] keys = { f.M.Top1, f.M.Top2 };
-            for (int i = 0; i < 2; i++)
+            foreach (var r in _pips) r.enabled = false;
+            _pipTop.enabled = false;
+            for (int i = 0; i < 2; i++) _statEdge[i].enabled = _statBack[i].enabled = _statIcon[i].enabled = false;
+        }
+
+        /// <summary>Mark plate pips (markPresentation.ts:2) at the layout element's place: four 5 x 3 px pips 9 px apart, lit up to the tier, the top lit one outlined white. <paramref name="y"/> is the local centre.</summary>
+        public void Pips(in OverheadIndicators.Facts f, OverheadElement e, float y)
+        {
+            int tier = Mathf.Clamp(e.Lit, 0, 4);
+            if (tier == 0) return;
+            float pitch = OverheadStack.ToUnits(9f);
+            for (int i = 0; i < 4; i++)
             {
-                bool on = !f.Dead && keys[i] >= 1 && keys[i] <= 9;
-                _statEdge[i].enabled = _statBack[i].enabled = _statIcon[i].enabled = on;
-                if (!on) continue;
-                var key = (StatKey)keys[i]; var col = Rgb(Indicators.StatColour(key)); float size = 17f * .026f; var pos = new Vector3(x + i * pitch, y, 0);
-                _statEdge[i].color = col; _statEdge[i].transform.localPosition = pos; _statEdge[i].transform.localScale = new Vector3(size + .05f, size + .05f, 1); _statEdge[i].sortingOrder = f.Order + 10;
-                _statBack[i].color = (Color)theme.Surface; _statBack[i].transform.localPosition = pos; _statBack[i].transform.localScale = new Vector3(size, size, 1); _statBack[i].sortingOrder = f.Order + 11;
-                _statIcon[i].sprite = IndicatorArt.Get(StatGlyphs[keys[i]]); _statIcon[i].color = col; _statIcon[i].transform.localPosition = pos; _statIcon[i].transform.localScale = Vector3.one * .36f; _statIcon[i].sortingOrder = f.Order + 12;
+                var r = _pips[i]; r.enabled = true;
+                var c = Rgb(Indicators.TierColours[i]); c.a = i < tier ? 1f : .2f; r.color = c;
+                r.transform.localPosition = new Vector3(OverheadStack.ToUnits(e.X) + (i - 1.5f) * pitch, y, 0);
+                r.transform.localScale = new Vector3(OverheadStack.ToUnits(5f), OverheadStack.ToUnits(e.H), 1); r.sortingOrder = f.Order + 9;
             }
+            _pipTop.enabled = true;
+            _pipTop.color = new Color(1, 1, 1, .85f); _pipTop.transform.localPosition = _pips[tier - 1].transform.localPosition;
+            _pipTop.transform.localScale = new Vector3(OverheadStack.ToUnits(5f) + .05f, OverheadStack.ToUnits(e.H) + .05f, 1); _pipTop.sortingOrder = f.Order + 8;
+        }
+
+        /// <summary>One stat mark (B2) of the build row at the layout element's place: a dark square with the stat glyph in its colour. <paramref name="slot"/> 0 or 1.</summary>
+        public void StatMark(in OverheadIndicators.Facts f, int slot, OverheadElement e, float y, UiTheme theme)
+        {
+            if (slot < 0 || slot > 1 || e.Variant < 1 || e.Variant > 9) return;
+            _statEdge[slot].enabled = _statBack[slot].enabled = _statIcon[slot].enabled = true;
+            var col = Rgb(Indicators.StatColour((StatKey)e.Variant)); float size = OverheadStack.ToUnits(e.W); var pos = new Vector3(OverheadStack.ToUnits(e.X), y, 0);
+            _statEdge[slot].color = col; _statEdge[slot].transform.localPosition = pos; _statEdge[slot].transform.localScale = new Vector3(size + .05f, size + .05f, 1); _statEdge[slot].sortingOrder = f.Order + 10;
+            _statBack[slot].color = (Color)theme.Surface; _statBack[slot].transform.localPosition = pos; _statBack[slot].transform.localScale = new Vector3(size, size, 1); _statBack[slot].sortingOrder = f.Order + 11;
+            _statIcon[slot].sprite = IndicatorArt.Get(StatGlyphs[e.Variant]); _statIcon[slot].color = col; _statIcon[slot].transform.localPosition = pos; _statIcon[slot].transform.localScale = Vector3.one * .36f; _statIcon[slot].sortingOrder = f.Order + 12;
         }
 
         static Color Rgb(uint rgb) { return new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1f); }

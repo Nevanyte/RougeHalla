@@ -1,7 +1,8 @@
-// The overhead cluster and body marks of one observed actor, placed as legacy PlayerView/MobView do (hp bar, then statuses, name, bounty
-// crown and number, build row with the secondary weapon) in the settled skin. Owned by the presenter's pooled Art; every renderer is a
+// The overhead cluster and body marks of one observed actor. Name, Wish icon, mark pips, bounty crown and number and the build row are drawn from
+// OverheadStack.Build (the legacy PlayerView/MobView layout) and nothing else; the hp bar is drawn by the presenter from the same layout. Owned by the presenter's pooled Art; every renderer is a
 // SpriteRenderer child of the actor root so the vision fade reaches it, and text is faded through ApplyOpacity. No allocation per frame:
 // text is rewritten only when its value changes. It shows what the facts say and decides no rule: each fact is a delivered public value.
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using Roguehalla.Net;
@@ -26,7 +27,7 @@ namespace Roguehalla.Client
             public int Order;            // the actor's sorting order
             public float HeadY;          // local y of the head top (look height)
             public float BarY;           // local y of the hp bar
-            public float SigTopY;        // local y just above the signature icons row, or BarY if none shown
+            public float SigTopY;        // unused by the overhead stack (the signature icon row is gone); kept for callers that still fill it
             public bool Dead, Local, Mob, Elite, Dummy;
             public float HpPct;
             public int Bounty;
@@ -45,14 +46,14 @@ namespace Roguehalla.Client
 
         const float RingK = .86f / .80f; // GroundMarkArt rings sit at .80 of the sprite, the old generic ring at .86
         const float Px = .026f; // legacy px to actor-local units
-        readonly Transform _t;
-        readonly SpriteRenderer _hover, _hunt, _wishBack, _wishIcon, _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone, _numberBack, _nameBack;
+        readonly SpriteRenderer _hover, _hunt, _wishIcon, _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer[] _backs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer _lockDark;
         readonly TextMeshPro _number, _name;
         readonly OverheadExtras _extras;      // barrier bubble, elite rings and star, signature text cues (OverheadExtras.cs)
         readonly Indicators.StatusLayer[] _layers = new Indicators.StatusLayer[Indicators.StatusOrder.Length];
+        readonly List<OverheadElement> _stack = new List<OverheadElement>();   // this frame's layout (OverheadStack.Build)
         int _bounty = -1; string _nameText;
         float _textFade = 1f;
         Color _numberBase, _nameBase;
@@ -61,7 +62,6 @@ namespace Roguehalla.Client
 
         public OverheadIndicators(Transform root)
         {
-            _t = root;
             _crown = Sprite(root, "Bounty crown", IndicatorArt.Get("crown"), 9);
             _badgeBack = Sprite(root, "Secondary weapon backer", ShowcaseSprites.Get("bar"), 9);
             _badgeEdge = Sprite(root, "Secondary weapon edge", ShowcaseSprites.Get("bar"), 8);
@@ -79,10 +79,7 @@ namespace Roguehalla.Client
             _hunt = Sprite(root, "Sentenced hunt ring", GroundMarkArt.Ring(t0.FactionColor((int)FactionId.Sentenced), true), -6);
             _root = Sprite(root, "Rooted ring", GroundMarkArt.Ring(t0.TextPrimary), -5);
             _zone = Sprite(root, "Zoned ring", GroundMarkArt.Ring(t0.Info), -5);
-            _wishBack = Sprite(root, "Wish icon plate", ShowcaseSprites.Get("bar"), 11);
             _wishIcon = Sprite(root, "Wish icon", IndicatorArt.Get("snow"), 12);
-            _numberBack = Sprite(root, "Bounty number plate", ShowcaseSprites.Get("bar"), 11);
-            _nameBack = Sprite(root, "Name plate", ShowcaseSprites.Get("bar"), 11);
             _number = Text(root, "Bounty number", 3.1f, FontStyles.Bold);
             _name = Text(root, "Name", 2.5f, FontStyles.Normal);
             _extras = new OverheadExtras(root);
@@ -125,16 +122,9 @@ namespace Roguehalla.Client
             return t;
         }
 
-        /// <summary>World rectangle of the shown mob name plate (valid when <see cref="NameShown"/>), for the presenter's overlap pass.</summary>
-        public Rect NameRect { get; private set; }
-        public bool NameShown => _name.gameObject.activeSelf;
-        public bool NameElite { get; private set; }
-        /// <summary>Hides this frame's name plate (another creature's plate already occupies the spot). Update shows it again next frame.</summary>
-        public void SuppressName() { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
-
         public void HideAll()
         {
-            _hover.enabled = _hunt.enabled = _wishBack.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = _numberBack.enabled = _nameBack.enabled = false;
+            _hover.enabled = _hunt.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = false;
             foreach (var g in _glyphs) g.enabled = false;
             foreach (var b in _backs) b.enabled = false;
             _lockDark.enabled = false;
@@ -151,14 +141,102 @@ namespace Roguehalla.Client
             if (_name.gameObject.activeSelf) { var c = _nameBase; c.a *= alpha; _name.color = c; }
         }
 
+        static float U(float px) { return OverheadStack.ToUnits(px); }
+
         public void Update(in Facts f)
         {
             if (f.Dead) { HideAll(); return; }
             var theme = UiTheme.Current;
-            float cursor = f.SigTopY + .08f;
             _extras.Update(in f, theme);
 
-            // Statuses: ground rings at the feet, glyph badges in one row above the bar in legacy draw order.
+            // The legacy stack: the layout decides what is drawn and where (y up from the feet in legacy px; dy puts the bar where the presenter draws it).
+            string label = f.Mob ? f.Name : f.M.Name;
+            bool wantName = !string.IsNullOrEmpty(label);
+            if (wantName)
+            {
+                if (!ReferenceEquals(_nameText, label)) { _name.text = label; _nameText = label; }
+                _name.gameObject.SetActive(true);
+            }
+            else { _name.gameObject.SetActive(false); _nameText = null; }
+            var sf = new OverheadFacts
+            {
+                Kind = f.Elite ? OverheadActorKind.Elite : f.Dummy ? OverheadActorKind.Dummy : f.Mob ? OverheadActorKind.Mob : OverheadActorKind.Player,
+                Local = f.Local, HpPct = f.HpPct, Name = label, NameWidthPx = wantName ? _name.preferredWidth / Px : 0f,
+                Bounty = f.Bounty, WishState = f.WishState, HasSecondary = f.HasSecondary, Secondary = (byte)f.Secondary,
+                Stat1 = f.M.Top1, Stat2 = f.M.Top2, MarkTier = Mathf.Clamp(f.M.Tier, 0, 4),
+            };
+            OverheadStack.Build(in sf, _stack);
+            float dy = f.BarY - U(33.2f), topPx = 35.2f, nameTopPx = 35.2f;
+            bool haveNumber = false; int stats = 0;
+            _crown.enabled = _wishIcon.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = false;
+            _extras.ClearBuildMarks();
+            for (int i = 0; i < _stack.Count; i++)
+            {
+                var e = _stack[i];
+                float cx = U(e.X), cy = dy + U(e.Y + e.H * .5f);
+                topPx = Mathf.Max(topPx, e.Y + e.H);
+                switch (e.Kind)
+                {
+                    case OverheadKind.Name:
+                    {
+                        nameTopPx = e.Y + e.H;
+                        _nameBase = e.Tone == OverheadTone.NameElite ? (Color)theme.Accent : e.Tone == OverheadTone.NameOwn ? (Color)theme.Success : e.Tone == OverheadTone.NameMob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
+                        _nameBase.a = 1f;
+                        var nc = _nameBase; nc.a *= _textFade; _name.color = nc;
+                        _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
+                        _name.transform.localPosition = new Vector3(cx, cy, 0);
+                        _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
+                        break;
+                    }
+                    case OverheadKind.WishIcon:
+                    {
+                        // The local fighter's own Wish left of the name (PlayerView.setWishIcon): the ability glyph in its faction colour when ready, grey while recharging.
+                        _wishIcon.enabled = true;
+                        _wishIcon.sprite = IndicatorArt.Get(WishGlyph(f.WishAbility));
+                        _wishIcon.transform.localPosition = new Vector3(cx, cy, 0); _wishIcon.transform.localScale = new Vector3(U(e.W), U(e.H), 1);
+                        _wishIcon.color = e.Tone == OverheadTone.WishReady ? (Color)theme.FactionColor(WishFaction(f.WishAbility)) : (Color)theme.TextSecondary;
+                        _wishIcon.sortingOrder = f.Order + 12;
+                        break;
+                    }
+                    case OverheadKind.MarkPips: _extras.Pips(in f, e, cy); break;
+                    case OverheadKind.BountyCrown:
+                    {
+                        float side = U(e.W) * .9f;
+                        _crown.enabled = true; _crown.color = (Color)theme.Accent; _crown.sortingOrder = f.Order + 11;
+                        _crown.transform.localScale = new Vector3(side, side, 1); _crown.transform.localPosition = new Vector3(cx, cy, 0);
+                        break;
+                    }
+                    case OverheadKind.BountyNumber:
+                    {
+                        haveNumber = true;
+                        if (_bounty != f.Bounty) { _bounty = f.Bounty; _number.text = e.Text; }
+                        _numberBase = (Color)theme.Accent; var bc = _numberBase; bc.a *= _textFade; _number.color = bc;
+                        _number.gameObject.SetActive(true);
+                        _number.transform.localPosition = new Vector3(cx, cy, 0);
+                        _number.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
+                        break;
+                    }
+                    case OverheadKind.SecondaryWeapon:
+                    {
+                        float size = U(e.W); var pos = new Vector3(cx, cy, 0);
+                        _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = true;
+                        _badgeEdge.transform.localPosition = pos; _badgeEdge.transform.localScale = new Vector3(size + .05f, size + .05f, 1);
+                        _badgeEdge.color = (Color)theme.Border; _badgeEdge.sortingOrder = f.Order + 10;
+                        _badgeBack.transform.localPosition = pos; _badgeBack.transform.localScale = new Vector3(size, size, 1);
+                        _badgeBack.color = (Color)theme.Surface; _badgeBack.sortingOrder = f.Order + 11;
+                        _badgeIcon.sprite = ShowcaseSprites.Get("weapon" + Mathf.Clamp((int)e.Variant, 0, 5));
+                        _badgeIcon.transform.localPosition = pos; _badgeIcon.transform.localScale = Vector3.one * ((WeaponId)e.Variant == WeaponId.Fists ? .55f : .62f);
+                        _badgeIcon.color = (Color)theme.TextPrimary; _badgeIcon.sortingOrder = f.Order + 12;
+                        break;
+                    }
+                    case OverheadKind.StatMark: _extras.StatMark(in f, stats++, e, cy, theme); break;
+                }
+            }
+            if (!haveNumber) { _number.gameObject.SetActive(false); _bounty = -1; }
+            _extras.EliteStar(in f, dy + U(nameTopPx) + .02f, theme);   // the elite star sits just above the name (MobView)
+            float rowY = dy + U(topPx + (f.Elite ? 14f : 0f)) + .19f;   // the status badge row clears the whole stack
+
+            // Statuses (unchanged this packet; on-body anchors are P-UNITY-OVERHEAD-2): ground rings at the feet, glyph badges in one row, now above the whole stack.
             int n = Indicators.StatusLayers(f.Effects, _layers);
             bool rooted = false, zoned = false; int shown = 0;
             for (int i = 0; i < _glyphs.Length; i++) { _glyphs[i].enabled = false; _backs[i].enabled = false; }
@@ -169,7 +247,7 @@ namespace Roguehalla.Client
                 if (bit == Indicators.Zoned) { zoned = true; continue; }
                 shown++;
             }
-            float rowW = shown * .34f, x0 = -rowW * .5f + .17f, rowY = f.BarY + .26f;
+            float rowW = shown * .34f, x0 = -rowW * .5f + .17f;
             int slot = 0;
             for (int i = 0; i < n; i++)
             {
@@ -186,84 +264,8 @@ namespace Roguehalla.Client
                 var bc = (Color)theme.OutlineDark; bc.a = 1f; back.color = bc;
                 slot++;
             }
-            if (shown > 0) cursor = Mathf.Max(cursor, rowY + .22f);
             Ground(_root, rooted, f.Order - 5, new Vector2(1.15f, .6f), (Color)theme.TextPrimary, .9f);
             Ground(_zone, zoned, f.Order - 5, new Vector2(1.5f, .78f), (Color)theme.Info, .9f);
-
-            // Mob name (legacy 11 px grey, faint while calm; elite gold and bold).
-            string label = f.Mob ? f.Name : f.M.Name;
-            bool wantName = !string.IsNullOrEmpty(label);
-            if (wantName)
-            {
-                if (!ReferenceEquals(_nameText, label)) { _name.text = label; _nameText = label; }
-                _nameBase = f.Elite ? (Color)theme.Accent : f.Local ? (Color)theme.Success : f.Mob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
-                _nameBase.a = 1f; // hierarchy by colour, not faintness: the plate keeps every name above 4.5:1
-                var c = _nameBase; c.a *= _textFade; _name.color = c;
-                _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
-                _name.gameObject.SetActive(true);
-                _name.transform.localPosition = new Vector3(0, cursor + .14f, 0);
-                _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                Plate(_nameBack, new Vector3(0, cursor + .14f + .02f, 0), _name.preferredWidth + .14f, .27f, f.Order + 11, theme);
-                float k = _t.lossyScale.x; float w = (_name.preferredWidth + .14f) * k, h = .27f * k;
-                NameRect = new Rect(_t.position.x - w * .5f, _t.position.y + (cursor + .16f) * k - h * .5f, w, h); NameElite = f.Elite;
-                cursor += .36f;
-            }
-            else { _name.gameObject.SetActive(false); _nameBack.enabled = false; }
-            cursor = _extras.EliteStar(in f, cursor, theme);
-
-            // Bounty crown and number, scaled with the bounty (legacy 1x to 1.5x at 150).
-            bool crown = Indicators.CrownVisible(f.Bounty, true);
-            _crown.enabled = crown;
-            if (crown)
-            {
-                float s = Indicators.CrownScale(f.Bounty);
-                _crown.color = (Color)theme.Accent; _crown.sortingOrder = f.Order + 11;
-                _crown.transform.localScale = new Vector3(22f * Px * s * .9f, 22f * Px * s * .9f, 1);
-                _crown.transform.localPosition = new Vector3(0, cursor + 11f * Px * s, 0);
-                if (_bounty != f.Bounty) { _bounty = f.Bounty; _number.text = f.Bounty.ToString(System.Globalization.CultureInfo.InvariantCulture); }
-                _numberBase = (Color)theme.Accent; var c = _numberBase; c.a *= _textFade; _number.color = c;
-                _number.gameObject.SetActive(true);
-                _number.transform.localPosition = new Vector3(0, cursor + 22f * Px * s + .04f, 0);
-                _number.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
-                Plate(_numberBack, new Vector3(0, cursor + 22f * Px * s + .04f, 0), _number.preferredWidth + .14f, .3f, f.Order + 11, theme);
-                cursor += 22f * Px * s + .44f;
-            }
-            else { _number.gameObject.SetActive(false); _numberBack.enabled = false; _bounty = -1; }
-
-            // The local fighter's own Wish beside the name plate (legacy PlayerView.setWishIcon): a 15 px ability glyph, in the faction colour
-            // when ready and grey while recharging, on the dark plate. Remote Wish state is not delivered, so nothing is drawn for others.
-            bool wish = f.WishState != 0;
-            _wishBack.enabled = _wishIcon.enabled = wish;
-            if (wish)
-            {
-                float size = 15f * Px + .06f, y = cursor + size * .5f;
-                var pos = new Vector3(0, y, 0);
-                _wishBack.transform.localPosition = pos; _wishBack.transform.localScale = new Vector3(size + .06f, size + .06f, 1);
-                var wc = (Color)theme.OutlineDark; wc.a = 1f; _wishBack.color = wc; _wishBack.sortingOrder = f.Order + 11;
-                _wishIcon.sprite = IndicatorArt.Get(WishGlyph(f.WishAbility));
-                _wishIcon.transform.localPosition = pos; _wishIcon.transform.localScale = new Vector3(size, size, 1);
-                _wishIcon.color = f.WishState == 1 ? (Color)theme.FactionColor(WishFaction(f.WishAbility)) : (Color)theme.TextSecondary; _wishIcon.sortingOrder = f.Order + 12;
-                cursor += size + .08f;
-            }
-
-            // Build row (legacy PlayerView.drawBuildMarks): the secondary weapon at x -18, the top two invested stats at 0 and +18 (px), in 18 px dark squares.
-            bool badge = f.HasSecondary; int slots = (badge ? 1 : 0) + (f.M.Top1 != 0 ? 1 : 0) + (f.M.Top2 != 0 ? 1 : 0);
-            _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = badge;
-            float pitch = 19f * Px, rowX = -(slots - 1) * .5f * pitch;
-            if (badge)
-            {
-                float size = 17f * Px, y = cursor + size * .5f;
-                var pos = new Vector3(rowX, y, 0);
-                _badgeEdge.transform.localPosition = pos; _badgeEdge.transform.localScale = new Vector3(size + .05f, size + .05f, 1);
-                _badgeEdge.color = (Color)theme.Border; _badgeEdge.sortingOrder = f.Order + 10;
-                _badgeBack.transform.localPosition = pos; _badgeBack.transform.localScale = new Vector3(size, size, 1);
-                _badgeBack.color = (Color)theme.Surface; _badgeBack.sortingOrder = f.Order + 11;
-                _badgeIcon.sprite = ShowcaseSprites.Get("weapon" + Mathf.Clamp((int)f.Secondary, 0, 5));
-                _badgeIcon.transform.localPosition = pos; _badgeIcon.transform.localScale = Vector3.one * (f.Secondary == WeaponId.Fists ? .55f : .62f);
-                _badgeIcon.color = (Color)theme.TextPrimary; _badgeIcon.sortingOrder = f.Order + 12;
-                rowX += pitch;
-            }
-            _extras.StatMarks(in f, cursor + 17f * Px * .5f, rowX, pitch, theme);
 
             // The attack lock: a red double ring on the ground under the locked fighter, breathing slowly (legacy TargetRings). The hairline
             // edges are in the ring art, so the ring reads on any ground without getting brighter.
@@ -286,12 +288,6 @@ namespace Roguehalla.Client
                 _hunt.color = Color.white; _hunt.sortingOrder = f.Order - 6;
                 _hunt.transform.localScale = new Vector3(1.7f * breathe * RingK, .86f * breathe * RingK, 1);
             }
-        }
-
-        static void Plate(SpriteRenderer r, Vector3 at, float w, float h, int order, UiTheme theme)
-        {
-            r.enabled = true; r.sortingOrder = order; r.transform.localPosition = at; r.transform.localScale = new Vector3(w, h, 1);
-            var c = (Color)theme.OutlineDark; c.a = 1f; r.color = c;
         }
 
         static string WishGlyph(byte ability)
