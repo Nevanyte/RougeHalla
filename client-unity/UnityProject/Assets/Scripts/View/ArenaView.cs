@@ -48,6 +48,8 @@ namespace Roguehalla.Client
         public float DiagVignetteStrength => _vignette != null ? _vignette.Strength : 0f;
         public int DiagFlashes => _flashes.Count;
         uint _hoverId; uint? _huntTarget; float _selfMaxHp = 100f, _localX, _localY; bool _haveLocal; int _wishState; byte _wishAbility;
+        /// <summary>Instant lock ring for a wand click (legacy LockDisplay); MatchClient notes orders, Present draws Shown.</summary>
+        public readonly LockDisplay LockDisplay = new LockDisplay();
         uint? _lockForNpc; InventoryView? _inventory; uint _localId; int _numberLane;
         WireArchetype[] _archetypes = System.Array.Empty<WireArchetype>();
         /// <summary>True when the <c>?hitboxes=1</c> debug overlay exists (never otherwise).</summary>
@@ -249,7 +251,10 @@ namespace Roguehalla.Client
             uint mine = me != null ? me.Id : 0; _localId = mine;
             _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
             if (me != null) { _selfMaxHp = me.MaxHp; _wishState = WishState(me); _wishAbility = me.Wish.HasValue ? (byte)me.Wish.Value.Ability : (byte)0; }
-            uint? lockTarget = me != null && me.OwnerCombat.HasValue && me.OwnerCombat.Value.Lock.Kind == OwnerLockKind.Held ? me.OwnerCombat.Value.Lock.Target : null; _lockForNpc = lockTarget;
+            uint? lockTarget = me != null && me.OwnerCombat.HasValue && me.OwnerCombat.Value.Lock.Kind == OwnerLockKind.Held ? me.OwnerCombat.Value.Lock.Target : null; 
+            // Legacy LockDisplay: an ordered lock shows at once for 500 ms, then the server's synced lock.
+            uint shownLock = LockDisplay.Shown(lockTarget ?? 0u, Time.realtimeSinceStartupAsDouble * 1000.0);
+            lockTarget = shownLock == 0 ? (uint?)null : shownLock; _lockForNpc = lockTarget;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
             foreach (var a in remote)
             {

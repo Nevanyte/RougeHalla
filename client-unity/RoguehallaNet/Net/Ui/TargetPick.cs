@@ -25,8 +25,7 @@ namespace Roguehalla.Net.Ui
     }
 
     /// <summary>
-    /// Wand click picking, ported from packages/client/src/render/targeting.ts. Pure: no engine, no screen units. STUB: the
-    /// implementer replaces every body; the signatures are what the oracle (TargetPickTests) calls.
+    /// Wand click picking, ported from packages/client/src/render/targeting.ts. Pure: no engine, no screen units.
     /// </summary>
     public static class TargetPick
     {
@@ -34,20 +33,42 @@ namespace Roguehalla.Net.Ui
         public const float SnapRadius = 64f;
 
         /// <summary>Whether a candidate may be offered at all (alive, not hidden/untargetable, not self, not own companion, not a quest NPC, gates).</summary>
-        public static bool Eligible(in PickCandidate c, uint selfId, bool gatesLocked) { return false; }
+        public static bool Eligible(in PickCandidate c, uint selfId, bool gatesLocked)
+        {
+            if (c.Status != ActorStatus.Alive || c.Id == selfId || c.OwnCompanion) return false;
+            if ((c.Effects & (Untargetable | Hidden)) != 0) return false;
+            if (c.Kind == ActorKind.QuestGiver) return false;
+            if (gatesLocked && c.Kind != ActorKind.Player && c.Kind != ActorKind.Zombie) return false;
+            return true;
+        }
+
+        const ushort Untargetable = 128, Hidden = 256;
 
         /// <summary>The eligible candidate nearest the cursor's world point within <paramref name="radius"/> (strictly inside), 0 for none; ties go to the lower id.</summary>
-        public static uint Pick(float cursorX, float cursorY, IReadOnlyList<PickCandidate> candidates, uint selfId, bool gatesLocked, float radius = SnapRadius) { return 0; }
+        public static uint Pick(float cursorX, float cursorY, IReadOnlyList<PickCandidate> candidates, uint selfId, bool gatesLocked, float radius = SnapRadius)
+        {
+            uint best = 0; float bestSq = radius * radius;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var c = candidates[i];
+                if (!Eligible(c, selfId, gatesLocked)) continue;
+                float dx = c.X - cursorX, dy = c.Y - cursorY, sq = dx * dx + dy * dy;
+                if (sq < bestSq || (sq == bestSq && best != 0 && c.Id < best)) { bestSq = sq; best = c.Id; }
+            }
+            return best;
+        }
 
         /// <summary>The order a left click sends: a wand locks the pick or sends nothing; every other weapon attacks in the aim direction.</summary>
         public static ClickOrder Decide(WeaponId? weapon, uint picked)
         {
+            if (weapon == WeaponId.Wand)
+                return picked == 0 ? new ClickOrder { Kind = ClickOrderKind.None, Target = 0 } : new ClickOrder { Kind = ClickOrderKind.Target, Target = picked };
             return new ClickOrder { Kind = ClickOrderKind.DirectionalAttack, Target = 0 };
         }
     }
 
     /// <summary>
-    /// Which actor to draw as locked (legacy LockDisplay, targeting.ts:65). STUB: today's behaviour, the synced value only.
+    /// Which actor to draw as locked (legacy LockDisplay, targeting.ts:65).
     /// </summary>
     public sealed class LockDisplay
     {
@@ -55,11 +76,14 @@ namespace Roguehalla.Net.Ui
         public const double OptimisticLockMs = 500;
 
         /// <summary>An order was just sent: <paramref name="id"/> is the actor being locked, 0 for a move or stop.</summary>
-        public void Note(uint id, double nowMs) { }
+        public void Note(uint id, double nowMs) { _id = id; _until = nowMs + OptimisticLockMs; }
 
         /// <summary>The id to draw as locked at <paramref name="nowMs"/>, given the synced lock (0 = none).</summary>
-        public uint Shown(uint synced, double nowMs) { return synced; }
+        public uint Shown(uint synced, double nowMs) { return nowMs < _until ? _id : synced; }
 
-        public void Reset() { }
+        public void Reset() { _id = 0; _until = double.NegativeInfinity; }
+
+        uint _id;
+        double _until = double.NegativeInfinity;
     }
 }
