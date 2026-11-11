@@ -67,7 +67,7 @@ namespace Roguehalla.Client
         /// A creature id with no art: if a departed creature of the same look was drawn within two tiles under 0.6 s ago, the handle was
         /// renewed and the art (and its animation) carries over; otherwise this is a real arrival. See <see cref="MobContinuity"/>.
         /// </summary>
-        bool TryContinue(uint id, ActorKind kind, FactionId? faction, MobTypeId? mob, string archetypeKey, float x, float y, out Art art)
+        bool TryContinue(uint id, ActorKind kind, FactionId? faction, MobTypeId? mob, string archetypeKey, float x, float y, bool dead, out Art art)
         {
             art = null;
             if (!ContinuityEnabled || _ghosts.Count == 0) return false;
@@ -79,15 +79,16 @@ namespace Roguehalla.Client
                 var g = _ghosts[i];
                 if (!IsCreature(g.Fade.Kind)) continue;
                 var p = g.LastPosition;
-                _candidates[n++] = new MobCandidate { Handle = i, Look = g.Look, X = p.x / ArenaView.Scale, Y = -p.y / (ArenaView.Scale * ArenaView.GroundSquash), SeenAt = g.Fade.ExitAt };
+                _candidates[n++] = new MobCandidate { Handle = i, Look = g.Look, X = p.x / ArenaView.Scale, Y = -p.y / (ArenaView.Scale * ArenaView.GroundSquash), SeenAt = g.Fade.ExitAt, Dead = g.Dead, DiedAt = g.DeadAt };
             }
-            int pick = MobContinuity.Pick(_candidates, n, look, x, y, Now());
+            int pick = MobContinuity.Adopt(_candidates, n, look, dead, x, y, Now(), out _); // the art keeps its own DeadAt
             if (pick < 0) return false;
             int index = _candidates[pick].Handle;
             art = _ghosts[index]; _ghosts.RemoveAt(index);
             var f = art.Fade; float alpha = f.Opacity;
             f.Exiting = false;
-            if (alpha < .999f) { f.Entering = true; f.EnterFrom = 0f; f.EnterAt = Now() - VisionFade.EnterElapsedFor(alpha); }
+            if (dead) { f.Entering = false; Apply(art, 1f); } // a body never fades in
+            else if (alpha < .999f) { f.Entering = true; f.EnterFrom = 0f; f.EnterAt = Now() - VisionFade.EnterElapsedFor(alpha); }
             else { f.Entering = false; Apply(art, 1f); }
             MobArt.Continued++;
             return true;
@@ -118,7 +119,7 @@ namespace Roguehalla.Client
         {
             _deaths.Note(id, Now());
             for (int i = _ghosts.Count - 1; i >= 0; i--)
-                if (_ghosts[i].Fade.Id == id) ReleaseGhostAt(i);
+                if (_ghosts[i].Fade.Id == id && !_ghosts[i].Dead) ReleaseGhostAt(i); // a parked body is not touched by the event naming its old id
         }
 
         /// <summary>A timeline cut (welcome, resume, clock epoch): the old view is void, so nothing keeps fading.</summary>
@@ -130,15 +131,33 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Called when the actor's art is first shown for an id (a new Art or one from the pool).</summary>
-        void BeginEnter(Art a, bool local, ActorKind kind)
+        void BeginEnter(Art a, bool local, ActorKind kind, float startAlpha = 0f)
         {
             var f = a.Fade;
             f.Exiting = false; f.Opacity = 1f; f.Count = 0;
             // The server renews the observer handle of a creature on (almost) every observation, so a creature that "arrives" or "departs"
             // is usually the same creature under a new id. Present first tries to continue departed art (TryContinue); only a creature that
             // truly arrives gets here, and it fades in like a player. With ?mob.continuity=0 creatures keep the old plain show and hide.
-            f.Entering = !local && Fades(kind); f.EnterAt = Now(); f.EnterFrom = 0f;
+            f.Entering = !local && Fades(kind); f.EnterAt = Now(); f.EnterFrom = startAlpha;
+            if (startAlpha >= 1f) { f.Entering = false; f.Opacity = 1f; } // first seen already dead: a body is not an arrival
             if (f.Entering && kind == ActorKind.Player && OnArrived != null) OnArrived(a.LastPosition.x, -a.LastPosition.y / ArenaView.GroundSquash);
+        }
+
+        /// <summary>
+        /// Evict hook for a creature body: a dead creature that dropped out of the observation is parked (kept, frozen, fully opaque, no fade)
+        /// for <see cref="MobContinuity.StaleSeconds"/> so the renewed id of the same body can take its art and death start over. A
+        /// Death event naming the old id does not matter. Unclaimed, it is released in StepFades (it pops, the clip is normally over).
+        /// </summary>
+        bool TryParkBody(uint id, Art art)
+        {
+            var f = art.Fade;
+            if (!ContinuityEnabled || !ExitFadesAllowed || f.Local || !IsCreature(f.Kind) || !art.Dead) return false;
+            if (Delivered != null && Delivered.Contains(id)) return false;
+            _active.Remove(id);
+            art.Light.SetVisible(false);
+            f.Entering = false; f.Exiting = true; f.ExitAt = Now(); f.ExitFrom = f.Opacity;
+            _ghosts.Add(art);
+            return true;
         }
 
         /// <summary>Evict hook: a living actor that dropped out of the observation of a running match becomes a fading ghost.</summary>
@@ -164,6 +183,7 @@ namespace Roguehalla.Client
             for (int i = _ghosts.Count - 1; i >= 0; i--)
             {
                 var art = _ghosts[i]; var f = art.Fade;
+                if (art.Dead) { if (now - f.ExitAt > MobContinuity.StaleSeconds) ReleaseGhostAt(i); continue; } // parked body: no fade
                 float alpha = VisionFade.ExitAlpha(now - f.ExitAt, f.ExitFrom);
                 if (alpha <= 0.002f) { ReleaseGhostAt(i); continue; }
                 Apply(art, alpha);

@@ -63,8 +63,7 @@ namespace Roguehalla.Net
         /// </summary>
         public static float EnterStartAlpha(ActorStatus status)
         {
-            // STUB: today every arrival starts at 0. The implementer replaces this.
-            return 0f;
+            return status == ActorStatus.Dead || status == ActorStatus.Mia ? 1f : 0f;
         }
 
         /// <summary>The elapsed time at which an exit that began at opacity <paramref name="alpha"/> would be at that opacity: lets a re-entry continue smoothly.</summary>

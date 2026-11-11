@@ -203,6 +203,7 @@ namespace Roguehalla.Client
         void Evict(uint id)
         {
             var art=_active[id];
+            if (TryParkBody(id, art)) return; // a dead creature waits for its renewed id (SpriteActorPresenter.Fade.cs)
             if (TryBeginExit(id, art)) return; // a living actor that left sight fades out (SpriteActorPresenter.Fade.cs)
             _active.Remove(id); Release(art);
         }
@@ -227,7 +228,7 @@ namespace Roguehalla.Client
         {
             if (!_active.TryGetValue(id, out var a))
             {
-                if (!local && IsCreature(kind) && TryContinue(id, kind, faction, mob, archetypeKey, x, y, out a)) _active.Add(id, a); // a renewed handle
+                if (!local && IsCreature(kind) && TryContinue(id, kind, faction, mob, archetypeKey, x, y, status == ActorStatus.Dead || status == ActorStatus.Mia, out a)) _active.Add(id, a); // a renewed handle
                 else
                 {
                     a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
@@ -235,7 +236,7 @@ namespace Roguehalla.Client
                     a.Gait.Reset(); a.StampTime = Time.unscaledTime;
                     a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;a.WishUntil=0;a.WishTintAmount=0;
                     if (IsCreature(kind)) MobArt.Created++;
-                    BeginEnter(a, local, kind);
+                    BeginEnter(a, local, kind, IsCreature(kind) ? VisionFade.EnterStartAlpha(status) : 0f);
                 }
             }
             if (IsCreature(kind)) a.Look = LookOf(kind, faction, mob, archetypeKey);
@@ -314,7 +315,10 @@ namespace Roguehalla.Client
             // CONTRAST: the overhead cluster clears the figure's real top (hat, horns, a raised bow), not only the catalog height, so a bar never cuts the head's contour.
             if (appearance != null && frames != null && frames.Length > 0) headY = Mathf.Max(headY, HeadTop(appearance) + ActorOutlineModel.Width * 1.2f);
             float lift = headY - 1.68f; _sigLift = lift;
-            a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
+            // Creatures keep their true colours while the death clip plays; the grey tint comes only once it has ended (or when there is no clip).
+            bool clipPlaying = dead && IsCreature(kind) && appearance != null && appearance.Death != null && appearance.Death.Length > 0
+                && Time.unscaledTime - a.DeadAt < ClipDuration(appearance.Death, appearance.DeathFPS, 0f);
+            a.Body.color = dead && !clipPlaying ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
             if (!dead && a.WishTintAmount > 0f) a.Body.color = Color.Lerp(a.Body.color, a.WishTint, a.WishTintAmount);
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);

@@ -67,9 +67,22 @@ namespace Roguehalla.Net
         /// </summary>
         public static int Adopt(MobCandidate[] pool, int count, in MobLook look, bool dead, float x, float y, float now, out float diedAt)
         {
-            // STUB: today's behaviour (no dead bodies are parked, nothing is claimed). The implementer replaces this.
             diedAt = now;
-            return Pick(pool, count, look, x, y, now);
+            int best = -1; float bestD = RenewRadius * RenewRadius;
+            if (pool == null) return -1;
+            for (int i = 0; i < count && i < pool.Length; i++)
+            {
+                if (pool[i].Claimed) continue;
+                if (pool[i].Dead && !dead) continue;
+                if (now - pool[i].SeenAt > StaleSeconds || now < pool[i].SeenAt - 1e-3f) continue;
+                if (!pool[i].Look.Equals(look)) continue;
+                float dx = pool[i].X - x, dy = pool[i].Y - y, d2 = dx * dx + dy * dy;
+                if (d2 <= bestD) { bestD = d2; best = i; }
+            }
+            if (best < 0) return -1;
+            pool[best].Claimed = true;
+            if (pool[best].Dead) diedAt = pool[best].DiedAt;
+            return best;
         }
 
         /// <summary>Counts creature art bindings for diagnostics: a create is a binding to fresh art, a continue reuses departed art.</summary>
