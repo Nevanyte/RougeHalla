@@ -4,6 +4,10 @@ use rh_protocol::{
     WireCamp, WireField, WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile,
     WireProp, WirePropKind, WireProps, WireRewardChest, WireRewardId, WireRewardOption,
 };
+use rh_protocol::state::{
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_QUANTUM, MAX_SUMMARY_MOB_ROWS,
+};
+use rh_sim::observe::{HudStat, WardVerdict};
 use rh_sim::{Inventory, Observation, PropKind};
 
 #[cfg(test)]
@@ -24,6 +28,7 @@ pub struct CollectionPublisher {
     quests: Option<rh_protocol::WireQuestView>,
     trade: Option<rh_protocol::WireTradeView>,
     roster: Vec<rh_protocol::WireRosterRow>,
+    summary: Option<WireBuildSummary>,
     last_forced: Option<u32>,
 }
 
@@ -413,22 +418,122 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
         .collect()
 }
 
-fn camps(observation: &Observation) -> Vec<WireCamp> {
+/// The HUD stat code on the wire: the [`HudStat`] variant index (P-WIRE17-HUD-1).
+fn hud_code(stat: HudStat) -> u8 {
+    match stat {
+        HudStat::Offense => 0,
+        HudStat::SoulOffense => 1,
+        HudStat::Damage => 2,
+        HudStat::AttackSpeed => 3,
+        HudStat::LifeSteal => 4,
+        HudStat::Health => 5,
+        HudStat::Defense => 6,
+        HudStat::SoulDefense => 7,
+        HudStat::MoveSpeed => 8,
+    }
+}
+
+/// `round(v / HUD_QUANTUM)` (half away from zero) when finite and inside `[min, max]`; refused otherwise, never clamped.
+fn quantize(v: f64, min: f64, max: f64, what: &'static str) -> Result<f64, EncodeError> {
+    let q = (v / HUD_QUANTUM).round();
+    if q.is_finite() && (min..=max).contains(&q) {
+        Ok(q)
+    } else {
+        Err(EncodeError::BadValue(what))
+    }
+}
+
+fn quantize_i32(v: f64, what: &'static str) -> Result<i32, EncodeError> {
+    quantize(v, f64::from(i32::MIN), f64::from(i32::MAX), what).map(|q| q as i32)
+}
+
+/// The public camp rows plus, per row, the observation's camp HUD facts (reward content and this viewer's ward
+/// verdict). A row without a HUD row carries neither.
+fn camps(observation: &Observation) -> Result<Vec<WireCamp>, EncodeError> {
     observation
         .camps
         .iter()
-        .map(|c| WireCamp {
-            mob_type: c.mob_type as u8,
-            elite: c.elite.map(|id| id as u8),
-            alive: c.alive,
-            state: c.state,
-            cleared_at: c.cleared_at,
-            respawn_at: c.respawn_at,
-            // P-WIRE17-HUD-1 stub: projected from `observation.camp_hud` by the implementer.
-            reward: None,
-            ward: None,
+        .enumerate()
+        .map(|(i, c)| {
+            let hud = observation.camp_hud.get(i).copied().unwrap_or_default();
+            let reward = match hud.reward {
+                Some(r) => Some(WireCampReward {
+                    stat: hud_code(r.stat),
+                    amount: quantize(r.amount, 1., f64::from(u16::MAX), "camp reward")? as u16,
+                }),
+                None => None,
+            };
+            let ward = match hud.ward {
+                WardVerdict::None => None,
+                WardVerdict::Yours | WardVerdict::Other => Some(WireWard {
+                    yours: hud.ward == WardVerdict::Yours,
+                    expires_at: hud.ward_expires_at,
+                }),
+            };
+            Ok(WireCamp {
+                mob_type: c.mob_type as u8,
+                elite: c.elite.map(|id| id as u8),
+                alive: c.alive,
+                state: c.state,
+                cleared_at: c.cleared_at,
+                respawn_at: c.respawn_at,
+                reward,
+                ward,
+            })
         })
         .collect()
+}
+
+/// The viewer's own GAINED strip (State key 13), quantized to [`HUD_QUANTUM`]. The observation already holds only the
+/// viewer's summary (C-OBS); delivery compares this quantized value, so a sub-quantum change sends nothing.
+fn summary(observation: &Observation) -> Result<Option<WireBuildSummary>, EncodeError> {
+    let Some(view) = observation.summary.as_ref() else {
+        return Ok(None);
+    };
+    if view.mob_rows.len() > MAX_SUMMARY_MOB_ROWS {
+        return Err(EncodeError::TooMany {
+            what: "summary mob rows",
+            n: view.mob_rows.len(),
+            max: MAX_SUMMARY_MOB_ROWS,
+        });
+    }
+    let mut gains = [0; 9];
+    for (q, v) in gains.iter_mut().zip(view.gains) {
+        *q = quantize_i32(v, "summary gain")?;
+    }
+    let mob_rows = view
+        .mob_rows
+        .iter()
+        .map(|row| {
+            Ok(WireMobBonusRow {
+                mob_type: row.mob as u8,
+                stat: hud_code(row.stat),
+                stacks: u32::try_from(row.stacks)
+                    .map_err(|_| EncodeError::BadValue("summary stacks"))?,
+                total: quantize_i32(row.total, "summary mob total")?,
+            })
+        })
+        .collect::<Result<_, EncodeError>>()?;
+    Ok(Some(WireBuildSummary { gains, mob_rows }))
+}
+
+/// Whether the client's summary (`sent`, what it holds) is stale for the observed `view`: presence, a row's mob, stat
+/// or stacks changed, or any number moved at least one whole [`HUD_QUANTUM`] from the value the client holds. A
+/// sub-quantum wobble (hp-dependent life steal) sends nothing even where it would round to the next step; the client's
+/// value then stays within one quantum of the build.
+fn summary_stale(sent: Option<&WireBuildSummary>, view: Option<&rh_sim::observe::SummaryView>) -> bool {
+    let (Some(sent), Some(view)) = (sent, view) else {
+        return sent.is_some() != view.is_some();
+    };
+    let moved = |held: i32, v: f64| (v / HUD_QUANTUM - f64::from(held)).abs() >= 1.;
+    sent.mob_rows.len() != view.mob_rows.len()
+        || sent.gains.iter().zip(view.gains).any(|(q, v)| moved(*q, v))
+        || sent.mob_rows.iter().zip(&view.mob_rows).any(|(w, r)| {
+            w.mob_type != r.mob as u8
+                || w.stat != hud_code(r.stat)
+                || u64::from(w.stacks) != r.stacks
+                || moved(w.total, r.total)
+        })
 }
 
 fn projectiles(observation: &Observation) -> Vec<WireProjectile> {
@@ -533,7 +638,8 @@ impl CollectionPublisher {
         let full = !self.sent || forced;
         let next_inventory = observation.inventory.map(inventory);
         let next_fields = fields(observation);
-        let next_camps = camps(observation);
+        let next_camps = camps(observation)?;
+        let next_summary = summary(observation)?;
         let next_projectiles = projectiles(observation);
         let next_build = observation.build.map(|v| WireBuild {
             cards: v.cards.0,
@@ -596,6 +702,9 @@ impl CollectionPublisher {
                 &observation.roster,
             )));
         }
+        if full || summary_stale(self.summary.as_ref(), observation.summary.as_ref()) {
+            items.push(StateItem::BuildSummary(next_summary));
+        }
         let (frame, items) = if items.is_empty() {
             (None, items)
         } else {
@@ -634,8 +743,7 @@ impl PendingState {
                 StateItem::Trade(v) => publisher.trade = v,
                 StateItem::Roster(v) => publisher.roster = v,
                 StateItem::RewardChests(_) => {}
-                // P-WIRE17-HUD-1 stub: never sent yet.
-                StateItem::BuildSummary(_) => {}
+                StateItem::BuildSummary(v) => publisher.summary = v,
             }
         }
         publisher.sent = true;
@@ -714,7 +822,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         );
         let StateItem::RewardChests(rows) = &items[3] else {
             panic!()
@@ -760,7 +868,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         );
         first.commit(&mut publisher);
         assert!(publisher
@@ -829,7 +937,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         );
         assert!(matches!(
             items[0],
@@ -887,7 +995,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
         );
     }
 

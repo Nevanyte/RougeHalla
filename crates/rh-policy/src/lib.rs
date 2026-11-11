@@ -39,7 +39,9 @@ use std::time::{Duration, Instant};
 /// Version 18 (protocol 16, observation 24) unions the Card bleed public `Hit` projection (backend, OBS 22 knowledge change)
 /// with the version 17 indicator facts.
 /// Explicit native compatibility policies retain their separately declared input kind.
-pub const POLICY_CONTRACT_VERSION: u16 = 18;
+/// Version 19 (observation 25, P-WIRE17-HUD-1): the projection gains each camp's reward and ward verdict and the owner's
+/// build summary (State key 13); bots do not decide on them.
+pub const POLICY_CONTRACT_VERSION: u16 = 19;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1848,7 +1850,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 18);
+        assert_eq!(POLICY_CONTRACT_VERSION, 19);
     }
 }
 

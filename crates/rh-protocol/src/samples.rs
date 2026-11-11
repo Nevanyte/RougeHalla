@@ -9,7 +9,8 @@ use crate::delta::{
 };
 use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use crate::state::{
-    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_STAT_COUNT,
+    MAX_SUMMARY_MOB_ROWS, MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
     MAX_VISIBLE_PROPS,
 };
 use crate::*;
@@ -671,10 +672,27 @@ fn state_all_max_budget() -> ServerMsg {
             state: 2,
             cleared_at: f64::MAX / 2.0,
             respawn_at: f64::MAX,
-            reward: None,
-            ward: None,
+            reward: Some(WireCampReward {
+                stat: HUD_STAT_COUNT - 1,
+                amount: u16::MAX,
+            }),
+            ward: Some(WireWard {
+                yours: false,
+                expires_at: f64::MAX,
+            }),
         })
         .collect();
+    let summary = WireBuildSummary {
+        gains: [i32::MIN; 9],
+        mob_rows: (0..MAX_SUMMARY_MOB_ROWS as u8)
+            .map(|i| WireMobBonusRow {
+                mob_type: 10 + i,
+                stat: HUD_STAT_COUNT - 1,
+                stacks: u32::MAX,
+                total: i32::MIN,
+            })
+            .collect(),
+    };
     let projectiles = (0..512)
         .map(|i| WireProjectile {
             kind: 1,
@@ -743,6 +761,7 @@ fn state_all_max_budget() -> ServerMsg {
             StateItem::Arena(Some(arena)),
             StateItem::Quests(Some(quest_view_at_max_bytes())),
             StateItem::Trade(Some(trade_view_max())),
+            StateItem::BuildSummary(Some(summary)),
         ],
     };
 
@@ -1096,6 +1115,96 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Quests(Some(WireQuestView::default())),
                     StateItem::Trade(None),
                 ],
+            },
+        ),
+        // P-WIRE17-HUD-1: camp rows with every reward/ward shape, and the owner's build summary (State key 13).
+        (
+            "state_camp_hud",
+            ServerMsg::State {
+                tick: 212,
+                items: vec![StateItem::Camps(vec![
+                    WireCamp {
+                        mob_type: 3,
+                        elite: Some(29),
+                        alive: 2,
+                        state: 0,
+                        cleared_at: 1000.,
+                        respawn_at: 181000.,
+                        reward: Some(WireCampReward {
+                            stat: 6,
+                            amount: 12_500,
+                        }),
+                        ward: Some(WireWard {
+                            yours: true,
+                            expires_at: 61_000.,
+                        }),
+                    },
+                    WireCamp {
+                        mob_type: 7,
+                        elite: None,
+                        alive: 0,
+                        state: 2,
+                        cleared_at: 2000.,
+                        respawn_at: 92_000.,
+                        reward: Some(WireCampReward {
+                            stat: 8,
+                            amount: 50,
+                        }),
+                        ward: Some(WireWard {
+                            yours: false,
+                            expires_at: 90_500.5,
+                        }),
+                    },
+                    WireCamp {
+                        mob_type: 0,
+                        elite: None,
+                        alive: 3,
+                        state: 0,
+                        cleared_at: 0.,
+                        respawn_at: 0.,
+                        reward: None,
+                        ward: None,
+                    },
+                ])],
+            },
+        ),
+        (
+            "state_build_summary",
+            ServerMsg::State {
+                tick: 213,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary {
+                    gains: [
+                        120_000, 50_000, 905, 1_900, -337, 850_000, 65_000, -32_500, 600,
+                    ],
+                    mob_rows: vec![
+                        WireMobBonusRow {
+                            mob_type: 0,
+                            stat: 2,
+                            stacks: 7,
+                            total: 700,
+                        },
+                        WireMobBonusRow {
+                            mob_type: 4,
+                            stat: 6,
+                            stacks: 300,
+                            total: 3_750_000,
+                        },
+                    ],
+                }))],
+            },
+        ),
+        (
+            "state_build_summary_empty",
+            ServerMsg::State {
+                tick: 214,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary::default()))],
+            },
+        ),
+        (
+            "state_build_summary_none",
+            ServerMsg::State {
+                tick: 215,
+                items: vec![StateItem::BuildSummary(None)],
             },
         ),
         // Protocol 16, ADR0026: State key 12, the roster (a multi-byte id gap, a bot, a 24-byte name, non-ASCII text).
@@ -3414,6 +3523,7 @@ fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respaw
     w.u8(state);
     w.f64(clear);
     w.f64(respawn);
+    w.bytes(&[0, 0]); // P-WIRE17-HUD-1: no reward, no ward (the fault under test is in the head)
     w.finish()
 }
 
@@ -4526,7 +4636,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 13]),
+        ("state_unknown_key", vec![0x88, 0, 1, 14]),
         ("state_quest_status_unknown", quest_bad_status),
         ("state_quest_flags_unknown", quest_bad_flags),
         ("state_quest_visited_unknown", quest_bad_visited),
@@ -4636,7 +4746,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 13]),
+        ("state_too_many_keys", vec![0x88, 0, 14]),
         // Protocol 16, ADR0026: State key 12, the roster.
         ("state_roster_count_over_32", vec![0x88, 0, 1, 12, 33]),
         (

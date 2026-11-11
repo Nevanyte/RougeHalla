@@ -59,6 +59,8 @@ pub struct CollectionView {
     pub(crate) quests: Option<WireQuestView>,
     pub(crate) trade: Option<WireTradeView>,
     pub(crate) roster: Vec<rh_protocol::WireRosterRow>,
+    /// State key 13: the owner's own build summary (None when unseated).
+    pub(crate) summary: Option<rh_protocol::state::WireBuildSummary>,
     pub(crate) tick: u32,
 }
 impl CollectionView {
@@ -100,6 +102,10 @@ impl CollectionView {
     pub fn roster(&self) -> &[rh_protocol::WireRosterRow] {
         &self.roster
     }
+    /// The owner's GAINED strip (State key 13), quantized as delivered.
+    pub fn summary(&self) -> Option<&rh_protocol::state::WireBuildSummary> {
+        self.summary.as_ref()
+    }
     pub fn tick(&self) -> u32 {
         self.tick
     }
@@ -115,11 +121,6 @@ impl CollectionView {
         message.try_encode()?;
         let mut next = self.clone();
         for item in items {
-            // P-WIRE17-HUD-1 stub: key 13 is not decodable yet; the implementer widens `seen` (MAX_STATE_KEYS = 13)
-            // and stores the summary.
-            if matches!(item, StateItem::BuildSummary(_)) {
-                continue;
-            }
             next.seen[(item.key() - 1) as usize] = true;
             match item {
                 StateItem::Inventory(v) => next.inventory = *v,
@@ -134,7 +135,7 @@ impl CollectionView {
                 StateItem::Quests(v) => next.quests = v.clone(),
                 StateItem::Trade(v) => next.trade = v.clone(),
                 StateItem::Roster(v) => next.roster = v.clone(),
-                StateItem::BuildSummary(_) => {}
+                StateItem::BuildSummary(v) => next.summary = v.clone(),
             }
         }
         rh_protocol::validate_quest_props(&next.props, next.quests.as_ref())?;
@@ -413,6 +414,10 @@ impl Frame14 {
     /// Exact delivered owner replacement, without deriving offers or merchant readiness.
     pub fn trade(&self) -> Fact<Option<&WireTradeView>> {
         Fact::Delivered(self.collections.trade.as_ref())
+    }
+    /// The owner's own build summary (State key 13), quantized; never another seat's.
+    pub fn build_summary(&self) -> Fact<Option<&rh_protocol::state::WireBuildSummary>> {
+        Fact::Delivered(self.collections.summary.as_ref())
     }
     pub fn owner_combat(&self) -> Fact<&WireOwnerCombat> {
         self.owner_combat

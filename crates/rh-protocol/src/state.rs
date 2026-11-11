@@ -3,7 +3,7 @@ use crate::codec::{str_fits, str_len, varint_len};
 use crate::{DecodeError, EncodeError, Reader, Writer};
 use std::num::NonZeroU32;
 
-pub const MAX_STATE_KEYS: usize = 12;
+pub const MAX_STATE_KEYS: usize = 13;
 /// Most roster rows a State key 12 carries (ADR0026); a match seats at most 8 players today.
 pub const MAX_ROSTER: usize = 32;
 /// Longest roster display name in UTF-8 bytes (ADR0026).
@@ -965,6 +965,73 @@ pub struct WireBuildSummary {
     pub gains: [i32; 9],
     pub mob_rows: Vec<WireMobBonusRow>,
 }
+impl WireBuildSummary {
+    fn len(&self) -> usize {
+        36 + 1
+            + self
+                .mob_rows
+                .iter()
+                .map(|r| 2 + varint_len(r.stacks) + 4)
+                .sum::<usize>()
+    }
+    /// The first fault in the row list (count cap first, then per row: mob code, strict mob order, stat code, stacks).
+    fn fault(&self) -> Option<&'static str> {
+        let mut previous: Option<u8> = None;
+        for row in &self.mob_rows {
+            if row.mob_type >= 30 {
+                return Some("summary mob code");
+            }
+            if previous.is_some_and(|p| row.mob_type <= p) {
+                return Some("summary mob order");
+            }
+            previous = Some(row.mob_type);
+            if row.stat >= HUD_STAT_COUNT {
+                return Some("summary stat code");
+            }
+            if row.stacks == 0 {
+                return Some("summary stacks");
+            }
+        }
+        None
+    }
+    fn write(&self, w: &mut Writer) {
+        for g in self.gains {
+            w.u32(g as u32);
+        }
+        w.u8(self.mob_rows.len() as u8);
+        for row in &self.mob_rows {
+            w.u8(row.mob_type);
+            w.u8(row.stat);
+            w.varint(row.stacks);
+            w.u32(row.total as u32);
+        }
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let mut gains = [0i32; 9];
+        for g in &mut gains {
+            *g = r.u32()? as i32;
+        }
+        let n = usize::from(r.u8()?);
+        if n > MAX_SUMMARY_MOB_ROWS {
+            return Err(DecodeError::TooMany(n));
+        }
+        let mut mob_rows = Vec::with_capacity(n);
+        for _ in 0..n {
+            mob_rows.push(WireMobBonusRow {
+                mob_type: r.u8()?,
+                stat: r.u8()?,
+                stacks: r.varint()?,
+                total: r.u32()? as i32,
+            });
+        }
+        let v = Self { gains, mob_rows };
+        match v.fault() {
+            None => Ok(v),
+            Some(why) => Err(DecodeError::BadField(why)),
+        }
+    }
+}
+
 /// Visible projectile fact, with no global projectile ID.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WireProjectile {
@@ -1018,9 +1085,19 @@ impl WireCamp {
             && self.cleared_at >= 0.
             && self.respawn_at.is_finite()
             && self.respawn_at >= self.cleared_at
+            && self
+                .reward
+                .is_none_or(|r| r.stat < HUD_STAT_COUNT && r.amount > 0)
+            && self
+                .ward
+                .is_none_or(|w| w.expires_at.is_finite() && w.expires_at >= 0.)
     }
     fn len(&self) -> usize {
         19 + varint_len(self.alive)
+            + 1
+            + usize::from(self.reward.is_some()) * 2
+            + 1
+            + usize::from(self.ward.is_some()) * 8
     }
     fn write(&self, w: &mut Writer) {
         w.u8(self.mob_type);
@@ -1029,6 +1106,20 @@ impl WireCamp {
         w.u8(self.state);
         w.f64(self.cleared_at);
         w.f64(self.respawn_at);
+        match self.reward {
+            None => w.u8(0),
+            Some(r) => {
+                w.u8(1 + r.stat);
+                w.u16(r.amount);
+            }
+        }
+        match self.ward {
+            None => w.u8(0),
+            Some(ward) => {
+                w.u8(if ward.yours { 1 } else { 2 });
+                w.f64(ward.expires_at);
+            }
+        }
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let mob_type = r.u8()?;
@@ -1040,9 +1131,22 @@ impl WireCamp {
             state: r.u8()?,
             cleared_at: r.f64()?,
             respawn_at: r.f64()?,
-            // P-WIRE17-HUD-1 stub: the reward and ward bytes are not on the wire yet.
-            reward: None,
-            ward: None,
+            reward: match r.u8()? {
+                0 => None,
+                code if code <= HUD_STAT_COUNT => Some(WireCampReward {
+                    stat: code - 1,
+                    amount: r.u16()?,
+                }),
+                _ => return Err(DecodeError::BadField("camp reward")),
+            },
+            ward: match r.u8()? {
+                0 => None,
+                v @ (1 | 2) => Some(WireWard {
+                    yours: v == 1,
+                    expires_at: r.f64()?,
+                }),
+                _ => return Err(DecodeError::BadField("camp ward")),
+            },
         };
         if v.valid() {
             Ok(v)
@@ -1798,8 +1902,7 @@ impl StateItem {
                         .map(|row| varint_len(row.id) + 1 + 1 + row.name.len())
                         .sum::<usize>()
                 }
-                // P-WIRE17-HUD-1 stub: not encodable yet (check refuses it).
-                Self::BuildSummary(_) => 1,
+                Self::BuildSummary(value) => 1 + value.as_ref().map_or(0, WireBuildSummary::len),
             }
     }
     pub(crate) fn check(&self) -> Result<(), EncodeError> {
@@ -1890,9 +1993,18 @@ impl StateItem {
                     return Err(EncodeError::BadValue(why));
                 }
             }
-            // P-WIRE17-HUD-1 stub: the layout is fixed in the packet brief; the implementer encodes it.
-            Self::BuildSummary(_) => {
-                return Err(EncodeError::BadValue("build summary not implemented"));
+            Self::BuildSummary(None) => {}
+            Self::BuildSummary(Some(value)) => {
+                if value.mob_rows.len() > MAX_SUMMARY_MOB_ROWS {
+                    return Err(EncodeError::TooMany {
+                        what: "summary mob rows",
+                        n: value.mob_rows.len(),
+                        max: MAX_SUMMARY_MOB_ROWS,
+                    });
+                }
+                if let Some(why) = value.fault() {
+                    return Err(EncodeError::BadValue(why));
+                }
             }
         }
         Ok(())
@@ -1962,8 +2074,7 @@ impl StateItem {
                     w.str(&row.name);
                 }
             }
-            // P-WIRE17-HUD-1 stub: never reached (check refuses the item).
-            Self::BuildSummary(_) => w.u8(0),
+            Self::BuildSummary(value) => w.opt(value.as_ref(), |w, v| v.write(w)),
         }
     }
     pub(crate) fn read(r: &mut Reader<'_>, key: u32) -> Result<Self, DecodeError> {
@@ -2092,6 +2203,7 @@ impl StateItem {
                 }
                 Self::Roster(rows)
             }
+            13 => Self::BuildSummary(r.opt(WireBuildSummary::read)?),
             _ => return Err(DecodeError::BadField("state key")),
         })
     }
