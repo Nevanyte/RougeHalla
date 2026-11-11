@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v16 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v17 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v16 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v16.json) ----
+// ---- protocol v17 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v17.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -73,9 +73,13 @@ function cursor(view, p = 0, limit = view.byteLength) {
 }
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const MAX_MAP_TILES = 1024 * 1024;
-const MAX_MAP_DECODED_BYTES = 3 * 1024 * 1024;
-const MAX_MAP_RUNS = 3 * 1024 * 1024;
-const TERRAIN_MAX = 7, REGION_MAX = 6, GROUND_VERSION = 1;
+// Protocol 17: five decodable planes (collision, terrain, regions, bushes, ground variants).
+const MAX_MAP_DECODED_BYTES = 5 * 1024 * 1024;
+const MAX_MAP_RUNS = 5 * 1024 * 1024;
+const TERRAIN_MAX = 7, REGION_MAX = 6, GROUND_VERSION = 2;
+// Protocol 17 public map sections (crates/rh-protocol/src/map.rs): caps and the presence bits after terrain (1) and regions (2).
+const MAX_MAP_CAMPS = 64, MAX_COLISEUM_GATES = 8, MAX_GATE_TILES = 16, MAX_MAP_PROPS = 8192;
+const PRESENCE_CAMPS = 4, PRESENCE_COLISEUM = 8, PRESENCE_BUSHES = 16, PRESENCE_PROPS = 32, PRESENCE_GROUND_VARIANTS = 64;
 function fnv(w, h, tiles) {
   let x = 0x811c9dc5;
   const eat = (b) => { x ^= b; x = Math.imul(x, 0x01000193) >>> 0; };
@@ -103,6 +107,65 @@ function readPlane(r, n, maxValue, reserveBytes, what) {
   if (cells !== n) throw new Error("bad " + what + " length");
   return { start, runs, limit: r.limit };
 }
+function fnvSpan(x, view, start, end) { for (let i = start; i < end; i++) x = fnvByte(x, view.getUint8(i)); return x; }
+// A bush or ground-variant plane: any value; zero or overlong runs are "run", a short plane "length", missing bytes truncated.
+function readPublicPlane(r, n, what) {
+  const start = r.p, runs = r.u32();
+  if (runs < 1 || runs > n) throw new Error("bad map " + what + " run");
+  if (runs * 3 > r.limit - r.p) throw new Error("truncated");
+  let cells = 0;
+  for (let i = 0; i < runs; i++) {
+    r.u8(); const len = r.u16();
+    if (len === 0 || cells + len > n) throw new Error("bad map " + what + " run");
+    cells += len;
+  }
+  if (cells !== n) throw new Error("bad map " + what + " length");
+  return { start, runs, limit: r.limit };
+}
+function readMapCamps(r) {
+  const count = r.u8();
+  if (count === 0 || count > MAX_MAP_CAMPS) throw new Error("bad map camp count");
+  if (count * 7 > r.limit - r.p) throw new Error("truncated");
+  const camps = [];
+  for (let i = 0; i < count; i++) {
+    const x = r.u16(), y = r.u16(), radius = r.u16(), zone = r.u8();
+    if (zone === 0 || zone > 5) throw new Error("bad map camp zone");
+    camps.push({ x, y, r: radius, zone });
+  }
+  return camps;
+}
+function readMapColiseum(r, w, h) {
+  const x = r.u16(), y = r.u16(), cw = r.u16(), ch = r.u16();
+  if (cw === 0 || ch === 0 || x + cw > w || y + ch > h) throw new Error("bad map coliseum rect");
+  const count = r.u8();
+  if (count > MAX_COLISEUM_GATES) throw new Error("bad map gate count");
+  const gates = [];
+  for (let g = 0; g < count; g++) {
+    const side = r.u8();
+    if (side > 3) throw new Error("bad map gate side");
+    const n = r.u8();
+    if (n === 0 || n > MAX_GATE_TILES) throw new Error("bad map gate tiles");
+    const tiles = [];
+    for (let t = 0; t < n; t++) {
+      const tx = r.u16(), ty = r.u16();
+      if (tx >= w || ty >= h) throw new Error("bad map gate tile");
+      tiles.push({ x: tx, y: ty });
+    }
+    gates.push({ side, tiles });
+  }
+  return { x, y, w: cw, h: ch, gates };
+}
+function readMapProps(r) {
+  const count = r.u16();
+  if (count === 0 || count > MAX_MAP_PROPS) throw new Error("bad map prop count");
+  if (count * 7 > r.limit - r.p) throw new Error("truncated");
+  const props = [];
+  for (let i = 0; i < count; i++) {
+    const kind = r.u8(), x = r.u16(), y = r.u16(), variant = r.u8(), flags = r.u8();
+    props.push({ kind, x, y, variant, flags });
+  }
+  return props;
+}
 function fillPlane(buf, descriptor, n) {
   const r = cursor(buf, descriptor.start, descriptor.limit);
   const runs = r.u32(), out = new Uint8Array(n); let p = 0;
@@ -119,7 +182,7 @@ function checkTerrainAgainstCollision(collisionBuf, collision, terrainBuf, terra
     const take = Math.min(an, bn); an -= take; bn -= take; left -= take;
   }
 }
-const PROTOCOL = 16;
+const PROTOCOL = 17;
 const MAX_TICKET = 448;
 const MAX_QUEST_VIEW_BYTES = 24 * 1024;
 const MAX_TRADE_VIEW_BYTES = 2213;
@@ -433,9 +496,11 @@ function decodeBody(r) {
     const extStart = p.p, extEnd = extStart + extensionLength, ext = cursor(p.v, extStart, extEnd);
     const sectionVersion = ext.u8(), flags = ext.u8(), semanticHash = ext.u32();
     if (sectionVersion !== GROUND_VERSION) throw new Error("bad ground version");
-    if (flags & ~3) throw new Error("bad ground presence");
+    if (flags & ~0x7f) throw new Error("bad ground presence");
     const hasTerrain = (flags & 1) !== 0, hasRegions = (flags & 2) !== 0;
-    if (n * (1 + Number(hasTerrain) + Number(hasRegions)) > MAX_MAP_DECODED_BYTES) throw new Error("map decoded data too large");
+    const hasBushes = (flags & PRESENCE_BUSHES) !== 0, hasVariants = (flags & PRESENCE_GROUND_VARIANTS) !== 0;
+    const planes = 1 + Number(hasTerrain) + Number(hasRegions) + Number(hasBushes) + Number(hasVariants);
+    if (n * planes > MAX_MAP_DECODED_BYTES) throw new Error("map decoded data too large");
     const cumulativeRuns = { count: collision.runs };
     let terrain = null, regions = null;
     const semanticStart = fnvText(0x811c9dc5, "rh-ground/1\0");
@@ -452,6 +517,23 @@ function decodeBody(r) {
       cumulativeRuns.count += regions.runs;
       if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
       const rr = cursor(p.v, regions.start, extEnd); semantic = fnvPlane(semantic, rr, regions);
+    }
+    // Protocol 17 public sections in presence-bit order; list sections hash their exact wire bytes, planes their cells.
+    let camps = [], mapColiseum = null, bushes = null, props = [], variants = null;
+    if (flags & PRESENCE_CAMPS) { const at = ext.p; camps = readMapCamps(ext); semantic = fnvSpan(semantic, p.v, at, ext.p); }
+    if (flags & PRESENCE_COLISEUM) { const at = ext.p; mapColiseum = readMapColiseum(ext, w, h); semantic = fnvSpan(semantic, p.v, at, ext.p); }
+    if (hasBushes) {
+      bushes = readPublicPlane(ext, n, "bushes");
+      cumulativeRuns.count += bushes.runs;
+      if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
+      semantic = fnvPlane(semantic, cursor(p.v, bushes.start, extEnd), bushes);
+    }
+    if (flags & PRESENCE_PROPS) { const at = ext.p; props = readMapProps(ext); semantic = fnvSpan(semantic, p.v, at, ext.p); }
+    if (hasVariants) {
+      variants = readPublicPlane(ext, n, "ground variants");
+      cumulativeRuns.count += variants.runs;
+      if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
+      semantic = fnvPlane(semantic, cursor(p.v, variants.start, extEnd), variants);
     }
     if (terrain) checkTerrainAgainstCollision(p.v, collision, p.v, terrain, n);
     const terrainMode = ext.u8(), contextHash = ext.u32();
@@ -470,7 +552,9 @@ function decodeBody(r) {
     const c = m.vision.coliseum;
     if (c && (c.x + c.w > w || c.y + c.h > h)) throw new Error("bad vision");
     r.p = mapEnd;
-    m.map = { w, h, tiles, hash, terrain: terrainBytes, regions: regionBytes, terrainMode, semanticHash, contextHash };
+    m.map = { w, h, tiles, hash, terrain: terrainBytes, regions: regionBytes, terrainMode, semanticHash, contextHash,
+      camps, coliseum: mapColiseum, bushes: bushes ? fillPlane(p.v, bushes, n) : null, props,
+      groundVariants: variants ? fillPlane(p.v, variants, n) : null };
     return m;
   }
   if (tag === 0x82) {

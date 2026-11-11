@@ -24,7 +24,7 @@ function guarded(length, fields, forbidden) {
     publicHex:n=>{assert.equal(n,16);return read(n);},skip:n=>{need(n);},end:()=>assert.equal(at,length),
     reads,get denied(){return denied;}};
 }
-function helloReader(resume = true, length = resume ? 46 : 30, protocol = 16) {
+function helloReader(resume = true, length = resume ? 46 : 30, protocol = 17) {
   return guarded(length, new Map([[0,1],[1,protocol],[11,3],[15,5],[21,4],[27,1],[29,resume?1:0]]),
     [[3,11],[12,15],[16,21],[23,27],[28,29],[30,46]]);
 }
@@ -34,25 +34,25 @@ function helloReader(resume = true, length = resume ? 46 : 30, protocol = 16) {
 // row; weapon.rs WEAPON_ROW_LEN), then the old map block shifted by 88: width/height 148/150, collision hash 152..156,
 // runs 156, pair 160..163, extension length 163, version 167, flags 168, semantic hash 169..173, mode 173, context 174..178.
 const WELCOME_LEN = 178;
-function welcomeReader(length = WELCOME_LEN, protocol = 16) {
+function welcomeReader(length = WELCOME_LEN, protocol = 17) {
   return guarded(length,new Map([[0,0x81],[1,protocol],[3,BigInt('0x'+CONTENT)],[11,match],[27,7],
     [60,2],[62,1],[64,0],[68,1],[70,1],[112,0],[113,1],
-    [148,2],[150,2],[156,1],[163,11],[167,1],[168,0],[173,0]]),
+    [148,2],[150,2],[156,1],[163,11],[167,2],[168,0],[173,0]]),
     [[31,60],[61,62],[63,64],[65,68],[69,70],[71,78],[78,112],[114,148],[152,156],[160,163],[169,173],[174,178]]);
 }
 function syntheticHello() {
   // Private ranges remain zero-filled, have no real capability/credential, and are never inspected.
   const bytes = new Uint8Array(46), view = new DataView(bytes.buffer);
-  bytes[0]=1;view.setUint16(1,16,true);bytes[11]=3;bytes[15]=5;
+  bytes[0]=1;view.setUint16(1,17,true);bytes[11]=3;bytes[15]=5;
   view.setUint16(21,4,true);bytes[27]=1;bytes[29]=1;return bytes;
 }
 function syntheticWelcome() {
   const bytes=new Uint8Array(WELCOME_LEN),view=new DataView(bytes.buffer);
-  bytes[0]=0x81;view.setUint16(1,16,true);view.setBigUint64(3,BigInt('0x'+CONTENT),true);
+  bytes[0]=0x81;view.setUint16(1,17,true);view.setBigUint64(3,BigInt('0x'+CONTENT),true);
   for(let i=0;i<16;i++)bytes[11+i]=parseInt(match.slice(i*2,i*2+2),16);
   view.setUint32(27,7,true);bytes[60]=2;bytes[62]=1;bytes[64]=0;bytes[68]=1;bytes[70]=1;bytes[113]=1;
   view.setUint16(148,2,true);view.setUint16(150,2,true);
-  view.setUint32(156,1,true);view.setUint32(163,11,true);bytes[167]=1;
+  view.setUint32(156,1,true);view.setUint32(163,11,true);bytes[167]=2;
   return bytes; // RLE payload intentionally unvalidated: a prefix is not an accepted map.
 }
 
@@ -175,8 +175,8 @@ function safeDoc(id,timeOrigin,execution,resume){
       userAgent:'synthetic-offline',viewport:{width:1280,height:720,devicePixelRatio:1},topLevel:true,navigationType:'reload'},
       capturedAt:clocks(1000),events:[{kind:'pointerup',trusted:true,...clocks(200)}],overflow:false,stopped:false},
     wire:{schema:'unity-browser-reload-wire/1',documentId:id,records:[row('game-socket-created',201),
-      row('hello-send-returned',205,{protocol:16,resumePresent:resume,wholeFrameValidated:false}),
-      row('welcome-public-prefix',300,{protocol:16,contentHash:CONTENT,matchId:match,playerId:7,wholeFrameValidated:false})],overflow:false}};
+      row('hello-send-returned',205,{protocol:17,resumePresent:resume,wholeFrameValidated:false}),
+      row('welcome-public-prefix',300,{protocol:17,contentHash:CONTENT,matchId:match,playerId:7,wholeFrameValidated:false})],overflow:false}};
 }
 function syntheticCase(){
   const before=safeDoc('synthetic-before',1000000,'exec-1',false),after=safeDoc('synthetic-after',1002000,'exec-2',true);
@@ -234,8 +234,8 @@ test('A resumed mode label before Welcome cannot be reused as accepted gameplay 
   assert.equal(evaluate(b).status,'FAIL');
 });
 
-test('Real protocol 16 golden Hello and Welcome frames parse with the same metadata parsers',()=>{
-  const vectors=JSON.parse(readFileSync(new URL('../../protocol/fixtures/v16.json',import.meta.url),'utf8'));
+test('Real protocol 17 golden Hello and Welcome frames parse with the same metadata parsers',()=>{
+  const vectors=JSON.parse(readFileSync(new URL('../../protocol/fixtures/v17.json',import.meta.url),'utf8'));
   const bytes=hex=>Uint8Array.from(hex.match(/../g),b=>Number.parseInt(b,16));
   const server=vectors.server.filter(v=>v.name==='welcome'||v.name.startsWith('welcome_ground_'));
   assert(server.length>=6);
