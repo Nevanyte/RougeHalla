@@ -153,6 +153,25 @@ namespace Roguehalla.Net.Ui
             return "Coliseum " + (secs / 60) + ":" + (secs % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// The top-centre phase strip for <paramref name="phase"/>: hud.ts statusLine (lobby, planning) and the arena line (active).
+        /// STUB (P-UNITY-TIMER-1 oracle): returns today's MatchHud.Features.cs:171 text ("FORMING MATCH", "PLANNING",
+        /// "RAID · mm:ss" counting up, then the arena line) so the oracle compiles; the packet replaces the body.
+        /// </summary>
+        public static string PhaseLine(MatchPhase phase, double serverMs, ArenaView? arena, int playerCount, int minPlayers, out ArenaLineTone tone)
+        {
+            tone = ArenaLineTone.Normal;
+            if (phase == MatchPhase.Planning) return "PLANNING";
+            if (phase != MatchPhase.Active) return "FORMING MATCH";
+            double elapsed = arena.HasValue ? Math.Max(0, (serverMs - arena.Value.RaidStartedAt) / 1000) : 0;
+            string text = "RAID · " + ((int)elapsed / 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture) + ":" + ((int)elapsed % 60).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+            if (!arena.HasValue) return text;
+            var line = ArenaLine(serverMs, arena.Value.SuddenDeathAt, arena.Value.GatesLocked, arena.Value.PatienceEndsAt, out var lineTone);
+            if (line == null) return text;
+            tone = lineTone;
+            return text + " · " + line;
+        }
+
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>
         public static char QuestMark(bool accepted) { return accepted ? '?' : '!'; }
     }
