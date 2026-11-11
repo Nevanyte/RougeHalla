@@ -29,8 +29,9 @@ alpha, with the numbers in one place.
   pillar; used only for spacing in the static `Scatter`) and `Prop.Tall` (`:19`, set from `art.Tall` at `:119`, from the
   `tall` argument of `Add` in `RegionPropArt.cs:133-134`, `RegionPropArt.Temple.cs`). The sets differ (art-tall props such as
   tombs and gargoyles are not in the suffix list).
-- `NoteActor` has no caller in `Assets/Scripts` outside `RegionProps.cs` as found by grep; the implementer must find the
-  actor-draw call site and feed only drawn, visible actors (C-OBS).
+- Callers: `ArenaView.cs:270, :288, :441` call `_regionProps.NoteActor(WorldPoint(...))` per drawn actor (`:441` is a third
+  loop; check whether it can include actors the client cannot see, C-OBS). `ArenaView.cs` is NOT in the write scope: the
+  `NoteActor(Vector3)` signature must stay, or the scope must be extended by the coordinator.
 
 ### Proposed rule and constants (a proposal for the owner to tune)
 `PropFade.TargetAlpha(footX, footY, halfW, height, footDepth, xs, ys, count)` returns 1 or `PropFade.FadedAlpha`. Fades
