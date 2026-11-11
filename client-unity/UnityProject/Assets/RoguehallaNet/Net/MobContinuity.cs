@@ -24,6 +24,11 @@ namespace Roguehalla.Net
         public int Handle;
         public MobLook Look;
         public float X, Y, SeenAt;
+        /// <summary>The body lay dead when last delivered; <see cref="DiedAt"/> is when its death clip started (presenter clock).</summary>
+        public bool Dead;
+        public float DiedAt;
+        /// <summary>Set by <see cref="MobContinuity.Adopt"/> once a successor took the body over; a claimed candidate is not offered again.</summary>
+        public bool Claimed;
     }
 
     /// <summary>
@@ -52,6 +57,19 @@ namespace Roguehalla.Net
                 if (d2 <= bestD) { bestD = d2; best = i; }
             }
             return best;
+        }
+
+        /// <summary>
+        /// Pick plus ownership, for living creatures and dead bodies alike (P-UNITY-MOB-DEATH-1). Returns the index of the candidate the
+        /// sighting continues (and sets its <see cref="MobCandidate.Claimed"/>), or -1. A dead sighting may continue a living or a dead
+        /// candidate; a living sighting never continues a dead one. <paramref name="diedAt"/> is the death start the art must keep: the
+        /// candidate's own when it was already dead, otherwise <paramref name="now"/> (also when nothing is adopted).
+        /// </summary>
+        public static int Adopt(MobCandidate[] pool, int count, in MobLook look, bool dead, float x, float y, float now, out float diedAt)
+        {
+            // STUB: today's behaviour (no dead bodies are parked, nothing is claimed). The implementer replaces this.
+            diedAt = now;
+            return Pick(pool, count, look, x, y, now);
         }
 
         /// <summary>Counts creature art bindings for diagnostics: a create is a binding to fresh art, a continue reuses departed art.</summary>

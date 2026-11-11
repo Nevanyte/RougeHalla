@@ -108,6 +108,10 @@ namespace Roguehalla.Client
         /// <summary>Raised with the tile of a newly shown remote actor (diagnostics).</summary>
         public System.Action<float, float> OnArrived;
         public int GhostCount { get { return _ghosts.Count; } }
+        /// <summary>Test seam: the clock time (Time.unscaledTime) the actor's death clip started, false when it is not shown dead.</summary>
+        public bool TryDeathStart(uint id, out float at) { at = 0f; if (!_active.TryGetValue(id, out var a) || !a.Dead) return false; at = a.DeadAt; return true; }
+        /// <summary>Test seam: the opacity last applied to the actor's art (1 = fully visible), false when the id has no art.</summary>
+        public bool TryOpacity(uint id, out float opacity) { opacity = 0f; if (!_active.TryGetValue(id, out var a)) return false; opacity = a.Fade.Opacity; return true; }
 
         /// <summary>A Death event named this actor: it died, it did not walk out of sight. Cancels a fade already under way.</summary>
         public void NoteDeath(uint id)

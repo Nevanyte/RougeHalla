@@ -57,6 +57,16 @@ namespace Roguehalla.Net
             return from + (1f - from) * k;
         }
 
+        /// <summary>
+        /// Opacity an actor first shown with this status starts its entrance from: 0 for a living one, 1 for one that is already dead
+        /// or missing in action (a body is not an arrival, it must not fade in).
+        /// </summary>
+        public static float EnterStartAlpha(ActorStatus status)
+        {
+            // STUB: today every arrival starts at 0. The implementer replaces this.
+            return 0f;
+        }
+
         /// <summary>The elapsed time at which an exit that began at opacity <paramref name="alpha"/> would be at that opacity: lets a re-entry continue smoothly.</summary>
         public static float EnterElapsedFor(float alpha)
         {

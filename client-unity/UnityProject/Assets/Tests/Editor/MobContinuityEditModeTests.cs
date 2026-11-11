@@ -82,12 +82,56 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
-        public void A_dead_creature_keeps_the_plain_release_and_is_never_ghosted()
+        public void A_dead_creature_is_carried_over_and_its_clip_is_not_restarted()
+        {
+            Show(1, 640, 640, ActorStatus.Dead);
+            Assert.IsTrue(_presenter.TryDeathStart(1, out float started));
+            _now += .05f;
+            Deliver(2);                                   // the server renewed the handle: id 1 is gone, id 2 appears
+            Assert.AreEqual(1, _presenter.GhostCount, "the body is parked for a successor, not released");
+            Show(2, 642, 640, ActorStatus.Dead);
+            Assert.IsTrue(_presenter.Contains(2)); Assert.IsFalse(_presenter.Contains(1));
+            Assert.AreEqual(0, _presenter.GhostCount);
+            Assert.AreEqual(1, SpriteActorPresenter.MobArt.Created, "no second create");
+            Assert.AreEqual(1, SpriteActorPresenter.MobArt.Continued);
+            Assert.AreEqual(0, SpriteActorPresenter.MobArt.Destroyed);
+            Assert.IsTrue(_presenter.TryDeathStart(2, out float carried));
+            Assert.AreEqual(started, carried, 1e-6f, "the death clip keeps its start");
+            Assert.IsTrue(_presenter.TryOpacity(2, out float opacity));
+            Assert.AreEqual(1f, opacity, 1e-3f, "a carried body does not fade in again");
+        }
+
+        [Test]
+        public void A_creature_first_seen_already_dead_is_shown_at_full_opacity()
+        {
+            Show(5, 640, 640, ActorStatus.Dead);
+            Assert.IsTrue(_presenter.TryOpacity(5, out float opacity));
+            Assert.AreEqual(1f, opacity, 1e-3f);
+            Show(6, 900, 640);
+            Assert.IsTrue(_presenter.TryOpacity(6, out float living));
+            Assert.Less(living, .5f, "a living arrival still fades in");
+        }
+
+        [Test]
+        public void Two_dead_creatures_side_by_side_are_each_carried_over_once()
+        {
+            Show(1, 640, 640, ActorStatus.Dead); Show(2, 670, 640, ActorStatus.Dead);
+            Deliver(3, 4);
+            Assert.AreEqual(2, _presenter.GhostCount);
+            Show(4, 671, 640, ActorStatus.Dead); Show(3, 641, 640, ActorStatus.Dead);
+            Assert.AreEqual(2, SpriteActorPresenter.MobArt.Created); Assert.AreEqual(2, SpriteActorPresenter.MobArt.Continued);
+            Assert.AreEqual(0, SpriteActorPresenter.MobArt.Destroyed); Assert.AreEqual(0, _presenter.GhostCount);
+        }
+
+        [Test]
+        public void A_dead_creature_nobody_continues_is_released_after_the_parking_time()
         {
             Show(1, 640, 640, ActorStatus.Dead);
             Deliver(99);
-            Assert.AreEqual(0, _presenter.GhostCount);
+            Assert.AreEqual(1, _presenter.GhostCount, "parked while a successor may still appear");
             Assert.IsFalse(_presenter.Contains(1));
+            _now += MobContinuity.StaleSeconds + .05f; _presenter.StepFades();
+            Assert.AreEqual(0, _presenter.GhostCount);
             Assert.AreEqual(1, SpriteActorPresenter.MobArt.Destroyed);
         }
 
