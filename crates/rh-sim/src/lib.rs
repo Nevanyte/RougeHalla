@@ -11,6 +11,7 @@ pub mod abilities;
 mod actor_refs;
 pub mod archetype;
 pub mod arenas;
+pub mod build_summary;
 pub mod checkpoint;
 mod collision;
 pub mod constants;
