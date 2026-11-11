@@ -20,8 +20,36 @@ alpha, with the numbers in one place.
 - none: legacy props are flat decals and wall details (`packages/client/src/render/zoneArt/propsView.ts`); this is a
   Unity presentation rule
 
+### Today's behaviour (verified in `RegionProps.cs`, named facts)
+- `FadedAlpha` = 0.30 and `FadeRate` = 9 alpha/s: `RegionProps.cs:14`; applied in `Tick` (`:154-165`, `MoveTowards`).
+- Fade area: `NoteActor` (`:131-150`) scans cells 0..3 south and +-2 sideways of the actor, then needs prop foot south of
+  the actor (`:142`), `|FootX - x| <= HalfW + 0.35` (`:143`), and actor y within `[FootY, FootY + Height]` (`:144`).
+  `HalfW` is 0.8 x half the art width (`:119`). The old horizontal margin is 0.35 and the footprint never fades.
+- "Tall" is defined twice: the suffix list at `:62-63` (pine, pine2, tree, palm, spire, stump, deadtree, scarecrow, column,
+  pillar; used only for spacing in the static `Scatter`) and `Prop.Tall` (`:19`, set from `art.Tall` at `:119`, from the
+  `tall` argument of `Add` in `RegionPropArt.cs:133-134`, `RegionPropArt.Temple.cs`). The sets differ (art-tall props such as
+  tombs and gargoyles are not in the suffix list).
+- `NoteActor` has no caller in `Assets/Scripts` outside `RegionProps.cs` as found by grep; the implementer must find the
+  actor-draw call site and feed only drawn, visible actors (C-OBS).
+
+### Proposed rule and constants (a proposal for the owner to tune)
+`PropFade.TargetAlpha(footX, footY, halfW, height, footDepth, xs, ys, count)` returns 1 or `PropFade.FadedAlpha`. Fades
+when any of the first `count` (visible) actors is behind the upper body (`ys > footY`, `ys <= footY + height`, within
+`halfW + HorizontalMargin`) or inside the footprint (within `halfW + HorizontalMargin`, `footY - footDepth <= ys <= footY`).
+Constants, all in `PropFade`: `FadedAlpha` 0.18 (today 0.30), `HorizontalMargin` 0.5 (half a tile; today 0.35),
+`FadeRate` 9 (unchanged; `RegionProps.FadedAlpha`/`FadeRate` are removed). `footDepth` is a per-prop input (suggest 0.5).
+
+### Scatter must not change
+The spacing rule must keep treating exactly the same props as tall. `Scatter` is static and reads no art, so one definition
+means deriving the flag for spacing from the same source for the same set (e.g. a shared name set exposed beside the art
+flags), or recording a changed result as intended. Existing pin: `PropScatterOnTheCanonicalSeedMapIsStableAndSkipsTheColiseum`
+and `PropScatterIsDeterministicAndRespectsTilesRegionsAndClearance` in
+`client-unity/UnityProject/Assets/Tests/Editor/RegionThemeEditModeTests.cs` (lines 158, 182). Caveat: they compare two runs
+and bounds (count, frost > 100), not a pinned hash; the implementer must additionally compare Scatter output before and after
+(count and per-placement art/tile) and report it. Not part of the gate (Unity).
+
 ## 4. New paths
-- `client-unity/RoguehallaNet/Net/Ui/PropFade.cs` (pure rule: prop rectangle, actor positions, result alpha) and its test
+- `client-unity/RoguehallaNet/Net/Ui/PropFade.cs` (stub committed with today's rule: behind only, 0.30; pure rule: prop rectangle, actor positions, result alpha) and its test
 
 ## 5. Exclusive write scope
 - `client-unity/RoguehallaNet/Net/Ui/PropFade.cs` and its synced copy
@@ -49,7 +77,7 @@ alpha, with the numbers in one place.
 
 ## Oracle files (read-only for implementers)
 - `client-unity/RoguehallaNet.Tests/PropFadeTests.cs` (new)
-- `client-unity/UnityProject/Assets/Tests/Editor/RegionThemeEditModeTests.cs` (scatter-unchanged case)
+- `client-unity/UnityProject/Assets/Tests/Editor/RegionThemeEditModeTests.cs` (existing scatter tests, read-only; no hash pin exists, see above)
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`
