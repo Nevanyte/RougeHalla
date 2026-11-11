@@ -17,6 +17,24 @@ namespace Roguehalla.Client
         /// <summary>Veil colour the minimap and Tab map tint with (the world shader owns the world look).</summary>
         public static readonly Color32 UiTint = new Color32(18, 24, 38, 255);
 
+        /// <summary>
+        /// How strongly unseen ground is dimmed: the world fog quad keeps (1 - Dim) of what is under it where the fog is full, plus a small cool lift (Lift, of the veil colour
+        /// scaled by the amount). Owner direction (2026-11): unseen ground about a third of its lit luminance in every zone (was Dim .62 and Lift .40: about .45 in bright zones and
+        /// .7 in dark ones, so the boundary was hard to see). Never turned off by a quality row. The minimap and Tab map use their own shader and are unchanged.
+        /// </summary>
+        public const float Dim = .70f, Lift = .08f;
+        /// <summary>Colour grade of unseen ground, applied by the region shaders (RhSun.hlsl RhFogGrade): desaturation at full fog (0 keeps the colour, 1 is grey) and the cool tint of the grey.</summary>
+        public const float Desaturation = .85f;
+        public static readonly Vector3 CoolTint = new Vector3(.90f, .98f, 1.12f);
+        /// <summary>Luminance the unseen ground keeps for a lit luminance (linear): the quad's multiplier plus its lift.</summary>
+        public static float UnseenLuminance(float lit) { return lit * (1f - Dim) + Lift * (.2126f * .09f + .7152f * .12f + .0722f * .19f); }
+        static readonly int GradeId = Shader.PropertyToID("_RhFogGrade"), FogTexId = Shader.PropertyToID("_RhFogTex");
+        static void PushGrade(bool on)
+        {
+            float l = .2126f * CoolTint.x + .7152f * CoolTint.y + .0722f * CoolTint.z;
+            Shader.SetGlobalVector(GradeId, on ? new Vector4(Desaturation, CoolTint.x / l, CoolTint.y / l, CoolTint.z / l) : Vector4.zero);
+        }
+
         static Material _uiMaterial;
         /// <summary>Material for the minimap and Tab map overlay (see RhVisionFogUi.shader); null when the shader is missing (the overlay then tints plainly).</summary>
         public static Material UiMaterial
@@ -139,7 +157,8 @@ namespace Roguehalla.Client
             _renderer.receiveShadows = false;
             _renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             _renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
-            if (_material != null) _material.SetTexture("_FogTex", _tex);
+            if (_material != null) { _material.SetTexture("_FogTex", _tex); _material.SetFloat("_Dim", Dim); _material.SetFloat("_Lift", Lift); }
+            Shader.SetGlobalTexture(FogTexId, _tex);
             _renderer.enabled = false;
             ApplyQuality();
             ClearTexture();
@@ -176,11 +195,11 @@ namespace Roguehalla.Client
             if (_field == null) return;
             if (!visionOn)
             {
-                if (_active) { _active = false; _renderer.enabled = false; _field.Reset(); _mask.RebuildAll(_field); _field.TakeDirty(out _, out _, out _, out _); ClearTexture(); }
+                if (_active) { _active = false; PushGrade(false); _renderer.enabled = false; _field.Reset(); _mask.RebuildAll(_field); _field.TakeDirty(out _, out _, out _, out _); ClearTexture(); }
                 return;
             }
             bool wasActive = _active;
-            _active = true;
+            _active = true; PushGrade(true);
             _field.Update(ox, oy, serverMs);
             _meX = (float)(ox / _rule.Tile); _meY = (float)(oy / _rule.Tile);
             if (DebugRadiusTiles > 0f) { float nx = (float)(ox / _rule.Tile), ny = (float)(oy / _rule.Tile); if (Mathf.Abs(nx - _debugX) > .25f || Mathf.Abs(ny - _debugY) > .25f) { _debugX = nx; _debugY = ny; _textureDirty = true; } }
@@ -284,7 +303,7 @@ namespace Roguehalla.Client
 
         void Dispose(bool final)
         {
-            if (Current == this) Current = null;
+            if (Current == this) { Current = null; PushGrade(false); }
             Kill(_root); Kill(_material); Kill(_tex); Kill(_mesh);
             _root = null; _material = null; _tex = null; _mesh = null; _field = null; _mask = null; _rule = null; _mapKey = -1;
             if (final) _active = false;

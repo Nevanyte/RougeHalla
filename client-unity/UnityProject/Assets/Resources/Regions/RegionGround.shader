@@ -725,6 +725,7 @@ Shader "Roguehalla/RegionGround"
                     lit.rgb += albedo * _Exposure * dif * hr + spc * saturate(hr + 0.05);
                 }
                 lit.a = 1;
+                lit.rgb = RhFogGrade(i.world, lit.rgb);
                 return lit;
             }
             ENDHLSL

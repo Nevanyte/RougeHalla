@@ -9,8 +9,8 @@ Shader "Roguehalla/VisionFog"
         _MainTex("Unused (the sprite pipeline wants one)", 2D) = "white" {}
         _FogTex("Fog (alpha = amount)", 2D) = "black" {}
         _Veil("Veil colour (rgb)", Color) = (0.09, 0.12, 0.19, 1)
-        _Dim("Dim (0..1)", Range(0, 1)) = 0.62
-        _Lift("Lift toward the veil colour (0..1)", Range(0, 1)) = 0.40
+        _Dim("Dim (0..1)", Range(0, 1)) = 0.70
+        _Lift("Lift toward the veil colour (0..1)", Range(0, 1)) = 0.08
     }
     SubShader
     {

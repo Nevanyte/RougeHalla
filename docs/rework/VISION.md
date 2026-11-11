@@ -55,6 +55,28 @@ One quad, one `Texture2D` (160 x 160 RGBA32, bilinear). The reach is recomputed 
 one 25,600-pixel upload (about 100 KB). No per-frame allocations. Low quality blurs once instead of twice; no preset switches the fog off.
 There is no animation (nothing to reduce for reduced motion). Minimap and Tab map reuse the same texture through a UI shader.
 
+## Fog strength and look (owner direction 2026-11: "fog of war needs to be substantially darker")
+
+Unseen ground (remembered terrain outside current vision) is now unmistakable in every zone. Two layers, both in `VisionFog` / the region shaders, both always on (no quality row turns
+them off; Low only blurs the edge once instead of twice):
+
+* **Darkening** (the fog quad, `Resources/Shaders/RhVisionFog.shader`): `result = veil * (amount * Lift) + scene * (1 - amount * Dim)`. `VisionFog.Dim` is **.70** (was .62) and
+  `VisionFog.Lift` **.08** (was .40). The old lift added a flat bluish grey that dominated dark ground (a Sentenced tile at 0.05 linear luminance went to 0.04, ratio about 0.8); now
+  unseen ground keeps `1 - Dim` = 0.30 of what is under it plus a 0.01 cool lift, whatever the zone. Everything under the quad is dimmed with the ground: local lights, lantern pools, lava glow,
+  fireflies, cloud shadows, light shafts, dust and every effect sprite sort below it (particles 1500 / 29980, quad 31000), so nothing outside vision shines at full strength.
+* **Grey and cool** (`RhFogGrade` in `RhSun.hlsl`, called last by the ground, wall and prop shaders): where the fog mask is up, the lit colour is mixed toward its own luminance times a cool
+  tint (`VisionFog.Desaturation` .85, tint .90 / .98 / 1.12). A fixed-function blend cannot desaturate (it cannot mix channels), so the grade reads the same fog texture
+  (`_RhFogTex`, uv as the ground) and is pushed with `_RhFogGrade` only while a fog is active (zero otherwise: lab scenes, dead viewer, no fog). Luminance is untouched by the grade; the
+  quad does the darkening. Actors are not graded (they are cleared around themselves), so a fighter fading out at the edge still fades into the dark grey fog as before.
+* The edge keeps the 2-pass tile blur (one pass on Low): soft but a few tiles, no staircase. Clearings around delivered actors, the fail-safe and the minimap / Tab map (their own shader and
+  `UiTint`) are unchanged. `VisionPresentationEditModeTests.Unseen_ground_keeps_about_a_third_of_its_luminance...` pins Dim, Lift, the desaturation and the cool tint.
+
+Measured (real WebGL build, 1920x1080, High; the diagnostic ring `?vision.debugRadius=7` fogs everything past 7 tiles, a ring of open ground 10 to 12 tiles from the hero is compared
+with the same pixels of a frame taken at the same spawn with the ring pushed out of view, `docs/rework/evidence/polish/README.md`): unseen / lit linear luminance
+Sentenced 0.42 to 0.85 before (the high end is a flat dark tile) and 0.29 to 0.34 after; Plague 0.56 to 0.62 before, 0.32 to 0.39 after; chroma kept 0.8 to 0.9 before, 0.4 to 0.6 after.
+The ratio of the sRGB values the eye sees is about 0.52 to 0.66 after (a third in linear light). Frames behind walls and around fighters are already fogged or cleared in both frames, which is
+why only open-ground windows are quoted.
+
 ## Not reconstructed (fails safe)
 
 Wards, the Sentenced hunt target, locked coliseum gates (extra wall tiles not on the wire), the first 30 s after joining mid-match (the earlier
