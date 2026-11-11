@@ -6,7 +6,7 @@ namespace Roguehalla.Net.Ui
     public enum OverheadActorKind : byte { Player, Mob, Elite, Dummy }
 
     /// <summary>
-    /// What an overhead element is. The legacy stack (PlayerView.ts / MobView.ts / MarkPlate.ts).
+    /// What an overhead element is: exactly the legacy stack (PlayerView.ts / MobView.ts / MarkPlate.ts); nothing else can be emitted.
     /// </summary>
     public enum OverheadKind : byte
     {
@@ -49,6 +49,14 @@ namespace Roguehalla.Net.Ui
         public const float UnitsPerPx = .026f;
         public static float ToUnits(float px) { return px * UnitsPerPx; }
 
+        // Bounty numbers are formatted once per value and reused, so a crowned actor allocates nothing per Build.
+        static readonly string[] BountyTexts = new string[1024];
+        static string BountyText(int bounty)
+        {
+            if (bounty < 0 || bounty >= BountyTexts.Length) return bounty.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return BountyTexts[bounty] ?? (BountyTexts[bounty] = bounty.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         static float Half(float x) { return (float)Math.Floor(x * 2f + .5f) / 2f; }   // JS Math.round to half a pixel (hpView.ts:20)
 
         /// <summary>Clears <paramref name="into"/> and fills it bottom to top, as PlayerView/MobView/MarkPlate draw the stack. Dead actors draw nothing.</summary>
@@ -89,7 +97,7 @@ namespace Roguehalla.Net.Ui
             {
                 float s = 1f + .5f * Math.Min(1f, f.Bounty / 150f);
                 into.Add(new OverheadElement { Kind = OverheadKind.BountyCrown, X = 0, Y = 60.2f, W = 22f * s, H = 13f * s });
-                into.Add(new OverheadElement { Kind = OverheadKind.BountyNumber, X = 0, Y = 60.2f + 13f * s + 1f, W = 20f, H = 11f, Text = f.Bounty.ToString(System.Globalization.CultureInfo.InvariantCulture), Tone = OverheadTone.Gold });
+                into.Add(new OverheadElement { Kind = OverheadKind.BountyNumber, X = 0, Y = 60.2f + 13f * s + 1f, W = 20f, H = 11f, Text = BountyText(f.Bounty), Tone = OverheadTone.Gold });
                 rowCentre = 60.2f + 13f * s + 14f;
             }
             if (f.HasSecondary) into.Add(new OverheadElement { Kind = OverheadKind.SecondaryWeapon, X = -18f, Y = rowCentre - 9f, W = 18f, H = 18f, Variant = f.Secondary });
