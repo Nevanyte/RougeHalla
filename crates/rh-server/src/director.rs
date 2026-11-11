@@ -116,6 +116,38 @@ impl RoomEntry {
     }
 }
 
+/// One player of a room as the public lobby endpoint may show it (`lobby.rs`): a display name and the bot flag, nothing else.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LobbyPlayerView {
+    pub name: String,
+    pub bot: bool,
+}
+
+/// One room as the public lobby endpoint may show it. No match id, session, address or position.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LobbyRoomView {
+    pub phase: Phase,
+    /// Unix epoch milliseconds the raid started (the room first reported `Active`); None before.
+    pub started_at_ms: Option<u64>,
+    /// The room's human minimum (its sim's `min_players`) and the count bots top the lobby up to (0: no fill).
+    pub human_min: usize,
+    pub fill_target: usize,
+    pub players: Vec<LobbyPlayerView>,
+}
+
+/// A read-only copy of what the public lobby endpoint shows, taken under the director's lock and released at once.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LobbyView {
+    /// Public (non-training) rooms, in a stable order.
+    pub rooms: Vec<LobbyRoomView>,
+    /// Lower-cased callsigns seated in any room (training included): they are not "waiting".
+    pub occupied: Vec<String>,
+    pub room_count: usize,
+    pub room_limit: usize,
+    /// A lobby has a free seat, or another room may open.
+    pub joinable: bool,
+}
+
 /// The lobby the next admission joins: among lobbies with a free seat (counting reservations), the fullest, so matches fill
 /// before another opens; ties go to the lowest id. Deterministic (no HashMap order).
 fn open_lobby(rooms: &HashMap<MatchId, RoomEntry>, capacity: usize) -> Option<MatchId> {
@@ -1326,6 +1358,11 @@ impl Director {
             "resultsRefused": inner.results_refused,
             "closedRooms": inner.closed.iter().rev().take(8).collect::<Vec<_>>(),
         })
+    }
+
+    /// The public lobby endpoint's copy of the rooms (P-LOBBY-ACTIVITY-1). STUB.
+    pub fn lobby_view(&self) -> LobbyView {
+        LobbyView::default()
     }
 
     // ---- the control API (docs/hosting/CONTROL_API.md); the HTTP layer is `control_http` in lib.rs ----

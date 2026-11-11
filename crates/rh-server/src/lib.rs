@@ -8,6 +8,7 @@ pub mod conn;
 pub mod control;
 pub mod director;
 pub mod hosting;
+pub mod lobby;
 pub mod metrics;
 pub mod outbox;
 pub mod pacer;
@@ -52,6 +53,17 @@ pub fn public_router(director: Arc<Director>) -> Router {
 /// with [`serve`], which provides the peer address the per-address caps are keyed by.
 pub fn public_router_with_api(director: Arc<Director>, api: api::AccountApi) -> Router {
     public_router(director.clone()).merge(api::router(director, api))
+}
+
+/// [`public_router_with_api`] with the lobby activity endpoint's settings. STUB.
+pub fn public_router_with_lobby(
+    director: Arc<Director>,
+    api: api::AccountApi,
+    lobby: lobby::LobbyConfig,
+) -> Router {
+    public_router(director.clone())
+        .merge(lobby::router(director.clone(), lobby))
+        .merge(api::router(director, api))
 }
 
 /// The local control listener for the hosting bridge (bind it to 127.0.0.1 only; main.rs asserts it). Control routes live
