@@ -292,6 +292,7 @@ namespace Roguehalla.Client
             TickHubAtrium();
             PerfMarks.End(PerfMarks.Sec.HudAccount, pm); pm = PerfMarks.Begin();
             TickMetrics();
+            TickLobbyRoster();
             TickPlayerFlows();
             if (TrainingHigherPanelVisible) UnbindTrainingSession();
             _trainingConsole?.Refresh();
@@ -307,6 +308,37 @@ namespace Roguehalla.Client
             PerfMarks.End(PerfMarks.Sec.HudDrawer, pm);
         }
         float _nextHiddenAccountRefresh;
+
+        // In the lobby phase: the seated players in seat order (bots tagged) under a "Players n" count. The room's own minimum is not on
+        // the wire, so no "n/m" is shown in a match (the hub poll's numbers are never used here). Names are plain text.
+        TMP_Text _lobbyRoster;
+        object _lobbyRosterSource; bool _lobbyRosterOn;
+        void TickLobbyRoster()
+        {
+            bool on = _session != null && _session.State == SessionState.InMatch && _hud != null && _hud.gameObject.activeSelf &&
+                _session.Collections.Plan == null && (_session.Phase ?? MatchPhase.Lobby) == MatchPhase.Lobby &&
+                !(_client != null && _client.LaunchPending) && _session.Collections.Roster.Count > 0;
+            if (!on)
+            {
+                if (_lobbyRosterOn && _lobbyRoster != null) { _lobbyRoster.gameObject.SetActive(false); _lobbyRosterSource = null; }
+                _lobbyRosterOn = false;
+                return;
+            }
+            var roster = _session.Collections.Roster;
+            if (_lobbyRosterOn && ReferenceEquals(_lobbyRosterSource, roster)) return;
+            if (_lobbyRoster == null)
+                _lobbyRoster = MythicUi.Text(_hud, "LobbyRoster", "", new Vector2(.02f, .50f), new Vector2(.27f, .78f), 15, ShowcasePalette.Text, TextAlignmentOptions.TopLeft);
+            _lobbyRoster.gameObject.SetActive(true);
+            _lobbyRosterOn = true; _lobbyRosterSource = roster;
+            _lobbyRoster.text = ComposeLobbyRoster(roster);
+        }
+
+        public static string ComposeLobbyRoster(System.Collections.Generic.IReadOnlyList<RosterEntry> roster)
+        {
+            var sb = new System.Text.StringBuilder("Players " + roster.Count);
+            foreach (string line in Roguehalla.Net.Ui.LobbyActivity.RosterLines(roster)) sb.Append('\n').Append(line);
+            return sb.ToString();
+        }
         void RefreshWorldHudVisibility()
         {
             bool visible = WorldHudVisible;
