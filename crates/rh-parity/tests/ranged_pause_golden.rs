@@ -262,12 +262,7 @@ fn fx_json(ev: &SeenEvent) -> Option<Value> {
     // Only the owner's own telegraph facts: the ones a client acts on for ITS pause. The wait is the wire's whole
     // milliseconds (rh-policy `project`: round, clamp to u16).
     match *ev {
-        SeenEvent::Windup {
-            by,
-            weapon,
-            a,
-            ms,
-        } if by == ME => Some(json!({
+        SeenEvent::Windup { by, weapon, a, ms } if by == ME => Some(json!({
             "kind": "windup",
             "by": by.0,
             "weapon": weapon.code(),
@@ -275,7 +270,9 @@ fn fx_json(ev: &SeenEvent) -> Option<Value> {
             "msExact": ms,
             "ms": ms.clamp(0.0, f64::from(u16::MAX)).round() as u64,
         })),
-        SeenEvent::AttackCancelled { id } if id == ME => Some(json!({ "kind": "cancel", "id": id.0 })),
+        SeenEvent::AttackCancelled { id } if id == ME => {
+            Some(json!({ "kind": "cancel", "id": id.0 }))
+        }
         SeenEvent::Stagger { id } if id == ME => Some(json!({ "kind": "stagger", "id": id.0 })),
         _ => None,
     }
@@ -317,7 +314,10 @@ fn run_case(case: &Case, walks: &Value, paths_map: &rh_sim::TileMap, spawns: &[V
             profile: "foe".into(),
             faction: FactionId::Frost,
             bot: false,
-            at: Vec2::new(at["x"].as_f64().unwrap() + dx, at["y"].as_f64().unwrap() + dy),
+            at: Vec2::new(
+                at["x"].as_f64().unwrap() + dx,
+                at["y"].as_f64().unwrap() + dy,
+            ),
             hp: None,
             weapon0: Some(WeaponId::Sword),
             weapon1: None,
@@ -416,7 +416,8 @@ fn run_case(case: &Case, walks: &Value, paths_map: &rh_sim::TileMap, spawns: &[V
                 Cmd::Release => (RawCommand::Release { a: 0.0, t: None }, "release"),
                 Cmd::Swap => (RawCommand::Swap { slot: None }, "swap"),
             };
-            sim.submit(ME, validate(raw).unwrap()).expect("scripted command accepted");
+            sim.submit(ME, validate(raw).unwrap())
+                .expect("scripted command accepted");
             commands.push(json!({ "afterRow": at, "kind": name }));
         }
         if let Some((frow, _, _)) = case.foe {
@@ -524,37 +525,68 @@ fn ranged_pause_v2_exercises_the_rule() {
     // A wand cast: announced, then paused for exactly the ticks before it lands.
     let wand = find("wand-single-shot");
     assert_eq!(windups(wand), 1, "one cast, one windup fx");
-    assert!(paused(wand) >= 3, "the cast pauses the walk for whole ticks");
+    assert!(
+        paused(wand) >= 3,
+        "the cast pauses the walk for whole ticks"
+    );
     // The owner is told the wait at the cast's own tick, and landsAt = t + ms.
     let r = rows(wand);
-    let w = r.iter().find(|r| !r["fx"].as_array().unwrap().is_empty()).unwrap();
+    let w = r
+        .iter()
+        .find(|r| !r["fx"].as_array().unwrap().is_empty())
+        .unwrap();
     let lands = w["truthLandsAt"].as_f64().unwrap();
     let said = w["t"].as_f64().unwrap() + w["fx"][0]["ms"].as_f64().unwrap();
-    assert!((lands - said).abs() <= 0.5, "windup ms places the landing within the wire's rounding: {lands} vs {said}");
-    assert!(windups(find("wand-held")) >= 3, "three cycles announce three windups");
+    assert!(
+        (lands - said).abs() <= 0.5,
+        "windup ms places the landing within the wire's rounding: {lands} vs {said}"
+    );
+    assert!(
+        windups(find("wand-held")) >= 3,
+        "three cycles announce three windups"
+    );
     // A rejected press is silent and never pauses.
-    assert_eq!(windups(find("wand-rejected-cooldown")), 1, "only the first cast is announced");
+    assert_eq!(
+        windups(find("wand-rejected-cooldown")),
+        1,
+        "only the first cast is announced"
+    );
     // A stagger is delivered and cancels the cast.
     let st = find("wand-staggered");
     assert!(
-        rows(st).iter().any(|r| r["fx"].as_array().unwrap().iter().any(|f| f["kind"] == "stagger")),
+        rows(st).iter().any(|r| r["fx"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["kind"] == "stagger")),
         "the sword hit staggers the wand fighter"
     );
     // A sword hit staggers a drawing bow fighter (the stagger clock runs) but cancels nothing and delivers no stagger fx.
     let bs = find("bow-staggered-mid-draw");
     assert!(
-        rows(bs).iter().any(|r| r["truthStaggerImmuneUntil"].as_f64().unwrap() > 0.0),
+        rows(bs)
+            .iter()
+            .any(|r| r["truthStaggerImmuneUntil"].as_f64().unwrap() > 0.0),
         "the sword hit landed"
     );
     assert!(
-        rows(bs).iter().all(|r| r["fx"].as_array().unwrap().is_empty()),
+        rows(bs)
+            .iter()
+            .all(|r| r["fx"].as_array().unwrap().is_empty()),
         "a stagger of a draw delivers no fx"
     );
-    assert_eq!(paused(bs), paused(find("bow-single-shot")), "the draw's pause is untouched by the stagger");
+    assert_eq!(
+        paused(bs),
+        paused(find("bow-single-shot")),
+        "the draw's pause is untouched by the stagger"
+    );
     // The bow pauses with no windup fx at all.
     let bow = find("bow-single-shot");
     assert_eq!(windups(bow), 0, "a bow draw delivers no windup");
-    assert!(paused(bow) >= 2, "the bow release still pauses the server walk");
+    assert!(
+        paused(bow) >= 2,
+        "the bow release still pauses the server walk"
+    );
     // A player's swing has no wind-up.
     let sword = find("sword-swing");
     assert_eq!(paused(sword), 0, "a player swing never pauses the walk");
@@ -578,17 +610,32 @@ fn ranged_pause_v2_bow_landing_derives_from_the_owner_block() {
             continue;
         }
         for r in c["rows"].as_array().unwrap() {
-            let (Some(o), Some(lands)) = (r["owner"].as_object(), r["truthLandsAt"].as_f64()) else {
+            let (Some(o), Some(lands)) = (r["owner"].as_object(), r["truthLandsAt"].as_f64())
+            else {
                 continue;
             };
             let draw = o["drawStartedAt"].as_f64().unwrap();
             let ready = o["readyAt"].as_f64().unwrap();
-            assert!(draw > 0.0, "{}: a pending draw publishes its start", c["name"]);
+            assert!(
+                draw > 0.0,
+                "{}: a pending draw publishes its start",
+                c["name"]
+            );
             let interval = (ready - draw) / 1000.0;
-            let derived = draw + 1000.0 * BOW_WINDUP_MAX_S.min(BOW_WINDUP_INTERVAL_SHARE * interval);
-            assert_eq!(o["windupMilli"].as_f64().unwrap(), 1000.0, "no windup scaling in these cases");
+            let derived =
+                draw + 1000.0 * BOW_WINDUP_MAX_S.min(BOW_WINDUP_INTERVAL_SHARE * interval);
+            assert_eq!(
+                o["windupMilli"].as_f64().unwrap(),
+                1000.0,
+                "no windup scaling in these cases"
+            );
             worst = worst.max((derived - lands).abs());
-            assert!((derived - lands).abs() <= 1.5, "{} row {}: derived {derived} vs server {lands}", c["name"], r["row"]);
+            assert!(
+                (derived - lands).abs() <= 1.5,
+                "{} row {}: derived {derived} vs server {lands}",
+                c["name"],
+                r["row"]
+            );
             draws += 1;
         }
     }
