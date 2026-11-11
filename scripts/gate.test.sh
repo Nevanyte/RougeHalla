@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks for the gate's own rules (oracle/stub rule, Postgres environment preflight). Runs on a temporary git repository
-# and never builds the workspace: it uses the gate's test hook GATE_STOP_AFTER_CHECKS=1, which makes the gate exit 0
+# and never builds the workspace: it uses the gate's test hook GATE_STOP_AFTER_CHECKS=1, which makes the gate exit 42
 # with the line "GATE STOP (test hook)" right after its path and environment checks.
 #   bash scripts/gate.test.sh
 set -euo pipefail
@@ -45,7 +45,7 @@ try() {
 }
 
 rc=0; out="$(try packet/X src/stub.rs --quick --base main --oracle packet/X)" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "stub-only file may change"; else bad "stub-only file may change (rc=$rc)" "$out"; fi
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "stub-only file may change"; else bad "stub-only file may change (rc=$rc)" "$out"; fi
 
 rc=0; out="$(try packet/X tests/oracle.rs --quick --base main --oracle packet/X)" || rc=$?
 if [[ $rc -ne 0 && "$out" == *"oracle files changed"* && "$out" == *"tests/oracle.rs"* ]]; then ok "oracle-commit file may not change"; else bad "oracle-commit file may not change (rc=$rc)" "$out"; fi
@@ -54,7 +54,7 @@ rc=0; out="$(try packet/X src/mixed.rs --quick --base main --oracle packet/X)" |
 if [[ $rc -ne 0 && "$out" == *"oracle files changed"* && "$out" == *"src/mixed.rs"* ]]; then ok "file touched by a stub and an oracle commit may not change"; else bad "mixed file may not change (rc=$rc)" "$out"; fi
 
 rc=0; out="$(try packet/X src/free.rs --quick --base main --oracle packet/X)" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "file no packet commit touched may change"; else bad "untouched file may change (rc=$rc)" "$out"; fi
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "file no packet commit touched may change"; else bad "untouched file may change (rc=$rc)" "$out"; fi
 
 rc=0; out="$(try packet/Y tests/oracle.rs --quick --base main --oracle packet/Y)" || rc=$?
 if [[ $rc -ne 0 && "$out" == *"oracle files changed"* ]]; then ok "branch with no stub: commit treats every touched file as oracle"; else bad "no-stub branch (rc=$rc)" "$out"; fi
@@ -68,11 +68,32 @@ if [[ $rc -ne 0 && "$out" == *"PGBIN"* && "$out" != *"== rustfmt"* && "$out" != 
 mkdir -p "$TMP/pgbin"
 for t in initdb pg_ctl; do printf '#!/bin/sh\n' >"$TMP/pgbin/$t"; chmod +x "$TMP/pgbin/$t"; done
 rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 DATABASE_URL=postgres://x@127.0.0.1:1/postgres PGBIN="$TMP/pgbin" bash scripts/gate.sh --quick --base main 2>&1)" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "DATABASE_URL with a usable PGBIN passes the preflight"; else bad "usable PGBIN (rc=$rc)" "$out"; fi
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "DATABASE_URL with a usable PGBIN passes the preflight"; else bad "usable PGBIN (rc=$rc)" "$out"; fi
 
 # Without DATABASE_URL the preflight does not apply.
 rc=0; out="$(env -u DATABASE_URL GATE_STOP_AFTER_CHECKS=1 PGBIN=/nonexistent/pg/bin bash scripts/gate.sh --quick --base main 2>&1)" || rc=$?
-if [[ $rc -eq 0 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "no DATABASE_URL: no Postgres preflight"; else bad "no DATABASE_URL (rc=$rc)" "$out"; fi
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "no DATABASE_URL: no Postgres preflight"; else bad "no DATABASE_URL (rc=$rc)" "$out"; fi
+
+# Cluster cleanup: only clusters whose owner file holds this run's id are stopped (stub pg_ctl, no Postgres started);
+# the one DATABASE_URL points at is skipped, and a cluster whose stop fails is left in place and named.
+CT="$TMP/ct"
+mkdir -p "$CT" "$TMP/stubbin"
+printf '#!/bin/sh\necho "$@" >>"%s/pg_ctl.log"\ncase "$*" in *failme*) exit 1 ;; esac\nexit 0\n' "$CT" >"$TMP/stubbin/pg_ctl"
+printf '#!/bin/sh\n' >"$TMP/stubbin/initdb"
+chmod +x "$TMP/stubbin/pg_ctl" "$TMP/stubbin/initdb"
+mkcluster() { # <name> <owner or -> <port>
+  mkdir -p "$CT/rh-pgtest.$1/data"
+  printf '1\n/x\n0\n%s\n' "$3" >"$CT/rh-pgtest.$1/data/postmaster.pid"
+  if [[ "$2" != - ]]; then echo "$2" >"$CT/rh-pgtest.$1/owner"; fi
+}
+mkcluster mine RUN1 5001; mkcluster other RUN2 5002; mkcluster noowner - 5003; mkcluster dburl RUN1 5004; mkcluster failme RUN1 5005
+rc=0; out="$(TMPDIR="$CT" RH_PGTEST_OWNER=RUN1 GATE_STOP_AFTER_CHECKS=1 DATABASE_URL=postgres://x@127.0.0.1:5004/postgres PGBIN="$TMP/stubbin" bash scripts/gate.sh --quick --base main 2>&1)" || rc=$?
+log="$(cat "$CT/pg_ctl.log" 2>/dev/null || true)"
+if [[ $rc -eq 42 && ! -d "$CT/rh-pgtest.mine" && -d "$CT/rh-pgtest.other" && -d "$CT/rh-pgtest.noowner" && -d "$CT/rh-pgtest.dburl" \
+  && -d "$CT/rh-pgtest.failme" && "$log" == *rh-pgtest.mine* && "$log" != *rh-pgtest.other* && "$log" != *rh-pgtest.noowner* \
+  && "$log" != *rh-pgtest.dburl* && "$out" == *"could not stop rh-pgtest cluster"*failme* ]]; then
+  ok "cleanup stops only this run's clusters, skips DATABASE_URL's, keeps a cluster whose stop failed"
+else bad "cluster cleanup (rc=$rc)" "$out"$'\n'"$log"; fi
 
 echo
 echo "$PASSES passed, $FAILS failed"

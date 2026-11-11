@@ -109,13 +109,15 @@ then `oracle: <ID> ...`): a file touched only by `stub:` commits is the implemen
 unchanged, as must all captures and golden vectors. A branch with no `stub:` commit treats every touched file as oracle.
 
 Environment: with `DATABASE_URL` set the gate resolves `PGBIN` (Homebrew's `/opt/homebrew/opt/postgresql@16/bin`, else
-`/usr/lib/postgresql/*/bin`) and exports it, or fails before any build naming `PGBIN`; on exit it stops every
-`rh-pgtest` cluster that appeared during its run, never the one `DATABASE_URL` points at. `tools/pgtest/start.sh` sets a
+`/usr/lib/postgresql/*/bin`) and exports it, or fails before any build naming `PGBIN`; on exit it stops the
+`rh-pgtest` clusters started under this run (the gate exports `RH_PGTEST_OWNER`, which `start.sh` records in the cluster
+directory), never another session's and never the one `DATABASE_URL` points at; a cluster that will not stop is left and
+named. `tools/pgtest/start.sh` sets a
 locale when `LC_ALL` is unset (PostgreSQL 16 on macOS needs one). `editmode.sh` exits 3 when no Unity Editor is installed
 or the project is open; the gate then prints "Unity EditMode (no Editor / project open)" on the result line. Unity tool
 tests that fail on the integration branch are excluded by name in `UNITY_TOOL_TEST_EXCLUDE` in `scripts/gate.sh`.
 A skipped suite is printed on the result line, and a reviewer treats it as unproven. `bash scripts/gate.test.sh` checks
-the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`).
+the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`, which stops the gate after its checks with exit code 42, never 0).
 
 Before the first packet on a new integration branch the coordinator runs the full gate there with Postgres: a red base
 makes every later result meaningless.

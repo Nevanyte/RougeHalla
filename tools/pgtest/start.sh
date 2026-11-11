@@ -56,6 +56,7 @@ run_pg "$PGBIN/pg_ctl" -D "$DIR/data" -l "$DIR/postgres.log" -w \
   start >/dev/null
 
 URL="postgres://postgres@127.0.0.1:$PORT/postgres"
+[ -z "${RH_PGTEST_OWNER:-}" ] || echo "$RH_PGTEST_OWNER" >"$DIR/owner"
 echo "$DIR" >"$STATE_DIR/dir"
 echo "$URL" >"$STATE_DIR/url"
 echo "export DATABASE_URL=$URL"

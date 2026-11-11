@@ -47,23 +47,28 @@ BRANCH="$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
 mkdir -p .agent-runs/gate
 LOG=".agent-runs/gate/$(date +%Y%m%dT%H%M%S)-${BRANCH}-${MODE}.log"
 STEP_LOG="$(mktemp)"
-# rh-pgtest clusters already present when the gate starts are not ours to stop (the one DATABASE_URL points at, or another
-# session's); any other that appears during the run is stopped on exit.
+# Clusters started under this gate (by tools/pgtest/start.sh, here or in a child test) carry this run's owner id in
+# <dir>/owner; on exit the gate stops only those, never another session's and never the one DATABASE_URL points at.
+# (With the test hook, scripts/gate.test.sh may preset the id.)
+if [[ -z "${GATE_STOP_AFTER_CHECKS:-}" || -z "${RH_PGTEST_OWNER:-}" ]]; then RH_PGTEST_OWNER="gate-$$-$(date +%s)"; fi
+export RH_PGTEST_OWNER
 PGT_TMP="${TMPDIR:-/tmp}"; PGT_TMP="${PGT_TMP%/}"
 pgtest_dirs() { { ls -d "$PGT_TMP"/rh-pgtest.* /tmp/rh-pgtest.* 2>/dev/null || true; } | sort -u; }
-PGT_BEFORE="$(pgtest_dirs)"
 cleanup() {
   rm -f "$STEP_LOG"
   local d port bin="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"
   while read -r d; do
-    [[ -n "$d" && -f "$d/data/postmaster.pid" ]] || continue
-    if grep -qxF "$d" <<<"$PGT_BEFORE"; then continue; fi
+    [[ -n "$d" && -f "$d/owner" && -f "$d/data/postmaster.pid" ]] || continue
+    [[ "$(cat "$d/owner" 2>/dev/null || true)" == "$RH_PGTEST_OWNER" ]] || continue
     port="$(sed -n 4p "$d/data/postmaster.pid" 2>/dev/null || true)"
     if [[ -n "$port" && "${DATABASE_URL:-}" == *":$port/"* ]]; then continue; fi
     [[ -x "$bin/pg_ctl" ]] || bin="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
-    "$bin/pg_ctl" -D "$d/data" -m immediate stop >/dev/null 2>&1 || true
-    rm -rf "$d"
-    echo "gate: stopped rh-pgtest cluster started during this run: $d" >&2
+    if "$bin/pg_ctl" -D "$d/data" -m immediate stop >/dev/null 2>&1; then
+      rm -rf "$d"
+      echo "gate: stopped rh-pgtest cluster started under this run: $d" >&2
+    else
+      echo "gate: could not stop rh-pgtest cluster $d (left in place)" >&2
+    fi
   done <<<"$(pgtest_dirs)"
 }
 trap cleanup EXIT
@@ -145,8 +150,9 @@ if [[ -n "${DATABASE_URL:-}" ]]; then
   export PGBIN
   note "PGBIN=$PGBIN"
 fi
-# Test hook for scripts/gate.test.sh (not for normal use): stop after the path and environment checks, before any build.
-if [[ -n "${GATE_STOP_AFTER_CHECKS:-}" ]]; then echo "GATE STOP (test hook)"; exit 0; fi
+# Test hook for scripts/gate.test.sh (not for normal use): stop after the path and environment checks, before any build,
+# with exit 42 (never 0: a gate that built nothing must not look green).
+if [[ -n "${GATE_STOP_AFTER_CHECKS:-}" ]]; then echo "GATE STOP (test hook)"; exit 42; fi
 
 # ---------- what changed --------------------------------------------------------------------------------------------
 CRATES="$(grep -oE '^crates/[^/]+' <<<"$CHANGED" | cut -d/ -f2 | sort -u || true)"
