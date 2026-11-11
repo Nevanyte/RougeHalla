@@ -9,7 +9,7 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static void Origin(float lastX, float lastY, bool drawn, float drawnX, float drawnY, out float x, out float y)
         {
-            // STUB: today's behaviour, the zone stays where the server reported it. Replaced by the implementer.
+            if (drawn && float.IsFinite(drawnX) && float.IsFinite(drawnY)) { x = drawnX; y = drawnY; return; }
             x = lastX; y = lastY;
         }
     }
