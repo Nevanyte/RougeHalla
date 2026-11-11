@@ -122,6 +122,30 @@ pub struct BotFillConfig {
     /// P-BOTS-5), so this setting is this slice's switch: Off suppresses the whole learning subsystem — no store is
     /// started, no snapshot is applied and no run is recorded through it.
     pub stats_file: StatsFile,
+    /// Which lobby timing the room follows (P-LOBBY-TIMING-1). `Legacy` is every rule above, unchanged.
+    pub lobby_timing: LobbyTiming,
+}
+
+/// The lobby timing a fill room follows. New owner direction (2026-11-10), not legacy: see P-LOBBY-TIMING-1.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum LobbyTiming {
+    /// Legacy and the flags exactly as they are today (`--min-players`, `--lobby-seconds`, `--fill-seconds`, and bots
+    /// arriving over `arrival_seconds`).
+    #[default]
+    Legacy,
+    /// "Wait 15 seconds; if by second 13 no match can be found, add bots": measured from the first human's arrival,
+    /// no bot before `bots_at_seconds`, the lobby filled to the fill target at `bots_at_seconds`, the match started at
+    /// `lobby_seconds`, or earlier when the lobby is full of humans.
+    Matchmaking {
+        lobby_seconds: f64,
+        bots_at_seconds: f64,
+    },
+}
+
+impl BotFillConfig {
+    /// Adjusts the sim's lobby knobs for this timing. The director calls it on the room's `SimConfig` before the room
+    /// is built, so the sim's own deadline rule (legacy, unchanged) holds the timing. STUB: changes nothing.
+    pub fn apply_lobby_timing(&self, _sim: &mut rh_sim::SimConfig) {}
 }
 
 /// Source BOT_STATS_FILE: unset (the default profile-adjacent path), `off` (learning off) or an explicit file path. The
@@ -155,6 +179,7 @@ impl Default for BotFillConfig {
             learned: LearnedBias::NO_BIAS,
             seed: None,
             stats_file: StatsFile::Default,
+            lobby_timing: LobbyTiming::Legacy,
         }
     }
 }
@@ -717,6 +742,7 @@ impl BotFillConfig {
                 }
             }),
             stats_file,
+            lobby_timing: default.lobby_timing,
         }
     }
 }
