@@ -365,8 +365,15 @@ pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
     }
     generic_damage += farm_damage;
     let card_cap = crate::stat_fold::default_definition().lifesteal_cap;
-    let leech = card_lifesteal.max(0.).min(card_cap)
-        + (farm_lifesteal + kill.get(KillStatKey::Leech)).max(0.);
+    // Legacy `bonusLeech = cardLeech(...) + killStat(...)` with `cardLeech = max(0, min(0.25, rows)) + max(0, farm)`
+    // (combatReadability.ts:102, :135): `(cards + farm) + kill`, each part clamped on its own (P-LEECH-GROUPING-1).
+    let kill_leech = kill.get(KillStatKey::Leech);
+    let kill_leech = if kill_leech.is_finite() && kill_leech > 0. {
+        kill_leech
+    } else {
+        0.
+    };
+    let leech = (card_lifesteal.max(0.).min(card_cap) + farm_lifesteal.max(0.)) + kill_leech;
     let definition = crate::stat_fold::default_definition();
     let boost_index = |stat: ChestBoostStat| match stat {
         ChestBoostStat::AttackSpeed => crate::reward_chests::BoostId::AttackSpeed.index(),
