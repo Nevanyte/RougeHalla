@@ -15,6 +15,71 @@ const EXTENSION_TAIL_LEN: usize = 5;
 const MAX_CUMULATIVE_RUNS: usize = 3 * MAX_MAP_TILES;
 const MAX_DECODED_PLANES: usize = 3 * MAX_MAP_TILES;
 
+/// Most camp markers a map may carry (legacy: 5 zones x 10 camps).
+pub const MAX_MAP_CAMPS: usize = 64;
+/// Most coliseum gates (legacy: four, one per side).
+pub const MAX_COLISEUM_GATES: usize = 8;
+/// Most tiles in one gate (legacy: GATE_W = 4).
+pub const MAX_GATE_TILES: usize = 16;
+/// Most cosmetic props (reserved section; ships empty).
+pub const MAX_MAP_PROPS: usize = 8192;
+
+/// One camp marker, index-aligned with the `WireCamp` rows in state. World units; `zone` is `Zone::code` (1..=5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapCamp {
+    pub x: u16,
+    pub y: u16,
+    /// Legacy `CampDef.r`: the clearing radius in world units.
+    pub r: u16,
+    pub zone: u8,
+}
+
+/// A tile coordinate inside the map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapTile {
+    pub x: u16,
+    pub y: u16,
+}
+
+/// A coliseum gate: side 0 north, 1 east, 2 south, 3 west; its tiles in legacy order.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapGate {
+    pub side: u8,
+    pub tiles: Vec<MapTile>,
+}
+
+/// The coliseum rectangle in tiles and its gates in legacy order.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapColiseum {
+    pub x: u16,
+    pub y: u16,
+    pub w: u16,
+    pub h: u16,
+    pub gates: Vec<MapGate>,
+}
+
+/// A cosmetic prop (reserved section; ships empty).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapProp {
+    pub kind: u8,
+    pub x: u16,
+    pub y: u16,
+    pub variant: u8,
+    pub flags: u8,
+}
+
+/// Public map dressing that legacy clients generated themselves (protocol 17). Empty lists and `None` encode as absent.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MapPublic {
+    pub camps: Vec<MapCamp>,
+    pub coliseum: Option<MapColiseum>,
+    /// Row-major bush identity plane: 0 none, else the legacy bush id.
+    pub bushes: Option<Vec<u8>>,
+    pub props: Vec<MapProp>,
+    /// Row-major ground-variant plane (reserved; ships absent).
+    pub ground_variants: Option<Vec<u8>>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MapBlob {
     pub w: u16,
@@ -30,6 +95,8 @@ pub struct MapBlob {
     pub terrain_mode: GroundMode,
     pub semantic_hash: u32,
     pub context_hash: u32,
+    /// Protocol 17 public sections.
+    pub public: MapPublic,
 }
 
 /// Same collision hash as `rh_sim::map::TileMap::layer_hash`.
@@ -78,6 +145,7 @@ impl MapBlob {
             terrain_mode,
             semantic_hash,
             context_hash,
+            public: MapPublic::default(),
         }
     }
 
@@ -104,6 +172,7 @@ impl MapBlob {
             terrain_mode,
             semantic_hash,
             context_hash,
+            public: MapPublic::default(),
         };
         map.check()?;
         Ok(map)
@@ -119,6 +188,13 @@ impl MapBlob {
         mode: GroundMode,
     ) -> Result<Self, EncodeError> {
         Self::with_ground(w, h, tiles, terrain, regions, mode)
+    }
+
+    /// Attaches the protocol 17 public sections, recomputes the hashes and checks the whole map.
+    /// STUB (P-WIRE17-MAP-1 oracle): stores the sections without encoding or validating them.
+    pub fn with_public(mut self, public: MapPublic) -> Result<Self, EncodeError> {
+        self.public = public;
+        Ok(self)
     }
 
     fn runs(&self) -> Runs<'_> {
@@ -615,6 +691,7 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
         terrain_mode: plan.mode,
         semantic_hash: plan.semantic_hash,
         context_hash: plan.context_hash,
+        public: MapPublic::default(),
     })
 }
 
@@ -697,6 +774,20 @@ impl EncodedMap {
             semantic_hash,
             body: out.finish().into_boxed_slice(),
         })
+    }
+
+    /// Server path for protocol 17: the same bytes as [`MapBlob::pre_encode`] for a map carrying `public`.
+    /// STUB (P-WIRE17-MAP-1 oracle): ignores `public`.
+    pub fn from_public(
+        w: u16,
+        h: u16,
+        tiles: &[u8],
+        terrain: Option<&[u8]>,
+        regions: Option<&[u8]>,
+        public: &MapPublic,
+    ) -> Result<Self, EncodeError> {
+        let _ = public;
+        Self::from_slices(w, h, tiles, terrain, regions)
     }
 
     pub fn static_bytes(&self) -> &[u8] {
