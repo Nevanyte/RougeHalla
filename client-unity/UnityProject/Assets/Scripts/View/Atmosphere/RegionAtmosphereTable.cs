@@ -120,11 +120,11 @@ namespace Roguehalla.Client
             {
                 case RegionId.Frost:     // bright, whiter, cold sunlight; crisp long shadows; snow
                     row.Name = "Frost";
-                    p.SunColor = Tint(key, .45f); p.SunStrength = .78f; p.ShadowLength = 1.4f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
+                    p.SunColor = Tint(key, .45f); p.SunStrength = .80f; p.ShadowLength = 1.4f; p.AmbientColor = Tint(amb, .3f) * .42f;   // passive level about .93
                     p.LightColor = Tint(Mix(amb, key, .4f), .1f);
-                    p.LightScale = .8f; p.PostExposure = -.35f; p.Contrast = 6f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);   // polish: snow keeps its detail (was sun .92, exposure -.1, contrast 12: 6 to 9% of a frame above .9 luminance)
+                    p.LightScale = .8f; p.PostExposure = -.1f; p.Contrast = 0f; p.Saturation = 0f; p.ColorFilter = Tint(accent, .04f);   // polish: snow keeps its detail (was sun .92, contrast 12: 6 to 9% of a frame above .9 luminance; PostExposure stays at the -.1 floor FairnessDarknessNeverHidesActors pins, so the contrast curve carries it)
                     p.SplitShadows = Toning(shadow, .45f); p.SplitHighlights = Toning(key, .1f); p.SplitBalance = -15f;
-                    p.BloomThreshold = .97f; p.BloomIntensity = .25f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
+                    p.BloomThreshold = .97f; p.BloomIntensity = .15f; p.BloomScatter = .7f; p.BloomTint = Tint(accent, .25f);
                     p.VignetteIntensity = .16f; p.Haze = A(fog, .075f);
                     p.Lift = new Vector4(.80f, .90f, 1f, .02f); p.Gain = new Vector4(1f, 1f, 1f, 0f);        // cold, clean blacks; neutral white snow
                     row.Particles = ParticlePresetId.Snow; row.Music = "music_frost"; row.Ambience = "amb_frost";
@@ -170,7 +170,7 @@ namespace Roguehalla.Client
                     row.Name = "Holy";
                     p.SunColor = Tint(key, .6f); p.LightScale = 1.22f; p.SunStrength = 1.0f; p.ShadowLength = 1.1f; p.AmbientColor = Tint(amb, .35f) * .46f;   // brightest passive level; the sand itself is darker and richer, rays carry the brightness
                     p.LightColor = Tint(Mix(amb, key, .6f), .15f);
-                    p.PostExposure = -.18f; p.Contrast = 6f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
+                    p.PostExposure = -.1f; p.Contrast = 2f; p.Saturation = -8f; p.ColorFilter = Tint(key, .06f);
                     p.SplitShadows = Toning(shadow, .3f); p.SplitHighlights = Toning(key, .32f); p.SplitBalance = 5f;
                     p.BloomThreshold = .96f; p.BloomIntensity = .22f; p.BloomScatter = .75f; p.BloomTint = Tint(key, .7f);
                     p.VignetteIntensity = .1f; p.Haze = A(fog, .09f);
@@ -208,7 +208,7 @@ namespace Roguehalla.Client
             // Indoors: cooler, softer and more even than the sand outside (the sun is the stone's own cool ivory; the warm light is the lamps and the gold inlay).
             var cool = new Color(.80f, .88f, 1f, 1f);
             p.SunColor = Tint(Mix(key, cool, .5f), .42f); p.SunStrength = .3f; p.ShadowLength = .4f; p.AmbientColor = Tint(Mix(Mix(amb, key, .5f), cool, .4f), .45f) * .8f;
-            p.PostExposure = -.15f; p.Contrast = 4f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
+            p.PostExposure = -.1f; p.Contrast = 0f; p.BloomThreshold = .94f; p.BloomIntensity = .3f; p.VignetteIntensity = .08f; p.Haze = A(Palette(RegionId.Holy, RegionPaletteGenerated.Fog), .04f);
             p.PassiveFloor = Tint(amb, .3f) * .55f;
             Overrides("temple", ref p);
             TempleLamp = new AccentLightSpec { Lantern = true, Color = Tint(Mix(key, Palette(RegionId.Fire, RegionPaletteGenerated.Accent), .25f), .8f), Intensity = 1.5f, Radius = 3.6f, Flicker = .3f };
