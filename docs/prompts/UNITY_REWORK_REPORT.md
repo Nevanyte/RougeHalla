@@ -347,3 +347,28 @@ Target: https://play.rougehalla.com on the repository's only deploy path, a disp
 hours and no persistence, about CAD 10 (you accepted this on 2026-11-11). Order: polish merge, Opus final review of the combined tree, Linux server
 binary and bundle built from that exact commit, local dry run, your AWS login and go-ahead for the AWS commands, Cloudflare A record (DNS-only) by
 you, live check. The runbook is in [UNITY_REWORK_STATE.md](UNITY_REWORK_STATE.md).
+
+### Gate 3 addendum: polish, final review and launch (2026-11-11, 01:52 UTC)
+
+- **Polish merged** (`157c9eb5`): fog of war substantially darker and desaturated (unseen ground about 0.30 of its lit luminance; measured Sentenced
+  0.42 to 0.29-0.34, Plague 0.56-0.62 to 0.32-0.39), Frost and Holy exposure tuned (Frost clipped pixels 9.5% to under 1% at the measured spot),
+  trader figure from catalog looks, plates for the elite star and quest tokens. The Sentenced "corner haze" is real Frost ground at the zone border,
+  left as is. Not done: capturing a wind-up telegraph and a crit number in a real match; `profile-hub14.cjs`. C# 1,311, Unity EditMode 594 of 594.
+- **Opus final review of the combined tree: LAND WITH NOTES, no blocking findings.** It booted both servers with the exact deploy flags against a
+  Postgres set up like the host's, joined with a real account-backed player, and confirmed bad credentials are refused. Notes: rebuild the client
+  against the exact Linux binary (done), licence ledger wording (fixed), `hosting/technical-demo/README.md` still says protocol 14 (wording only,
+  left: edits under `hosting/` are the owner's), names on the test host are first come first served.
+- **Launched: https://play.rougehalla.com is live.** Built from `157c9eb52a0e`: Linux x86-64 `rh-server` (Docker, `--features postgres`) and the Web
+  client rebuilt against that binary; both report protocol 16 and content hash `7d2d84b827af3ddc`. Bundle 124,538,880 bytes, SHA-256
+  `ae9a160421884dcccd62481b26a8e01154841d9edbb239fd0e295eb2aa938171`, uploaded to the private bucket and verified by size and hash before the host
+  started. Stack `rougehalla-demo-20261111-beta` (ca-west-1, account 048226733033), instance `i-022350a8117f890cc`, address `56.112.74.247`,
+  Cloudflare A record `play.rougehalla.com` (DNS only). The owner logged in to AWS and Cloudflare and lifted the project's deny rule on
+  `aws cloudformation` commands; the coordinator ran the commands and added the record.
+- **Live check as an ordinary player** (Playwright, 1920x1080): page loaded in 54 s, callsign claimed, joined over `wss://play.rougehalla.com/ws`,
+  spawn picked, match Active with bots and creatures, no console or HTTP errors; `/info` showed one player in one room
+  ([launch screen](../rework/evidence/launch-beta/live-launch-screen.jpg), [match](../rework/evidence/launch-beta/live-match-holy.jpg)).
+- **Expiry and cleanup.** The host powers off and is terminated at **2026-11-11 13:26:29 UTC (07:26 CST)**; profiles and matches are not kept.
+  Afterwards: empty bucket `rh-demo-20261111-7d2d`, delete stack `rougehalla-demo-20261111-beta`, delete the Cloudflare A record. Cost estimate from
+  the hosting docs: about CAD 10 for the run. Launch inputs are in the untracked folder `.deploy-beta/` (no secrets).
+- **Not pushed, not merged:** `feature/unity-rework` is still local; the squash into `optimization_port` has to be made from the worktree that has
+  that branch checked out.
