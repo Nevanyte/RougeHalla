@@ -118,7 +118,11 @@ namespace Roguehalla.Client.Tests
             Show(1, 640, 640, ActorStatus.Dead); Show(2, 670, 640, ActorStatus.Dead);
             Deliver(3, 4);
             Assert.AreEqual(2, _presenter.GhostCount);
-            Show(4, 671, 640, ActorStatus.Dead); Show(3, 641, 640, ActorStatus.Dead);
+            // One presentation pass, as in a frame: Show() closes its own pass, so Show(4) then Show(3) would evict id 4 (not presented in the second pass).
+            _presenter.Begin();
+            _presenter.Present(4, 671, 640, 0, 80, null, ActorStatus.Dead, null, ActorKind.RegionalMob, null, 0, 0, false, 0, 0, "grunt");
+            _presenter.Present(3, 641, 640, 0, 80, null, ActorStatus.Dead, null, ActorKind.RegionalMob, null, 0, 0, false, 0, 0, "grunt");
+            _presenter.End(); _presenter.StepFades();
             Assert.AreEqual(2, SpriteActorPresenter.MobArt.Created); Assert.AreEqual(2, SpriteActorPresenter.MobArt.Continued);
             Assert.AreEqual(0, SpriteActorPresenter.MobArt.Destroyed); Assert.AreEqual(0, _presenter.GhostCount);
         }
