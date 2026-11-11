@@ -18,8 +18,10 @@
 use crate::room::MapAssets;
 use rh_sim::Arena;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::thread;
+use std::time::{Duration, Instant};
 
 /// Maps the queue holds when full: a burst of this many rooms never waits.
 pub const MAP_POOL_TARGET: usize = 8;
@@ -34,6 +36,8 @@ pub const MAP_WORKER_RESTART: Duration = Duration::from_secs(1);
 pub const MAP_WORKER_RESTART_MAX: Duration = Duration::from_secs(60);
 /// A worker that sends nothing for this long while it owes a reply is hung and replaced.
 pub const MAP_WORKER_HANG: Duration = Duration::from_secs(5);
+/// How often the supervisor looks at the worker while a reply is owed.
+const SUPERVISOR_TICK: Duration = Duration::from_millis(100);
 
 /// What makes a map from a seed: the real generator ([`StyledMaker`]) or a test double.
 pub trait MapMaker: Send + Sync + 'static {
@@ -136,14 +140,36 @@ impl Default for MapPoolOptions {
     }
 }
 
+enum Reply {
+    Map(Arena),
+    Discard,
+    Error(String),
+}
+
+struct Worker {
+    requests: Sender<u32>,
+    replies: Receiver<Reply>,
+    /// Requests sent and not answered yet.
+    in_flight: usize,
+    /// The later of the oldest unanswered request and the last reply: the hang clock.
+    owed_since: Option<Instant>,
+}
+
 struct State {
     queue: VecDeque<MapAssets>,
     stats: MapPoolStats,
+    stopped: bool,
+    /// Worker maps in a row that failed admission.
+    reject_streak: u32,
+    /// Worker failures since the last admitted map: the backoff's exponent.
+    crash_streak: u32,
+    /// Not before this instant is a new worker started.
+    restart_at: Option<Instant>,
 }
 
-#[allow(dead_code)] // stub: P-MAP-3
 struct Shared {
     state: Mutex<State>,
+    wake: Condvar,
     opts: MapPoolOptions,
     maker: Arc<dyn MapMaker>,
     seed: Box<dyn Fn() -> u32 + Send + Sync>,
@@ -161,6 +187,7 @@ impl Shared {
 /// A pool of certified maps. Dropping it stops the supervisor; the worker ends once its current map is done.
 pub struct MapPool {
     shared: Arc<Shared>,
+    supervisor: Option<thread::JoinHandle<()>>,
 }
 
 impl MapPool {
@@ -174,26 +201,43 @@ impl MapPool {
         )
     }
 
-    /// stub: P-MAP-3 (no worker, no fallback yet).
+    /// A pool over any maker and seed source (tests). `target` 0 runs no worker: every take certifies on the caller.
     pub fn with(
         configured: MapAssets,
         maker: Arc<dyn MapMaker>,
         seed: Box<dyn Fn() -> u32 + Send + Sync>,
         opts: MapPoolOptions,
     ) -> Self {
+        let opts = MapPoolOptions {
+            refill_at: opts.refill_at.min(opts.target.saturating_sub(1)),
+            ..opts
+        };
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
-                queue: VecDeque::new(),
+                queue: VecDeque::with_capacity(opts.target),
                 stats: MapPoolStats::default(),
+                stopped: false,
+                reject_streak: 0,
+                crash_streak: 0,
+                restart_at: None,
             }),
+            wake: Condvar::new(),
             opts,
             maker,
             seed,
             configured,
         });
-        Self { shared }
+        let supervisor = (opts.target > 0).then(|| {
+            let s = shared.clone();
+            thread::Builder::new()
+                .name("map-pool".into())
+                .spawn(move || supervise(&s))
+                .expect("spawn the map pool supervisor")
+        });
+        Self { shared, supervisor }
     }
 
+    /// Maps ready to serve.
     pub fn size(&self) -> usize {
         self.shared.lock().queue.len()
     }
@@ -202,10 +246,226 @@ impl MapPool {
         self.shared.lock().stats
     }
 
-    /// stub: always the configured map.
+    /// A map for a new room, without waiting for the worker: the oldest in the queue, else one certified here and now
+    /// (logged), else the configured map. Never fails.
     pub fn take(&self) -> MapAssets {
+        let queued = {
+            let mut st = self.shared.lock();
+            let map = st.queue.pop_front();
+            if map.is_some() {
+                st.stats.served += 1;
+            }
+            map
+        };
+        self.shared.wake.notify_all();
+        queued.unwrap_or_else(|| self.fallback())
+    }
+
+    fn fallback(&self) -> MapAssets {
+        let t0 = Instant::now();
+        let mut discards = 0;
+        for _ in 0..MAP_FALLBACK_SEEDS {
+            let seed = (self.shared.seed)();
+            let made = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.shared.maker.make(seed)
+            }))
+            .unwrap_or_else(|_| Err("the generator panicked".into()));
+            match made.and_then(|m| m.map(admit).transpose()) {
+                Ok(Some(map)) => {
+                    let mut st = self.shared.lock();
+                    st.stats.fallbacks += 1;
+                    st.stats.discards += discards;
+                    eprintln!(
+                        "[maps] pool empty: certified seed {seed} on the caller in {} ms",
+                        t0.elapsed().as_millis()
+                    );
+                    return map;
+                }
+                Ok(None) => discards += 1,
+                Err(e) => {
+                    discards += 1;
+                    eprintln!("[maps] seed {seed} failed in the fallback: {e}");
+                }
+            }
+        }
+        let mut st = self.shared.lock();
+        st.stats.discards += discards;
+        st.stats.configured += 1;
+        eprintln!(
+            "[maps] {MAP_FALLBACK_SEEDS} fallback seeds failed; this room plays the configured map"
+        );
         self.shared.configured.clone()
     }
+}
+
+impl Drop for MapPool {
+    fn drop(&mut self) {
+        self.shared.lock().stopped = true;
+        self.shared.wake.notify_all();
+        if let Some(h) = self.supervisor.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+fn spawn_worker(maker: Arc<dyn MapMaker>) -> std::io::Result<Worker> {
+    let (req_tx, req_rx) = mpsc::channel::<u32>();
+    let (rep_tx, rep_rx) = mpsc::channel::<Reply>();
+    thread::Builder::new()
+        .name("map-worker".into())
+        .spawn(move || {
+            // Ends when the pool drops its request sender (stop or replacement) or a reply has nowhere to go.
+            while let Ok(seed) = req_rx.recv() {
+                let reply = match maker.make(seed) {
+                    Ok(Some(arena)) => Reply::Map(arena),
+                    Ok(None) => Reply::Discard,
+                    Err(e) => Reply::Error(e),
+                };
+                if rep_tx.send(reply).is_err() {
+                    return;
+                }
+            }
+        })?;
+    Ok(Worker {
+        requests: req_tx,
+        replies: rep_rx,
+        in_flight: 0,
+        owed_since: None,
+    })
+}
+
+/// Why a worker was dropped.
+enum Failure {
+    Crash(String),
+    Hang,
+}
+
+fn supervise(s: &Shared) {
+    let mut worker: Option<Worker> = None;
+    loop {
+        // Start a worker when none runs and the backoff allows; ask it for maps once the queue is low.
+        {
+            let mut st = s.lock();
+            if st.stopped {
+                return;
+            }
+            let now = Instant::now();
+            if worker.is_none() && st.restart_at.is_none_or(|t| now >= t) {
+                match spawn_worker(s.maker.clone()) {
+                    Ok(w) => {
+                        st.restart_at = None;
+                        worker = Some(w);
+                    }
+                    Err(e) => {
+                        drop(st);
+                        fail(s, &mut worker, Failure::Crash(format!("spawn: {e}")));
+                        continue;
+                    }
+                }
+            }
+            if let Some(w) = worker.as_mut() {
+                if st.queue.len() + w.in_flight <= s.opts.refill_at {
+                    while st.queue.len() + w.in_flight < s.opts.target {
+                        if w.requests.send((s.seed)()).is_err() {
+                            break;
+                        }
+                        if w.in_flight == 0 {
+                            w.owed_since = Some(now);
+                        }
+                        w.in_flight += 1;
+                    }
+                }
+            }
+            if worker.as_ref().is_none_or(|w| w.in_flight == 0) {
+                // Nothing owed: sleep until a take, a stop or the restart time.
+                let wait = st
+                    .restart_at
+                    .map_or(SUPERVISOR_TICK * 10, |t| t.saturating_duration_since(now));
+                let _ = s.wake.wait_timeout(st, wait.max(Duration::from_millis(1)));
+                continue;
+            }
+        }
+        let Some(w) = worker.as_mut() else { continue };
+        match w.replies.recv_timeout(SUPERVISOR_TICK) {
+            Ok(reply) => {
+                w.in_flight -= 1;
+                w.owed_since = (w.in_flight > 0).then(Instant::now);
+                arrive(s, &mut worker, reply);
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                if w.owed_since.is_some_and(|t| t.elapsed() >= s.opts.hang) {
+                    fail(s, &mut worker, Failure::Hang);
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                fail(
+                    s,
+                    &mut worker,
+                    Failure::Crash("the worker thread ended".into()),
+                );
+            }
+        }
+    }
+}
+
+fn arrive(s: &Shared, worker: &mut Option<Worker>, reply: Reply) {
+    match reply {
+        Reply::Map(arena) => match admit(arena) {
+            Ok(map) => {
+                let mut st = s.lock();
+                st.reject_streak = 0;
+                st.crash_streak = 0;
+                if st.queue.len() < s.opts.target {
+                    st.queue.push_back(map);
+                }
+            }
+            Err(e) => {
+                let streak = {
+                    let mut st = s.lock();
+                    st.stats.rejected += 1;
+                    st.reject_streak += 1;
+                    st.reject_streak
+                };
+                eprintln!("[maps] a worker map failed admission: {e}");
+                if streak >= MAP_REJECT_LIMIT {
+                    fail(
+                        s,
+                        worker,
+                        Failure::Crash(format!("{streak} maps in a row failed admission")),
+                    );
+                }
+            }
+        },
+        Reply::Discard => s.lock().stats.discards += 1,
+        Reply::Error(e) => fail(s, worker, Failure::Crash(format!("generator error: {e}"))),
+    }
+}
+
+/// Drops the worker (a hung thread is abandoned: its replies go nowhere) and schedules its replacement with backoff.
+fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
+    *worker = None;
+    let mut st = s.lock();
+    st.reject_streak = 0;
+    st.stats.crashes += 1;
+    let reason = match why {
+        Failure::Hang => {
+            st.stats.hangs += 1;
+            format!("no reply within {} ms", s.opts.hang.as_millis())
+        }
+        Failure::Crash(reason) => reason,
+    };
+    let exp = st.crash_streak.min(16);
+    st.crash_streak = st.crash_streak.saturating_add(1);
+    let delay = s
+        .opts
+        .restart
+        .saturating_mul(1u32 << exp)
+        .min(s.opts.restart_max);
+    st.restart_at = Some(Instant::now() + delay);
+    eprintln!(
+        "[maps] map worker replaced ({reason}); restart in {} ms",
+        delay.as_millis()
+    );
 }
 
 #[cfg(test)]

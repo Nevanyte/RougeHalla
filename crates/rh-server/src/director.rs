@@ -77,6 +77,9 @@ pub struct DirectorConfig {
     pub require_admit: bool,
     /// Default lifetime of an admit that names no `ttlMs`.
     pub admit_ttl: Duration,
+    /// `--map-pool` (P-MAP-3): each new arena room takes its own certified map from this pool; `arena` is then the pool's
+    /// last resort. None (the default): every room plays `arena`.
+    pub map_pool: Option<Arc<crate::map_pool::MapPool>>,
 }
 
 impl DirectorConfig {
@@ -95,6 +98,7 @@ impl DirectorConfig {
             idle_timeout: crate::conn::IDLE_TIMEOUT,
             require_admit: false,
             admit_ttl: Duration::from_millis(crate::control::DEFAULT_TTL_MS),
+            map_pool: None,
         }
     }
 }
@@ -885,10 +889,15 @@ impl Director {
             fill_target: fill_bots_to,
             ..PublicRoom::default()
         };
+        // A training room never draws from the pool (runtime.rs refuses the combination; this keeps library configs safe).
+        let map = match &self.cfg.map_pool {
+            Some(pool) if !sim.training => pool.take(),
+            _ => self.map.clone(),
+        };
         let rc = RoomConfig {
             sim,
-            arena: self.map.arena.clone(),
-            welcome_map: self.map.welcome_map.clone(),
+            arena: map.arena,
+            welcome_map: map.welcome_map,
             fill_bots_to,
             tick: self.cfg.tick,
             record: self.cfg.record,

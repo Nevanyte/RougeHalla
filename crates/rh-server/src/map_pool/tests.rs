@@ -74,8 +74,11 @@ fn the_worker_fills_the_queue_and_refills_it_after_takes() {
     }
     let s = p.stats();
     assert_eq!((s.served, s.fallbacks, s.configured), (3, 0, 0));
-    eventually("refilled", || p.size() == 3);
-    assert_eq!(maker.calls.load(Ordering::SeqCst), 6);
+    // Legacy `refill`: once the queue (with maps already asked for) is down to `refill_at`, ask up to `target`. Depending
+    // on when the supervisor sees the takes, that settles at `refill_at + 1` or `target`, never below.
+    eventually("refilled", || p.size() >= 2);
+    let calls = maker.calls.load(Ordering::SeqCst);
+    assert!((5..=6).contains(&calls), "{calls} maps made");
 }
 
 #[test]

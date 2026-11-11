@@ -20,6 +20,9 @@ pub struct Settings {
     pub hitboxes: rh_sim::archetype::HitboxMode,
     /// `--lobby-timing legacy|matchmaking` (P-LOBBY-TIMING-1).
     pub lobby_timing: crate::bot_fill::LobbyTiming,
+    /// `--map-pool` (P-MAP-3, source-arena only, off by default): every room takes its own certified generated map from
+    /// [`crate::map_pool::MapPool`]; `--map` is the last resort.
+    pub map_pool: bool,
 }
 
 /// `--lobby-timing legacy|matchmaking`, default legacy. `matchmaking` is a 15 s lobby with bots at second 13.
@@ -89,6 +92,21 @@ fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> 
         .filter(|v| !v.starts_with("--"))
         .map(|s| Some(s.as_str()))
         .ok_or_else(|| format!("{flag} requires a value"))
+}
+
+/// `--map-pool`: a bare switch, at most once.
+fn map_pool_flag(args: &[String]) -> Result<bool, String> {
+    if args
+        .iter()
+        .any(|a| a.starts_with("--map-pool") && a != "--map-pool")
+    {
+        return Err("unknown --map-pool option; it takes no value".into());
+    }
+    match args.iter().filter(|a| *a == "--map-pool").count() {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err("--map-pool must occur once".into()),
+    }
 }
 
 impl Settings {
@@ -170,7 +188,11 @@ impl Settings {
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
             hitboxes: hitboxes_flag(args, LIVE_DEFAULT_HITBOXES)?,
             lobby_timing: lobby_timing_flag(args)?,
+            map_pool: map_pool_flag(args)?,
         };
+        if training && settings.map_pool {
+            return Err("training uses the practice arena; --map-pool is not accepted".into());
+        }
         if training && settings.lobby_timing != crate::bot_fill::LobbyTiming::Legacy {
             return Err("training does not accept --lobby-timing matchmaking".into());
         }
@@ -264,6 +286,9 @@ mod tests {
             "--runtime source-arena --map x --fill-seconds NaN",
             "--runtime source-arena --map x --max-rooms 0",
             "--runtime source-arena --map x --map y",
+            "--runtime training --map-pool",
+            "--runtime source-arena --map x --map-pool --map-pool",
+            "--runtime source-arena --map x --map-pool=on",
         ] {
             assert!(parse(args).is_err(), "{args}");
         }
@@ -273,7 +298,19 @@ mod tests {
         assert!(sim.quests && sim.regen && sim.initial_loot && sim.faction_mode.fire_roam());
         assert_eq!(sim.abilities, abilities::Mode::Full);
         assert!(matches!(sim.lifecycle, ArenaMode::Source(_)));
+        assert_eq!(sim.regen_in_combat, rh_sim::RegenInCombat::Off);
+        assert!(!source.map_pool);
+        let pooled = parse("--runtime source-arena --map x --map-pool")
+            .unwrap()
+            .unwrap();
+        assert!(pooled.map_pool);
+        assert_eq!(
+            pooled.sim(),
+            sim,
+            "the pool changes the maps, not the rules"
+        );
         let training = parse("--runtime training").unwrap().unwrap().sim();
+        assert_eq!(training.regen_in_combat, rh_sim::RegenInCombat::Off);
         assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);
