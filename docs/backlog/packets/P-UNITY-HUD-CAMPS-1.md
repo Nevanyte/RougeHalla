@@ -57,7 +57,45 @@ beacons are the follow-up P-UNITY-HUD-CAMPS-2 (they need P-WIRE17-HUD-1).
 - One EditMode case: the tactical map draws the model's markers.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-HUD-CAMPS-1`
+- `client-unity/RoguehallaNet.Tests/CampMarksTests.cs` (6 cases). The stub `client-unity/RoguehallaNet/Net/Ui/CampMarks.cs`
+  (and its synced copy) fixes the signatures: `CampMarks.Markers(MapCamp[] camps, IReadOnlyList<CampView> rows, double
+  serverNowMs, bool active, List<CampMarkRow> into)` and `WorldLabels(..., List<CampWorldLabel> into)`; both clear `into`
+  and fill it (caller-owned list, so the per-frame pass allocates nothing). Implementers fill in the bodies only; the
+  public types and signatures stay.
+
+## Legacy rules as verified (pinned by the oracle)
+- State codes: 0 idle, 1 engaged ("somebody has fought here", sticky history), 2 cleared; any other value is drawn as idle
+  (`minimap.ts:298-310`, `mapPainter.ts:510-512`, `planning.ts:748-751`).
+- Marker: every map camp, regardless of sight (`minimapMarkers.ts:85-92` loops `input.camps`); zone shape in zone colour
+  with dark outline `#0b0e11`; elite camp bigger (radius 4.6 vs 3.4) with its elite glyph above (crown `#ffd54f` fallback);
+  cleared: drawn at alpha 0.38 with an X in `#eceff1` over a dark `#0b0e11` line; engaged: small muted ring
+  (`mapPainter.ts:503-516, 584-629`). A camp mark is dropped when a contact or clock sits within 8 px
+  (`minimapMarkers.ts:87-88`).
+- Minimap clock: only for state 2 with `respawnAt > 0`, only while the match is active (not training)
+  (`minimap.ts:258-265`, caller `RaidScene.ts:784`); text = `max(0, ceil((respawnAt - serverNow) / 1000))` as a bare integer,
+  so 181000 vs 1100 reads "180" and an expired clock reads "0" (it does not disappear); colour `#b4c9dc`, a small clock
+  glyph left of the digits (`minimapMarkers.ts:10, 60-71, 135-155`); replaced by the chest badge while that camp's reward
+  chest is up (`:70`, chest is a later packet).
+- World label: state 2 with `respawnAt > 0`: `RESPAWN ${ceil((respawnAt-now)/1000)}s` while `respawnAt > now`, else
+  `RESPAWN READY`; 11 px monospace `#e5edf7`, 3 px stroke `#08101d`, centred 32 px below the camp (`CampWards.ts:19-30`).
+  Note the boundary: at `respawnAt == now` the minimap shows "0" and the world shows READY.
+- Tab map: same state vocabulary (cross for cleared, text "Cleared" / "Someone has fought here" in the camp line,
+  `planning.ts:748-751`); the Tab map shows no clock in legacy, the owner asked for one, so reuse the minimap text.
+- Pinned from the owner's brief, not legacy: a camp-row count that differs from the map's camp count gives no markers
+  (legacy would draw idle markers for missing rows; Unity treats it as "rows not delivered yet").
+- Elite in Unity comes from the camp row (`CampView.Elite != null`); legacy used the map's `eliteSpot`. Equivalent when
+  the server sends the row; flag any difference found.
+
+## Unity files for the implementer
+- `UnityProject/Assets/Scripts/UI/TacticalMapMarks.cs`, `TacticalMapController.cs` (camp layer; use `MapProjection`).
+- World label: new presenter under `Scripts/Presentation/`, hooked from `Scripts/View/ArenaView.cs`.
+- Bushes: decorative bushes are `*.bush` `PropRule`s in `Scripts/View/Regions/RegionThemes.cs` (lines ~112, 122), placed by
+  `Scripts/View/Regions/RegionProps.cs`; the real bush cells (`MapBlob.Bushes`, row-major, non-zero = bush id) should be
+  drawn there, and decorative bushes must skip those cells (section 7).
+
+## Not established by the oracle
+Colours, glyphs, placement and the bush drawing are visual and covered only by the EditMode case; the oracle pins the
+model (rows, states, text, rounding, boundaries).
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`
