@@ -4,6 +4,46 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up direction (owner, 2026-11-10, after the beta launch)
+
+Integration branch `feature/unity-rework` (`docs/agent/INTEGRATION_BRANCH`), head `893bfadd` (the agent process files,
+committed with owner approval). The beta at `play.rougehalla.com` runs `157c9eb5`. Identities unchanged: protocol 16,
+observation 24, checkpoint 31, replay 25, policy 18, content hash `7d2d84b827af3ddc`. This entry supersedes the branch
+named in the union checkpoint below for new work. Baseline full gate with Postgres on `893bfadd`: started, result to be
+recorded here.
+
+**Findings (read-only surveys, not reproduced at runtime).** Balance constants in `rh-sim`, this branch's `packages/` and
+the live legacy bundle are identical (baseline `75c5b83`); the beta differs because the live profiles run
+`LIVE_DEFAULT_HITBOXES = Archetypes` (DEV-009/010/011), which parity never exercises. Holy's camp lifesteal is unported
+(DEV-012). An unreleased legacy branch `origin/claude/adoring-edison-mxt8ab` holds Frost Wall, regen out of combat only
+and zone-themed camp buffs. The Unity client lacks legacy HUD facts that are not on the wire (gaps B15-B19) and scatters
+props by per-tile noise.
+
+**Owner decisions.**
+1. Keep Archetype hitboxes and mob spacing; retune them to legacy behaviour, measured by a harness (P-BALANCE-1 extended).
+2. Port all three unreleased legacy changes (Frost Wall, no regen in combat, zone-themed camp buffs).
+3. HUD presents the legacy information: champion panel, GAINED strip, camp markers and timers, wards, overhead layout.
+4. Client fixes: wand lock, swing follows the attacker, coliseum countdown, mob death clip, bow range indicator,
+   Sentenced wall/fence contrast, overhead HUD, stronger prop fade (props stay walk-through).
+5. World: legacy feature-tied props plus rule-based dressing (signature landmark per zone, clusters with clearings,
+   keep-clear zones, wall/fence dressing), baked server-side; matches draw from a rotating pool of certified maps.
+6. Signature landmarks are real terrain: Fire volcano with 2-3 lava streams ending in pools; Plague marsh rings
+   (mud and water as graded slows, Plague exempt) and a giant bog tree; Sentenced enterable church with graveyard and the
+   elite camp inside; Frost frozen cave on the back edge with the elite camp inside; Holy keeps its temple.
+7. Bots: wire the ported Brain to live and headless seats, turn the legacy learner on, add a light offline tuner over
+   existing tier/persona numbers. **R-ML is to be amended narrowly for that** (no neural models, Python, datasets or
+   inference services); the amendment text waits for the owner's signature on `REQUIREMENTS.md` and `AGENTS.md`.
+
+**Approvals granted with the plan (scope exactly as named).** Packets outside ORDER_OF_OPERATIONS for the work above;
+merging the three legacy commits into `packages/` inside their port packets; regenerating `parity/**` captures and
+`protocol/fixtures/v<N>.json` by their documented commands inside packets that say so; drafting DEVIATIONS rows for owner
+signature. **Not granted:** `git push`, any deploy, `hosting/` edits, promotion to `optimization_port` or `main`.
+
+**Conflicts flagged, record governs until resolved.** R-ML exclusions versus decision 7 (tuner packet waits for the
+signed amendment). C-PARITY versus decisions 1, 2 and 6: each difference from legacy carries a DEVIATIONS row and its
+legacy-mode fixtures stay untouched. ADR 0026 is still "Proposed"; ADR 0027 (wire 17 HUD facts) and ADR 0028 (signature
+terrain) are to be written with their first packets.
+
 ## Backend/Unity union checkpoint (2026-11-10)
 
 Branch `integration/backend-unity-union`, head `f6432ea9`. Merge `1319260b` combines the Unity primary `fbf6bb20`

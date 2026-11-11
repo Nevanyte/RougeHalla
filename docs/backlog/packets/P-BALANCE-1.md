@@ -1,7 +1,33 @@
 # P-BALANCE-1: Rust duel/matrix balance harness
 
-Status: **Draft packet, not yet reviewed or scheduled.** Proposed 2026-11-07 from the deviation-ledger review
-([../../DEVIATIONS.md](../../DEVIATIONS.md), open question 2).
+- **Serves:** ORDER_OF_OPERATIONS phase 2, item 11 (D2: the acceptance gate for "rough 1:1")
+- **Implementer tier:** implementer-sonnet
+- **Reviewer:** reviewer-opus (it is the D2 gate; a wrong verdict rule passes wrong balance)
+- **Integration base:** feature/unity-rework
+- **D-rules touched:** D1 outcome-class parity, declared bands · D2 this packet is the harness · D5/D6/D9 none
+
+Status: **Ready packet** (2026-11-10). Proposed 2026-11-07 from the deviation-ledger review
+([../../DEVIATIONS.md](../../DEVIATIONS.md), open question 2); the item-11 review findings are fixed below. Owner
+direction 2026-11-10 (MIGRATION checkpoint): this harness measures the Archetype-hitbox retune; the camp-clear bench is
+its sibling [P-BALANCE-2](P-BALANCE-2.md).
+
+## Review findings fixed (ORDER_OF_OPERATIONS item 11)
+
+1. **Verdict rule.** The report carries two verdicts per edge and neither is silently preferred: `legacy_verdict`
+   (`verdictOf`: pooled >= 0.6, worst faction >= 0.5, every reply >= 0.5, no ceiling) and `design_bar`
+   (`docs/GAME_DESIGN.md:572`: pooled 55-75%, none under 50%). The exit code is decided by neither: it is nonzero only
+   when a cell differs from legacy beyond the declared band (finding 2). Owner question 1 below stays open.
+2. **Legacy method.** The cell-by-cell comparison runs the legacy method: noise off, fixed setups, `stand` style. Under
+   `LegacyCircle` a cell's discrete outcome (winner) equals legacy's exactly; winner hp remaining is compared within the
+   parity policy's tolerance. Any noisy policy-matrix run is threshold-only and prints its sample size and a Wilson
+   interval; a win rate is never reported as a bare scalar.
+3. **Scope.** First cut is minute 0, no cards, and only the factions and weapons whose rows are `Ported` in
+   `crates/rh-sim/src/schedule.rs`. The oracle author lists the inventory actually runnable and the skipped cells with
+   the missing mechanic; minute-5 kit columns wait for P-CARDS-2.
+4. **Hitbox mode axis (added 2026-11-10).** Every cell runs under `LegacyCircle` (compared with legacy) and under
+   `Archetypes` with mob spacing as the live profiles set it (`crates/rh-server/src/runtime.rs:29`, compared with the
+   `LegacyCircle` cell). The Archetypes delta is reported against a band of +/-10% (owner-approved plan 2026-11-10); it
+   does not fail this packet, it is the input to the retune packet.
 
 ## ID and outcome
 
