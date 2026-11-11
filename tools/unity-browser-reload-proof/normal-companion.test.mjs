@@ -73,7 +73,7 @@ test('claims a fresh profile and sends its credential only in the ordinary Hello
   const companion = await connectNormalCompanion({ endpoint: 'http://127.0.0.1:7777', profile: 'source14_test', faction: 4,
     fetchImpl, WebSocketImpl: FakeWebSocket, timeoutMs: 1000 });
   try {
-    assert.equal(companionProtocol, 16);
+    assert.equal(companionProtocol, 17);
     assert.equal(companion.view().welcome.protocol, 17);
     assert.equal(companion.view().welcome.contentHash, companionContentHash);
     assert.equal(FakeWebSocket.lastHello.t, 'hello');
