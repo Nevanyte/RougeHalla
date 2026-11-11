@@ -46,7 +46,27 @@ MB="$(git merge-base HEAD "$BASE")"
 BRANCH="$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
 mkdir -p .agent-runs/gate
 LOG=".agent-runs/gate/$(date +%Y%m%dT%H%M%S)-${BRANCH}-${MODE}.log"
-STEP_LOG="$(mktemp)"; trap 'rm -f "$STEP_LOG"' EXIT
+STEP_LOG="$(mktemp)"
+# rh-pgtest clusters already present when the gate starts are not ours to stop (the one DATABASE_URL points at, or another
+# session's); any other that appears during the run is stopped on exit.
+PGT_TMP="${TMPDIR:-/tmp}"; PGT_TMP="${PGT_TMP%/}"
+pgtest_dirs() { { ls -d "$PGT_TMP"/rh-pgtest.* /tmp/rh-pgtest.* 2>/dev/null || true; } | sort -u; }
+PGT_BEFORE="$(pgtest_dirs)"
+cleanup() {
+  rm -f "$STEP_LOG"
+  local d port bin="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"
+  while read -r d; do
+    [[ -n "$d" && -f "$d/data/postmaster.pid" ]] || continue
+    if grep -qxF "$d" <<<"$PGT_BEFORE"; then continue; fi
+    port="$(sed -n 4p "$d/data/postmaster.pid" 2>/dev/null || true)"
+    if [[ -n "$port" && "${DATABASE_URL:-}" == *":$port/"* ]]; then continue; fi
+    [[ -x "$bin/pg_ctl" ]] || bin="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+    "$bin/pg_ctl" -D "$d/data" -m immediate stop >/dev/null 2>&1 || true
+    rm -rf "$d"
+    echo "gate: stopped rh-pgtest cluster started during this run: $d" >&2
+  done <<<"$(pgtest_dirs)"
+}
+trap cleanup EXIT
 exec > >(tee "$LOG") 2>&1
 
 SKIPPED=()
@@ -87,8 +107,15 @@ if [[ -n "$bad" ]]; then
 fi
 if [[ -n "$ORACLE" ]]; then
   git rev-parse --verify -q "$ORACLE^{commit}" >/dev/null || fail "oracle ref '$ORACLE' is not a commit"
-  # Oracle = every file the oracle commits touched, plus captured fixtures and golden vectors.
-  ORACLE_FILES="$(git diff --name-only "$(git merge-base "$ORACLE" "$BASE")" "$ORACLE")"
+  # Oracle = every file touched by the commits in merge-base(<ref>, base)..<ref> whose subject does not start with
+  # "stub:" (stub files are what an implementer replaces), plus captured fixtures and golden vectors below. Merge
+  # commits count as non-stub. A branch with no "stub:" commit has every touched file as an oracle file.
+  ORACLE_FILES="$(
+    git log --format='%H %s' "$(git merge-base "$ORACLE" "$BASE")..$ORACLE" | while read -r sha subject; do
+      if [[ "$subject" == stub:* ]]; then continue; fi
+      git diff-tree -r -m --root --no-commit-id --name-only "$sha"
+    done | sort -u
+  )"
   SINCE="$( { git diff --name-only "$ORACLE"; git ls-files --others --exclude-standard; } | sort -u)"
   bad="$(comm -12 <(sort -u <<<"$ORACLE_FILES") <(sort -u <<<"$SINCE") | grep -v '^$' || true)"
   [[ -z "$bad" ]] || fail "oracle files changed since $ORACLE:"$'\n'"$bad"
@@ -102,6 +129,24 @@ fi
 if git diff "$MB" -- 'crates/*.rs' | grep -qE '^\+.*allow\(clippy::disallowed_(types|methods)\)'; then
   note "WARNING: new allow(clippy::disallowed_*) in the diff. Each needs its reason beside it; the reviewer checks it (ADR 0007)."
 fi
+
+# ---------- environment preflight ------------------------------------------------------------------------------------
+# With DATABASE_URL set the Postgres suites run and one rh-server test needs PGBIN: resolve it as tools/pgtest does, or
+# fail before any build.
+if [[ -n "${DATABASE_URL:-}" ]]; then
+  if [[ -z "${PGBIN:-}" ]]; then
+    for d in /opt/homebrew/opt/postgresql@16/bin "$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"; do
+      if [[ -n "$d" && -x "$d/initdb" ]]; then PGBIN="$d"; break; fi
+    done
+  fi
+  if [[ -z "${PGBIN:-}" || ! -x "$PGBIN/initdb" || ! -x "$PGBIN/pg_ctl" ]]; then
+    fail "DATABASE_URL is set but PGBIN does not resolve to PostgreSQL 16 binaries (initdb, pg_ctl): export PGBIN (e.g. /opt/homebrew/opt/postgresql@16/bin) or unset DATABASE_URL"
+  fi
+  export PGBIN
+  note "PGBIN=$PGBIN"
+fi
+# Test hook for scripts/gate.test.sh (not for normal use): stop after the path and environment checks, before any build.
+if [[ -n "${GATE_STOP_AFTER_CHECKS:-}" ]]; then echo "GATE STOP (test hook)"; exit 0; fi
 
 # ---------- what changed --------------------------------------------------------------------------------------------
 CRATES="$(grep -oE '^crates/[^/]+' <<<"$CHANGED" | cut -d/ -f2 | sort -u || true)"

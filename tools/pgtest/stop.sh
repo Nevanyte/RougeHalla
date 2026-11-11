@@ -8,7 +8,13 @@ run_pg() {
     "$@"
   fi
 }
-PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}"
+if [ -z "${PGBIN:-}" ]; then
+  if [ -x /opt/homebrew/opt/postgresql@16/bin/pg_ctl ]; then
+    PGBIN=/opt/homebrew/opt/postgresql@16/bin
+  else
+    PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+  fi
+fi
 STATE_DIR="${RH_PGTEST_STATE:-${TMPDIR:-/tmp}/rh-pgtest-state}"
 [ -f "$STATE_DIR/dir" ] || { echo "no pgtest cluster recorded" >&2; exit 0; }
 DIR="$(cat "$STATE_DIR/dir")"
