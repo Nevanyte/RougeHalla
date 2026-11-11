@@ -9,9 +9,9 @@ use crate::delta::{
 };
 use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use crate::state::{
-    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_STAT_COUNT,
-    MAX_SUMMARY_MOB_ROWS, MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
-    MAX_VISIBLE_PROPS,
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_STAT_COUNT, MAX_QUEST_ROWS,
+    MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_SUMMARY_MOB_ROWS,
+    MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
 };
 use crate::*;
 use crate::{

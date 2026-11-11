@@ -1,11 +1,11 @@
 //! Reliable collection replacements built only from the already-filtered observation.
+use rh_protocol::state::{
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_QUANTUM, MAX_SUMMARY_MOB_ROWS,
+};
 use rh_protocol::{
     EncodeError, PickupHandle, RewardChestHandle, ServerMsg, StateItem, WireArena, WireBuild,
     WireCamp, WireField, WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile,
     WireProp, WirePropKind, WireProps, WireRewardChest, WireRewardId, WireRewardOption,
-};
-use rh_protocol::state::{
-    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_QUANTUM, MAX_SUMMARY_MOB_ROWS,
 };
 use rh_sim::observe::{HudStat, WardVerdict};
 use rh_sim::{Inventory, Observation, PropKind};
@@ -521,7 +521,10 @@ fn summary(observation: &Observation) -> Result<Option<WireBuildSummary>, Encode
 /// or stacks changed, or any number moved at least one whole [`HUD_QUANTUM`] from the value the client holds. A
 /// sub-quantum wobble (hp-dependent life steal) sends nothing even where it would round to the next step; the client's
 /// value then stays within one quantum of the build.
-fn summary_stale(sent: Option<&WireBuildSummary>, view: Option<&rh_sim::observe::SummaryView>) -> bool {
+fn summary_stale(
+    sent: Option<&WireBuildSummary>,
+    view: Option<&rh_sim::observe::SummaryView>,
+) -> bool {
     let (Some(sent), Some(view)) = (sent, view) else {
         return sent.is_some() != view.is_some();
     };

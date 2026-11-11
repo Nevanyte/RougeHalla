@@ -404,7 +404,11 @@ fn hud_stat(stat: crate::modifiers::farm::RewardStat) -> Option<HudStat> {
 /// an owner exists and `now < wardExpiresAt`; never the owner's id, C-OBS). Reuses `out`'s capacity.
 fn camp_hud_into(sim: &Sim, viewer: PlayerId, now: f64, out: &mut Vec<CampHudView>) {
     out.clear();
-    let life = sim.w.mob_runtime.as_ref().map_or(&[][..], |rt| &rt.life[..]);
+    let life = sim
+        .w
+        .mob_runtime
+        .as_ref()
+        .map_or(&[][..], |rt| &rt.life[..]);
     for (i, camp) in sim.camp_rosters().iter().enumerate() {
         let reward = crate::modifiers::farm::Farm::reward_of(camp.mob_type).and_then(|r| {
             hud_stat(r.stat).map(|stat| CampReward {
@@ -448,14 +452,15 @@ fn summary_into(sim: &Sim, viewer: PlayerId, out: &mut Option<SummaryView>) {
         s.move_speed,
     ];
     view.mob_rows.clear();
-    view.mob_rows.extend(s.mob_rows.iter().flatten().filter_map(|r| {
-        hud_stat(r.stat).map(|stat| SummaryMobRow {
-            mob: r.mob,
-            stacks: r.stacks,
-            stat,
-            total: r.total,
-        })
-    }));
+    view.mob_rows
+        .extend(s.mob_rows.iter().flatten().filter_map(|r| {
+            hud_stat(r.stat).map(|stat| SummaryMobRow {
+                mob: r.mob,
+                stacks: r.stacks,
+                stat,
+                total: r.total,
+            })
+        }));
 }
 
 /// One seated player of the match roster (ADR0026).
