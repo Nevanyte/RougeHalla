@@ -45,7 +45,9 @@ The coordinator sets the backlog row to "Ready packet".
 ### 3. Write the oracle
 
 `oracle-author` branches `packet/<ID>` from the integration branch, commits the brief and the failing tests, and confirms
-each fails on an assertion. Kinds of oracle, strongest first:
+each fails on an assertion. Owner direction 2026-11-10: a loose proof is enough. One test per packet that shows the numbers are not drastically off
+(right direction, within roughly 10-15%); do not build new legacy captures or exact comparisons unless the owner asks.
+Kinds of oracle, for reference, strongest first:
 
 1. **Parity against a legacy capture**: the capture comes from the legacy game through its tool (`parity/legacy-capture/`,
    `tools/<area>-fixtures/capture.sh`); exact fixtures need Linux x64 and Node 22.23.4 (`parity/README.md`).

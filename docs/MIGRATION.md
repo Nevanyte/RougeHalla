@@ -46,7 +46,8 @@ props by per-tile noise.
 9. **Testing standard for new work (owner, same day, later message, verbatim):** "this game is subject to change, it is NOT
    worth the compute or the tokens to test and make sure everything matches legacy version perfectly, instead just look
    at code and do ONE test to make sure the numbers aren't drastically off doesn't need to be down to the decimal."
-   Applied from here on: a port is done by reading the legacy code; each packet carries one test that shows its numbers
+   Restated by the owner the same day: "Since the game is subject to change i want it to be a loose proof that it
+   matches original"; the `AGENTS.md` parity line and `docs/agent/README.md` section 3 now say so. Applied from here on: a port is done by reading the legacy code; each packet carries one test that shows its numbers
    are in the right range (coordinator's reading: within roughly 10-15%, right direction); no new pinned-environment
    legacy captures, tick-exact matrices or multi-case corpora unless the owner asks. Existing parity fixtures keep
    running in the gate. Consequences: P-BALANCE-1 (900-duel tick-exact differential) is parked with its oracle and legacy

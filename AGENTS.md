@@ -51,8 +51,10 @@ it: flag the conflict in the hand-off and keep to the record.
 - `rh-sim` is pure (no I/O, clock, entropy); fixed 20 Hz step; legacy tick order is never reordered (C-TICK).
 - Every actor (human, bot, future policy) acts only through `validate` + `Sim::submit` (C-INPUT). Observations carry only
   what that viewer may see (C-OBS). Secrets (RNG seeds, state hash, admin) stay on the server (C-RNG).
-- Every ported mechanic comes with captured legacy fixtures and a parity test (C-PARITY). Intentional differences from
-  legacy get a `DEVIATIONS.md` row in the same hand-off.
+- Every ported mechanic comes with a **loose proof** that it matches legacy (owner direction 2026-11-10: the game is
+  subject to change): port it by reading the legacy code and add ONE test showing its numbers are not drastically off.
+  Exact legacy captures and tick-exact comparisons are not required for new work; existing parity fixtures stay green
+  (C-PARITY). Intentional differences from legacy get a `DEVIATIONS.md` row in the same hand-off.
 - Wire changes: bump `PROTOCOL_VERSION` when incompatible, regenerate `protocol/fixtures/v<N>.json` with
   `cargo run -p rh-protocol --bin protocol-fixtures`, and make the Rust, C# and JS decoders pass them, all in one branch.
 - Client and server agree on protocol version and content hash; the server refuses a mismatch.
