@@ -209,10 +209,8 @@ pub fn text(a: KillAugment) -> (String, String) {
 }
 
 /// The victim's readable investment scores (source `combatReadability(...).investedStats` with `lasting: true`, the
-/// one scoring mode the trophy roll reads). Legacy's leech term also adds Holy's camp lifesteal
-/// (`holyCampLifestealOf(campClears)`); the Rust sim counts camp clears (`Player.camps_cleared`) but has no Holy
-/// camp-lifesteal passive, so that term is 0 here and in [`build_marks`] (a known deviation, pinned by
-/// `build_marks_tests`).
+/// one scoring mode the trophy roll reads). The leech term starts from Holy's camp lifesteal
+/// (`holyCampLifestealOf(campClears)`, `Player.camps_cleared`) and then adds the farm rows, as legacy.
 pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
     let (farm_rows, farm_len) = p.farm.rows();
     let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len]), true);
@@ -268,6 +266,9 @@ pub(crate) struct Readable<'a> {
     pub(crate) max_hp: f64,
     pub(crate) farm_rows: &'a [EffectRow<'static>],
     pub(crate) kill: &'a KillStats,
+    /// Legacy `ReadableFighter.campClears` (`Player.camps_cleared`): feeds Holy's camp lifesteal in the leech score
+    /// (combatReadability.ts:133).
+    pub(crate) camp_clears: u16,
 }
 impl<'a> Readable<'a> {
     pub(crate) fn of(p: &'a crate::state::Player, farm_rows: &'a [EffectRow<'static>]) -> Self {
@@ -278,6 +279,7 @@ impl<'a> Readable<'a> {
             max_hp: p.vitals.max_hp,
             farm_rows,
             kill: &p.kill_stats,
+            camp_clears: p.camps_cleared,
         }
     }
 }
@@ -330,7 +332,11 @@ pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
             }
         }
     }
-    let mut farm_lifesteal = 0.;
+    let mut farm_lifesteal = if faction == crate::FactionId::Holy {
+        f64::from(r.camp_clears) * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR
+    } else {
+        0.
+    };
     let mut farm_damage = 0.;
     let mut farm_as = 0.;
     let mut farm_move = 0.;

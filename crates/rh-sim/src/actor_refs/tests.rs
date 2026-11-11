@@ -126,6 +126,8 @@ fn cycle_pair() -> (Sim, Sim) {
         // ADR0026: the overhead build marks are public, so the earned mob stats (farm rows and their fold) are part of
         // the declared public scene too.
         b.w.players[i].farm = a.w.players[i].farm;
+        // Holy's camp lifesteal mark reads the clear count, so it is part of the declared public scene.
+        b.w.players[i].camps_cleared = a.w.players[i].camps_cleared;
         b.w.players[i].core.modifiers = a.w.players[i].core.modifiers.clone();
     }
     // Edited between steps: the end-of-step build-mark cache no longer describes `b`.

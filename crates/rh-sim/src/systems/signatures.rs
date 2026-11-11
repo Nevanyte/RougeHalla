@@ -419,13 +419,15 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         } else {
             v.lifesteal_rows
         };
-        let share = crate::status_runtime::stats::lifesteal_total(
-            own,
-            rows,
-            v.lifesteal_mult,
-            0.,
-            v.farm_lifesteal_rows,
-        );
+        let farm = match w.player(id).filter(|_| holy) {
+            Some(pl) => {
+                v.farm_lifesteal_rows
+                    + f64::from(pl.camps_cleared) * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR
+            }
+            None => v.farm_lifesteal_rows,
+        };
+        let share =
+            crate::status_runtime::stats::lifesteal_total(own, rows, v.lifesteal_mult, 0., farm);
         let dot = if v.lifesteal_dot > 0. { dot_amount } else { 0. };
         let gain = (amount - dot) * share
             + dot
@@ -434,7 +436,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
                     rows,
                     v.lifesteal_mult,
                     v.lifesteal_dot,
-                    v.farm_lifesteal_rows,
+                    farm,
                 );
         if gain > 0. {
             heal::apply(w, ev, i.slot(), gain, heal::Kind::Lifesteal);

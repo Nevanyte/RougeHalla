@@ -3,9 +3,9 @@
 //! the public inputs (faction, cards, decoded mirrors, max hp, kill stats, mob kill stacks as farm rows); the Rust scores
 //! must equal the legacy `investedStats` bit for bit and the marks must be its first two keys.
 //!
-//! Known deviation (proposed DEVIATIONS row): legacy `cardLeech` adds Holy's camp lifesteal (`holyCampLifestealOf`,
-//! 0.005 per eligible camp clear). The Rust sim has no such passive, so a Holy case with camp clears is compared with the
-//! legacy result at zero clears (`withoutCampClears`), and the test pins that the legacy marks differ.
+//! Holy's camp lifesteal (`holyCampLifestealOf`, 0.005 per eligible camp clear, combatReadability.ts:133) is part of the
+//! leech score: the `holy_camp_clears` case (20 clears) is compared with the legacy result like every other case
+//! (P-HOLY-DEMON-BLOOD-1 removed the DEV-012 exception that compared it at zero clears).
 use super::{invested_scores, top_two, KillStatKey, KillStats, Readable};
 use crate::cards::{Build, CardId};
 use crate::stat_fold::StatMirrors;
@@ -81,19 +81,10 @@ fn build_marks_match_the_legacy_readability_formula() {
             max_hp: case["maxHp"].as_f64().unwrap(),
             farm_rows: &farm_rows[..farm_len],
             kill: &kill,
+            camp_clears: case["campClears"].as_u64().unwrap() as u16,
         };
         let scores = invested_scores(&r, false);
-        let camp_clears = case["campClears"].as_u64().unwrap();
-        // The Rust sim has no Holy camp-lifesteal passive: compare with legacy at zero clears, and pin the gap.
-        let expected = if camp_clears > 0 {
-            assert_ne!(
-                case["marks"], case["withoutCampClears"]["marks"],
-                "{name}: the camp-clear case shows the deviation"
-            );
-            &case["withoutCampClears"]
-        } else {
-            case
-        };
+        let expected = case;
         let want: Vec<(KillStatKey, f64)> = expected["invested"]
             .as_array()
             .unwrap()

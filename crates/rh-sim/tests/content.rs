@@ -28,6 +28,7 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("systems/holy_demon_blood_tests.rs", "TOL", "cfg(test)-only comparison tolerance of the captured Holy camp-lifesteal corpus; never read by gameplay"),
     ("systems/sentenced/mark_tax/source_tests.rs", "PHASES", "cfg(test)-only observational phase and RNG transcript storage; never read by production gameplay or content decisions"),
     ("systems/sentenced/mark_tax/source_tests.rs", "PUBLIC_MARKS", "cfg(test)-only captured public Mark projection bookkeeping; never read by production gameplay or content decisions"),
     ("systems/sentenced/mark_tax/source_tests.rs", "SEEN_SIGNATURE", "cfg(test)-only captured lazy signature presence bookkeeping; never read by production gameplay or content decisions"),
@@ -549,7 +550,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x7d2d_84b8_27af_3ddc;
+const GOLDEN_CONTENT_HASH: u64 = 0xb35f_23ed_00df_75b3;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
