@@ -21,10 +21,11 @@ namespace Roguehalla.Client
             public readonly Vector2 Min, Max;
             public Cell(Vector2 min, Vector2 max) { Min = min; Max = max; }
         }
-        public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants], LowDark = new Cell[LowVariants]; public Cell Rim; }
+        public sealed class Set { public Cell[] Top = new Cell[9], Face = new Cell[FaceVariants], Low = new Cell[LowVariants], LowDark = new Cell[LowVariants], LowDeep = new Cell[LowVariants]; public Cell Rim; }
         /// <summary>Fence iron per region id (index 0 unused): true where the dark iron set reads better than the light one against the zone's fence tile ground (measured on the palette: Frost, Holy, Coliseum have light ground).</summary>
-        static readonly bool[] DarkIronRegion = { false, false, false, false, true, true, true };
-        public static bool DarkIronFor(int region) { return region >= 0 && region < DarkIronRegion.Length && DarkIronRegion[region]; }
+        static readonly int[] IronLevelRegion = { 0, 0, 0, 0, 1, 2, 1 };   // 0 light iron, 1 dark iron, 2 deeper dark iron (Holy: mid-luminance ground needs near-black bars for 3:1)
+        public static int IronLevelFor(int region) { return region >= 0 && region < IronLevelRegion.Length ? IronLevelRegion[region] : 0; }
+        public static Cell[] LowFor(Set set, int ironLevel) { return ironLevel == 2 ? set.LowDeep : ironLevel == 1 ? set.LowDark : set.Low; }
 
         static Texture2D _atlas; static Set[] _sets; static Cell _contact, _fenceGround;
         public static Texture2D Atlas { get { Ensure(); return _atlas; } }
@@ -32,7 +33,7 @@ namespace Roguehalla.Client
         public static Cell Contact { get { Ensure(); return _contact; } }
         /// <summary>A flat decal cell (the fence's iron at alpha .3) drawn over the ground of a fence tile, as legacy drawFenceTile does.</summary>
         public static Cell FenceGround { get { Ensure(); return _fenceGround; } }
-        static readonly Color FenceGroundIron = new Color(.11f, .114f, .133f, .3f);
+        static readonly Color FenceGroundIron = new Color(.11f, .114f, .133f, .3f);   // the single source of the fence tile ground: FenceTileGround and the decal cell both derive from it
         /// <summary>Ground colour (sRGB) under a fence tile for an open floor colour: the iron tint at alpha .3, about 30% darker.</summary>
         public static Color FenceTileGround(Color floorSrgb)
         {
@@ -65,17 +66,20 @@ namespace Roguehalla.Client
                 var style = (WallStyle)s; var th = ThemeOf(style); var set = new Set();
                 for (int v = 0; v < (style == WallStyle.Temple ? 9 : TopVariants); v++) set.Top[v] = Place(PaintTop(style, th, v), ref x, ref y, ref rowH);
                 for (int v = 0; v < FaceVariants; v++) set.Face[v] = Place(PaintFace(style, th, v), ref x, ref y, ref rowH);
-                if (style == WallStyle.Temple) { set.Low = _sets[(int)WallStyle.Sandstone].Low; set.Rim = _sets[(int)WallStyle.Sandstone].Rim; }   // low walls and rims reuse the sandstone cells
+                if (style == WallStyle.Temple) { set.Low = _sets[(int)WallStyle.Sandstone].Low; set.LowDark = set.Low; set.LowDeep = set.Low; set.Rim = _sets[(int)WallStyle.Sandstone].Rim; }   // low walls and rims reuse the sandstone cells
                 else
                 {
                     for (int v = 0; v < LowVariants; v++) set.Low[v] = Place(PaintLow(style, th, v), ref x, ref y, ref rowH);
-                    for (int v = 0; v < LowVariants; v++) set.LowDark[v] = style == WallStyle.Timber ? Place(PaintLow(style, th, v, true), ref x, ref y, ref rowH) : set.Low[v];
+                    for (int v = 0; v < LowVariants; v++) set.LowDark[v] = style == WallStyle.Timber ? Place(PaintLow(style, th, v, 1), ref x, ref y, ref rowH) : set.Low[v];
+                    for (int v = 0; v < LowVariants; v++) set.LowDeep[v] = style == WallStyle.Timber ? Place(PaintLow(style, th, v, 2), ref x, ref y, ref rowH) : set.Low[v];
                     set.Rim = Place(PaintRim(th), ref x, ref y, ref rowH);
                 }
                 _sets[s] = set;
             }
             _contact = Place(PaintContact(), ref x, ref y, ref rowH);
-            var fg = new RegionCanvas(4, 4); for (int i = 0; i < fg.Px.Length; i++) fg.Px[i] = FenceGroundIron;
+            // the decal blends over a floor to exactly FenceTileGround(floor): rgb = tint, alpha = FenceGroundIron.a (derived from the function, FenceTileGround(black) = tint * a)
+            var tint = FenceTileGround(Color.black); var decal = new Color(tint.r / FenceGroundIron.a, tint.g / FenceGroundIron.a, tint.b / FenceGroundIron.a, FenceGroundIron.a);
+            var fg = new RegionCanvas(4, 4); for (int i = 0; i < fg.Px.Length; i++) fg.Px[i] = decal;
             _fenceGround = Place(fg, ref x, ref y, ref rowH);
             _atlas = new Texture2D(AtlasW, atlasH, TextureFormat.RGBA32, true, false) { name = "Region walls atlas", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, anisoLevel = 2 };
             _atlas.SetPixelData(px, 0); _atlas.Apply(true, !Application.isEditor);
@@ -375,7 +379,7 @@ namespace Roguehalla.Client
 
         // ---- low obstacles ------------------------------------------------------------------------------------------------------
 
-        static RegionCanvas PaintLow(WallStyle style, RegionTheme th, int variant, bool darkIron = false)
+        static RegionCanvas PaintLow(WallStyle style, RegionTheme th, int variant, int ironLevel = 0)
         {
             var cv = new RegionCanvas(TileW, LowH); int seed = 500 + variant * 11 + (int)style * 3;
             Color face = th.WallFace, top = th.WallTop, edge = th.WallEdge;
@@ -385,7 +389,7 @@ namespace Roguehalla.Client
                 // Graveyard fence: wrought-iron railings with spear finials between stone posts (see-through), or, on some tiles, a low
                 // crumbling stone wall. Continuous across tiles (bars repeat every 8 px; the 128 px tile ends on a post).
                 Color iron = Mix(new Color(.52f, .53f, .59f), th.AccentSrgb, .12f), ironL = Mix(iron, Color.white, .22f);
-                if (darkIron) { iron = Mix(new Color(.09f, .09f, .12f), th.AccentSrgb, .12f); ironL = Mix(iron, Color.black, .25f); }   // for light grounds: dark bars, rails a touch darker still
+                if (ironLevel > 0) { iron = Mix(new Color(.09f, .09f, .12f), th.AccentSrgb, .12f); if (ironLevel > 1) iron = Shade(iron, .35f); ironL = Mix(iron, Color.black, .25f); }   // for light grounds: dark bars, rails a touch darker still
                 Color stone = Mix(th.WallFace, th.WallTop, .4f), stoneL = Mix(stone, Color.white, .25f), stoneD = Shade(stone, .5f);
                 if (variant % 3 == 2)
                 {

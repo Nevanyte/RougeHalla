@@ -106,7 +106,7 @@ namespace Roguehalla.Client
                         if (kind == (int)TerrainKind.Fence) { _kind = 4f; Rect(px0, py, px1, py + ArenaView.GroundSquash, RegionWallAtlas.FenceGround, new Color32(255, 255, 255, 255)); }   // darker ground under the fence (RegionWallAtlas.FenceTileGround)
                         _kind = 4f; Rect(px0, py - .26f, px1, py + .02f, contact, new Color32(255, 255, 255, 190)); _kind = 1f;
                         Rect(px0 - .004f, py - 6f / RegionWallAtlas.TileW, px1 + .004f, py - 6f / RegionWallAtlas.TileW + RegionWallAtlas.LowH / (float)RegionWallAtlas.TileW,
-                            (kind == (int)TerrainKind.Fence && RegionWallAtlas.DarkIronFor(RegionOf(x, y)) ? set.LowDark : set.Low)[v % RegionWallAtlas.LowVariants], col);
+                            (kind == (int)TerrainKind.Fence ? RegionWallAtlas.LowFor(set, RegionWallAtlas.IronLevelFor(RegionOf(x, y))) : set.Low)[v % RegionWallAtlas.LowVariants], col);
                         _kind = 0f; continue;
                     }
                     int faceV = inBlock ? bcol : templeWall ? ((x % 3) + 3) % 3 : v % RegionWallAtlas.FaceVariants, topV = inBlock ? bcol + 3 * brow : templeWall ? 4 : (v / 3) % RegionWallAtlas.TopVariants;
