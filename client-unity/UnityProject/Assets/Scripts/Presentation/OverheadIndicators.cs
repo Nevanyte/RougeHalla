@@ -242,7 +242,9 @@ namespace Roguehalla.Client
                 if (a.Kind == StatusKind.Root) { rooted = true; continue; }
                 if (a.Kind == StatusKind.Zoned) { zoned = true; continue; }
                 var g = _glyphs[(int)a.Kind];
-                float side = U(Mathf.Min(Mathf.Min(a.W, a.H), 16f));   // the existing glyph art is badge-sized: it is centred on the anchor, not stretched to the envelope
+                bool ring = a.Kind == StatusKind.Casting || a.Kind == StatusKind.LastStand || a.Kind == StatusKind.Untargetable;
+                // The three concentric body rings are sized from their own envelope (38, 36, 31 px) so they stay distinguishable together; the rest use the capped badge size.
+                float side = ring ? U(Mathf.Min(a.W, a.H) * .6f) : U(Mathf.Min(Mathf.Min(a.W, a.H), 16f));   // the existing glyph art is badge-sized: it is centred on the anchor, not stretched to the envelope
                 g.enabled = true; g.color = GlyphColour(Indicators.StatusOrder[(int)a.Kind].Bit, theme);
                 g.transform.localPosition = new Vector3(U(a.X), dy + U(a.Y + a.H * .5f), -.001f * a.Order);
                 g.transform.localScale = new Vector3(side, side, 1);

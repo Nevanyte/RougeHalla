@@ -47,6 +47,13 @@ namespace Roguehalla.Client.Tests
             f.Effects = Indicators.Rooted; _ind.Update(f); Assert.IsTrue(Find("Rooted ring").enabled); Assert.IsFalse(Find("Status stun").enabled);
         }
 
+        [Test] public void ConcentricBodyRingsDrawAtDifferentSizes()
+        {
+            var f = Facts(); f.Effects = (ushort)(Indicators.Casting | Indicators.LastStand | Indicators.Untargetable); _ind.Update(f);
+            float c = Find("Status cast").transform.localScale.x, l = Find("Status faststand").transform.localScale.x, u = Find("Status dashring").transform.localScale.x;
+            Assert.Greater(c, l); Assert.Greater(l, u);
+        }
+
         [Test] public void StatusArtSitsAtTheLegacyAnchorAndThereIsNoBadgePlate()
         {
             var f = Facts(); f.Effects = (ushort)(Indicators.Stunned | Indicators.Dot | Indicators.Silenced | Indicators.AntiHeal); _ind.Update(f);
