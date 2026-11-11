@@ -387,7 +387,6 @@ namespace Roguehalla.Client
             var fx = a.IndFacts; float barY = 1.8f + lift;
             fx.Order = order; fx.HeadY = headY; fx.BarY = barY; fx.Dead = dead; fx.Local = local; fx.Mob = kind == ActorKind.RegionalMob || kind == ActorKind.TrainingDummy;
             fx.Elite = elite; fx.Dummy = kind == ActorKind.TrainingDummy; fx.HpPct = hp; fx.Effects = effects; fx.Name = fx.Mob ? (kind == ActorKind.TrainingDummy ? "Training dummy" : label) : null;
-            fx.SigTopY = (signature != 0 || ringSteps > 0) ? 2.62f + lift : barY;
             fx.Reduced = reduced; fx.BarrierStep = ringSteps; fx.Sig = signature;
             a.IndFacts = fx;
             // SURFACE-FX HOOK: delivered actors only (see SurfaceFx); prints, ripples and footsteps come from here and nowhere else.

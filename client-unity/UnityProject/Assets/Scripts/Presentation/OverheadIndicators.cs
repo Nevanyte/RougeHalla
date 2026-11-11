@@ -27,7 +27,6 @@ namespace Roguehalla.Client
             public int Order;            // the actor's sorting order
             public float HeadY;          // local y of the head top (look height)
             public float BarY;           // local y of the hp bar
-            public float SigTopY;        // unused by the overhead stack (the signature icon row is gone); kept for callers that still fill it
             public bool Dead, Local, Mob, Elite, Dummy;
             public float HpPct;
             public int Bounty;

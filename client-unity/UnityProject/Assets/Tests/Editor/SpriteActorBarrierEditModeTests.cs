@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 using UnityEngine;
 
 namespace Roguehalla.Client.Tests
@@ -39,10 +41,13 @@ namespace Roguehalla.Client.Tests
             var barrier = Find("Confirmed barrier");
             Assert.That(health.enabled, Is.True);
             Assert.That(barrier.enabled, Is.True);
-            Assert.That(health.transform.localScale.x, Is.EqualTo(.4675f).Within(.0001f));
-            Assert.That(barrier.transform.localScale.x, Is.EqualTo(.425f).Within(.0001f));
-            Assert.That(barrier.transform.localPosition.x + barrier.transform.localScale.x / 2,
-                Is.EqualTo(-.49f + .85f * 1.05f).Within(.0001f), "track deliberately accommodates independently quantized 105% total");
+            // Legacy bar (OverheadStack): 28 px player bar scaled to max(100, hp + barrier) = 105, widths to half a pixel; the barrier segment follows the fill.
+            var expected = Layout(55, 50);
+            Assert.That(health.transform.localScale.x, Is.EqualTo(OverheadStack.ToUnits(expected[OverheadKind.HpFill].W)).Within(.0001f));
+            Assert.That(barrier.transform.localScale.x, Is.EqualTo(OverheadStack.ToUnits(expected[OverheadKind.BarrierFill].W)).Within(.0001f));
+            Assert.That(health.transform.localScale.x + barrier.transform.localScale.x, Is.EqualTo(OverheadStack.ToUnits(28f)).Within(OverheadStack.ToUnits(1f)),
+                "fill plus barrier span the 28 px player bar when hp + barrier exceeds max hp");
+            Assert.That(barrier.transform.localPosition.x - barrier.transform.localScale.x / 2, Is.EqualTo(health.transform.localPosition.x + health.transform.localScale.x / 2).Within(.0001f), "the barrier follows the fill");
 
             Present(1, 100, 0, 0);
             AssertRing(0);
@@ -96,7 +101,7 @@ namespace Roguehalla.Client.Tests
             Assert.That(_presenter.Contains(3), Is.True);
             Assert.That(root.gameObject.activeSelf, Is.True);
             Assert.That(Find("Confirmed barrier").enabled, Is.True);
-            Assert.That(Find("Confirmed barrier").transform.localScale.x, Is.EqualTo(.425f).Within(.0001f));
+            Assert.That(Find("Confirmed barrier").transform.localScale.x, Is.EqualTo(OverheadStack.ToUnits(Layout(50, 50)[OverheadKind.BarrierFill].W)).Within(.0001f));
             Assert.That(Get<bool>(art, "Dead"), Is.False);
             foreach (string field in new[] { "AttackUntil", "HitUntil", "BlockUntil", "AttackAt", "HitAt", "BlockAt", "DeadAt" })
                 Assert.That(Get<float>(art, field), Is.Zero, field);
@@ -136,6 +141,14 @@ namespace Roguehalla.Client.Tests
             var body = parent.transform.Find("Observed actor/Authored character").GetComponent<SpriteRenderer>();
             Assert.That(body.sprite, Is.SameAs(appearance.Death[direction * count + count - 1]),
                 "timeline reset holds the real authored terminal death frame regardless of Editor uptime");
+        }
+
+        static Dictionary<OverheadKind, OverheadElement> Layout(float hp, float barrier)
+        {
+            var facts = new OverheadFacts { Kind = OverheadActorKind.Player, HpPct = hp, BarrierPct = barrier };
+            var list = new List<OverheadElement>();
+            OverheadStack.Build(in facts, list);
+            return list.ToDictionary(e => e.Kind);
         }
 
         void Present(uint id, int health, float barrier, byte ring, ActorStatus status = ActorStatus.Alive, ActorKind kind = ActorKind.Player)

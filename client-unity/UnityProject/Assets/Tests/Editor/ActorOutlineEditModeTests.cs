@@ -101,7 +101,7 @@ namespace Roguehalla.Client.Tests
         {
             Present(7, ActorKind.Player, hp: 60);
             var root = Root();
-            foreach (var name in new[] { "Health and barrier track outline", "Faction footprint outline", "Faction insignia backplate outline" })
+            foreach (var name in new[] { "Health and barrier track outline", "Faction footprint outline" })
             {
                 var o = Find(root, name); Assert.That(o, Is.Not.Null, name); Assert.That(o.enabled, Is.True, name);
                 Assert.That(o.sharedMaterial.shader.name, Is.EqualTo("Roguehalla/ActorOutline"), name);
@@ -182,14 +182,14 @@ namespace Roguehalla.Client.Tests
             int strokes = 0;
             foreach (var r in Root().GetComponentsInChildren<SpriteRenderer>(true))
                 if (r.gameObject.name.EndsWith(" outline") || r.gameObject.name == "Character contrast rim") { strokes++; Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), r.gameObject.name); }
-            Assert.That(strokes, Is.GreaterThanOrEqualTo(30), "the body, the weapon cue, the three gated markers and every overhead plate and ring carry a stroke");
+            Assert.That(strokes, Is.GreaterThanOrEqualTo(30), "the body, the weapon cue, the two gated markers and every overhead plate and ring carry a stroke");
         }
 
         [Test] public void OverheadPlatesLeaveTheGrabAndTheBodyStaysInDefault()
         {
             Present(42, ActorKind.Player, hp: 60);
             var root = Root();
-            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Faction insignia backplate", "Faction insignia", "Name plate", "Status plate flame" })
+            foreach (var name in new[] { "Health and barrier track", "Confirmed health", "Status plate flame" })
             {
                 var r = Find(root, name); Assert.That(r, Is.Not.Null, name);
                 Assert.That(r.sortingLayerID, Is.EqualTo(StrokeLayer.Id), name + ": an overhead plate is not part of the ground a stroke is judged against");

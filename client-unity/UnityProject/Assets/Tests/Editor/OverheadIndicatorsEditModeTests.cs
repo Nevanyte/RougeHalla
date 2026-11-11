@@ -13,7 +13,7 @@ namespace Roguehalla.Client.Tests
         [SetUp] public void Up() { ShowcaseSprites.Initialize(); _go = new GameObject("actor"); _ind = new OverheadIndicators(_go.transform); }
         [TearDown] public void Down() { Object.DestroyImmediate(_go); }
 
-        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, SigTopY = 1.8f, HpPct = 100f }; }
+        static OverheadIndicators.Facts Facts() { return new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, HpPct = 100f }; }
         SpriteRenderer Find(string name) { var t = _go.transform.Find(name); return t == null ? null : t.GetComponent<SpriteRenderer>(); }
 
         [Test] public void NothingShownForAPlainActor()
