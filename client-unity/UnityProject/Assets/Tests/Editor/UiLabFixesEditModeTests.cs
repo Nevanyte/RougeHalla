@@ -32,12 +32,15 @@ namespace Roguehalla.Client.Tests
             f.Dead = true; _ind.Update(f); Assert.IsFalse(Find("Barrier bubble").enabled);
         }
 
-        [Test] public void The_bubble_sits_on_the_body_and_clear_of_the_status_row()
+        [Test] public void The_bubble_sits_on_the_body_and_below_the_stun_stars_at_the_head()
         {
             var f = Facts(); f.BarrierStep = 8; f.Effects = Indicators.Stunned; _ind.Update(f);
             var bubble = Find("Barrier bubble"); var glyph = Find("Status stun");
             float top = bubble.transform.localPosition.y + bubble.transform.localScale.y * .5f;
-            Assert.Less(top, glyph.transform.localPosition.y - glyph.transform.localScale.y * .4f, "the bubble top stays below the status glyph row");
+            Assert.IsTrue(StatusAnchors.TryGet(StatusKind.Stun, OverheadActorKind.Player, out var anchor));
+            float feet = f.BarY - OverheadStack.ToUnits(33.2f);
+            Assert.AreEqual(feet + OverheadStack.ToUnits(anchor.Y + anchor.H * .5f), glyph.transform.localPosition.y, 1e-4f, "the stun art sits at its legacy head anchor");
+            Assert.Less(top, glyph.transform.localPosition.y + OverheadStack.ToUnits(anchor.H * .5f), "the bubble top stays under the top of the stun stars' orbit");
         }
 
         // ---- bounty number (legacy: outlined text, no plate) ----------------------------------------------------------------------------

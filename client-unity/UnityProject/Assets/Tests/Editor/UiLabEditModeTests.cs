@@ -158,6 +158,7 @@ namespace Roguehalla.Client.Tests
             _stage.DriveForTest(-1f);
             Assert.That(Enabled("Bounty crown"), "P7 crown");
             Assert.That(Enabled("Status stun"), "S1 glyph");
+            Assert.That(Enabled("Status plate stun"), Is.False, "no badge plate");
             Assert.That(Enabled("Rooted ring"), "S2 ring");
         }
 

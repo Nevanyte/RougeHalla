@@ -47,11 +47,10 @@ namespace Roguehalla.Client
         const float Px = .026f; // legacy px to actor-local units
         readonly SpriteRenderer _hover, _hunt, _wishIcon, _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
-        readonly SpriteRenderer[] _backs = new SpriteRenderer[Indicators.StatusOrder.Length];
         readonly SpriteRenderer _lockDark;
         readonly TextMeshPro _number, _name;
         readonly OverheadExtras _extras;      // barrier bubble, elite rings and star, signature text cues (OverheadExtras.cs)
-        readonly Indicators.StatusLayer[] _layers = new Indicators.StatusLayer[Indicators.StatusOrder.Length];
+        readonly List<StatusAnchor> _anchors = new List<StatusAnchor>();   // this frame's status art spots (StatusAnchors.Build)
         readonly List<OverheadElement> _stack = new List<OverheadElement>();   // this frame's layout (OverheadStack.Build)
         int _bounty = -1; string _nameText;
         float _textFade = 1f;
@@ -67,7 +66,6 @@ namespace Roguehalla.Client
             _badgeIcon = Sprite(root, "Secondary weapon icon", ShowcaseSprites.Get("weapon0"), 10);
             for (int i = 0; i < _glyphs.Length; i++)
             {
-                _backs[i] = Sprite(root, "Status plate " + GlyphKeys[i], ShowcaseSprites.Get("bar"), 8);
                 _glyphs[i] = Sprite(root, "Status " + GlyphKeys[i], IndicatorArt.Get(GlyphKeys[i]), 9);
             }
             var t0 = UiTheme.Current;
@@ -125,7 +123,6 @@ namespace Roguehalla.Client
         {
             _hover.enabled = _hunt.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = false;
             foreach (var g in _glyphs) g.enabled = false;
-            foreach (var b in _backs) b.enabled = false;
             _lockDark.enabled = false;
             _number.gameObject.SetActive(false); _name.gameObject.SetActive(false);
             _bounty = -1; _nameText = null; _textFade = 1f;
@@ -165,7 +162,7 @@ namespace Roguehalla.Client
                 Stat1 = f.M.Top1, Stat2 = f.M.Top2, MarkTier = Mathf.Clamp(f.M.Tier, 0, 4),
             };
             OverheadStack.Build(in sf, _stack);
-            float dy = f.BarY - U(33.2f), topPx = 35.2f, nameTopPx = 35.2f;
+            float dy = f.BarY - U(33.2f), nameTopPx = 35.2f;
             bool haveNumber = false; int stats = 0;
             _crown.enabled = _wishIcon.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = false;
             _extras.ClearBuildMarks();
@@ -173,7 +170,6 @@ namespace Roguehalla.Client
             {
                 var e = _stack[i];
                 float cx = U(e.X), cy = dy + U(e.Y + e.H * .5f);
-                topPx = Mathf.Max(topPx, e.Y + e.H);
                 switch (e.Kind)
                 {
                     case OverheadKind.Name:
@@ -233,35 +229,26 @@ namespace Roguehalla.Client
             }
             if (!haveNumber) { _number.gameObject.SetActive(false); _bounty = -1; }
             _extras.EliteStar(in f, dy + U(nameTopPx) + .02f, theme);   // the elite star sits just above the name (MobView)
-            float rowY = dy + U(topPx + (f.Elite ? 14f : 0f)) + .19f;   // the status badge row clears the whole stack
 
-            // Statuses (unchanged this packet; on-body anchors are P-UNITY-OVERHEAD-2): ground rings at the feet, glyph badges in one row, now above the whole stack.
-            int n = Indicators.StatusLayers(f.Effects, _layers);
-            bool rooted = false, zoned = false; int shown = 0;
-            for (int i = 0; i < _glyphs.Length; i++) { _glyphs[i].enabled = false; _backs[i].enabled = false; }
-            for (int i = 0; i < n; i++)
+            // Statuses (StatusArt.ts): each delivered effect bit is art at its fixed legacy anchor on the body, in legacy draw order (no badge row,
+            // no plates). Anchors are fixed pixels relative to the feet and do not scale with the archetype. Rooted and zoned keep their ground rings.
+            var kind = f.Elite ? OverheadActorKind.Elite : f.Dummy ? OverheadActorKind.Dummy : f.Mob ? OverheadActorKind.Mob : OverheadActorKind.Player;
+            StatusAnchors.Build(f.Effects, kind, _anchors);
+            bool rooted = false, zoned = false;
+            for (int i = 0; i < _glyphs.Length; i++) _glyphs[i].enabled = false;
+            for (int i = 0; i < _anchors.Count; i++)
             {
-                ushort bit = _layers[i].Bit;
-                if (bit == Indicators.Rooted) { rooted = true; continue; }
-                if (bit == Indicators.Zoned) { zoned = true; continue; }
-                shown++;
-            }
-            float rowW = shown * .34f, x0 = -rowW * .5f + .17f;
-            int slot = 0;
-            for (int i = 0; i < n; i++)
-            {
-                ushort bit = _layers[i].Bit;
-                if (bit == Indicators.Rooted || bit == Indicators.Zoned) continue;
-                int idx = IndexOfBit(bit);
-                var g = _glyphs[idx];
-                g.enabled = true; g.color = GlyphColour(bit, theme);
-                g.transform.localPosition = new Vector3(x0 + slot * .34f, rowY, 0);
-                g.transform.localScale = new Vector3(.3f, .3f, 1);
+                var a = _anchors[i];
+                if (a.Kind == StatusKind.Root) { rooted = true; continue; }
+                if (a.Kind == StatusKind.Zoned) { zoned = true; continue; }
+                var g = _glyphs[(int)a.Kind];
+                bool ring = a.Kind == StatusKind.Casting || a.Kind == StatusKind.LastStand || a.Kind == StatusKind.Untargetable;
+                // The three concentric body rings are sized from their own envelope (38, 36, 31 px) so they stay distinguishable together; the rest use the capped badge size.
+                float side = ring ? U(Mathf.Min(a.W, a.H) * .6f) : U(Mathf.Min(Mathf.Min(a.W, a.H), 16f));   // the existing glyph art is badge-sized: it is centred on the anchor, not stretched to the envelope
+                g.enabled = true; g.color = GlyphColour(Indicators.StatusOrder[(int)a.Kind].Bit, theme);
+                g.transform.localPosition = new Vector3(U(a.X), dy + U(a.Y + a.H * .5f), -.001f * a.Order);
+                g.transform.localScale = new Vector3(side, side, 1);
                 g.sortingOrder = f.Order + 9;
-                var back = _backs[idx]; back.enabled = true; back.sortingOrder = f.Order + 8;
-                back.transform.localPosition = g.transform.localPosition; back.transform.localScale = new Vector3(.33f, .33f, 1);
-                var bc = (Color)theme.OutlineDark; bc.a = 1f; back.color = bc;
-                slot++;
             }
             Ground(_root, rooted, f.Order - 5, new Vector2(1.15f, .6f), (Color)theme.TextPrimary, .9f);
             Ground(_zone, zoned, f.Order - 5, new Vector2(1.5f, .78f), (Color)theme.Info, .9f);
@@ -297,8 +284,6 @@ namespace Roguehalla.Client
         {
             switch ((AbilityId)ability) { case AbilityId.Freeze: return (int)FactionId.Frost; case AbilityId.Swarm: return (int)FactionId.Plague; case AbilityId.Trial: return (int)FactionId.Sentenced; case AbilityId.Blaze: return (int)FactionId.Fire; default: return (int)FactionId.Holy; }
         }
-
-        static int IndexOfBit(ushort bit) { for (int i = 0; i < Indicators.StatusOrder.Length; i++) if (Indicators.StatusOrder[i].Bit == bit) return i; return 0; }
 
         void Ground(SpriteRenderer r, bool on, int order, Vector2 size, Color color, float alpha)
         {

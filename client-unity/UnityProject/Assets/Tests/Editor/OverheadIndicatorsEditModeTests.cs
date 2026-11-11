@@ -47,6 +47,27 @@ namespace Roguehalla.Client.Tests
             f.Effects = Indicators.Rooted; _ind.Update(f); Assert.IsTrue(Find("Rooted ring").enabled); Assert.IsFalse(Find("Status stun").enabled);
         }
 
+        [Test] public void ConcentricBodyRingsDrawAtDifferentSizes()
+        {
+            var f = Facts(); f.Effects = (ushort)(Indicators.Casting | Indicators.LastStand | Indicators.Untargetable); _ind.Update(f);
+            float c = Find("Status cast").transform.localScale.x, l = Find("Status faststand").transform.localScale.x, u = Find("Status dashring").transform.localScale.x;
+            Assert.Greater(c, l); Assert.Greater(l, u);
+        }
+
+        [Test] public void StatusArtSitsAtTheLegacyAnchorAndThereIsNoBadgePlate()
+        {
+            var f = Facts(); f.Effects = (ushort)(Indicators.Stunned | Indicators.Dot | Indicators.Silenced | Indicators.AntiHeal); _ind.Update(f);
+            float feet = f.BarY - OverheadStack.ToUnits(33.2f);
+            foreach (var pair in new[] { (StatusKind.Stun, "Status stun"), (StatusKind.Dot, "Status flame"), (StatusKind.Silence, "Status silence"), (StatusKind.AntiHeal, "Status antiheal") })
+            {
+                Assert.IsTrue(StatusAnchors.TryGet(pair.Item1, OverheadActorKind.Player, out var a));
+                var p = Find(pair.Item2).transform.localPosition;
+                Assert.AreEqual(OverheadStack.ToUnits(a.X), p.x, 1e-4f, pair.Item2 + " x");
+                Assert.AreEqual(feet + OverheadStack.ToUnits(a.Y + a.H * .5f), p.y, 1e-4f, pair.Item2 + " y");
+            }
+            foreach (Transform c in _go.transform) StringAssert.DoesNotContain("Status plate", c.name, "no badge plates");
+        }
+
         [Test] public void LockRingOnlyWhenLocked()
         {
             var f = Facts(); _ind.Update(f); Assert.IsFalse(Find("Attack lock ring").enabled);
