@@ -4,6 +4,24 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Paused by the owner (2026-11-11, about 08:50 CST): state to resume from
+
+Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.
+- **Pushed to origin:** `e43e8cf6` (integration 2: full gate PASS, EditMode 608/608, protocol 17).
+- **Local, not pushed, not yet in a full gate:** the P-UNITY-HUD-CAMPS-1 merge `00d19d64` and the records after it.
+- **Implemented, awaiting Opus review:** `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (camp reward, ward verdict, owner build
+  summary key 13; observation 25, policy 19; all checks green by hand, quick gate not rerun after the hash-tape line was
+  regenerated). The review was stopped at the pause and must be run again; its worktree was removed to free disk
+  (the branch holds everything). Points to judge are in the packet brief plus: the summary re-send rule (re-sent when a
+  value moves a whole quantum from what the client holds), and two test files edited outside the brief's scope
+  (`crates/rh-server/src/outbox/scene_candidate/fixture.rs`, `crates/rh-server/src/trade_bridge_tests.rs`).
+- **Next in order:** review and merge P-WIRE17-HUD-1; full gate and EditMode on the result; push. Then
+  P-UNITY-HUD-BUILD-1 (GAINED strip; brief written), P-UNITY-HUD-CAMPS-2 (reward badges, ward beacons; brief to write),
+  P-WIRE17-HUD-2 (champion panel values, weapon scaling; brief on the HUD-1 branch) and the panel in Unity; then the
+  legacy Nov 4 changes, map pool, signature terrain, dressing and bots from the approved plan.
+- **Disk:** about 10 GiB free before the worktree removal; a Rust agent worktree grows to 10-18 GiB.
+- **Gate command:** as in the earlier pause note (`PGBIN`, `LC_ALL`, `tools/pgtest/start.sh`, `scripts/gate.sh --coordinator`).
+
 ## Beta follow-up integration 2 (2026-11-11 03:54 CST)
 
 Integration branch `feature/unity-rework`, head `e43e8cf6`, pushed to origin. **Full gate with Postgres: GATE PASS**
