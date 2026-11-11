@@ -167,7 +167,7 @@ namespace Roguehalla.Client
             if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
             if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
             // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
-            var phase = _session.Collections.Plan != null ? MatchPhase.Planning : _session.Phase;
+            MatchPhase phase = _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
             var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, out var lineTone);
             if (text == null) { _phaseStrip.text = ""; return; }
             string hex = lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
