@@ -1,14 +1,66 @@
 {
+  "worktree": {
+    "baseRef": "head"
+  },
   "permissions": {
     "allow": [
-      "Bash(cargo test -p *)",
-      "Bash(cargo test -q -p *)",
-      "Bash(cargo test --workspace --all-features)",
+      "Bash(scripts/gate.sh *)",
+      "Bash(bash scripts/gate.sh *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo check *)",
+      "Bash(cargo build *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo test *)",
+      "Bash(cargo run -p rh-parity *)",
+      "Bash(cargo run -q -p rh-parity *)",
+      "Bash(cargo run -p rh-protocol --bin protocol-fixtures)",
       "Bash(callgrind_annotate *)",
-      "Bash(cargo fmt --all --check)",
-      "Bash(cargo clippy --workspace --all-targets --all-features -- -D warnings)",
-      "Bash(cargo run -p rh-parity --bin parity-report)",
-      "Bash(cargo run -q -p rh-parity --bin parity-report)"
+      "Bash(dotnet test *)",
+      "Bash(bash client-unity/sync-net.sh *)",
+      "Bash(node tools/protocol-js/*)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git fetch *)",
+      "Bash(git worktree *)",
+      "Bash(git checkout -B packet/*)",
+      "Bash(git checkout -B agent/*)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset --hard *)",
+      "Bash(git branch -D *)",
+      "Bash(gh pr merge *)",
+      "Bash(aws *)",
+      "Bash(rm -rf *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(aws cloudformation create-stack *)",
+      "Bash(aws cloudformation update-stack *)",
+      "Bash(aws cloudformation deploy *)",
+      "Bash(aws cloudformation delete-stack *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-oracles.sh"
+          }
+        ]
+      }
     ]
   }
 }

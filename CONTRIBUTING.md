@@ -49,6 +49,8 @@ python3 tools/perfproof/perfproof.py --help         # workloads, --only, the gat
 ```
 
 ## Rules
+- Agent and contributor work follows [docs/agent/README.md](docs/agent/README.md): packets with a failing oracle,
+  `scripts/gate.sh` as the definition of done, scoped review, coordinator integration.
 - The simulation is pure: no I/O, clock or entropy in `rh-sim`; the tick order is fixed ([docs/CONTRACTS.md](docs/CONTRACTS.md) C-TICK).
 - Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate the golden vectors
   `protocol/fixtures/v<PROTOCOL_VERSION>.json` (`cargo run -p rh-protocol --bin protocol-fixtures`); the Rust, C# and JS

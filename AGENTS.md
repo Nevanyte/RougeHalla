@@ -1,30 +1,108 @@
 # AGENTS.md
 
-Roguehalla is being migrated from a TypeScript/Colyseus/Phaser game (`packages/`, still runnable) to a Rust authoritative
-server (`crates/`) and a Unity browser client (`client-unity/`). Stage 1 (foundation) is done; the bulk port is next.
+Rules for every coding agent on RogueHalla (Claude Code, Codex, any other). Claude-specific routing is in `CLAUDE.md`; the
+development process (packets, oracles, gate, review, integration) is in [docs/agent/README.md](docs/agent/README.md). A
+directory with its own `AGENTS.md` (each crate, `client-unity/`, `hosting/`) adds local rules: read it before editing there.
 
-**The core optimization sweep, the efficiency pass and the lock-in pass are complete** ([docs/sweep/README.md](docs/sweep/README.md),
-merged at `b326676`). Stage 2 on `optimization_port` adds melee/items, capture coverage, protocol 5 and a verified Unity Web
-bootstrap. Full gameplay and client flows remain in progress; use the current checkpoint in `docs/MIGRATION.md`.
-Packets that edit `crates/rh-sim` follow the core layout rules in their write scopes
-([docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)).
+RogueHalla is a multiplayer arena roguelike being ported from a legacy TypeScript game (`packages/`, Colyseus + Phaser,
+still runnable) to an authoritative Rust server (`crates/`) and a Unity Web client (`client-unity/`). **Legacy behaviour is
+the oracle**: Rust proves itself against captures of the legacy game (parity). When code and prose disagree, code wins.
 
-Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, commands, results), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md),
-[docs/CONTRACTS.md](docs/CONTRACTS.md), [docs/backlog/README.md](docs/backlog/README.md) and its ready packets,
-[docs/adr/](docs/adr/README.md). Legacy architecture (long, partly stale; code wins): [docs/legacy/CLAUDE_LEGACY.md](docs/legacy/CLAUDE_LEGACY.md)
-and the verified [docs/legacy/INVENTORY.md](docs/legacy/INVENTORY.md).
+## Sources of truth
 
-Non-negotiables:
-- Prioritize complete Rust gameplay, parity and headless ahead of Unity visuals (owner instruction 2026-11-05).
-- Unity contains no game rules, physics, combat or AI. Its sole gameplay exception is narrow local movement prediction,
-  mirrored from Rust, checked with Rust vectors and always corrected by the server; headless/policy runs never use it.
-- `rh-sim` is pure (no I/O, clock, entropy); fixed 20 Hz step; the legacy tick order is never reordered (C-TICK).
-- Every actor (human, bot, future policy) acts only through `validate` + `Sim::submit` (C-INPUT); observations never
-  leak hidden state (C-OBS); secrets never leave the server (C-RNG).
-- Every ported mechanic comes with captured legacy fixtures and a parity test (`parity/`, C-PARITY).
-- Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate the golden vectors `protocol/fixtures/v<PROTOCOL_VERSION>.json` (`cargo run -p rh-protocol --bin protocol-fixtures`); the Rust, C# and JS decoders must all pass them.
-- No ML training, models, datasets, Python bindings or inference services ([docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) R-ML).
-- Only the coordinator edits shared status records (MIGRATION checkpoint, CONTRACTS status table) and `Cargo.lock`.
+Read before planning; state lives here, not in this file.
 
-Commands: `cargo test --workspace` (Postgres tests: `eval "$(tools/pgtest/start.sh)"`), `cargo run -p rh-parity --bin parity-report`,
-`dotnet test client-unity/RoguehallaNet.Tests`, `node tools/browser-proof/proof.mjs`; legacy: `npm ci && npm test`.
+1. [docs/MIGRATION.md](docs/MIGRATION.md): its top section is the current checkpoint (integration branch, identities,
+   gate results, latest owner direction). The single status record.
+2. [docs/ORDER_OF_OPERATIONS.md](docs/ORDER_OF_OPERATIONS.md): the phase and item every packet serves, decisions D1–D10,
+   and the per-operation checklist.
+3. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [docs/CONTRACTS.md](docs/CONTRACTS.md) (invariants `C-*`),
+   [docs/adr/](docs/adr/README.md), [docs/DEVIATIONS.md](docs/DEVIATIONS.md) (intentional differences from legacy).
+4. [docs/backlog/README.md](docs/backlog/README.md) and `docs/backlog/packets/`: the units of work.
+5. Legacy: [docs/legacy/INVENTORY.md](docs/legacy/INVENTORY.md) (verified) and `docs/legacy/CLAUDE_LEGACY.md` (a stale map).
+
+The newest dated owner instruction in the MIGRATION checkpoint governs over older docs. Where it, or ORDER_OF_OPERATIONS,
+conflicts with an Accepted ADR or contract (e.g. D1/D10 vs C-PARITY), the Accepted record governs until the owner resolves
+it: flag the conflict in the hand-off and keep to the record.
+
+## Repository map
+
+| Path | Role |
+|---|---|
+| `crates/rh-sim` | The game: pure, deterministic, fixed 20 Hz, legacy tick order as data (`schedule.rs`). |
+| `crates/rh-protocol` | Binary wire format (`PROTOCOL_VERSION` in `src/lib.rs`), golden vectors shared with C# and JS. |
+| `crates/rh-server` | tokio/axum WSS server: director, rooms (one task each), public HTTP, account API, loopback-only control API. |
+| `crates/rh-persist` | PostgreSQL 16: profiles, fenced session leases, idempotent match results. |
+| `crates/rh-placement` | Placement planner and durable request ledger (own Postgres tables); not deployed. |
+| `crates/rh-policy` | Bots and the seat contract. Live fill bots are `HumanBot`; the full legacy Brain is private, not activated. |
+| `crates/rh-headless`, `rh-parity`, `rh-load` | Headless runner and determinism sweep; parity report against legacy; load tool. |
+| `parity/`, `protocol/fixtures/` | Captured legacy fixtures and golden vectors: **oracles**, generated by tools, never hand-edited. |
+| `tools/` | Capture tools (`*/capture.sh --check`), JS decoder checks, pgtest, perfproof, browser proof. |
+| `client-unity/RoguehallaNet` | Engine-free C# library: codec, client state, pathfinding, mirrored walk prediction. |
+| `client-unity/UnityProject` | Rendering, UI, audio, FX. No game rules. |
+| `hosting/` | AWS staging recipes, placement edge tooling, GameLift bridge. |
+| `packages/` | Legacy TypeScript game: the reference implementation. Read-only for agents. |
+
+## Non-negotiables
+
+- Rust decides every outcome. Unity holds no game rules, physics, combat or AI; its one gameplay exception is local walk
+  prediction mirrored from Rust, checked with Rust vectors and always corrected by the server. Headless and policy runs
+  never use it (R-AUTH, ADR 0008, D9).
+- `rh-sim` is pure (no I/O, clock, entropy); fixed 20 Hz step; legacy tick order is never reordered (C-TICK).
+- Every actor (human, bot, future policy) acts only through `validate` + `Sim::submit` (C-INPUT). Observations carry only
+  what that viewer may see (C-OBS). Secrets (RNG seeds, state hash, admin) stay on the server (C-RNG).
+- Every ported mechanic comes with captured legacy fixtures and a parity test (C-PARITY). Intentional differences from
+  legacy get a `DEVIATIONS.md` row in the same hand-off.
+- Wire changes: bump `PROTOCOL_VERSION` when incompatible, regenerate `protocol/fixtures/v<N>.json` with
+  `cargo run -p rh-protocol --bin protocol-fixtures`, and make the Rust, C# and JS decoders pass them, all in one branch.
+- Client and server agree on protocol version and content hash; the server refuses a mismatch.
+- No ML training, models, datasets, Python bindings or inference services (R-ML).
+
+## Determinism (anything that runs inside `rh-sim` or a policy)
+
+`clippy.toml` in `rh-sim` and `rh-policy` rejects hash-ordered collections, the wall clock and platform libm; CI runs
+clippy with `-D warnings`. Beyond what clippy sees: RNG is injected and seeded, and draw order is behaviour (adding,
+removing or reordering a draw changes parity); outcome-bearing iteration is ordered (`Vec`, `BTreeMap`, `Store`, stable
+ids); every new serialized field reaches save, restore and the state hash. When legacy looks wrong, match it and flag it;
+a behaviour fix is its own packet.
+
+## Protected paths
+
+| Path | Who changes it, and how |
+|---|---|
+| `packages/` | Owner approval per change. |
+| `parity/**` captures, `protocol/fixtures/**` | Regenerated only by their documented capture/fixture commands, inside a packet that says so. |
+| `hosting/`, `.github/`, `.claude/`, `scripts/gate.sh`, every `AGENTS.md`/`CLAUDE.md` | Owner approval. Agents edit and validate locally; nothing deploys. |
+| `Cargo.lock`, `docs/MIGRATION.md`, `docs/CONTRACTS.md` status table, `docs/PROJECT_COORDINATION.md`, `docs/agent/INTEGRATION_BRANCH` | Coordinator only. Others list proposed edits in the hand-off. |
+| `crates/*/migrations/*` already merged | Never edited; add a new migration. |
+
+`scripts/gate.sh` enforces this table on every branch.
+
+## Commands
+
+- `scripts/gate.sh --quick` while iterating; `scripts/gate.sh` (full) before hand-off; add `--oracle packet/<ID>` on a
+  packet branch. `--help` lists the exceptions. Export `DATABASE_URL` (`eval "$(tools/pgtest/start.sh)"`) to include the
+  Postgres suites.
+- The commands the gate wraps, and the rest (headless runs, browser proof, perfproof, captures), are in
+  [CONTRIBUTING.md](CONTRIBUTING.md) and `.github/workflows/rust.yml`. CI is the final word.
+
+## Work and hand-off
+
+Every change belongs to a packet (`docs/backlog/packets/<ID>.md`, sections defined in the backlog README under "Adding a
+packet") with an exclusive write scope and a failing oracle. Done means: full gate green, no oracle file changed, nothing
+outside the write scope, and this report:
+
+```
+PACKET:          <ID> — serves <ORDER_OF_OPERATIONS phase/item, or "not in the plan: owner approval needed">
+BRANCH:          <branch> @ <short sha>
+GATE:            PASS (full) [skipped: …] | FAIL (attempt n/2)
+CHANGED:         <files>
+D-RULES:         <parity standard used (D1); harness verdict or n/a (D2); anything touching D5/D6/D9>
+DEVIATIONS:      none | proposed DEV-<n>: <one line>
+SHARED RECORDS:  none | proposed edits: <file: change>
+LEGACY DOUBTS:   none | packages/<file>:<line> — <what was unclear>
+NOT ESTABLISHED: <what this evidence does not prove>
+RISKS:           none | <one line each>
+```
+
+On FAIL, include the gate's failure block (it prints the last 40 lines of the red step).
