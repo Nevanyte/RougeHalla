@@ -9,8 +9,7 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 Integration branch `feature/unity-rework` (`docs/agent/INTEGRATION_BRANCH`), head `893bfadd` (the agent process files,
 committed with owner approval). The beta at `play.rougehalla.com` runs `157c9eb5`. Identities unchanged: protocol 16,
 observation 24, checkpoint 31, replay 25, policy 18, content hash `7d2d84b827af3ddc`. This entry supersedes the branch
-named in the union checkpoint below for new work. Baseline full gate with Postgres on `893bfadd`: started, result to be
-recorded here.
+named in the union checkpoint below for new work. Baseline gate: see "Baseline" below.
 
 **Findings (read-only surveys, not reproduced at runtime).** Balance constants in `rh-sim`, this branch's `packages/` and
 the live legacy bundle are identical (baseline `75c5b83`); the beta differs because the live profiles run
@@ -60,6 +59,30 @@ props by per-tile noise.
 merging the three legacy commits into `packages/` inside their port packets; regenerating `parity/**` captures and
 `protocol/fixtures/v<N>.json` by their documented commands inside packets that say so; drafting DEVIATIONS rows for owner
 signature. **Not granted:** `git push`, any deploy, `hosting/` edits, promotion to `optimization_port` or `main`.
+
+**Baseline.** Full gate with Postgres on `f4c5e6ef`: GATE PASS (log `.agent-runs/gate/20261110T222332-feature-unity-rework-full.log`).
+The first run was red on `committed_vectors_match_the_encoder` because `target/` held a test binary compiled in a deleted
+scratch worktree (its `CARGO_MANIFEST_DIR` pointed there); the build cache was cleared and the rerun is the result above.
+
+**Pre-approvals for the unattended run (owner, 2026-11-10 about 22:55 CST, away about 10 hours).**
+- Scope: as far as it gets, in the plan's order (client fixes and lobby, wire 17 and HUD parity, balance bench and retune,
+  the three legacy changes, then map pool, signature terrain, dressing and bots).
+- Retune: apply changes to the Archetype-mode rules only, until camp clear time and damage are within about 10-15% of
+  `LegacyCircle`; reversible by flag; DEVIATIONS rows drafted with before/after numbers for the owner's signature.
+- Beta: redeploy `play.rougehalla.com` on a new 12-hour host (about CAD 10; CAD 9 of the CAD 20 budget spent) once the
+  merged fixes pass the full gate, an Opus final review and the browser proof. If the AWS or Cloudflare sign-in has
+  expired, stop and leave the site offline. The current host expires 2026-11-11 13:26:29 UTC.
+- `git push` of `feature/unity-rework` to origin after each green merge, as a backup. No merge into `main` or
+  `optimization_port`.
+- Deleting merged `agent/*` branches and their worktrees.
+- Editing `hosting/technical-demo` launch flags for the 15 s lobby (file edits and offline tests).
+- Editing `.claude/agents/oracle-author.md` and `CLAUDE.md` routing: oracle authors default to Sonnet (Opus for `rh-sim`
+  state and wire packets), turn cap raised.
+- Not granted: signing DEVIATIONS rows, promotion to `main` / `optimization_port`, any spend beyond one 12-hour host.
+
+**Process note (disk at 95%).** Worktree agents finish with `scripts/gate.sh --quick --oracle packet/<ID>`; the coordinator
+runs the full gate with Postgres on each merge in the main checkout. Unity EditMode tests are run once in the main
+checkout before the web build, not in each worktree.
 
 **Conflicts flagged, record governs until resolved.** R-ML exclusions versus decision 7 (tuner packet waits for the
 signed amendment). C-PARITY versus decisions 1, 2 and 6: each difference from legacy carries a DEVIATIONS row and its

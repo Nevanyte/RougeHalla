@@ -18,7 +18,7 @@ decisions; a fix of a few lines it may make itself, through the same gate.
 | Work | Agent | Model / effort |
 |---|---|---|
 | Where is X, what does Y look like, which tests cover Z, where is the legacy code | `scout` | Haiku / low |
-| Packet brief plus failing oracle (parity test, golden vector, proptest, unit test) | `oracle-author` | Opus / high |
+| Packet brief plus one failing oracle test (loose proof; see AGENTS.md) | `oracle-author` | Sonnet / medium; Opus / high (model override) for `rh-sim` state, tick, RNG, hash and wire packets |
 | Mechanical work with a clear oracle: renames, fixture refresh by documented command, docs, small tests outside `rh-sim` | `implementer` | Haiku / medium |
 | **Default implementer**: any single-area task with an oracle; C#/Unity; CI, `hosting/`, scripts; L1 escalation | `implementer-sonnet` | Sonnet / medium |
 | `rh-sim` tick order, state, RNG or save/hash; wire format; migrations; security; cross-crate; L2 escalation | `implementer-opus` | Opus / high |
