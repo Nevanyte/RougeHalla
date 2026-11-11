@@ -111,7 +111,7 @@ none
   draws the lock from `LockDisplay.Shown`.
 
 ## Oracle files (read-only for implementers)
-- `client-unity/RoguehallaNet.Tests/TargetPickTests.cs` (31 tests; 20 fail against the stub, on assertions)
+- `client-unity/RoguehallaNet.Tests/TargetPickTests.cs` (29 tests; 20 fail against the stub, on assertions)
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`
