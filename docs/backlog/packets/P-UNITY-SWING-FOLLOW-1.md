@@ -18,9 +18,13 @@ player's uses the predicted position.
 - P-UNITY-WAND-LOCK-1 merged (both edit `ArenaView.cs`)
 
 ## 3. Relevant legacy paths
-- `packages/client/src/render/FxView.ts`: swing sector and windup telegraph re-placed per frame (survey: `:488-534`,
-  `:786-823`; oracle author: verify and cite)
-- `packages/client/src/scenes/RaidScene.ts`: the local player's own attack shown at click time (cite the lines)
+- `packages/client/src/render/FxView.ts`: windup telegraph `:488-516`; landed swing `:519-535` (sector drawn once with the
+  swing's facing `fx.a` baked in, stored `a: 0`, so the facing is the one at swing time and never changes); per-frame
+  re-place in `advance` swing case `:809-814` (`host.position(id)`; kept at its last x,y when none) and `place` `:786-794`.
+  Legacy releases a zone whose anchor is not visible (`:799-802`, only when `host.canSee` is set); we deliberately freeze
+  at the last position instead (this brief's rule; a possible small deviation, flag in the hand-off).
+- `packages/client/src/scenes/RaidScene.ts:1881-1909`: the local player's own swing/windup is played at click time via
+  `fx.localAuto`, which is where the predicted position comes from.
 
 ## 4. New paths
 - none expected
@@ -30,7 +34,6 @@ player's uses the predicted position.
 - `client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs` (swing zone start, `:647`)
 - `client-unity/RoguehallaNet/Net/Ui/` (a pure "where is this zone now" helper if one is needed) and its synced copy
 - `client-unity/RoguehallaNet.Tests/HitZoneTests.cs`
-- `client-unity/UnityProject/Assets/Tests/Editor/HitboxPresentationEditModeTests.cs`
 
 ## 6. Contracts and references
 - R-AUTH, ADR 0008, D9 and ORDER_OF_OPERATIONS Appendix A: Unity may present an attack at once; it never decides a hit.
@@ -45,11 +48,15 @@ player's uses the predicted position.
 - `scripts/gate.sh --oracle packet/P-UNITY-SWING-FOLLOW-1` passes (full).
 - Unit test: given a zone anchored to actor A and A's drawn position moving over three frames, the zone's origin equals
   A's drawn position on each frame; with A absent the zone keeps its last origin until it expires.
-- EditMode: a landed swing for the local player is drawn at the predicted position, not the snapshot position.
+- Local player's zone is drawn at the predicted position (reviewed in `ArenaView.cs`; the `Position` hook must return the predicted one).
 
 ## Oracle files (read-only for implementers)
-- `client-unity/RoguehallaNet.Tests/HitZoneTests.cs`
-- `client-unity/UnityProject/Assets/Tests/Editor/HitboxPresentationEditModeTests.cs`
+- `client-unity/RoguehallaNet.Tests/HitZoneTests.cs`: `LandedZoneFollowsItsAttackerAndFreezesWhenTheAttackerIsGone`
+  (three-frame follow, absent anchor, non-finite anchor) against `HitZoneFollow.Origin` in
+  `client-unity/RoguehallaNet/Net/Ui/HitZoneFollow.cs` (a stub reproducing today's behaviour; the implementer replaces its
+  body, keeps the signature, then runs `sync-net.sh`).
+- Loose proof: no EditMode oracle was written; the predicted-position wiring in `ArenaView.cs` is checked by review.
+  Facing is not in the helper: keep passing the swing's `f.A` once at start and never update it.
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`

@@ -24,7 +24,7 @@ namespace Roguehalla.Client
         {
             public GameObject Go; public Mesh Mesh; public MeshRenderer Renderer;
             public Vector3[] V = new Vector3[TotalVerts]; public Color32[] C = new Color32[TotalVerts];
-            public bool Live, Windup; public uint Owner; public float Start, Ox, Oy, Reach, Half, Angle, Ms;
+            public bool Live, Windup; public uint Owner; public float Start, Px, Py, Ox, Oy, Reach, Half, Angle, Ms;
         }
 
         readonly Transform _root;
@@ -73,14 +73,17 @@ namespace Roguehalla.Client
         /// <summary>A delivered swing. Returns true when a zone was started.</summary>
         public bool Swing(uint by, byte weapon, float x, float y, float angle, float now)
         {
+            float sx = x, sy = y;
             CancelWindup(by);                                  // the swing lands: the telegraph gives way to the swing
             if (!Enabled || _contains == null || !_contains(by)) return false;
             if (!WeaponShapes.TryGet(weapon, out var shape)) return false;
             if (float.IsNaN(x + y + angle) || float.IsInfinity(x + y + angle)) return false;
             if (_zones.Count >= HitZoneModel.MaxZones) return false;
             var z = _free.Count > 0 ? _free.Pop() : Create();
-            Place(z, by, x, y);
-            z.Reach = shape.Reach; z.Half = shape.HalfArc; z.Angle = angle; z.Start = now; z.Live = true;
+            // Anchored to the attacker: starts at its drawn position (the predicted one for the local player) when it has one, else where the server reported the swing.
+            if (Position == null || !Position(by, out x, out y) || float.IsNaN(x + y) || float.IsInfinity(x + y)) { x = sx; y = sy; }
+            z.Px = x; z.Py = y; Place(z, by, x, y);
+            z.Reach = shape.Reach; z.Half = shape.HalfArc; z.Angle = angle; z.Start = now; z.Live = true; z.Owner = by;
             z.Go.SetActive(true); _zones.Add(z);
             Write(z, 0f, false);
             return true;
@@ -153,6 +156,9 @@ namespace Roguehalla.Client
                     Write(z, Indicators.WindupProgress(age, z.Ms) * HitZoneModel.SweepMs, reduced); continue;
                 }
                 if (!HitZoneModel.Alive(age)) { Release(i); continue; }
+                // Legacy FxView.advance (swing): re-placed at the attacker's drawn position every frame; the angle stays the one at swing time. No anchor keeps the last origin.
+                float dx = 0f, dy = 0f; bool drawn = Position != null && Position(z.Owner, out dx, out dy);
+                HitZoneFollow.Origin(z.Px, z.Py, drawn, dx, dy, out z.Px, out z.Py); Place(z, z.Owner, z.Px, z.Py);
                 Write(z, age, reduced);
             }
         }
