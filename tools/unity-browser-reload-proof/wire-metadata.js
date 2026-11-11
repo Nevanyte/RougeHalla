@@ -1,5 +1,5 @@
 /*
- * Credential-blind v16 wire metadata parser. It is intentionally inert: importing or pasting
+ * Credential-blind v17 wire metadata parser. It is intentionally inert: importing or pasting
  * this file does not patch WebSocket, inspect application globals, read storage, or install hooks.
  * A caller may provide an already-observed frame to parseClientHello / parseServerWelcome.
  * The Welcome result is a recognized public-prefix observation, not proof the whole frame or
@@ -11,8 +11,8 @@ const CLIENT_MAX = 1024;
 const SERVER_MAX = 256 * 1024;
 const MAX_TICKET = 448;
 const MAX_MAP_TILES = 1024 * 1024;
-const MAX_MAP_RUNS = 3 * MAX_MAP_TILES;
-const PROTOCOL = 16;
+const MAX_MAP_RUNS = 5 * MAX_MAP_TILES;
+const PROTOCOL = 17;
 const MAX_ARCHETYPES = 32, MAX_ARCHETYPE_KEY = 24, MAX_WEAPONS = 32, WEAPON_ROW_LEN = 34;
 const CLIENT_TAGS = new Set([1, 2, 3, 4, 5]);
 const SERVER_TAGS = new Set([0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88]);
@@ -62,7 +62,7 @@ function checkReader(r, maxBytes) {
   if (r.length > maxBytes) throw new RangeError('frame bound');
 }
 
-/** Parse only the v16 Hello's public protocol and the presence bit for the private resume capability. */
+/** Parse only the v17 Hello's public protocol and the presence bit for the private resume capability. */
 export function parseClientHello(reader) {
   let protocol = null;
   try {
@@ -93,7 +93,7 @@ export function parseClientHello(reader) {
   }
 }
 
-/** Parse only the v16 Welcome's public identity prefix; session and all later bytes are skipped. */
+/** Parse only the v17 Welcome's public identity prefix; session and all later bytes are skipped. */
 export function parseServerWelcome(reader) {
   let protocol = null;
   try {
@@ -110,7 +110,7 @@ export function parseServerWelcome(reader) {
     reader.skip(16); // private session capability: bytes never read.
     reader.skip(13); // tick rate, tick, and server clock; not needed for reload readiness.
     if (reader.length < 60) return fail('server','truncated-welcome-prefix',protocol);
-    // Protocol 16 puts three public tables between this header and the map, in this order (crates/rh-protocol:
+    // Protocol 16 and later put three public tables between this header and the map, in this order (crates/rh-protocol:
     // archetype.rs, vision.rs, weapon.rs). Only counts, key lengths and flags are read to find the map; values are skipped.
     const archetypes = reader.u8();
     if (archetypes > MAX_ARCHETYPES) return fail('server','archetype-table',protocol);
@@ -145,16 +145,41 @@ export function parseServerWelcome(reader) {
     if (extensionLength < 11 || extensionLength > reader.remaining) return fail('server','map-extension-length',protocol);
     const extensionStart = reader.offset;
     const version = reader.u8(), flags = reader.u8();
-    if (version !== 1 || (flags & ~3) !== 0) return fail('server','map-extension-header',protocol);
+    if (version !== 2 || (flags & ~0x7f) !== 0) return fail('server','map-extension-header',protocol);
     reader.skip(4); // semantic hash
     let cumulativeRuns = collisionRuns;
-    for (const present of [flags & 1, flags & 2]) {
-      if (!present) continue;
+    const skipPlane = () => {
       const runs = reader.u32();
       cumulativeRuns += runs;
-      if (!runs || runs > tileCount || cumulativeRuns > MAX_MAP_RUNS) return fail('server','map-runs',protocol);
+      if (!runs || runs > tileCount || cumulativeRuns > MAX_MAP_RUNS) return false;
       reader.skip(runs * 3); // plane pairs are payload, never read.
+      return true;
+    };
+    for (const present of [flags & 1, flags & 2]) if (present && !skipPlane()) return fail('server','map-runs',protocol);
+    // Protocol 17 public sections, bounded by their counts only (crates/rh-protocol/src/map.rs); values are skipped.
+    if (flags & 4) {
+      const camps = reader.u8();
+      if (!camps || camps > 64) return fail('server','map-sections',protocol);
+      reader.skip(camps * 7);
     }
+    if (flags & 8) {
+      reader.skip(8); // coliseum rectangle
+      const gates = reader.u8();
+      if (gates > 8) return fail('server','map-sections',protocol);
+      for (let g = 0; g < gates; g++) {
+        reader.skip(1); // side
+        const tiles = reader.u8();
+        if (!tiles || tiles > 16) return fail('server','map-sections',protocol);
+        reader.skip(tiles * 4);
+      }
+    }
+    if ((flags & 16) && !skipPlane()) return fail('server','map-runs',protocol);
+    if (flags & 32) {
+      const props = reader.u16();
+      if (!props || props > 8192) return fail('server','map-sections',protocol);
+      reader.skip(props * 7);
+    }
+    if ((flags & 64) && !skipPlane()) return fail('server','map-runs',protocol);
     const terrainMode = reader.u8();
     if (terrainMode > 2) return fail('server','map-mode',protocol);
     reader.skip(4); // context hash

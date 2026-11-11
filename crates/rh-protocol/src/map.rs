@@ -2,8 +2,9 @@
 
 use crate::codec::{DecodeError, EncodeError, Reader, Writer};
 use crate::ground::{
-    context_hash, semantic_hash, validate_plane_values, GroundMode, PRESENCE_REGIONS,
-    PRESENCE_TERRAIN, SECTION_VERSION,
+    context_hash, semantic_hash, semantic_hash_parts, validate_plane_values, GroundMode,
+    PRESENCE_BUSHES, PRESENCE_CAMPS, PRESENCE_COLISEUM, PRESENCE_GROUND_VARIANTS, PRESENCE_KNOWN,
+    PRESENCE_PROPS, PRESENCE_REGIONS, PRESENCE_TERRAIN, SECTION_VERSION,
 };
 
 /// Maximum cells in any map plane.
@@ -12,8 +13,81 @@ const MAP_HEAD_LEN: usize = 12;
 const RUN_LEN: usize = 3;
 const EXTENSION_STATIC_HEADER_LEN: usize = 6;
 const EXTENSION_TAIL_LEN: usize = 5;
-const MAX_CUMULATIVE_RUNS: usize = 3 * MAX_MAP_TILES;
-const MAX_DECODED_PLANES: usize = 3 * MAX_MAP_TILES;
+/// Five run-length planes may be present: collision, terrain, regions, bushes and ground variants.
+const MAX_CUMULATIVE_RUNS: usize = 5 * MAX_MAP_TILES;
+const MAX_DECODED_PLANES: usize = 5 * MAX_MAP_TILES;
+/// Wire bytes of one camp row (`x u16, y u16, r u16, zone u8`) and one prop row (`kind u8, x u16, y u16, variant u8,
+/// flags u8`).
+const CAMP_LEN: usize = 7;
+const PROP_LEN: usize = 7;
+/// `Zone::code` runs 1..=5; `GateSide` codes 0..=3 (n, e, s, w).
+const MAX_CAMP_ZONE: u8 = 5;
+const MAX_GATE_SIDE: u8 = 3;
+
+/// Most camp markers a map may carry (legacy: 5 zones x 10 camps).
+pub const MAX_MAP_CAMPS: usize = 64;
+/// Most coliseum gates (legacy: four, one per side).
+pub const MAX_COLISEUM_GATES: usize = 8;
+/// Most tiles in one gate (legacy: GATE_W = 4).
+pub const MAX_GATE_TILES: usize = 16;
+/// Most cosmetic props (reserved section; ships empty).
+pub const MAX_MAP_PROPS: usize = 8192;
+
+/// One camp marker, index-aligned with the `WireCamp` rows in state. World units; `zone` is `Zone::code` (1..=5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapCamp {
+    pub x: u16,
+    pub y: u16,
+    /// Legacy `CampDef.r`: the clearing radius in world units.
+    pub r: u16,
+    pub zone: u8,
+}
+
+/// A tile coordinate inside the map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapTile {
+    pub x: u16,
+    pub y: u16,
+}
+
+/// A coliseum gate: side 0 north, 1 east, 2 south, 3 west; its tiles in legacy order.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapGate {
+    pub side: u8,
+    pub tiles: Vec<MapTile>,
+}
+
+/// The coliseum rectangle in tiles and its gates in legacy order.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapColiseum {
+    pub x: u16,
+    pub y: u16,
+    pub w: u16,
+    pub h: u16,
+    pub gates: Vec<MapGate>,
+}
+
+/// A cosmetic prop (reserved section; ships empty).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapProp {
+    pub kind: u8,
+    pub x: u16,
+    pub y: u16,
+    pub variant: u8,
+    pub flags: u8,
+}
+
+/// Public map dressing that legacy clients generated themselves (protocol 17). Empty lists and `None` encode as absent.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MapPublic {
+    pub camps: Vec<MapCamp>,
+    pub coliseum: Option<MapColiseum>,
+    /// Row-major bush identity plane: 0 none, else the legacy bush id.
+    pub bushes: Option<Vec<u8>>,
+    pub props: Vec<MapProp>,
+    /// Row-major ground-variant plane (reserved; ships absent).
+    pub ground_variants: Option<Vec<u8>>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MapBlob {
@@ -30,6 +104,8 @@ pub struct MapBlob {
     pub terrain_mode: GroundMode,
     pub semantic_hash: u32,
     pub context_hash: u32,
+    /// Protocol 17 public sections.
+    pub public: MapPublic,
 }
 
 /// Same collision hash as `rh_sim::map::TileMap::layer_hash`.
@@ -78,6 +154,7 @@ impl MapBlob {
             terrain_mode,
             semantic_hash,
             context_hash,
+            public: MapPublic::default(),
         }
     }
 
@@ -104,6 +181,7 @@ impl MapBlob {
             terrain_mode,
             semantic_hash,
             context_hash,
+            public: MapPublic::default(),
         };
         map.check()?;
         Ok(map)
@@ -121,13 +199,34 @@ impl MapBlob {
         Self::with_ground(w, h, tiles, terrain, regions, mode)
     }
 
+    /// Attaches the protocol 17 public sections, recomputes the hashes and checks the whole map. Empty lists and `None`
+    /// are absent sections; nothing is clamped or dropped: a section a decoder would refuse is an error.
+    pub fn with_public(mut self, public: MapPublic) -> Result<Self, EncodeError> {
+        check_public(self.w, self.h, &public)?;
+        self.public = public;
+        self.semantic_hash = self.computed_semantic_hash();
+        self.context_hash = context_hash(self.layer_hash, self.semantic_hash, self.terrain_mode);
+        self.check()?;
+        Ok(self)
+    }
+
+    fn computed_semantic_hash(&self) -> u32 {
+        public_semantic_hash(
+            self.w,
+            self.h,
+            self.terrain.as_deref(),
+            self.regions.as_deref(),
+            &self.public,
+        )
+    }
+
     fn runs(&self) -> Runs<'_> {
         Runs {
             values: &self.tiles,
         }
     }
     fn presence(&self) -> u8 {
-        presence(self.terrain.is_some(), self.regions.is_some())
+        presence(self.terrain.is_some(), self.regions.is_some()) | public_presence(&self.public)
     }
 
     fn collision_encoded_len(&self) -> usize {
@@ -137,6 +236,7 @@ impl MapBlob {
         EXTENSION_STATIC_HEADER_LEN
             + self.terrain.as_deref().map_or(0, rle_len)
             + self.regions.as_deref().map_or(0, rle_len)
+            + public_len(&self.public)
     }
     /// Exact size of the complete MapBlob, including its extension and context tail.
     pub fn encoded_len(&self) -> usize {
@@ -176,15 +276,8 @@ impl MapBlob {
                 return Err(EncodeError::BadMap("terrain collision"));
             }
         }
-        if self.semantic_hash
-            != semantic_hash(
-                self.w,
-                self.h,
-                self.presence(),
-                self.terrain.as_deref(),
-                self.regions.as_deref(),
-            )
-        {
+        check_public(self.w, self.h, &self.public)?;
+        if self.semantic_hash != self.computed_semantic_hash() {
             return Err(EncodeError::BadMap("semantic hash"));
         }
         if self.context_hash != context_hash(self.layer_hash, self.semantic_hash, self.terrain_mode)
@@ -231,6 +324,7 @@ impl MapBlob {
         w.u32(self.semantic_hash);
         write_plane(w, self.terrain.as_deref());
         write_plane(w, self.regions.as_deref());
+        write_public(w, &self.public);
     }
 
     /// RLE-encodes immutable collision and semantic data once. Mode and context are appended per Welcome.
@@ -289,6 +383,195 @@ fn write_plane(w: &mut Writer, plane: Option<&[u8]>) {
         }
     }
 }
+/// Presence bits of the protocol 17 sections: a list is present when non-empty, a plane or the coliseum when `Some`.
+fn public_presence(p: &MapPublic) -> u8 {
+    let mut flags = 0;
+    if !p.camps.is_empty() {
+        flags |= PRESENCE_CAMPS;
+    }
+    if p.coliseum.is_some() {
+        flags |= PRESENCE_COLISEUM;
+    }
+    if p.bushes.is_some() {
+        flags |= PRESENCE_BUSHES;
+    }
+    if !p.props.is_empty() {
+        flags |= PRESENCE_PROPS;
+    }
+    if p.ground_variants.is_some() {
+        flags |= PRESENCE_GROUND_VARIANTS;
+    }
+    flags
+}
+
+fn camps_len(camps: &[MapCamp]) -> usize {
+    if camps.is_empty() {
+        0
+    } else {
+        1 + CAMP_LEN * camps.len()
+    }
+}
+fn coliseum_len(coliseum: Option<&MapColiseum>) -> usize {
+    coliseum.map_or(0, |c| {
+        9 + c.gates.iter().map(|g| 2 + 4 * g.tiles.len()).sum::<usize>()
+    })
+}
+fn props_len(props: &[MapProp]) -> usize {
+    if props.is_empty() {
+        0
+    } else {
+        2 + PROP_LEN * props.len()
+    }
+}
+/// Wire bytes of every present public section (only meaningful once [`check_public`] passed).
+fn public_len(p: &MapPublic) -> usize {
+    camps_len(&p.camps)
+        + coliseum_len(p.coliseum.as_ref())
+        + p.bushes.as_deref().map_or(0, rle_len)
+        + props_len(&p.props)
+        + p.ground_variants.as_deref().map_or(0, rle_len)
+}
+
+fn write_camps(w: &mut Writer, camps: &[MapCamp]) {
+    if camps.is_empty() {
+        return;
+    }
+    w.u8(camps.len() as u8);
+    for c in camps {
+        w.u16(c.x);
+        w.u16(c.y);
+        w.u16(c.r);
+        w.u8(c.zone);
+    }
+}
+fn write_coliseum(w: &mut Writer, coliseum: Option<&MapColiseum>) {
+    let Some(c) = coliseum else {
+        return;
+    };
+    w.u16(c.x);
+    w.u16(c.y);
+    w.u16(c.w);
+    w.u16(c.h);
+    w.u8(c.gates.len() as u8);
+    for g in &c.gates {
+        w.u8(g.side);
+        w.u8(g.tiles.len() as u8);
+        for t in &g.tiles {
+            w.u16(t.x);
+            w.u16(t.y);
+        }
+    }
+}
+fn write_props(w: &mut Writer, props: &[MapProp]) {
+    if props.is_empty() {
+        return;
+    }
+    w.u16(props.len() as u16);
+    for p in props {
+        w.u8(p.kind);
+        w.u16(p.x);
+        w.u16(p.y);
+        w.u8(p.variant);
+        w.u8(p.flags);
+    }
+}
+/// The public sections in wire (presence bit) order.
+fn write_public(w: &mut Writer, p: &MapPublic) {
+    write_camps(w, &p.camps);
+    write_coliseum(w, p.coliseum.as_ref());
+    write_plane(w, p.bushes.as_deref());
+    write_props(w, &p.props);
+    write_plane(w, p.ground_variants.as_deref());
+}
+
+fn section_bytes(len: usize, f: impl FnOnce(&mut Writer)) -> Vec<u8> {
+    let mut w = Writer::with_capacity(len);
+    f(&mut w);
+    w.finish()
+}
+
+/// Version 2 semantic hash: planes hash their decoded cells, list sections their wire bytes (count included).
+fn public_semantic_hash(
+    w: u16,
+    h: u16,
+    terrain: Option<&[u8]>,
+    regions: Option<&[u8]>,
+    p: &MapPublic,
+) -> u32 {
+    let flags = presence(terrain.is_some(), regions.is_some()) | public_presence(p);
+    let camps = section_bytes(camps_len(&p.camps), |w| write_camps(w, &p.camps));
+    let coliseum = section_bytes(coliseum_len(p.coliseum.as_ref()), |w| {
+        write_coliseum(w, p.coliseum.as_ref())
+    });
+    let props = section_bytes(props_len(&p.props), |w| write_props(w, &p.props));
+    semantic_hash_parts(
+        w,
+        h,
+        flags,
+        [
+            terrain.unwrap_or_default(),
+            regions.unwrap_or_default(),
+            &camps,
+            &coliseum,
+            p.bushes.as_deref().unwrap_or_default(),
+            &props,
+            p.ground_variants.as_deref().unwrap_or_default(),
+        ],
+    )
+}
+
+/// The encoder's half of the decoder's section checks, with the same reasons; it never clamps or drops.
+fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
+    let total = usize::from(w) * usize::from(h);
+    if p.camps.len() > MAX_MAP_CAMPS {
+        return Err(EncodeError::BadMap("camp count"));
+    }
+    if p.camps
+        .iter()
+        .any(|c| c.zone == 0 || c.zone > MAX_CAMP_ZONE)
+    {
+        return Err(EncodeError::BadMap("camp zone"));
+    }
+    if let Some(c) = &p.coliseum {
+        if !coliseum_rect_fits(c.x, c.y, c.w, c.h, w, h) {
+            return Err(EncodeError::BadMap("coliseum rect"));
+        }
+        if c.gates.len() > MAX_COLISEUM_GATES {
+            return Err(EncodeError::BadMap("gate count"));
+        }
+        for g in &c.gates {
+            if g.side > MAX_GATE_SIDE {
+                return Err(EncodeError::BadMap("gate side"));
+            }
+            if g.tiles.is_empty() || g.tiles.len() > MAX_GATE_TILES {
+                return Err(EncodeError::BadMap("gate tiles"));
+            }
+            if g.tiles.iter().any(|t| t.x >= w || t.y >= h) {
+                return Err(EncodeError::BadMap("gate tile"));
+            }
+        }
+    }
+    for plane in [p.bushes.as_deref(), p.ground_variants.as_deref()]
+        .into_iter()
+        .flatten()
+    {
+        if plane.len() != total {
+            return Err(EncodeError::BadMap("plane length"));
+        }
+    }
+    if p.props.len() > MAX_MAP_PROPS {
+        return Err(EncodeError::BadMap("prop count"));
+    }
+    Ok(())
+}
+
+fn coliseum_rect_fits(x: u16, y: u16, cw: u16, ch: u16, w: u16, h: u16) -> bool {
+    cw >= 1
+        && ch >= 1
+        && u32::from(x) + u32::from(cw) <= u32::from(w)
+        && u32::from(y) + u32::from(ch) <= u32::from(h)
+}
+
 fn terrain_collision_compatible(terrain: u8, collision: u8) -> bool {
     match terrain {
         0 => collision <= 2,
@@ -313,6 +596,12 @@ struct MapPlan<'a> {
     semantic_hash: u32,
     terrain: Option<PlanePlan<'a>>,
     regions: Option<PlanePlan<'a>>,
+    /// List sections keep their exact wire bytes (count included): the semantic hash covers them as sent.
+    camps: Option<&'a [u8]>,
+    coliseum: Option<&'a [u8]>,
+    bushes: Option<PlanePlan<'a>>,
+    props: Option<&'a [u8]>,
+    ground_variants: Option<PlanePlan<'a>>,
     mode: GroundMode,
     context_hash: u32,
 }
@@ -350,7 +639,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         return Err(DecodeError::BadMap("section version"));
     }
     let flags = er.u8()?;
-    if flags & !(PRESENCE_TERRAIN | PRESENCE_REGIONS) != 0 {
+    if flags & !PRESENCE_KNOWN != 0 {
         return Err(DecodeError::BadMap("presence"));
     }
     let semantic_hash = er.u32()?;
@@ -361,6 +650,31 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         None
     };
     let regions = if flags & PRESENCE_REGIONS != 0 {
+        Some(read_plane_plan(&mut er, total, &mut cumulative_runs)?)
+    } else {
+        None
+    };
+    let camps = if flags & PRESENCE_CAMPS != 0 {
+        Some(section(ext, &mut er, read_camps)?)
+    } else {
+        None
+    };
+    let coliseum = if flags & PRESENCE_COLISEUM != 0 {
+        Some(section(ext, &mut er, |r| read_coliseum(r, w, h))?)
+    } else {
+        None
+    };
+    let bushes = if flags & PRESENCE_BUSHES != 0 {
+        Some(read_plane_plan(&mut er, total, &mut cumulative_runs)?)
+    } else {
+        None
+    };
+    let props = if flags & PRESENCE_PROPS != 0 {
+        Some(section(ext, &mut er, read_props)?)
+    } else {
+        None
+    };
+    let ground_variants = if flags & PRESENCE_GROUND_VARIANTS != 0 {
         Some(read_plane_plan(&mut er, total, &mut cumulative_runs)?)
     } else {
         None
@@ -380,7 +694,20 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
     if let Some(terrain) = terrain {
         validate_terrain_compatibility(collision_runs, collision_count, terrain)?;
     }
-    let actual_semantic_hash = hash_semantic_runs(w, h, flags, terrain, regions, total);
+    let actual_semantic_hash = hash_semantic(
+        w,
+        h,
+        flags,
+        [
+            Part::Plane(terrain),
+            Part::Plane(regions),
+            Part::Bytes(camps),
+            Part::Bytes(coliseum),
+            Part::Plane(bushes),
+            Part::Bytes(props),
+            Part::Plane(ground_variants),
+        ],
+    );
     if semantic_hash != actual_semantic_hash {
         return Err(DecodeError::BadMap("semantic hash"));
     }
@@ -396,9 +723,76 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         semantic_hash,
         terrain,
         regions,
+        camps,
+        coliseum,
+        bushes,
+        props,
+        ground_variants,
         mode,
         context_hash,
     })
+}
+
+/// Runs `read` and returns the exact extension bytes it consumed.
+fn section<'a>(
+    ext: &'a [u8],
+    r: &mut Reader<'a>,
+    read: impl FnOnce(&mut Reader<'a>) -> Result<(), DecodeError>,
+) -> Result<&'a [u8], DecodeError> {
+    let start = r.position();
+    read(r)?;
+    Ok(&ext[start..r.position()])
+}
+
+fn read_camps(r: &mut Reader<'_>) -> Result<(), DecodeError> {
+    let count = usize::from(r.u8()?);
+    if count == 0 || count > MAX_MAP_CAMPS {
+        return Err(DecodeError::BadMap("camp count"));
+    }
+    let rows = r.bytes(count * CAMP_LEN)?;
+    if rows
+        .chunks_exact(CAMP_LEN)
+        .any(|row| row[6] == 0 || row[6] > MAX_CAMP_ZONE)
+    {
+        return Err(DecodeError::BadMap("camp zone"));
+    }
+    Ok(())
+}
+
+fn read_coliseum(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> {
+    let (x, y, cw, ch) = (r.u16()?, r.u16()?, r.u16()?, r.u16()?);
+    if !coliseum_rect_fits(x, y, cw, ch, w, h) {
+        return Err(DecodeError::BadMap("coliseum rect"));
+    }
+    let gates = usize::from(r.u8()?);
+    if gates > MAX_COLISEUM_GATES {
+        return Err(DecodeError::BadMap("gate count"));
+    }
+    for _ in 0..gates {
+        if r.u8()? > MAX_GATE_SIDE {
+            return Err(DecodeError::BadMap("gate side"));
+        }
+        let tiles = usize::from(r.u8()?);
+        if tiles == 0 || tiles > MAX_GATE_TILES {
+            return Err(DecodeError::BadMap("gate tiles"));
+        }
+        for _ in 0..tiles {
+            let (tx, ty) = (r.u16()?, r.u16()?);
+            if tx >= w || ty >= h {
+                return Err(DecodeError::BadMap("gate tile"));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn read_props(r: &mut Reader<'_>) -> Result<(), DecodeError> {
+    let count = usize::from(r.u16()?);
+    if count == 0 || count > MAX_MAP_PROPS {
+        return Err(DecodeError::BadMap("prop count"));
+    }
+    r.bytes(count * PROP_LEN)?;
+    Ok(())
 }
 
 fn read_plane_plan<'a>(
@@ -527,8 +921,15 @@ impl<'a> RunCursor<'a> {
 }
 
 fn decoded_bytes(total: usize, flags: u8) -> Result<usize, DecodeError> {
-    let planes =
-        1 + usize::from(flags & PRESENCE_TERRAIN != 0) + usize::from(flags & PRESENCE_REGIONS != 0);
+    let planes = 1 + [
+        PRESENCE_TERRAIN,
+        PRESENCE_REGIONS,
+        PRESENCE_BUSHES,
+        PRESENCE_GROUND_VARIANTS,
+    ]
+    .iter()
+    .filter(|&&bit| flags & bit != 0)
+    .count();
     total
         .checked_mul(planes)
         .ok_or(DecodeError::BadMap("decoded size"))
@@ -551,14 +952,14 @@ fn hash_collision_runs(w: u16, h: u16, runs: &[u8], count: usize) -> u32 {
     state
 }
 
-fn hash_semantic_runs(
-    w: u16,
-    h: u16,
-    flags: u8,
-    terrain: Option<PlanePlan<'_>>,
-    regions: Option<PlanePlan<'_>>,
-    total: usize,
-) -> u32 {
+/// One semantic-hash input: a plane hashes its decoded cells, a list section its wire bytes.
+#[derive(Clone, Copy)]
+enum Part<'a> {
+    Plane(Option<PlanePlan<'a>>),
+    Bytes(Option<&'a [u8]>),
+}
+
+fn hash_semantic<const N: usize>(w: u16, h: u16, flags: u8, parts: [Part<'_>; N]) -> u32 {
     let mut state = 0x811c_9dc5u32;
     let update = |state: &mut u32, bytes: &[u8]| {
         for &b in bytes {
@@ -569,14 +970,19 @@ fn hash_semantic_runs(
     update(&mut state, &(w as u32).to_le_bytes());
     update(&mut state, &(h as u32).to_le_bytes());
     update(&mut state, &[SECTION_VERSION, flags]);
-    for plan in [terrain, regions].into_iter().flatten() {
-        for chunk in plan.runs.chunks_exact(RUN_LEN).take(plan.count) {
-            for _ in 0..u16::from_le_bytes([chunk[1], chunk[2]]) {
-                update(&mut state, &[chunk[0]]);
+    for part in parts {
+        match part {
+            Part::Plane(Some(plan)) => {
+                for chunk in plan.runs.chunks_exact(RUN_LEN).take(plan.count) {
+                    for _ in 0..u16::from_le_bytes([chunk[1], chunk[2]]) {
+                        update(&mut state, &[chunk[0]]);
+                    }
+                }
             }
+            Part::Bytes(Some(bytes)) => update(&mut state, bytes),
+            Part::Plane(None) | Part::Bytes(None) => {}
         }
     }
-    let _ = total;
     state
 }
 
@@ -605,6 +1011,15 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
     let tiles = decode_runs(plan.collision_runs, plan.collision_count, total);
     let terrain = plan.terrain.map(|p| decode_runs(p.runs, p.count, total));
     let regions = plan.regions.map(|p| decode_runs(p.runs, p.count, total));
+    let public = MapPublic {
+        camps: plan.camps.map_or_else(Vec::new, decode_camps),
+        coliseum: plan.coliseum.map(decode_coliseum).transpose()?,
+        bushes: plan.bushes.map(|p| decode_runs(p.runs, p.count, total)),
+        props: plan.props.map_or_else(Vec::new, decode_props),
+        ground_variants: plan
+            .ground_variants
+            .map(|p| decode_runs(p.runs, p.count, total)),
+    };
     Ok(MapBlob {
         w: plan.w,
         h: plan.h,
@@ -615,7 +1030,58 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
         terrain_mode: plan.mode,
         semantic_hash: plan.semantic_hash,
         context_hash: plan.context_hash,
+        public,
     })
+}
+
+fn le16(b: &[u8], at: usize) -> u16 {
+    u16::from_le_bytes([b[at], b[at + 1]])
+}
+
+/// Camp rows from a section the preflight already checked (count byte first).
+fn decode_camps(section: &[u8]) -> Vec<MapCamp> {
+    section[1..]
+        .chunks_exact(CAMP_LEN)
+        .map(|row| MapCamp {
+            x: le16(row, 0),
+            y: le16(row, 2),
+            r: le16(row, 4),
+            zone: row[6],
+        })
+        .collect()
+}
+
+fn decode_props(section: &[u8]) -> Vec<MapProp> {
+    section[2..]
+        .chunks_exact(PROP_LEN)
+        .map(|row| MapProp {
+            kind: row[0],
+            x: le16(row, 1),
+            y: le16(row, 3),
+            variant: row[5],
+            flags: row[6],
+        })
+        .collect()
+}
+
+fn decode_coliseum(section: &[u8]) -> Result<MapColiseum, DecodeError> {
+    let mut r = Reader::new(section);
+    let (x, y, w, h) = (r.u16()?, r.u16()?, r.u16()?, r.u16()?);
+    let count = usize::from(r.u8()?);
+    let mut gates = Vec::with_capacity(count);
+    for _ in 0..count {
+        let side = r.u8()?;
+        let n = usize::from(r.u8()?);
+        let mut tiles = Vec::with_capacity(n);
+        for _ in 0..n {
+            tiles.push(MapTile {
+                x: r.u16()?,
+                y: r.u16()?,
+            });
+        }
+        gates.push(MapGate { side, tiles });
+    }
+    Ok(MapColiseum { x, y, w, h, gates })
 }
 
 /// Cached immutable prefix. The final mode/context tail is emitted by [`EncodedMap::write_with_mode`].
@@ -628,12 +1094,25 @@ pub struct EncodedMap {
     body: Box<[u8]>,
 }
 impl EncodedMap {
+    /// A map without protocol 17 public sections.
     pub fn from_slices(
         w: u16,
         h: u16,
         tiles: &[u8],
         terrain: Option<&[u8]>,
         regions: Option<&[u8]>,
+    ) -> Result<Self, EncodeError> {
+        Self::from_public(w, h, tiles, terrain, regions, &MapPublic::default())
+    }
+
+    /// Server path for protocol 17: the same bytes as [`MapBlob::pre_encode`] for a map carrying `public`.
+    pub fn from_public(
+        w: u16,
+        h: u16,
+        tiles: &[u8],
+        terrain: Option<&[u8]>,
+        regions: Option<&[u8]>,
+        public: &MapPublic,
     ) -> Result<Self, EncodeError> {
         let total = usize::from(w) * usize::from(h);
         if w == 0 || h == 0 || total > MAX_MAP_TILES {
@@ -659,16 +1138,16 @@ impl EncodedMap {
         }) {
             return Err(EncodeError::BadMap("terrain collision"));
         }
+        check_public(w, h, public)?;
         let collision_hash = layer_hash(w as u32, h as u32, tiles);
-        let flags = presence(terrain.is_some(), regions.is_some());
-        let semantic_hash = semantic_hash(w, h, flags, terrain, regions);
+        let flags = presence(terrain.is_some(), regions.is_some()) | public_presence(public);
+        let semantic_hash = public_semantic_hash(w, h, terrain, regions, public);
         let collision_count = Runs { values: tiles }.count();
-        let static_len = MAP_HEAD_LEN
-            + RUN_LEN * collision_count
-            + 4
-            + EXTENSION_STATIC_HEADER_LEN
+        let ext_static_len = EXTENSION_STATIC_HEADER_LEN
             + terrain.map_or(0, rle_len)
-            + regions.map_or(0, rle_len);
+            + regions.map_or(0, rle_len)
+            + public_len(public);
+        let static_len = MAP_HEAD_LEN + RUN_LEN * collision_count + 4 + ext_static_len;
         let full_len = crate::encode::WELCOME_HEADER_LEN + static_len + EXTENSION_TAIL_LEN;
         if full_len > crate::MAX_SERVER_FRAME {
             return Err(EncodeError::TooLarge {
@@ -676,8 +1155,6 @@ impl EncodedMap {
                 max: crate::MAX_SERVER_FRAME,
             });
         }
-        let ext_static_len =
-            EXTENSION_STATIC_HEADER_LEN + terrain.map_or(0, rle_len) + regions.map_or(0, rle_len);
         let mut out = Writer::with_capacity(static_len);
         out.u16(w);
         out.u16(h);
@@ -690,6 +1167,7 @@ impl EncodedMap {
         out.u32(semantic_hash);
         write_plane(&mut out, terrain);
         write_plane(&mut out, regions);
+        write_public(&mut out, public);
         Ok(Self {
             w,
             h,
@@ -729,7 +1207,7 @@ impl EncodedMap {
         w.u32(context_hash(self.layer_hash, self.semantic_hash, mode));
     }
 
-    /// Exact static-content match; hashes alone are not used as cache identity.
+    /// Exact static-content match for a map without public sections; hashes alone are not used as cache identity.
     pub fn matches_slices(
         &self,
         w: u16,
@@ -737,6 +1215,19 @@ impl EncodedMap {
         tiles: &[u8],
         terrain: Option<&[u8]>,
         regions: Option<&[u8]>,
+    ) -> bool {
+        self.matches_public(w, h, tiles, terrain, regions, &MapPublic::default())
+    }
+
+    /// Exact static-content match including the protocol 17 public sections, so a cache never reuses a stale blob.
+    pub fn matches_public(
+        &self,
+        w: u16,
+        h: u16,
+        tiles: &[u8],
+        terrain: Option<&[u8]>,
+        regions: Option<&[u8]>,
+        public: &MapPublic,
     ) -> bool {
         if self.w != w || self.h != h || tiles.len() != usize::from(w) * usize::from(h) {
             return false;
@@ -756,7 +1247,8 @@ impl EncodedMap {
             return false;
         }
         if self.body[offset] != SECTION_VERSION
-            || self.body[offset + 1] != presence(terrain.is_some(), regions.is_some())
+            || self.body[offset + 1]
+                != presence(terrain.is_some(), regions.is_some()) | public_presence(public)
         {
             return false;
         }
@@ -770,7 +1262,12 @@ impl EncodedMap {
             }
             offset = next;
         }
-        offset == self.body.len()
+        if check_public(w, h, public).is_err() || offset + public_len(public) != self.body.len() {
+            return false;
+        }
+        let mut expected = Writer::with_capacity(public_len(public));
+        write_public(&mut expected, public);
+        self.body[offset..] == expected.finish()[..]
     }
 }
 

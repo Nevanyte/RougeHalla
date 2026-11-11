@@ -17,7 +17,7 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void CastTagRoundTripsAllOptionalFactsAndRemainsOnlyARequest()
         {
-            Assert.AreEqual(16, Wire.ProtocolVersion);
+            Assert.AreEqual(17, Wire.ProtocolVersion);
             var input = new ClientMsg.Input { Seq = 19 };
             input.Commands.Add(WireCommand.Cast(0, 8.5f, 12.25f, 77, 991.125, 255));
             var bytes = input.Encode();

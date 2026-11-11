@@ -483,6 +483,14 @@ for (const v of fx.server) {
     groundMapCoverage.presence.add(`${s.terrain === null ? 0 : 1}${s.regions === null ? 0 : 1}`);
     groundMapCoverage.names.add(n);
     if (s.terrain !== null && s.terrain.every(x => x === 0)) groundMapCoverage.presentZero = true;
+    if (version >= 17) {
+      // Protocol 17 public sections decode to exactly the Rust values.
+      eqJson(s.camps, e.camps, `${n} camp markers`);
+      eqJson(s.coliseum, e.coliseum, `${n} coliseum and gates`);
+      eqJson(s.bushes === null ? null : Array.from(s.bushes), e.bushes, `${n} bush plane`);
+      eqJson(s.props, e.props, `${n} props`);
+      eqJson(s.groundVariants === null ? null : Array.from(s.groundVariants), e.groundVariants, `${n} ground-variant plane`);
+    }
   } else if (m.t === "state") {
     const {t, ...fields} = m;
     const expectedItems = d.items.map(item => {
@@ -564,6 +572,37 @@ for (const name of ["welcome_ground_both", "welcome_ground_terrain_only", "welco
 for (const mode of [0, 1, 2]) if (!groundMapCoverage.modes.has(mode)) throw new Error(`missing Rust Welcome terrain mode ${mode}`);
 for (const presence of ["00", "10", "01", "11"]) if (!groundMapCoverage.presence.has(presence)) throw new Error(`missing Rust Welcome map plane presence ${presence}`);
 if (!groundMapCoverage.presentZero) throw new Error("missing Rust Welcome present all-zero map plane");
+
+if (version >= 17) {
+  // Protocol 17: the all-sections and as-shipped Welcomes carry the public sections; every malformed map is refused for the
+  // reason Rust names (the JS message ends with it; the section version and presence keep their protocol 14 wording).
+  for (const name of ["welcome_public_all", "welcome_public_shipped"]) {
+    if (!groundMapCoverage.names.has(name)) throw new Error(`missing Rust-generated ${name} vector`);
+  }
+  const all = decode(bytes(fx.server.find(v => v.name === "welcome_public_all").hex)).map;
+  eq(all.camps.length, 3, "welcome_public_all camp count");
+  eqJson(all.camps[1], { x: 208, y: 144, r: 80, zone: 5 }, "welcome_public_all second camp");
+  eq(all.coliseum.gates.length, 4, "welcome_public_all gate count");
+  eqJson(all.coliseum.gates.map(g => g.side), [0, 1, 2, 3], "welcome_public_all gate sides");
+  eq(all.bushes[3 * all.w + 6], 7, "welcome_public_all bush id");
+  eq(all.props.length, 2, "welcome_public_all props");
+  eq(all.groundVariants.length, all.w * all.h, "welcome_public_all ground variants");
+  const shipped = decode(bytes(fx.server.find(v => v.name === "welcome_public_shipped").hex)).map;
+  eq(shipped.props.length, 0, "welcome_public_shipped ships no props");
+  eq(shipped.groundVariants, null, "welcome_public_shipped ships no ground variants");
+  const mapReason = { "section version": /ground version$/, "presence": /ground presence$/ };
+  const seen = new Set();
+  for (const v of fx.malformedMap) {
+    let err = null; try { decode(bytes(v.hex)); } catch (e) { err = e; }
+    const want = mapReason[v.reason] ?? new RegExp(`${v.reason}$`);
+    eq(want.test(String(err?.message)), true, `${v.name} refused for "${v.reason}" (got ${err?.message})`);
+    seen.add(v.reason);
+  }
+  for (const r of ["section version", "presence", "camp count", "camp zone", "coliseum rect", "gate count", "gate side", "gate tiles",
+    "gate tile", "length", "run", "truncated", "prop count", "semantic hash"]) {
+    if (!seen.has(r)) throw new Error(`missing Rust-generated malformedMap reason ${r}`);
+  }
+}
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {

@@ -104,7 +104,7 @@ namespace Roguehalla.Net.Tests
             var frame = Welcome(new MapBlob(4, 3, BasicTiles(), new byte[12], new byte[12])).Encode();
             uint collisionRuns = ReadU32(frame, 69 + WireVision.BlockLength + 1);
             int extension = ExtensionOffset(frame, collisionRuns);
-            if (relativeOffset == 0) frame[extension] = 2;
+            if (relativeOffset == 0) frame[extension] = 1;
             else if (relativeOffset == 1) frame[extension + relativeOffset] |= 0x80;
             else frame[extension + relativeOffset] ^= 1;
 
@@ -146,7 +146,9 @@ namespace Roguehalla.Net.Tests
             const int side = 1024;
             var map = new MapBlob(side, side, new byte[side * side], new byte[side * side], new byte[side * side]);
             var decoded = RoundTrip(map).Map;
-            Assert.AreEqual(Wire.MaxMapDecodedBytes, decoded.Tiles.Length + decoded.Terrain.Length + decoded.Regions.Length);
+            // Protocol 17: the budget covers five planes (collision, terrain, regions, bushes, ground variants).
+            Assert.AreEqual(3 * Wire.MaxMapTiles, decoded.Tiles.Length + decoded.Terrain.Length + decoded.Regions.Length);
+            Assert.AreEqual(5 * Wire.MaxMapTiles, Wire.MaxMapDecodedBytes);
 
             var oversized = new byte[Wire.MaxServerFrame + 1];
             Assert.AreEqual(DecodeError.TooLarge, Assert.Throws<DecodeException>(() => ServerMsg.Decode(oversized)).Error);
