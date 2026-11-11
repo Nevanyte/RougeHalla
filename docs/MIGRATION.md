@@ -34,6 +34,15 @@ props by per-tile noise.
    existing tier/persona numbers. **R-ML is to be amended narrowly for that** (no neural models, Python, datasets or
    inference services); the amendment text waits for the owner's signature on `REQUIREMENTS.md` and `AGENTS.md`.
 
+8. Lobby (owner, same day, later message): the lobby shows who is waiting in the lobby and who is in a game; the
+   matchmaking rule is "wait 15 seconds; if by second 13 no match can be found, add bots to the lobby". This is new
+   direction, not the legacy rule: legacy and the Rust defaults are a 30 s lobby pulled to 5 s once 2 humans are in, with
+   bots arriving over 12 s (`packages/shared/src/constants.ts:130-134`, `crates/rh-server/src/main.rs:174-177`); the beta
+   host runs `--min-players 1 --fill-bots 8 --lobby-seconds 10 --fill-seconds 3` (`hosting/technical-demo/bootstrap.py:216`).
+   Packets: P-LOBBY-TIMING-1, P-LOBBY-ACTIVITY-1, P-UNITY-LOBBY-ROSTER-1; a DEVIATIONS row is drafted with the first.
+   Coordinator's reading, to be confirmed by the owner: a full human lobby still starts early; 15 s and 13 s are measured
+   from the first human's arrival.
+
 **Approvals granted with the plan (scope exactly as named).** Packets outside ORDER_OF_OPERATIONS for the work above;
 merging the three legacy commits into `packages/` inside their port packets; regenerating `parity/**` captures and
 `protocol/fixtures/v<N>.json` by their documented commands inside packets that say so; drafting DEVIATIONS rows for owner
