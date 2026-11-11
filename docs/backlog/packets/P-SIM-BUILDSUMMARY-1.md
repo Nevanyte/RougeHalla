@@ -2,10 +2,10 @@
 
 - **Serves:** not in the plan: owner approval 2026-11-10 (MIGRATION checkpoint, decision 3: HUD presents the legacy
   information)
-- **Implementer tier:** implementer-opus
-- **Reviewer:** reviewer-opus
+- **Implementer tier:** implementer-sonnet (a pure read-only function: no state, tick order, RNG or hash)
+- **Reviewer:** reviewer
 - **Integration base:** feature/unity-rework
-- **D-rules touched:** D1 byte-exact against a legacy capture (displayed numbers the player reads) · D2 n/a · D5/D6/D9 none
+- **D-rules touched:** D1 one sanity test, owner direction 2026-11-10 (MIGRATION decision 9) · D2 n/a · D5/D6/D9 none
 
 ## 1. ID and outcome
 Legacy's top-left GAINED strip shows nine values for the player's own build: +Offense, +SO, damage %, attack speed %,
@@ -27,8 +27,7 @@ are a sibling packet (P-SIM-BUILDSUMMARY-2).
 
 ## 4. New paths
 - `crates/rh-sim/src/build_summary.rs`
-- `tools/build-summary-fixtures/` (capture script driving the legacy functions, README)
-- a capture under `parity/` and its test under `crates/rh-parity/tests/`
+- a unit test module beside it (`crates/rh-sim/src/build_summary_tests.rs`)
 
 ## 5. Exclusive write scope
 - the new paths above
@@ -51,22 +50,21 @@ are a sibling packet (P-SIM-BUILDSUMMARY-2).
 
 ## 8. Acceptance checks
 - `scripts/gate.sh --oracle packet/P-SIM-BUILDSUMMARY-1` passes (full).
-- Parity test: for the captured build matrix (each faction; no build, cards only, farmed stats only, chest boosts only,
-  mixed; a Holy player with camp clears) the nine values and the mob-bonus rows equal legacy within the parity policy.
-- A build with nothing gained returns all zeros and no rows.
+- One unit test: a mixed build (cards, farmed stats, a chest boost, a Holy player with camp clears) whose nine values
+  are worked out by hand from the legacy formulas cited in section 3, each within 10% of the function's result and with
+  the right sign; and a build with nothing gained returns all zeros and no rows.
+- No legacy capture (owner direction 2026-11-10: one test that the numbers are not drastically off).
 
 ## Oracle files (read-only for implementers)
-- the capture and its parity test (listed by the oracle author in this section on `packet/P-SIM-BUILDSUMMARY-1`)
+- `crates/rh-sim/src/build_summary_tests.rs`
 
 ## 9. Validation commands
 - `cargo test -p rh-sim --features trusted-status-probes`
-- `cargo test -p rh-parity`
-- `tools/build-summary-fixtures/capture.sh --check` (to be created by this packet)
+
 
 ## 10. Risk and suggested model tier
-Opus. "Life steal gained" and "damage gained" have no Rust equivalent today (only the combat total exists), and legacy
-computes them client-side, so the capture must drive the legacy functions directly. Riskiest value: damage % from
-unconditional rows only.
+Sonnet. "Life steal gained" and "damage gained" have no Rust equivalent today (only the combat total exists); they are
+ported by reading `buildModel.ts`. Riskiest value: damage % from unconditional rows only.
 
 ## 11. Known traps
 - Legacy rounds for display in `buildHud.ts`; compare unrounded values and leave formatting to the client packet.

@@ -43,6 +43,18 @@ props by per-tile noise.
    Coordinator's reading, to be confirmed by the owner: a full human lobby still starts early; 15 s and 13 s are measured
    from the first human's arrival.
 
+9. **Testing standard for new work (owner, same day, later message, verbatim):** "this game is subject to change, it is NOT
+   worth the compute or the tokens to test and make sure everything matches legacy version perfectly, instead just look
+   at code and do ONE test to make sure the numbers aren't drastically off doesn't need to be down to the decimal."
+   Applied from here on: a port is done by reading the legacy code; each packet carries one test that shows its numbers
+   are in the right range (coordinator's reading: within roughly 10-15%, right direction); no new pinned-environment
+   legacy captures, tick-exact matrices or multi-case corpora unless the owner asks. Existing parity fixtures keep
+   running in the gate. Consequences: P-BALANCE-1 (900-duel tick-exact differential) is parked with its oracle and legacy
+   capture kept as a loose reference; the retune is measured by P-BALANCE-2 (Rust A/B, both hitbox modes) and the
+   existing `hitbox_compare` example; P-SIM-BUILDSUMMARY-1 drops its capture for one unit test; the three legacy
+   Nov 4 ports get one sanity test each and no fixture re-capture. Two exact captures were already made before this
+   instruction (P-BALANCE-1, P-HOLY-DEMON-BLOOD-1); the second is kept because its implementation is a few lines.
+
 **Approvals granted with the plan (scope exactly as named).** Packets outside ORDER_OF_OPERATIONS for the work above;
 merging the three legacy commits into `packages/` inside their port packets; regenerating `parity/**` captures and
 `protocol/fixtures/v<N>.json` by their documented commands inside packets that say so; drafting DEVIATIONS rows for owner
@@ -50,7 +62,10 @@ signature. **Not granted:** `git push`, any deploy, `hosting/` edits, promotion 
 
 **Conflicts flagged, record governs until resolved.** R-ML exclusions versus decision 7 (tuner packet waits for the
 signed amendment). C-PARITY versus decisions 1, 2 and 6: each difference from legacy carries a DEVIATIONS row and its
-legacy-mode fixtures stay untouched. ADR 0026 is still "Proposed"; ADR 0027 (wire 17 HUD facts) and ADR 0028 (signature
+legacy-mode fixtures stay untouched. C-PARITY and D2 versus decision 9: the written rule (captured fixture plus parity test for
+every ported mechanic; P-BALANCE-1 as the D2 gate) is relaxed by the owner's instruction for new work; the text of
+`AGENTS.md` and `CONTRACTS.md` is unchanged until the owner approves an edit, and hand-offs say "one sanity test, owner
+direction 2026-11-10" under D-RULES. ADR 0026 is still "Proposed"; ADR 0027 (wire 17 HUD facts) and ADR 0028 (signature
 terrain) are to be written with their first packets.
 
 ## Backend/Unity union checkpoint (2026-11-10)

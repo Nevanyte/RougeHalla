@@ -1,7 +1,7 @@
 # P-HOLY-DEMON-BLOOD-1: Holy gains lifesteal per camp cleared, as legacy
 
 - **Serves:** ORDER_OF_OPERATIONS phase 2, items 13-14 (mechanic port under C-PARITY); closes DEV-012
-- **Implementer tier:** implementer-opus
+- **Implementer tier:** implementer-sonnet (one term in a combat formula, no new state; escalates to implementer-opus per the ladder)
 - **Reviewer:** reviewer-opus
 - **Integration base:** feature/unity-rework
 - **D-rules touched:** D1 byte-exact capture (it feeds combat healing) · D2 n/a (legacy behaviour, not a deviation) ·

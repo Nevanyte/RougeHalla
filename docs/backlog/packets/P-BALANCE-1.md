@@ -6,7 +6,10 @@
 - **Integration base:** feature/unity-rework
 - **D-rules touched:** D1 outcome-class parity, declared bands · D2 this packet is the harness · D5/D6/D9 none
 
-Status: **Ready packet** (2026-11-10). Proposed 2026-11-07 from the deviation-ledger review
+Status: **Parked** (2026-11-10, owner direction, MIGRATION checkpoint decision 9: matching legacy duel by duel is not
+worth its cost). No implementer is dispatched. The failing oracle and the legacy main-pass capture stay on
+`packet/P-BALANCE-1` @ `81046acb` as a loose reference (legacy holds 8 of 10 weapon edges at minute 0). The retune is
+measured by [P-BALANCE-2](P-BALANCE-2.md). History: Ready packet (2026-11-10). Proposed 2026-11-07 from the deviation-ledger review
 ([../../DEVIATIONS.md](../../DEVIATIONS.md), open question 2); the item-11 review findings are fixed below. Owner
 direction 2026-11-10 (MIGRATION checkpoint): this harness measures the Archetype-hitbox retune; the camp-clear bench is
 its sibling [P-BALANCE-2](P-BALANCE-2.md).
