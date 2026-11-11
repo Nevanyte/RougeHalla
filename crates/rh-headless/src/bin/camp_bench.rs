@@ -323,11 +323,11 @@ fn fight(
                 Event::SignatureHit {
                     victim, by, amount, ..
                 } => tally(&mut m, me, *victim, Some(*by), *amount),
-                Event::CardBleedHit { victim, by, amount } => {
-                    if let rh_sim::events::CardBleedAmount::Finite(a) = amount {
-                        tally(&mut m, me, *victim, *by, *a)
-                    }
-                }
+                Event::CardBleedHit {
+                    victim,
+                    by,
+                    amount: rh_sim::events::CardBleedAmount::Finite(a),
+                } => tally(&mut m, me, *victim, *by, *a),
                 Event::Heal { id, amount } if *id == me => m.healed += amount,
                 Event::StatusApplied { kind, ms, by, .. } if *by == Some(me) => {
                     if matches!(
