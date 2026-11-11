@@ -147,6 +147,8 @@ content! {
     HOLY_LEECH_BASE: f64 = 0.07, "fraction";
     HOLY_LEECH_MISSING: f64 = 0.6, "fraction";
     HOLY_LEECH_CAP: f64 = 0.6, "fraction";
+    /// Holy player's lifesteal per camp cleared (legacy `HOLY_CAMP_LIFESTEAL_PER_CLEAR`); outside `LS_CAP` and `LIFESTEAL_MAX`.
+    HOLY_CAMP_LIFESTEAL_PER_CLEAR: f64 = 0.005, "fraction";
 
     // ---- scoring and bounty ----
     KILL_CREDIT_SECONDS: f64 = 5.0, "s";
