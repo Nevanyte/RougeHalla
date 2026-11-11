@@ -32,12 +32,45 @@ namespace Roguehalla.Net.Ui
         public static void Markers(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, List<CampMarkRow> into)
         {
             into.Clear();
+            if (camps == null || rows == null || rows.Count != camps.Length) return;
+            for (int i = 0; i < camps.Length; i++)
+            {
+                var r = rows[i];
+                var state = r.State == 1 ? CampMarkState.Engaged : r.State == 2 ? CampMarkState.Cleared : CampMarkState.Idle;
+                string countdown = null;
+                if (active && state == CampMarkState.Cleared && r.RespawnAt > 0)
+                    countdown = Seconds(r.RespawnAt, serverNowMs).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                into.Add(new CampMarkRow
+                {
+                    Index = i, WorldX = camps[i].X, WorldY = camps[i].Y, Zone = camps[i].Zone,
+                    Elite = r.Elite != null, State = state, Countdown = countdown,
+                });
+            }
+        }
+
+        static long Seconds(double respawnAt, double now)
+        {
+            double s = System.Math.Ceiling((respawnAt - now) / 1000.0);
+            return s < 0 ? 0 : (long)s;
         }
 
         /// <summary>Clears <paramref name="into"/> and fills one label per cleared camp that has a respawn time.</summary>
         public static void WorldLabels(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, List<CampWorldLabel> into)
         {
             into.Clear();
+            if (!active || camps == null || rows == null || rows.Count != camps.Length) return;
+            for (int i = 0; i < camps.Length; i++)
+            {
+                var r = rows[i];
+                if (r.State != 2 || !(r.RespawnAt > 0)) continue;
+                into.Add(new CampWorldLabel
+                {
+                    Index = i, WorldX = camps[i].X, WorldY = camps[i].Y,
+                    Text = r.RespawnAt > serverNowMs
+                        ? "RESPAWN " + Seconds(r.RespawnAt, serverNowMs).ToString(System.Globalization.CultureInfo.InvariantCulture) + "s"
+                        : "RESPAWN READY",
+                });
+            }
         }
     }
 }
