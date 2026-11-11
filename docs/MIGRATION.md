@@ -4,6 +4,31 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Pause point 3 (2026-11-11): retrospective items 1 to 4 applied; where to resume
+
+Head `feature/unity-rework` carries this note. Pushed to origin: `e43e8cf6` (integration 2). Everything after it is local.
+
+**What this stretch did (owner: "Apply 1 to 4" of the session retrospective).**
+- Agent definitions (`38e79d47`): `reviewer-opus` 80 turns, `implementer-opus` 150; implementers commit after each stage;
+  reviewers write the verdict before long test runs; the oracle author commits `stub: <ID>` then `oracle: <ID>` and
+  finishes only with a clean formatter and an empty `git status`. Takes effect after Claude Code restarts.
+- P-AGENT-GATE-1 (Sonnet, Sonnet review LAND WITH NOTES, notes fixed; merged `cdb7731d`): with `--oracle` the gate reads
+  oracle files from non-`stub:` commits only; `tools/pgtest/start.sh` sets a locale and finds Homebrew's PostgreSQL;
+  the gate resolves `PGBIN` or fails before building, and stops only test clusters carrying its own run id; new
+  `client-unity/UnityProject/Tools/editmode.sh`; the gate runs Unity EditMode and the Unity tool tests (quick: when
+  their paths changed; full: always; a named skip without an Editor); `scripts/gate.test.sh` (9 checks) covers the rules.
+
+**Current step: 6 of 6, verification.** A full gate with Postgres was started on `cdb7731d` with `PGBIN` and `LC_ALL`
+unset (the two conditions that failed overnight). Its result line is recorded below when it finishes; if this note
+still says "running", rerun it: `eval "$(tools/pgtest/start.sh)"; scripts/gate.sh --coordinator`.
+
+GATE RESULT: running (started 2026-11-11, head `cdb7731d`).
+
+**After a green gate, in order:** push `feature/unity-rework` (owner pre-approved backup pushes); rerun the Opus review
+of `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (stopped twice by pauses); merge it, full gate, EditMode, push; then
+P-UNITY-HUD-BUILD-1, P-UNITY-HUD-CAMPS-2, P-WIRE17-HUD-2 and the rest of the approved plan (legacy Nov 4 changes, map
+pool, signature terrain, dressing, bots). Not applied from the retrospective: items 5 to 11.
+
 ## Paused by the owner (2026-11-11, about 08:50 CST): state to resume from
 
 Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.
