@@ -298,12 +298,16 @@ pub(crate) fn drop_body(hx: &mut Hx, args: &HookArgs) {
     let p = &mut hx.w.players[i];
     let at = p.pos();
     let gear = [p.weapon.weapon0.take(), p.weapon.weapon1.take()];
+    // Legacy `dropBody`: weapons first, then every camp potion, then every small potion; both stocks end at zero.
+    let large = std::mem::take(&mut p.potion_large);
     let small = std::mem::take(&mut p.potion_small);
-    let mut items = Vec::with_capacity(gear.iter().flatten().count() + usize::from(small));
+    let mut items =
+        Vec::with_capacity(gear.iter().flatten().count() + usize::from(large) + usize::from(small));
     for def in gear
         .into_iter()
         .flatten()
         .map(crate::initial_world::ItemDef::Weapon)
+        .chain((0..large).map(|_| crate::initial_world::ItemDef::PotionLarge))
         .chain((0..small).map(|_| crate::initial_world::ItemDef::PotionSmall))
     {
         hx.w.item_counter += 1;
