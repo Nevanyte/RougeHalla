@@ -158,7 +158,7 @@ namespace Roguehalla.Client
             return a.Attack;
         }
         public void Begin() { _stamp++; }
-        NameMergeItem[] _mergeItems = new NameMergeItem[32]; bool[] _mergeShown = new bool[32]; uint[] _mergeIds = new uint[32];
+        NameMergeItem[] _mergeItems = new NameMergeItem[32]; bool[] _mergeShown = new bool[32]; uint[] _mergeIds = new uint[32]; int[] _mergeScratch = new int[32];
         public void End()
         {
             MergeMobNames();
@@ -180,15 +180,15 @@ namespace Roguehalla.Client
                 if (!f.Mob || f.Dummy || f.Dead || !art.Ind.NameActive) continue;
                 if (n == _mergeItems.Length)
                 {
-                    System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2);
+                    System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2); System.Array.Resize(ref _mergeScratch, n * 2);
                 }
                 var at = art.Ind.NameWorldPosition;
-                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite };
+                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Always = f.M.Engaged || f.Locked || f.Hovered };
                 _mergeIds[n] = pair.Key; n++;
             }
             if (n < 2) return;
             // Dictionary order is not id order and Decide wants any order: ids decide. Sort-free because Decide takes ids from the items.
-            NameMerge.Decide(_mergeItems, n, _mergeShown);
+            NameMerge.DecidePacks(_mergeItems, n, NameMerge.PackDistancePx * ArenaView.Scale, _mergeShown, _mergeScratch);
             for (int i = 0; i < n; i++)
                 if (!_mergeShown[i] && _active.TryGetValue(_mergeIds[i], out var hidden)) hidden.Ind.HideName();
         }
