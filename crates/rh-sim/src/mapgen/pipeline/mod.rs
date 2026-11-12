@@ -76,11 +76,11 @@ pub enum Refusal {
     Features,
     Shape(String),
     Terrain,
-    /// The signature step found no legal landmark for a zone (only with `Options::signature`).
+    /// The signature step found no legal landmark site for a zone, refused in the Landmarks phase before spawns and
+    /// stylers (only with `Options::signature`). A finished map discarded later is `SignatureDiscarded`.
     Signature,
-    /// A signature map discarded by the end-of-attempt check: a landmark no longer whole, a styler feature in an
-    /// apron, or a strict certifier failure (only with `Options::signature`; P-MAPGEN-SIG-FIRE-1). STUB: not yet
-    /// returned; the end-of-attempt check still reports `Signature`.
+    /// A signature map discarded by the end-of-attempt check, after records: a landmark no longer whole, a styler
+    /// feature in an apron, or a strict certifier failure (only with `Options::signature`).
     SignatureDiscarded,
 }
 #[derive(Debug)]
@@ -647,7 +647,7 @@ impl<'f> Pipeline<'f> {
         }
         // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
         if placed_any && (!self.signature.intact(&map) || !certifies(&map)) {
-            return Ok(AttemptReport::refused(Refusal::Signature));
+            return Ok(AttemptReport::refused(Refusal::SignatureDiscarded));
         }
         observe(Phase::Gates, &frame.rng, &kept);
         Ok(AttemptReport {

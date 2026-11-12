@@ -15,7 +15,7 @@ mod bog_tree;
 mod church;
 mod volcano;
 
-use crate::map::{TILE_FLOOR, TILE_WALL};
+use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
 use crate::mapdata::{
     FeatureJob, FeatureKind, GameMapData, MapFeature, TilePt, TileRect, Zone, ZoneAnchor,
 };
@@ -60,6 +60,37 @@ pub struct Definition {
     pub grave_gap: i32,
     /// Church: how far (tiles) the door axis may move off the camp's axis, nearest first.
     pub door_shift: i32,
+    /// Volcano: the terrain codes of its lava (LOW) and ember (floor) (`terrain_gate` kinds `lava`, `ember`, home Fire).
+    pub lava: u8,
+    pub ember: u8,
+    /// Volcano: squared tile distance from the centre tile of the cone (wall) and of its crater (lava inside the cone).
+    pub cone_d2: i32,
+    pub crater_d2: i32,
+    /// Volcano: tiles its centre stands beyond the Fire centroid's distance from the map centre (the back edge, with
+    /// slack for later rezoning).
+    pub back_slack: f64,
+    /// Volcano site tiers, tried in order: the cone's Chebyshev distance from every Fire camp tile is at least the
+    /// tier's value; `site_tries` uniform draws per tier.
+    pub camp_room: [i32; 3],
+    pub site_tries: usize,
+    /// Streams: the count drawn (inclusive range); per count, the heading offsets from the front (DIR16 steps) to draw
+    /// from, and the path length range (tiles; two lava tiles per path tile).
+    pub streams: (usize, usize),
+    pub spreads: [&'static [&'static [i32]]; 2],
+    pub stream_len: [(i32, i32); 2],
+    /// Streams: the shortest path kept (tiles), where the path starts (tiles from the cone's centre), how far a path
+    /// may bend from its own heading and from the front (DIR16 steps), the Chebyshev gap kept from every other stream
+    /// and pool, and the squared distance from the centre within which streams may meet (beside the cone).
+    pub stream_min: usize,
+    pub stream_start: i32,
+    pub stream_bend: i32,
+    pub front_max: i32,
+    pub stream_gap: i32,
+    pub start_d2: i32,
+    /// Pools: the squared radii tried, largest first.
+    pub pool_d2: &'static [i32],
+    /// Volcano: the zone's total lava (crater, streams and pools; inclusive), inside the legacy river's 107-158.
+    pub lava_budget: (usize, usize),
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -84,6 +115,27 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     ],
     grave_gap: 3,
     door_shift: 5,
+    lava: 1,
+    ember: 4,
+    cone_d2: 6,
+    crater_d2: 1,
+    back_slack: 2.0,
+    camp_room: [12, 9, 6],
+    site_tries: 24,
+    streams: (2, 3),
+    spreads: [
+        &[&[-2, 2], &[-3, 1], &[-1, 3]],
+        &[&[-3, 0, 3], &[-3, 1, 3], &[-3, -1, 3]],
+    ],
+    stream_len: [(15, 22), (9, 14)],
+    stream_min: 4,
+    stream_start: 3,
+    stream_bend: 2,
+    front_max: 3,
+    stream_gap: 3,
+    start_d2: 20,
+    pool_d2: &[4, 2],
+    lava_budget: (80, 150),
 };
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.
@@ -174,8 +226,9 @@ impl<'f> SignatureContext<'f> {
         &self.rules
     }
 
-    /// Places each zone's signature landmark (Plague: the bog tree; Sentenced: the church and its graveyard) into the
-    /// stage's layers and masks. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is never
+    /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
+    /// graveyard; Plague: the bog tree) into the stage's layers and masks, in that order, each keeping out of the aprons
+    /// marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is never
     /// built without it; the pipeline tries the next attempt).
     pub fn apply(
         &self,
@@ -189,7 +242,7 @@ impl<'f> SignatureContext<'f> {
         }
         let mut terrain = vec![0u8; W * H];
         let mut anchors = Vec::new();
-        for zone in [Zone::Sentenced, Zone::Plague] {
+        for zone in [Zone::Fire, Zone::Sentenced, Zone::Plague] {
             let Some(slot) = prefix
                 .order
                 .iter()
@@ -211,9 +264,11 @@ impl<'f> SignatureContext<'f> {
                 tiles: &stage.state.tiles,
                 owner: &stage.state.feature_owner,
                 protect: &stage.protect,
+                apron: &stage.masks.near1,
                 halo: &halo,
             };
             let built = match zone {
+                Zone::Fire => volcano::place(&site, &prefix.layout.camps, &mut rng),
                 Zone::Sentenced => church::place(&site, &prefix.layout.camps, &mut rng),
                 _ => bog_tree::place(&site, &mut rng),
             };
@@ -237,13 +292,28 @@ impl<'f> SignatureContext<'f> {
             stage.state.feature_owner[i] = id;
         }
         let b = self.rules.bands[0];
-        let (x1, y1) = (bbox.x + bbox.w as i32 - 1, bbox.y + bbox.h as i32 - 1);
-        for y in bbox.y - b..=y1 + b {
-            for x in bbox.x - b..=x1 + b {
-                if let Some(i) = at(x, y) {
-                    stage.masks.near1[i] = 1;
-                    if x >= bbox.x && x <= x1 && y >= bbox.y && y <= y1 {
-                        stage.masks.boxes[i] = 1;
+        if by_tile(p.kind) {
+            // A stream's or pool's box is a long diagonal: its apron and keep mask follow its own tiles.
+            for &(i, _, _) in &p.cells {
+                stage.masks.boxes[i] = 1;
+                let (cx, cy) = ((i % W) as i32, (i / W) as i32);
+                for y in cy - b..=cy + b {
+                    for x in cx - b..=cx + b {
+                        if let Some(j) = at(x, y) {
+                            stage.masks.near1[j] = 1;
+                        }
+                    }
+                }
+            }
+        } else {
+            let (x1, y1) = (bbox.x + bbox.w as i32 - 1, bbox.y + bbox.h as i32 - 1);
+            for y in bbox.y - b..=y1 + b {
+                for x in bbox.x - b..=x1 + b {
+                    if let Some(i) = at(x, y) {
+                        stage.masks.near1[i] = 1;
+                        if x >= bbox.x && x <= x1 && y >= bbox.y && y <= y1 {
+                            stage.masks.boxes[i] = 1;
+                        }
                     }
                 }
             }
@@ -314,6 +384,15 @@ impl<'f> SignatureContext<'f> {
                         && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.bog))
                 }
                 FeatureKind::Church | FeatureKind::Graveyard => zone_ok && t == TILE_WALL,
+                FeatureKind::Volcano => {
+                    zone_ok
+                        && ((t == TILE_WALL && k == 0) || (t == TILE_LOW && k == self.rules.lava))
+                }
+                FeatureKind::LavaStream | FeatureKind::LavaPool => {
+                    zone_ok
+                        && ((t == TILE_LOW && k == self.rules.lava)
+                            || (t == TILE_FLOOR && k == self.rules.ember))
+                }
                 _ => true,
             }
         });
@@ -325,32 +404,47 @@ impl<'f> SignatureContext<'f> {
         // Styler floor claims (`style_runtime` transactions) do not read `no_block`: a styler feature owning a tile of
         // a landmark's apron discards the map (G1: steps 3 and 4 build around the landmark, never into it).
         let b = self.rules.bands[0];
-        let apron_ok = map
-            .features
-            .iter()
-            .filter(|f| is_signature(f.kind))
-            .all(|f| {
+        let mut apron = vec![false; map.feature_grid.len()];
+        let mut mark = |x0: i32, y0: i32, x1: i32, y1: i32| {
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    if let Some(i) = at(x, y) {
+                        apron[i] = true;
+                    }
+                }
+            }
+        };
+        for (k, f) in map.features.iter().enumerate() {
+            if !is_signature(f.kind) {
+                continue;
+            }
+            if by_tile(f.kind) {
+                for i in (0..map.feature_grid.len())
+                    .filter(|&i| usize::from(map.feature_grid[i]) == k + 1)
+                {
+                    let (x, y) = ((i % W) as i32, (i / W) as i32);
+                    mark(x - b, y - b, x + b, y + b);
+                }
+            } else {
                 let (x1, y1) = (
                     f.bbox.x + f.bbox.w as i32 - 1,
                     f.bbox.y + f.bbox.h as i32 - 1,
                 );
-                (f.bbox.y - b..=y1 + b).all(|y| {
-                    (f.bbox.x - b..=x1 + b).all(|x| {
-                        let id = at(x, y).map_or(0, |i| usize::from(map.feature_grid[i]));
-                        id.checked_sub(1)
-                            .and_then(|k| map.features.get(k))
-                            .is_none_or(|g| {
-                                is_signature(g.kind)
-                                    || matches!(
-                                        g.kind,
-                                        FeatureKind::Landmark
-                                            | FeatureKind::Infill
-                                            | FeatureKind::Bush
-                                    )
-                            })
-                    })
+                mark(f.bbox.x - b, f.bbox.y - b, x1 + b, y1 + b);
+            }
+        }
+        let apron_ok = (0..apron.len()).filter(|&i| apron[i]).all(|i| {
+            usize::from(map.feature_grid[i])
+                .checked_sub(1)
+                .and_then(|k| map.features.get(k))
+                .is_none_or(|g| {
+                    is_signature(g.kind)
+                        || matches!(
+                            g.kind,
+                            FeatureKind::Landmark | FeatureKind::Infill | FeatureKind::Bush
+                        )
                 })
-            });
+        });
         owned_ok && door_ok && apron_ok
     }
 }
@@ -358,8 +452,18 @@ impl<'f> SignatureContext<'f> {
 fn is_signature(k: FeatureKind) -> bool {
     matches!(
         k,
-        FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard
+        FeatureKind::BogTree
+            | FeatureKind::Church
+            | FeatureKind::Graveyard
+            | FeatureKind::Volcano
+            | FeatureKind::LavaStream
+            | FeatureKind::LavaPool
     )
+}
+
+/// Kinds whose apron and keep mask follow their own tiles rather than their box (the lava streams and pools).
+fn by_tile(k: FeatureKind) -> bool {
+    matches!(k, FeatureKind::LavaStream | FeatureKind::LavaPool)
 }
 
 /// One feature the step writes: kind, job, anchor point and its cells (index, tile, terrain).
@@ -385,6 +489,9 @@ pub(crate) struct Site<'a> {
     owner: &'a [u16],
     /// The legacy landmark stage's protection (border, coliseum road, lanes, camp clearings with margin, corners).
     protect: &'a [u8],
+    /// The aprons marked so far (`LandmarkStage::masks.near1`: the legacy buildings grown by the spawn rules' margin and
+    /// every signature landmark placed before this one).
+    apron: &'a [u8],
     /// The certifier's camp halo of every camp (no wall may stand there).
     halo: &'a [u8],
 }
@@ -412,9 +519,13 @@ impl Site<'_> {
     fn wall(&self, x: i32, y: i32) -> bool {
         self.floor(x, y) && self.halo[at(x, y).unwrap()] == 0
     }
-    /// As `floor`, and outside the legacy landmark protection: landmark terrain may lie here.
+    /// As `floor`, outside the legacy landmark protection and outside every apron marked so far: landmark terrain may
+    /// lie here.
     fn ground(&self, x: i32, y: i32) -> bool {
-        self.floor(x, y) && self.protect[at(x, y).unwrap()] == 0
+        self.floor(x, y) && {
+            let i = at(x, y).unwrap();
+            self.protect[i] == 0 && self.apron[i] == 0
+        }
     }
     /// 4-connected pieces of this zone's floor with `walls` added.
     fn floor_pieces(&self, walls: &[usize]) -> usize {
