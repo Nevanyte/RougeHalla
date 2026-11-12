@@ -53,7 +53,51 @@ none
 - One EditMode case: hovering an actor shows the card with the model's lines; moving off hides it.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-INSPECTOR-1`
+- `client-unity/RoguehallaNet.Tests/InspectorCardTests.cs` (the only oracle file; the stub `RoguehallaNet/Net/Ui/InspectorCard.cs`, its
+  synced copy and `.meta` are the implementer's to replace)
+
+## Pure function (signature fixed by the stub)
+`public static bool InspectorCard.Build(in InterpActor row, uint selfId, List<string> lines)`: clears `lines`; returns whether the
+card shows, filling kit line, health line, then one entry per delivered stat chip. `InterpActor` (Net/SnapshotBuffer.cs:9) is the
+delivered remote row; `selfId` is the local player's id.
+
+## Legacy rules as verified (`packages/client/src/`)
+- Show: only a `state.players` entry (`scenes/RaidScene.ts:748-750`), phase active, `status === "alive"` and a known faction
+  (`ui/opponentInspector.ts:46`). Mobs, zombies, dummies and givers live in `state.mobs` (`RaidScene.ts:1378`), so they get **no card**.
+  Self is never offered (`RaidScene.ts:1376`, `liveFighter` `:1660`), so the local player gets no card. Hidden and untargetable
+  fighters are not hover candidates (`render/targeting.ts:37`, `RaidScene.ts:1370-1373`); pinned as no card (C-OBS).
+- Kit line `"{Faction} · {Weapon} · {role}"` (`opponentInspector.ts:57`); weapon outside the known set reads "Fists" (`:57`, also for a
+  null weapon). Faction roles: `shared/src/factions.ts:48-68` (Glass-cannon duelist, Patient executioner, Attrition swarm,
+  Control bruiser, Sustain juggernaut). Weapon names `shared/src/weapons.ts:96-124`.
+- Chips for invested stats, most invested first (`opponentInspector.ts:63-69`), labels `shared/src/combatReadability.ts:44-54`
+  (Offense, Soul Offence, Damage, Health, Attack Speed, Defense, Soul Defense, Move Speed, Leech). Legacy shows up to three
+  (`.slice(0, 3)`); the wire's `TopStat1/2` are `topStats = investedStats.slice(0, 2)` (`combatReadability.ts:123`), so at most two.
+- Card order top to bottom: name, kit, health, growth, stat chips, damage chips, offense, defenses, wish, static note.
+
+## Not on the wire (left out, no placeholder)
+- Name (title, `:56`), the card power / PvP factor / growth line (`:60`, needs the build), damage-share chips (`:70-80`),
+  Offense / Soul Offence gains (`:83-84`), Defense / Soul Defense values (`:87-88`), third stat chip, Wish line with ability text
+  and "Ready in N s" (`:91-93`; only the ready flag is delivered), the static note (`:22`, it explains lines that are absent).
+  `docs/unity/PROTOCOL_GAPS.md` `build.opponent-inspector` agrees (missing-in-protocol); code checked: `InterpActor` has none of them.
+- **Absolute health.** Legacy prints `Health {ceil hp} / {ceil maxHp}` (`:58`); a remote row carries only `HpPct` (whole percent).
+  The oracle pins `Health {HpPct}%` as the delivered form of that line. This is an adaptation of the text, not legacy's: the
+  coordinator should confirm it or ask for omission (a one-line change in the test) and decide whether it needs a DEVIATIONS row.
+
+## Hover rules as legacy has them (differs from the survey and from section 11)
+- **No delay, no cursor offset, no screen-edge flip.** The card is a fixed panel, `position:absolute; top:88px; right:18px;
+  width:min(330px,40vw); pointer-events:none; z-index:15` (`ui/opponentInspector.css:1`), `<=650px` wide screens `top:80px;
+  right:8px; width:230px` (`:23`). It cannot cover the cursor target by following the cursor because it does not follow it.
+- Which fighter: `hoverId || lockId` each frame (`RaidScene.ts:748`). `hoverId` = nearest eligible fighter within the snap radius of
+  the cursor ground point, only while the local player is alive, the pointer has been seen, the cursor is over the canvas (not a
+  DOM panel) and not peeking (`RaidScene.ts:1645-1648`); `lockId` = the wand lock while holding a wand (`:1650`). Moving off hides the card at the next frame unless a lock holds.
+- Unity implementer: reuse `ActorPick`/`TargetPick` for hover; a fixed top-right panel is the legacy behaviour (section 11's
+  "follow the cursor/flip" trap does not apply). Flag if the owner wants a cursor-following card instead.
+
+## Name tables (do not add a second list)
+- Weapons: `WorldIndicatorRules.WeaponNames` (library, `Net/Ui/WorldIndicatorRules.cs:60`) - reuse.
+- Factions: `ShowcasePalette.FactionNames` (private, `UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs:25`) and roles
+  `HubGuideView.Roles` (private, `UI/HubGuideView.cs:17`) live only in the Unity assembly, out of the library's reach. The library
+  therefore needs one `FactionNames`/`Roles` table in `InspectorCard.cs`; note in the hand-off that the two Unity lists could forward to it (outside this write scope).
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`
