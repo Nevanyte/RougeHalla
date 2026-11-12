@@ -185,7 +185,7 @@ namespace Roguehalla.Client
 
         void BuildKey(UiTheme theme)
         {
-            _keyRoot = HudUi.At(_contactRail, "Key", 0, 34, 250, 180);
+            _keyRoot = HudUi.At(_contactRail, "Key", 0, 34, 250, 218);
             float y = 0f;
             Func<string, RectTransform> row = text =>
             {
@@ -203,6 +203,15 @@ namespace Roguehalla.Client
             }
             ((RectTransform)r1.Find("Text")).offsetMin = new Vector2(34f + 4f * 15f + 4f, ((RectTransform)r1.Find("Text")).offsetMin.y);
             var r2 = row("Creatures"); GlyphImage(r2, "Icon", MapGlyph.Disc, theme.TextSecondary, 8f, 16f, 5f);
+            var rb = row("Camp buff");   // one stat icon per camp, in the stat's colour (P-UNITY-DECLUTTER-1)
+            {
+                var rect = HudUi.At(rb, "Icon", 14f, 2f, 14f, 14f);
+                var img = rect.gameObject.AddComponent<Image>();
+                uint rgb = CampBadges.IconRgb(2);
+                img.sprite = CampRespawnLabels.Art(CampBadges.IconKey(2)); img.color = new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
+                img.preserveAspect = true; img.raycastTarget = false;
+            }
+            var re = row("Elite camp"); GlyphImage(re, "Icon", MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), 12f, 14f, 3f);
             var r3 = row("Quest giver"); GlyphImage(r3, "Icon", MapGlyph.Diamond, theme.TextPrimary, 12f, 14f, 3f);
             var r4 = row("Trader"); GlyphImage(r4, "Icon", MapGlyph.Ring, theme.TextPrimary, 12f, 14f, 3f);
             var r5 = row("Quest objective"); GlyphImage(r5, "Icon", MapGlyph.Cross, theme.TextPrimary, 12f, 14f, 3f);
@@ -255,7 +264,7 @@ namespace Roguehalla.Client
                 Put((RectTransform)_contactRail, L.Left); Put((RectTransform)_counterRail, L.Right);
                 float lw = L.Left.W, lh = L.Left.H; bool compact = lh < 430f;
                 _keyRoot.gameObject.SetActive(!compact);
-                float viewY = compact ? 10f : 214f;
+                float viewY = compact ? 10f : 252f;
                 var vh = (RectTransform)_inViewHeading.transform; vh.anchorMin = vh.anchorMax = vh.pivot = new Vector2(.5f, 1f); vh.sizeDelta = new Vector2(lw - 24f, 20f); vh.anchoredPosition = new Vector2(0f, -viewY);
                 _contactScroll.anchorMin = Vector2.zero; _contactScroll.anchorMax = Vector2.one;
                 _contactScroll.offsetMin = new Vector2(8f, 112f); _contactScroll.offsetMax = new Vector2(-8f, -(viewY + 22f));
