@@ -150,6 +150,26 @@ namespace Roguehalla.Client
             if (_map == null || _uiPrefs == null) return;
             ApplyLegacyViewport(_viewport);
         }
+        // P-UNITY-HUD-STATUS-1: the MatchEnded event's winner (roster id), kept here because Session keeps no copy.
+        bool _matchEnded; uint? _winnerId; string _winnerLabel; uint? _winnerLabelFor;
+        void NoteMatchEnded(Roguehalla.Net.Protocol.ServerMsg.Events batch)
+        {
+            foreach (var e in batch.List)
+                if (e.Kind == Roguehalla.Net.Protocol.EventKind.MatchEnded) { _matchEnded = true; _winnerId = e.Draw ? null : e.Winner; _winnerLabel = null; _winnerLabelFor = null; }
+        }
+        // A new match on a reused Session (rematch without a fresh Bind) must not inherit the previous winner: entering InMatch clears it.
+        void NoteSessionState(SessionState state) { if (state == SessionState.InMatch) ResetMatchEnded(); }
+        void ResetMatchEnded() { _matchEnded = false; _winnerId = null; _winnerLabel = null; _winnerLabelFor = null; }
+        string WinnerLabel()
+        {
+            if (!_winnerId.HasValue) return null;
+            if (_winnerLabel != null && _winnerLabelFor == _winnerId) return _winnerLabel;
+            var roster = _session.Collections.Roster;
+            for (int i = 0; i < roster.Count; i++)
+                if (roster[i].Id == _winnerId.Value && roster[i].Name != null)
+                { _winnerLabel = Roguehalla.Net.Ui.Indicators.DisplayName(roster[i].Name, roster[i].Bot); _winnerLabelFor = _winnerId; return _winnerLabel; }
+            return null;
+        }
         void TickMetrics()
         {
             if (_metrics == null || _phaseStrip == null) return;
@@ -164,12 +184,13 @@ namespace Roguehalla.Client
             if (_uiPrefs.ShowPing && _session != null) metrics += (metrics.Length == 0 ? "" : " · ") + (_session.Sync.HasSample ? _session.Sync.LastRttMs.ToString("0") + " ms" : "— ms");
             _metrics.text = metrics; _metrics.color = tone;
             if (_metricsPill != null) _metricsPill.gameObject.SetActive(metrics.Length > 0);
-            if (_session == null || _session.State != SessionState.InMatch) { _phaseStrip.text = ""; return; }
+            bool runOver = _session != null && _session.State == SessionState.Ended && _matchEnded;
+            if (_session == null || _session.State != SessionState.InMatch && !runOver) { _phaseStrip.text = ""; return; }
             if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
             if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
             // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
-            MatchPhase phase = _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
-            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, out var lineTone);
+            MatchPhase phase = runOver ? MatchPhase.Ended : _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
+            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, runOver ? WinnerLabel() : null, out var lineTone);
             if (text == null) { _phaseStrip.text = ""; return; }
             string hex = lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
             _phaseStrip.text = hex == null ? text : "<color=" + hex + ">" + text + "</color>";

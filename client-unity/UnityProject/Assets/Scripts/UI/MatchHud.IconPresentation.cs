@@ -1,4 +1,5 @@
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
 
@@ -55,11 +56,15 @@ namespace Roguehalla.Client
             return "Strongest: " + (a != null && b != null ? a + ", " + b : a ?? b);
         }
 
+        struct PotionKey { public bool Delivered; public int Large, Small, Healing; public bool Equals(PotionKey o) { return Delivered == o.Delivered && Large == o.Large && Small == o.Small && Healing == o.Healing; } }
+        PotionKey _potionKey; bool _potionKeyValid;
+
         static string WishIconText(WishView? wish, double serverTimeMs)
         {
             if (!wish.HasValue) return "—";
             var w = wish.Value;
-            return w.Charges + "/" + w.MaxCharges + " · " + FormatSeconds(w.ReadyAt - serverTimeMs);
+            var cool = SlotText.Cooldown(w.ReadyAt - serverTimeMs);
+            return w.Charges + "/" + w.MaxCharges + (cool.Length > 0 ? " · " + cool : "");
         }
 
         void UpdateInventoryHints(InventoryView? inventory)
@@ -72,12 +77,17 @@ namespace Roguehalla.Client
                 if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " · " + (weapon.HasValue ? weapon.ToString() : "Empty weapon slot") +
                     (inventory.HasValue && inventory.Value.ActiveSlot == i ? " · equipped" : "\nSelect weapon slot");
             }
+            // Cache on the values shown: the texts rebuild only when delivery, a count or the healing count changes.
+            var key = new PotionKey { Delivered = inventory.HasValue, Large = inventory.HasValue ? inventory.Value.PotionLarge : 0, Small = inventory.HasValue ? inventory.Value.PotionSmall : 0, Healing = inventory.HasValue ? inventory.Value.PotionsHealing : 0 };
+            if (_potionKeyValid && key.Equals(_potionKey)) return;
+            _potionKey = key; _potionKeyValid = _healText != null && _potionHint != null;
             if (_healText != null)
             {
-                Set(_healText, inventory.HasValue ? inventory.Value.PotionLarge + " large · " + inventory.Value.PotionSmall + " small" : "— large · — small");
-                Set(_healStatus, inventory.HasValue && inventory.Value.PotionsHealing > 0 ? "Healing" + (inventory.Value.PotionsHealing > 1 ? " x" + inventory.Value.PotionsHealing : "") : "");
+                // Healing end time is not on the wire: count-only status (SlotText.HealingStatus with a null end).
+                Set(_healText, SlotText.PotionCounts(key.Large, key.Small, key.Delivered));
+                Set(_healStatus, SlotText.HealingStatus(key.Healing, null, 0d));
             }
-            if (_potionHint != null) _potionHint.Text = inventory.HasValue ? "E · Drink potion\n" + inventory.Value.PotionSmall + " small / " + inventory.Value.PotionLarge + " camp / " + inventory.Value.PotionsHealing + " healing" : "E · Drink potion\nAwaiting inventory";
+            if (_potionHint != null) _potionHint.Text = key.Delivered ? "E · Drink potion\n" + key.Small + " small / " + key.Large + " camp / " + key.Healing + " healing" : "E · Drink potion\nAwaiting inventory";
         }
     }
 }
