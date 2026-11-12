@@ -30,6 +30,15 @@ namespace Roguehalla.Client
         public int QuestObjectiveCount { get; private set; }
         readonly List<CampMarkRow> _camps = new List<CampMarkRow>();
         readonly List<TMP_Text> _campClocks = new List<TMP_Text>();
+        readonly List<CampBadgeRow> _rewards = new List<CampBadgeRow>();
+        readonly List<CampWardRow> _wards = new List<CampWardRow>();
+        readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
+        /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
+        public int RewardBadgeCount => _rewards.Count;
+        public int WardMarkCount => _wards.Count;
+        /// <summary>Badges, chests and ward marks actually drawn in the last mesh pass (not covered by a contact).</summary>
+        public int BadgesDrawn { get; private set; }
+        public int WardsDrawn { get; private set; }
         MapBlob _map;
         Vector2? _self;
         uint _selfId;
@@ -81,10 +90,16 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _camps.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
-                if (_map != null) CampMarks.Markers(_map.Camps, session.Collections.Camps, session.ServerTimeMs, !session.Training, _camps);
+                if (_map != null)
+                {
+                    bool active = !session.Training;
+                    CampMarks.Markers(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _camps);
+                    CampBadges.Rewards(_map.Camps, session.Collections.Camps, active, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _rewards);
+                    CampBadges.Wards(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _wards);
+                }
                 session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
@@ -114,6 +129,7 @@ namespace Roguehalla.Client
                 }
             }
             RefreshCampClocks();
+            RefreshBadgeTexts();
             SetVerticesDirty();
         }
 
@@ -182,6 +198,84 @@ namespace Roguehalla.Client
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
         }
 
+        // Layout beside the camp marker: ward mark on the left, reward badge (and elite chest) on the right, the respawn clock below.
+        Vector2 RewardSlot(Vector2 p, int row) { float s = Large ? 1.2f : 1f; return p + new Vector2(11f * s, 2f + row * 12f * s); }
+        Vector2 WardSlot(Vector2 p) { float s = Large ? 1.2f : 1f; return p + new Vector2(-11f * s, 2f); }
+        static readonly Color32 ChestTone = new Color32(0xe8, 0xd9, 0xa8, 255);
+
+        TMP_Text BadgeText(int i)
+        {
+            while (_badgeTexts.Count <= i)
+            {
+                var label = HudUi.Label(transform, "CampBadgeText" + _badgeTexts.Count, "", 9f, new Color32(0xe5, 0xed, 0xf7, 255), TextAlignmentOptions.Left, false, UiFontRole.Display);
+                var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(40f, 14f);
+                label.raycastTarget = false;
+                _badgeTexts.Add(label);
+            }
+            return _badgeTexts[i];
+        }
+
+        void ShowBadgeText(ref int used, Vector2 at, string text, Color32 color, bool leftOfPoint)
+        {
+            var t = BadgeText(used++);
+            if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+            if (t.text != text) t.text = text;
+            t.color = color;
+            t.alignment = leftOfPoint ? TextAlignmentOptions.Right : TextAlignmentOptions.Left;
+            t.rectTransform.pivot = new Vector2(leftOfPoint ? 1f : 0f, .5f);
+            t.rectTransform.anchoredPosition = at;
+        }
+
+        /// <summary>Tab map amount / "Aug" texts and the ward countdowns: pooled, rewritten only when the model's (cached) string changes.</summary>
+        void RefreshBadgeTexts()
+        {
+            int used = 0;
+            if (_map != null)
+            {
+                for (int i = 0; i < _rewards.Count; i++)
+                {
+                    var b = _rewards[i];
+                    var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
+                    if (ContactNear(p)) continue;
+                    int row = 0;
+                    if (b.AmountText != null) ShowBadgeText(ref used, RewardSlot(p, row++) + new Vector2(8f, 0f), b.AmountText, Rgb(b.IconRgb), false);
+                    if (b.EliteText != null) ShowBadgeText(ref used, RewardSlot(p, row) + new Vector2(8f, 0f), b.EliteText, ChestTone, false);
+                }
+                for (int i = 0; i < _wards.Count; i++)
+                {
+                    var w = _wards[i];
+                    var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
+                    if (ContactNear(p)) continue;
+                    ShowBadgeText(ref used, WardSlot(p) + new Vector2(-8f, 0f), w.Countdown, Rgb(w.TextRgb), true);
+                }
+            }
+            for (int i = used; i < _badgeTexts.Count; i++) if (_badgeTexts[i].gameObject.activeSelf) _badgeTexts[i].gameObject.SetActive(false);
+        }
+
+        static Color32 Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
+
+        /// <summary>Reward badges as coloured discs (the stat icon colour), chests as squares, ward marks as rings in the beacon colour.</summary>
+        void DrawBadges(VertexHelper vh, Color32 ink, float s)
+        {
+            BadgesDrawn = WardsDrawn = 0;
+            foreach (var b in _rewards)
+            {
+                var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
+                if (ContactNear(p)) continue;
+                BadgesDrawn++;
+                int row = 0;
+                if (b.IconKey != null) Marker(vh, RewardSlot(p, row++), 7f * s, MapGlyph.Disc, Rgb(b.IconRgb), ink);
+                if (b.EliteIconKey != null) Marker(vh, RewardSlot(p, row), 7f * s, MapGlyph.Square, ChestTone, ink);
+            }
+            foreach (var w in _wards)
+            {
+                var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
+                if (ContactNear(p)) continue;
+                WardsDrawn++;
+                Marker(vh, WardSlot(p), 8f * s, MapGlyph.Ring, Rgb(w.BeaconRgb), ink);
+            }
+        }
+
         void DrawCamps(VertexHelper vh, UiTheme theme, Color32 ink, float s)
         {
             CampMarkersDrawn = 0;
@@ -231,6 +325,7 @@ namespace Roguehalla.Client
                 if (region == MapZones.Holy) Glyph(vh, p, size * .28f, MapGlyph.Disc, Alpha(zone, 1f));
             }
             DrawCamps(vh, theme, ink, s);
+            DrawBadges(vh, ink, s);
             for (int i = 1; i < _route.Count; i++) LineAA(vh, At(_route[i - 1]), At(_route[i]), 2f, Alpha(theme.Accent, .8f));
             foreach (var point in _route) Marker(vh, At(point), 7f, MapGlyph.Disc, theme.Accent, ink);
             foreach (var point in _chests) Marker(vh, At(point), 11f * s, MapGlyph.Plus, theme.Accent, ink);
