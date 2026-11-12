@@ -176,8 +176,8 @@ fn a_failing_base_map_is_left_alone_and_kept_landmarks_certify_clean() {
 // ---------------------------------------------------------------------------------------------------------------
 
 /// With `--signature-landmarks` the pool's maker passes the generator option, the pass neither places nor tries a church
-/// or a bog tree and leaves the Sentenced and Plague zones exactly as the generator made them, and the served map holds
-/// the generator's one church and one bog tree with its anchors.
+/// or a bog tree and leaves the Sentenced and Plague zones exactly as the generator made them, the served map holds
+/// the generator's one church and one bog tree, and the generator's map keeps its anchors.
 #[test]
 fn the_generator_owns_the_church_and_the_bog_tree() {
     use crate::map_pool::{MapMaker, StyledMaker};
@@ -249,9 +249,12 @@ fn the_generator_owns_the_church_and_the_bog_tree() {
                 .count();
             assert_eq!(n, 1, "seed {seed}: the served map has {n} {kind:?}");
         }
+        // The anchors live on the generator's map (`GameMapData`), where the decoration bake reads them at pool-build
+        // time. They are NOT on the sim's `LayerData`: that is checkpointed state, and the checkpoint layout rule
+        // (`Sim::check_layout`) forbids a field that is skipped when empty (coordinator amendment, 2026-11-12).
         assert!(
-            !data.anchors.is_empty() && data.anchors == after.anchors,
-            "seed {seed}: the served map lost the anchors"
+            !generated.anchors.is_empty() && after.anchors == generated.anchors,
+            "seed {seed}: the pass lost the generator's anchors"
         );
     }
 }
