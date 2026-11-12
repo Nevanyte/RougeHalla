@@ -68,6 +68,14 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "projectile_kind" | "projectile_owner_zero" => BadField("projectile"),
             "projectile_owner_flag" => BadTag(2),
             "projectile_owner_overlong" => BadVarint,
+            // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
+            "state_camp_reward_stat_10" => BadField("camp reward"),
+            "state_camp_ward_verdict_3" => BadField("camp ward"),
+            "state_camp_ward_missing_expiry" | "state_build_summary_gains_short" => Truncated,
+            "state_build_summary_mob_stat_9" => BadField("summary stat code"),
+            "state_build_summary_panel_code_23" => BadField("summary panel code"),
+            "state_build_summary_panel_order" => BadField("summary panel order"),
+            "state_build_summary_panel_count_over" => TooMany(0),
             "camp_mob_type"
             | "camp_elite"
             | "camp_alive"
