@@ -75,3 +75,17 @@ pub(crate) fn grant_notice(id: MobTypeId, gained: u64, count: u64) -> String {
         stat_text(id, count)
     )
 }
+
+/// a7b5c4ce mobStats.ts:21-22: the notice of a kill whose camp pays another type's stat (an off-theme camp buff) names
+/// the mob killed first: "Ember Imp: +3 kill stacks of Pardoner · +3 Offense total".
+pub(crate) fn grant_notice_from(source: MobTypeId, id: MobTypeId, gained: u64, count: u64) -> String {
+    let (source, reward) = (mob_name(source), mob_name(id));
+    if source == reward {
+        return grant_notice(id, gained, count);
+    }
+    format!(
+        "{source}: +{gained} kill {} of {reward} · {} total",
+        if gained == 1 { "stack" } else { "stacks" },
+        stat_text(id, count)
+    )
+}

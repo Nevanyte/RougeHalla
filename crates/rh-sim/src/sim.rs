@@ -175,8 +175,7 @@ impl Sim {
     /// stat instead of its own type's (legacy a7b5c4ce `CampState.buff`), `None` when they pay its own; empty under
     /// `Legacy` and in a world without camps.
     pub fn camp_buffs(&self) -> &[Option<crate::mob_catalog::MobTypeId>] {
-        // STUB (P-CAMP-BUFF-THEMES-1): the implementer stores the roll in the world and returns it here.
-        &[]
+        self.w.mob_runtime.as_ref().map_or(&[], |rt| &rt.buffs.0)
     }
 
     /// Typed reset: a new match whose run is active after its first step, with the players placed as given (the lobby

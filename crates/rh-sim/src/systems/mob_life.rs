@@ -497,21 +497,30 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
         amount,
     );
     if !a.elite {
+        // a7b5c4ce mobLife.ts:265-270: the stat is the camp's buff (an off-theme camp under `CampBuffRule::Themed`, paying
+        // another zone's type's stat), else the mob's own type's. A `Legacy` world has no buff row.
+        let buff = w
+            .mob_runtime
+            .as_ref()
+            .and_then(|rt| rt.buffs.0.get(a.camp as usize).copied().flatten());
+        let paid = buff.unwrap_or(a.mob_type);
         let gained = crate::modifiers::grant_mob_stat(
             k,
             w,
             id,
-            a.mob_type,
+            paid,
             crate::modifiers::farm::DEFINITION.kill_stacks,
         );
         if gained > 0 {
+            let count = w.players[i].farm.count(paid);
             ev.push(Event::Toast {
                 to: Some(id),
-                text: crate::modifiers::farm_text::grant_notice(
-                    a.mob_type,
-                    gained,
-                    w.players[i].farm.count(a.mob_type),
-                ),
+                text: match buff {
+                    Some(_) => crate::modifiers::farm_text::grant_notice_from(
+                        a.mob_type, paid, gained, count,
+                    ),
+                    None => crate::modifiers::farm_text::grant_notice(paid, gained, count),
+                },
             });
         }
     }

@@ -71,6 +71,7 @@ fn initialize_body(
             combat: true,
             camps: Vec::new(),
             life: Vec::new(),
+            buffs: Default::default(),
         });
         w.practice = Some(crate::state::PracticeRuntime {
             spawned: 0,
@@ -108,7 +109,33 @@ fn initialize_body(
             elite_spot: c.elite_spot,
         })
         .collect();
-    let types = rosters::roll_camp_types(&zones, &mut || w.reward_rng.next_f64());
+    // The roster roll, the last reward-stream consumer at construction: legacy camps.ts `rollRosters`, the bag
+    // (`rollCampTypes`, nine draws a zone) or, under `Themed`, a7b5c4ce `rollCampRosters` (2n - 1 draws) at the same
+    // position. Both draw only from the reward stream (C-RNG).
+    let (types, buffs): (Vec<_>, Vec<_>) = match k.config.camp_buffs {
+        crate::CampBuffRule::Legacy => (
+            rosters::roll_camp_types(&zones, &mut || w.reward_rng.next_f64()),
+            Vec::new(),
+        ),
+        crate::CampBuffRule::Themed => {
+            let sites: Vec<_> = data
+                .camps
+                .iter()
+                .zip(&zones)
+                .map(|(c, &zone)| crate::mob_catalog::camp_buffs::CampSite {
+                    zone,
+                    x: c.x,
+                    y: c.y,
+                })
+                .collect();
+            crate::mob_catalog::camp_buffs::roll_camp_rosters(&sites, &mut || {
+                w.reward_rng.next_f64()
+            })
+            .into_iter()
+            .map(|r| (r.mob_type, r.buff))
+            .unzip()
+        }
+    };
     let elites = rosters::roll_camp_elites(&specs);
     let camps = types
         .into_iter()
@@ -127,6 +154,7 @@ fn initialize_body(
         life: vec![Default::default(); specs.len()],
         camps,
         combat: k.config.mob_mode == MobMode::Pve,
+        buffs: crate::mob_runtime::CampBuffs(buffs),
     });
     Ok(())
 }
