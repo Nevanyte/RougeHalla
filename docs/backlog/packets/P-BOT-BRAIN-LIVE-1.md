@@ -35,7 +35,8 @@ field against protocol 14/17 (available / derivable / needs provider / source-on
 - `crates/rh-headless/tests/brain_bots.rs`
 
 ## 5. Exclusive write scope
-- the new files; `crates/rh-policy/src/bots/{mod.rs,bot.rs (factor the command mapper at :710-736 into a shared fn)}`,
+- the new files; `crates/rh-policy/src/bots/{mod.rs,bot.rs (factor the command mapper `HumanBot::emit` at :781-840 into a
+  shared fn taking `&LootFacts`: see the 2026-11-12 note)}`,
   `crates/rh-policy/src/lib.rs` (optional `Policy::finish`, once-only `Seat::finish`)
 - `crates/rh-server/src/{main.rs,bot_fill.rs,room.rs,director.rs,bot_learning.rs}` (`--bot-brain off|full`, seat choice at
   `room.rs:1158`, replay name `"brain"`, `HumanBot` as the fault fallback instead of `Idle`, `seat.budget` for Brain seats,
@@ -98,3 +99,13 @@ rebuild), CPU per bot. Opus, with an Opus review.
 
 ## Notes from previous attempts
 Scoped on 2026-11-11 in the cloud session (no implementation).
+
+2026-11-12 (coordinator, after `integration/backend-salvage` landed bot loot): `bot.rs` changed under this brief.
+The command mapper is now `HumanBot::emit` (`bot.rs:781-840`) and resolves `Pickup` and `Choose` through the seat's
+`LootFacts` (`bots/perception.rs`; `props` and `chests` keyed by the source container id, handles from the accepted
+frame only). `HumanBot` has goals `Goal::Loot` and `Goal::Chest` (`bot.rs:663,707-708`) run by `self.loot`. For this
+packet: the shared mapper takes `&LootFacts`; `BrainBot` builds `LootFacts` from the same accepted `Frame14` as its
+`Percept` (never from `World`), so the Brain's own pickup and choice commands map the same way; the oracle adds one
+case that a Brain `Pickup` for a container not in the seat's `LootFacts` emits nothing. The brief is in the degraded
+fair profile throughout; the owner approved building it in this session (approval 7, 2026-11-12). The oracle author
+re-checks every line number in sections 5 and 6 against the tree before writing tests.
