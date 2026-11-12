@@ -12,7 +12,7 @@
 //!
 //! The pass edits only zone floor that is free (no wall, LOW, terrain or feature, outside camp, spawn, loot and chest
 //! clearances), records every change as a map feature of a kind the certifier knows, and keeps a landmark only if the
-//! independent certifier (`rh_sim::mapgen::certify`, every zone strict) finds no failure the map did not already have.
+//! independent certifier (`rh_sim::mapgen::certify`, every zone strict) finds zero failures (a base map that already fails is left alone).
 //! A landmark that does not fit is skipped, never forced: the map stays valid either way. It runs in `rh-server` (map
 //! authoring before a match exists), so `rh-sim`'s content hash and the client's expected identity do not change; the
 //! terrain reaches clients through the existing map planes (collision and terrain), with no protocol change.
@@ -62,12 +62,25 @@ pub struct Church {
 /// the certifier would refuse is skipped and named in the report.
 pub fn apply(map: &mut GameMapData) -> Report {
     let mut report = Report::default();
-    let Some(baseline) = failures(map) else {
-        report
-            .skipped
-            .push(("all", "the certifier refuses the input map".into()));
-        return report;
-    };
+    match failures(map) {
+        None => {
+            report
+                .skipped
+                .push(("all", "the certifier refuses the input map".into()));
+            return report;
+        }
+        Some(f) if !f.is_empty() => {
+            report.skipped.push((
+                "all",
+                format!(
+                    "the base map already fails the certifier: {:?}",
+                    &f[..f.len().min(3)]
+                ),
+            ));
+            return report;
+        }
+        Some(_) => {}
+    }
     let builders: [(&'static str, Zone, Builder); 4] = [
         ("volcano", Zone::Fire, volcano),
         ("church", Zone::Sentenced, church),
@@ -90,9 +103,16 @@ pub fn apply(map: &mut GameMapData) -> Report {
             let count = pieces.len();
             let at = insert(&mut candidate, zone, pieces);
             match failures(&candidate) {
-                Some(f) if f.iter().all(|x| baseline.contains(x)) => {
+                Some(f) if f.is_empty() => {
                     if name == "church" {
-                        report.churches.extend(church_site(&candidate, at, count));
+                        let site = church_site(&candidate, at, count);
+                        if let Some(c) = &site {
+                            if !door_open(&candidate, c) {
+                                why = "church door sealed".into();
+                                continue;
+                            }
+                        }
+                        report.churches.extend(site);
                     }
                     *map = candidate;
                     report.placed.push(name);
@@ -100,8 +120,7 @@ pub fn apply(map: &mut GameMapData) -> Report {
                     break;
                 }
                 Some(f) => {
-                    let new: Vec<_> = f.iter().filter(|x| !baseline.contains(x)).take(3).collect();
-                    why = format!("certifier: {new:?}");
+                    why = format!("certifier: {:?}", &f[..f.len().min(3)]);
                 }
                 None => why = "certifier refused the map".into(),
             }
@@ -111,6 +130,37 @@ pub fn apply(map: &mut GameMapData) -> Report {
         }
     }
     report
+}
+
+/// True when at least one door tile of `church` is floor and joined (4-connected floor) to the first spawn's region.
+/// Door tiles are never edited by the pass; a door with only some tiles open is kept (a narrower door).
+fn door_open(m: &GameMapData, church: &Church) -> bool {
+    let (w, h) = (m.w as i32, m.h as i32);
+    let Some(sp) = m.spawns.first() else {
+        return false;
+    };
+    let start = ((sp.x / TILE).floor() as i32, (sp.y / TILE).floor() as i32);
+    let at = |x: i32, y: i32| (x >= 0 && y >= 0 && x < w && y < h).then(|| (y * w + x) as usize);
+    let mut seen = vec![false; (w * h) as usize];
+    let mut stack = Vec::new();
+    if let Some(i) = at(start.0, start.1).filter(|&i| m.tiles[i] == T_FLOOR) {
+        seen[i] = true;
+        stack.push(start);
+    }
+    while let Some((x, y)) = stack.pop() {
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if let Some(i) = at(x + dx, y + dy) {
+                if !seen[i] && m.tiles[i] == T_FLOOR {
+                    seen[i] = true;
+                    stack.push((x + dx, y + dy));
+                }
+            }
+        }
+    }
+    church
+        .door
+        .iter()
+        .any(|&(x, y)| at(x, y).is_some_and(|i| seen[i] && m.tiles[i] == T_FLOOR))
 }
 
 /// Failures under the strictest certification (every zone strict), as `rule/subject` keys; None if refused outright.
@@ -497,7 +547,7 @@ fn church(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
         let mut stones: Vec<(i32, i32)> = Vec::new();
         for row in 0..2 {
             for col in -2..=2 {
-                let (along, across) = (r + 3 + row * 4, col * 3);
+                let (along, across) = (r + 3 + row * 4, col * 4);
                 let (sx, sy) = if side.0 != 0 {
                     (tx + side.0 * along, ty + across)
                 } else {
