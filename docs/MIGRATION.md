@@ -4,6 +4,34 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner approvals 2026-11-12 (chat): "Everything in your plan and all your suggestions work"; "I approve 1-10 you may change the permission json"
+
+Each approval covers exactly the scope written here (the list the coordinator put to the owner, quoted in substance).
+1. **Sub-agent allowlist** in `.claude/settings.json` (cargo, git except push, the gate and scripts, dotnet, node,
+   python3, the Unity batch command, `tools/` and `client-unity/` scripts, read-only shell). Applied. The `ask` and
+   `deny` lists are unchanged.
+2. **The CloudFormation deny rule** stays the owner's to lift (the coordinator does not edit a deny rule); deploying
+   waits on it.
+3. **Keep-awake** during runs (idle sleep only; a closed lid still sleeps).
+4. **Push `feature/unity-rework` after every green gate.**
+5. **Protected-path edits inside the packets that need them:** `hosting/` launch flags (map pool, landmarks, 15 s
+   lobby); `scripts/gate.sh` (the quick gate missed the content-registry test); `docs/REQUIREMENTS.md` and `AGENTS.md`
+   for the narrow R-ML amendment (legacy learner and an offline seeded tuner over existing Brain numbers).
+6. **DEV-013 to DEV-021 signed** by the owner today.
+7. **The bot Brain is built in this session** (P-BOT-BRAIN-LIVE-1); the cloud session's card is not to be started.
+8. **One beta host** (12 hours, about CAD 10) after the final gate, the final combined review and the browser proof.
+9. **Protocol 18** is stamped on the build that is next deployed (protocol 17 was kept across two incompatible
+   key-13 changes while no client was deployed).
+10. **A pull request to `main`** is opened when the plan is complete, for the owner's review; not merged.
+
+Also confirmed by "everything in your plan": the generation rules G1-G8; the roam charge kept at legacy resolution;
+the landmark definitions left out of the content hash; Holy's hall moved into the Landmarks phase in a later packet.
+
+**Owner request, same message:** "use an opus sub agent to merge all backend unmerged branches and cut those that are
+not applicable." An Opus agent triages the 147 local branches not merged into `feature/unity-rework`, merges the
+applicable backend ones onto `integration/backend-salvage` (the coordinator gates, reviews and merges that branch),
+and deletes the rest after bundling them to `.agent-runs/archive/` so a cut branch can be restored.
+
 ## Owner direction 2026-11-12 (chat): generation order and core rules
 
 "Like discussed before generation order should be region zones -> landmark places in zones -> set order to randomness and
