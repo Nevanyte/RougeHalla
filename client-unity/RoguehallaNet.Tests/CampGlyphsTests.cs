@@ -89,7 +89,7 @@ namespace Roguehalla.Net.Tests
             var g = Glyphs(Three(Row(2, respawnAt: 181000, stat: 8), Row(2, respawnAt: 1001), Row(2, respawnAt: 500)), s, now: 1000);
             Assert.AreEqual("speed", g[0].IconKey, "the buff icon stays");
             Assert.IsTrue(g[0].Dim); Assert.IsTrue(g[1].Dim); Assert.IsTrue(g[2].Dim);
-            Assert.AreEqual("181", g[0].Clock);
+            Assert.AreEqual("180", g[0].Clock, "ceil((181000 - 1000) / 1000), as CampMarksTests pins for Markers");
             Assert.AreEqual("1", g[1].Clock, "ceil: 1 ms left reads 1");
             Assert.AreEqual("0", g[2].Clock, "past respawn reads 0 (CampMarks.Markers rule)");
             Assert.IsFalse(g[0].Engaged, "a cleared camp has no fought-here ring");
@@ -100,7 +100,7 @@ namespace Roguehalla.Net.Tests
         {
             var g = Glyphs(Three(Row(2, respawnAt: 0), Row(2, respawnAt: 181000)), CampSurface.Minimap);
             Assert.IsTrue(g[0].Dim); Assert.IsNull(g[0].Clock);
-            Assert.AreEqual("181", g[1].Clock);
+            Assert.AreEqual("180", g[1].Clock);
             var idle = Glyphs(Three(Row(2, respawnAt: 181000)), CampSurface.TabMap, active: false);
             Assert.AreEqual(3, idle.Length, "camps are map knowledge, drawn while inactive too");
             Assert.IsTrue(idle[0].Dim);
