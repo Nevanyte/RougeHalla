@@ -348,8 +348,8 @@ fn first_thin(cells: &[usize]) -> Option<((i32, i32), Option<usize>)> {
         if rx.min(ry) == 1 && rx.max(ry) >= 3 {
             return Some((c, Some(usize::from(rx != 1))));
         }
-        let window = WINDOWS.iter().any(|&(ox, oy)| {
-            WINDOW
+        let window = window_offsets().iter().any(|&(ox, oy)| {
+            window_tiles()
                 .iter()
                 .filter(|&&(dx, dy)| has((c.0 + ox + dx, c.1 + oy + dy)))
                 .count()
@@ -359,9 +359,15 @@ fn first_thin(cells: &[usize]) -> Option<((i32, i32), Option<usize>)> {
     })
 }
 
-/// The offsets of the four 2x2 windows holding a tile, and the tiles of a window.
-const WINDOWS: [(i32, i32); 4] = [(0, 0), (-1, 0), (0, -1), (-1, -1)];
-const WINDOW: [(i32, i32); 4] = [(0, 0), (1, 0), (0, 1), (1, 1)];
+/// The offsets of the four 2x2 windows holding a tile (geometry, not a tunable: no content entry).
+fn window_offsets() -> [(i32, i32); 4] {
+    [(0, 0), (-1, 0), (0, -1), (-1, -1)]
+}
+
+/// The tiles of a 2x2 window from its offset.
+fn window_tiles() -> [(i32, i32); 4] {
+    [(0, 0), (1, 0), (0, 1), (1, 1)]
+}
 
 /// Make the stream two tiles wide (`first_thin` finds nothing) by adding lava tiles `ok` allows: beside a neck, on the
 /// side its diagonal neighbours already favour; beside a lone tile, the missing tile of its fullest 2x2 window. `false`
@@ -401,21 +407,21 @@ fn widen(cells: &mut Vec<usize>, ok: &impl Fn((i32, i32)) -> bool) -> bool {
             }
             // No window with three: the missing tiles of the fullest windows first.
             None => {
-                let mut windows: Vec<(usize, (i32, i32))> = WINDOWS
+                let mut windows: Vec<(usize, (i32, i32))> = window_offsets()
                     .iter()
                     .map(|&(ox, oy)| {
-                        let n = WINDOW
+                        let n = window_tiles()
                             .iter()
                             .filter(|&&(dx, dy)| has((c.0 + ox + dx, c.1 + oy + dy)))
                             .count();
                         (n, (ox, oy))
                     })
                     .collect();
-                // Stable: equally full windows keep the `WINDOWS` order.
+                // Stable: equally full windows keep the `window_offsets` order.
                 windows.sort_by_key(|w| std::cmp::Reverse(w.0));
                 for (_, (ox, oy)) in windows {
                     fills.extend(
-                        WINDOW
+                        window_tiles()
                             .iter()
                             .map(|&(dx, dy)| (c.0 + ox + dx, c.1 + oy + dy))
                             .filter(|&q| !has(q)),
