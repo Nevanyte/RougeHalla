@@ -80,3 +80,12 @@ must not change a faction-layer reader.
 - `pending` is cleared at teleport and raid start (`cardHooks.ts:77`, `:96`).
 
 ## Notes from previous attempts
+
+## Carried from the review of P-MECHANICS-SALVAGE-1 (2026-11-12, MINOR)
+- One loose test for an Eye for an Eye holder with an axe whose Spiked Shell return shreds the attacker by
+  `AXE_SHRED_ARMOR` (k = 1): rule #7 on a Spiked Shell return, which the first packet's oracle does not cover.
+- The same-tick case: Best Offense, Eye for an Eye and Hemorrhage with a sword riposte in one tick share the tag
+  `bleed:<tick>`, so the block bleed and the riposte bleed add into one instance (legacy 4.434): pin it here, with the
+  riposte multiplier this packet owns.
+- Evidence note: the parity report's "all MATCH" covers only the plain axe path (`axe_shred_stack`); the four on-hit
+  rules of the first packet are evidenced by its loose tests only.
