@@ -38,6 +38,8 @@ const T_WALL: u8 = 1;
 const T_LOW: u8 = 2;
 const LAVA: u8 = 1;
 const EMBER: u8 = 4;
+/// The bog tree is the generator's now; the tests still count Plague bog.
+#[cfg(test)]
 const BOG: u8 = 5;
 const ICE: u8 = 6;
 
