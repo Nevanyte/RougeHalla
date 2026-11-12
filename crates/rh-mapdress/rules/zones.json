@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "kinds": {
+    "fire.spire": { "code": 1, "tall": true },
+    "fire.crystal": { "code": 2 },
+    "fire.rocks": { "code": 3 },
+    "fire.vent": { "code": 4 },
+    "fire.ash": { "code": 5 },
+    "sent.tomb": { "code": 11 },
+    "sent.cross": { "code": 12 },
+    "sent.slab": { "code": 13 },
+    "sent.deadtree": { "code": 14, "tall": true },
+    "sent.lantern": { "code": 15 },
+    "sent.deadgrass": { "code": 16 },
+    "plague.column": { "code": 21, "tall": true },
+    "plague.rubble": { "code": 22 },
+    "plague.tree": { "code": 23, "tall": true },
+    "plague.bush": { "code": 24 },
+    "plague.fern": { "code": 25 },
+    "plague.mushroom": { "code": 26 },
+    "frost.rock2": { "code": 31 },
+    "frost.shards": { "code": 32 },
+    "frost.pine": { "code": 33, "tall": true },
+    "frost.pine2": { "code": 34, "tall": true },
+    "frost.drift": { "code": 35 },
+    "frost.rock": { "code": 36 },
+    "holy.pillar": { "code": 41, "tall": true },
+    "holy.rock": { "code": 42 },
+    "holy.palm": { "code": 43, "tall": true },
+    "holy.shrub": { "code": 44 },
+    "holy.flowers": { "code": 45 },
+    "holy.grass": { "code": 46 }
+  },
+  "keepClear": { "campMargin": 2, "coliseumMargin": 1, "corridorWidth": 2 },
+  "zones": {
+    "fire": {
+      "signature": {
+        "feature": "crater",
+        "rings": [
+          { "name": "fire-ring-core", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "fire.spire", "density": 2.0 }] },
+          { "name": "fire-ring-rim", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "fire.crystal", "density": 2.5 }] }
+        ]
+      },
+      "clusters": [
+        { "name": "fire-rock-field", "kinds": ["fire.rocks"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+      ],
+      "edges": [
+        { "name": "fire-vent-edge", "kinds": ["fire.vent"], "against": ["wall", "low"], "distance": 1, "density": 6 }
+      ],
+      "filler": [
+        { "name": "fire-ash-filler", "kinds": ["fire.ash"], "density": 1.0 }
+      ]
+    },
+    "sentenced": {
+      "signature": {
+        "feature": "gallows",
+        "rings": [
+          { "name": "sent-ring-yard", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "sent.tomb", "density": 3.0 }] },
+          { "name": "sent-ring-fringe", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "sent.cross", "density": 2.0 }] }
+        ]
+      },
+      "clusters": [
+        { "name": "sent-grave-plot", "kinds": ["sent.slab", "sent.deadtree"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+      ],
+      "edges": [
+        { "name": "sent-lantern-edge", "kinds": ["sent.lantern"], "against": ["wall", "low"], "distance": 1, "density": 6 }
+      ],
+      "filler": [
+        { "name": "sent-grass-filler", "kinds": ["sent.deadgrass"], "density": 1.5 }
+      ]
+    },
+    "plague": {
+      "signature": {
+        "feature": "barrow",
+        "rings": [
+          { "name": "plague-ring-court", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "plague.column", "density": 2.0 }] },
+          { "name": "plague-ring-ruins", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "plague.rubble", "density": 2.5 }] }
+        ]
+      },
+      "clusters": [
+        { "name": "plague-grove", "kinds": ["plague.tree", "plague.bush"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8 }
+      ],
+      "edges": [
+        { "name": "plague-fern-edge", "kinds": ["plague.fern"], "against": ["wall", "low"], "distance": 1, "density": 6 }
+      ],
+      "filler": [
+        { "name": "plague-mushroom-filler", "kinds": ["plague.mushroom"], "density": 1.0 }
+      ]
+    },
+    "frost": {
+      "signature": {
+        "feature": "mere",
+        "rings": [
+          { "name": "frost-ring-shore", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "frost.rock2", "density": 2.0 }], "on": ["floor", "ice"] },
+          { "name": "frost-ring-field", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "frost.shards", "density": 2.0 }] }
+        ]
+      },
+      "clusters": [
+        { "name": "frost-pine-grove", "kinds": ["frost.pine", "frost.pine2"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+      ],
+      "edges": [
+        { "name": "frost-drift-edge", "kinds": ["frost.drift"], "against": ["wall", "low"], "distance": 1, "density": 6 }
+      ],
+      "filler": [
+        { "name": "frost-rock-filler", "kinds": ["frost.rock"], "density": 1.0 }
+      ]
+    },
+    "holy": {
+      "signature": {
+        "feature": "hall",
+        "rings": [
+          { "name": "holy-ring-sanctum", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "holy.pillar", "density": 2.0 }] },
+          { "name": "holy-ring-garden", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "holy.rock", "density": 2.0 }] }
+        ]
+      },
+      "clusters": [
+        { "name": "holy-palm-grove", "kinds": ["holy.palm", "holy.shrub"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8 }
+      ],
+      "edges": [
+        { "name": "holy-flower-edge", "kinds": ["holy.flowers"], "against": ["wall", "low"], "distance": 1, "density": 6 }
+      ],
+      "filler": [
+        { "name": "holy-grass-filler", "kinds": ["holy.grass"], "density": 1.5 }
+      ]
+    }
+  }
+}
