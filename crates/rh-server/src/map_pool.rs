@@ -36,6 +36,9 @@ pub const MAP_WORKER_RESTART: Duration = Duration::from_secs(1);
 pub const MAP_WORKER_RESTART_MAX: Duration = Duration::from_secs(60);
 /// A worker that sends nothing for this long while it owes a reply is hung and replaced.
 pub const MAP_WORKER_HANG: Duration = Duration::from_secs(5);
+/// Most abandoned (hung, still running) worker threads at once; at the cap the pool stops restarting and serves the
+/// configured map (P-MAP-3-fix). STUB: not enforced yet.
+pub const MAP_ABANDONED_CAP: usize = 2;
 /// How often the supervisor looks at the worker while a reply is owed.
 const SUPERVISOR_TICK: Duration = Duration::from_millis(100);
 
@@ -130,6 +133,28 @@ pub struct MapPoolStats {
     pub hangs: u64,
     /// Worker maps that failed admission (never served).
     pub rejected: u64,
+    /// Abandoned worker threads whose generator call has not returned yet. STUB: always 0.
+    pub abandoned: u64,
+    /// The pool has stopped restarting workers (the abandoned cap was reached). STUB: always false.
+    pub degraded: bool,
+}
+
+/// Which map a room was given, for the one log line per match start. STUB: `take_served` returns the default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Served {
+    /// The seed of a pooled map; `None` for the configured map.
+    pub seed: Option<u32>,
+    /// The certified map hash (`MapLayers::legacy_map_hash_u32`); `None` when the map carries no layers.
+    pub hash: Option<u32>,
+    /// The room got the configured map (empty pool, failed fallback, degraded pool).
+    pub configured: bool,
+}
+
+impl std::fmt::Display for Served {
+    /// Pooled: `pooled seed <decimal> hash <8 lowercase hex digits>`; configured: `configured map`. STUB: empty.
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -272,6 +297,11 @@ impl MapPool {
         };
         self.shared.wake.notify_all();
         queued.unwrap_or_else(|| self.fallback())
+    }
+
+    /// `take` plus the identity of what was served. STUB: identity not filled in.
+    pub fn take_served(&self) -> (MapAssets, Served) {
+        (self.take(), Served::default())
     }
 
     fn fallback(&self) -> MapAssets {
