@@ -6,10 +6,10 @@ name: Hosting validate
 on:
   workflow_dispatch:
   push:
-    branches: [optimization_port]
+    branches: [optimization_port, feature/unity-rework, "integration/**"]
     paths: ["hosting/**", "crates/rh-placement/**", ".github/workflows/hosting-validate.yml"]
   pull_request:
-    branches: [optimization_port]
+    branches: [optimization_port, feature/unity-rework, "integration/**"]
     paths: ["hosting/**", "crates/rh-placement/**", ".github/workflows/hosting-validate.yml"]
 
 permissions:

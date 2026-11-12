@@ -2,7 +2,7 @@ name: Browser proof coverage
 
 on:
   push:
-    branches: [main, optimization_port]
+    branches: [main, optimization_port, feature/unity-rework, "integration/**"]
     paths: ["client-unity/UnityProject/Tools/playable-web.cjs", "client-unity/UnityProject/Tools/proof-contract*.cjs", "docs/evidence/first-playable-calgary/browser-proof.json", "docs/evidence/first-playable-unity/browser-proof.json", ".github/workflows/browser-proof-contract.yml"]
   pull_request:
     paths: ["client-unity/UnityProject/Tools/playable-web.cjs", "client-unity/UnityProject/Tools/proof-contract*.cjs", "docs/evidence/first-playable-calgary/browser-proof.json", "docs/evidence/first-playable-unity/browser-proof.json", ".github/workflows/browser-proof-contract.yml"]
