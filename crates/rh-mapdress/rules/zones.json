@@ -42,13 +42,13 @@
         ]
       },
       "clusters": [
-        { "name": "fire-rock-field", "kinds": ["fire.rocks"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+        { "name": "fire-rock-field", "kinds": ["fire.rocks"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
       ],
       "edges": [
         { "name": "fire-vent-edge", "kinds": ["fire.vent"], "against": ["wall", "low"], "distance": 1, "density": 6 }
       ],
       "filler": [
-        { "name": "fire-ash-filler", "kinds": ["fire.ash"], "density": 1.0 }
+        { "name": "fire-ash-filler", "kinds": ["fire.ash"], "density": 1.0, "minSpacing": 2 }
       ]
     },
     "sentenced": {
@@ -60,13 +60,13 @@
         ]
       },
       "clusters": [
-        { "name": "sent-grave-plot", "kinds": ["sent.slab", "sent.deadtree"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+        { "name": "sent-grave-plot", "kinds": ["sent.slab", "sent.deadtree"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
       ],
       "edges": [
         { "name": "sent-lantern-edge", "kinds": ["sent.lantern"], "against": ["wall", "low"], "distance": 1, "density": 6 }
       ],
       "filler": [
-        { "name": "sent-grass-filler", "kinds": ["sent.deadgrass"], "density": 1.5 }
+        { "name": "sent-grass-filler", "kinds": ["sent.deadgrass"], "density": 1.5, "minSpacing": 2 }
       ]
     },
     "plague": {
@@ -78,13 +78,13 @@
         ]
       },
       "clusters": [
-        { "name": "plague-grove", "kinds": ["plague.tree", "plague.bush"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8 }
+        { "name": "plague-grove", "kinds": ["plague.tree", "plague.bush"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8, "moat": 2 }
       ],
       "edges": [
         { "name": "plague-fern-edge", "kinds": ["plague.fern"], "against": ["wall", "low"], "distance": 1, "density": 6 }
       ],
       "filler": [
-        { "name": "plague-mushroom-filler", "kinds": ["plague.mushroom"], "density": 1.0 }
+        { "name": "plague-mushroom-filler", "kinds": ["plague.mushroom"], "density": 1.0, "minSpacing": 2 }
       ]
     },
     "frost": {
@@ -96,13 +96,13 @@
         ]
       },
       "clusters": [
-        { "name": "frost-pine-grove", "kinds": ["frost.pine", "frost.pine2"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7 }
+        { "name": "frost-pine-grove", "kinds": ["frost.pine", "frost.pine2"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
       ],
       "edges": [
         { "name": "frost-drift-edge", "kinds": ["frost.drift"], "against": ["wall", "low"], "distance": 1, "density": 6 }
       ],
       "filler": [
-        { "name": "frost-rock-filler", "kinds": ["frost.rock"], "density": 1.0 }
+        { "name": "frost-rock-filler", "kinds": ["frost.rock"], "density": 1.0, "minSpacing": 2 }
       ]
     },
     "holy": {
@@ -114,13 +114,13 @@
         ]
       },
       "clusters": [
-        { "name": "holy-palm-grove", "kinds": ["holy.palm", "holy.shrub"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8 }
+        { "name": "holy-palm-grove", "kinds": ["holy.palm", "holy.shrub"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8, "moat": 2 }
       ],
       "edges": [
         { "name": "holy-flower-edge", "kinds": ["holy.flowers"], "against": ["wall", "low"], "distance": 1, "density": 6 }
       ],
       "filler": [
-        { "name": "holy-grass-filler", "kinds": ["holy.grass"], "density": 1.5 }
+        { "name": "holy-grass-filler", "kinds": ["holy.grass"], "density": 1.5, "minSpacing": 2 }
       ]
     }
   }

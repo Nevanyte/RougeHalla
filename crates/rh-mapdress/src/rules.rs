@@ -1,7 +1,11 @@
 //! The rule file (`rules/zones.json`): parsing and validation. Every refusal names the rule (or the kind) it is about.
 //!
-//! Units: distances (`inner`, `outer`, `radius`, `minSpacing`, `distance`, margins, widths) are TILES. Densities are
-//! props per 100 candidate tiles. `clearing` is a share in 0..=1.
+//! Units: distances (`inner`, `outer`, `radius`, `minSpacing`, `distance`, margins, widths, `moat`) are TILES. Densities
+//! are props per 100 candidate tiles. `clearing` is a share in 0..=1.
+//!
+//! Order rules: a cluster's `moat` (default 2) keeps edge and filler props out of the disk of `radius + moat` tiles round
+//! each of its sites, so a cluster reads as a grove with open ground round it. A filler rule's `minSpacing` (default 2)
+//! keeps filler props that many tiles apart. Both are optional; files without them are still valid.
 use rh_sim::mapdata::{FeatureKind, Zone};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -78,6 +82,9 @@ pub struct ClusterRule {
     pub sites: u32,
     /// Most members per site.
     pub members: u32,
+    /// Open ground round the grove, in tiles: edge and filler props keep out of every tile whose centre is within
+    /// `radius + moat` tiles of a site of this rule.
+    pub moat: f64,
     pub on: Vec<TileClass>,
 }
 
@@ -97,6 +104,8 @@ pub struct FillerRule {
     pub name: String,
     pub kinds: Vec<u8>,
     pub density: f64,
+    /// Filler props (of any filler rule) stand at least this many tiles apart, measured between tile centres.
+    pub min_spacing: f64,
     pub on: Vec<TileClass>,
 }
 
@@ -250,6 +259,8 @@ struct RawCluster {
     clearing: f64,
     sites: u32,
     members: u32,
+    #[serde(default = "default_gap")]
+    moat: f64,
     #[serde(default = "floor_only")]
     on: Vec<TileClass>,
 }
@@ -265,13 +276,18 @@ struct RawEdge {
     on: Vec<TileClass>,
 }
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawFiller {
     name: String,
     kinds: Vec<String>,
     density: f64,
+    #[serde(default = "default_gap")]
+    min_spacing: f64,
     #[serde(default = "floor_only")]
     on: Vec<TileClass>,
+}
+fn default_gap() -> f64 {
+    2.0
 }
 fn floor_only() -> Vec<TileClass> {
     vec![TileClass::Floor]
@@ -396,6 +412,9 @@ impl Raw {
                         c.name
                     ));
                 }
+                if !(c.moat.is_finite() && c.moat >= 0.0) {
+                    return Err(format!("rule \"{}\": moat must be >= 0", c.name));
+                }
                 if c.sites == 0 || c.members == 0 {
                     return Err(format!(
                         "rule \"{}\": sites and members must be >= 1",
@@ -410,6 +429,7 @@ impl Raw {
                     clearing: c.clearing,
                     sites: c.sites,
                     members: c.members,
+                    moat: c.moat,
                     on: c.on.clone(),
                 });
             }
@@ -434,10 +454,14 @@ impl Raw {
             let mut fillers = Vec::new();
             for f in &rz.filler {
                 claim(&f.name)?;
+                if !(f.min_spacing.is_finite() && f.min_spacing >= 0.0) {
+                    return Err(format!("rule \"{}\": minSpacing must be >= 0", f.name));
+                }
                 fillers.push(FillerRule {
                     name: f.name.clone(),
                     kinds: kind_list(&f.name, &f.kinds)?,
                     density: density(&f.name, f.density)?,
+                    min_spacing: f.min_spacing,
                     on: f.on.clone(),
                 });
             }

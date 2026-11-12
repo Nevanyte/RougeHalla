@@ -5,7 +5,8 @@
 //! to the tile `floor(x / 32), floor(y / 32)`; every rule is judged on that tile.
 //!
 //! Stages, in output order: (1) keep-clear mask, (2) legacy props, (3) signature rings, (4) clusters with clearings,
-//! (5) edge dressing, (6) filler. The output lists legacy props first (in `GameMapData.props` order, converted), then
+//! (5) edge dressing, (6) filler. Edge and filler props keep out of each cluster's `radius + moat` disk, and filler
+//! props keep `minSpacing` tiles apart, so groves read as groves with open ground round them (see [`rules`]). The output lists legacy props first (in `GameMapData.props` order, converted), then
 //! ring, cluster, edge and filler props. When the total would pass [`MAX_PROPS`] the list is cut to that length, so later
 //! stages lose first.
 //!
@@ -14,6 +15,8 @@
 //! stands on a tile (legacy props also occupy their tile).
 mod hash;
 mod mask;
+#[cfg(test)]
+mod order_tests;
 pub mod rules;
 
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone};
@@ -131,6 +134,10 @@ struct Grid<'a> {
     clear: Vec<bool>,
     corridor: Vec<bool>,
     occupied: Vec<bool>,
+    /// Tiles inside some cluster site's `radius + moat` disk: edge and filler props keep out.
+    moat: Vec<bool>,
+    /// Tiles holding a filler prop, for the filler spacing.
+    filler: Vec<bool>,
 }
 
 impl Grid<'_> {
@@ -146,6 +153,43 @@ impl Grid<'_> {
             && !(tall && self.corridor[i])
             && on.contains(&class_of(self.map, i))
     }
+}
+
+/// Marks the `radius + moat` disk of every site in `g.moat`.
+fn mark_moats(g: &mut Grid, rules: &Rules, sites: &[ClusterSite]) {
+    for s in sites {
+        let Some(z) = rules.zone(s.zone) else {
+            continue;
+        };
+        let rule = &z.clusters[s.rule];
+        let reach = rule.radius + rule.moat;
+        let reach_t = reach.ceil() as i64 + 1;
+        let (sx, sy) = (f64::from(s.x), f64::from(s.y));
+        let (stx, sty) = (i64::from(s.x) / 32, i64::from(s.y) / 32);
+        for y in (sty - reach_t).max(0)..=(sty + reach_t).min(g.h as i64 - 1) {
+            for x in (stx - reach_t).max(0)..=(stx + reach_t).min(g.w as i64 - 1) {
+                let (cx, cy) = (x as f64 * TILE + 16.0, y as f64 * TILE + 16.0);
+                if sq(cx - sx) + sq(cy - sy) <= sq(reach * TILE) {
+                    g.moat[y as usize * g.w + x as usize] = true;
+                }
+            }
+        }
+    }
+}
+
+/// Whether a filler prop of spacing `gap` tiles may stand on tile `i`: no filler prop within `gap` tile centres.
+fn filler_room(g: &Grid, i: usize, gap: f64) -> bool {
+    let n = gap.ceil() as i64;
+    let (tx, ty) = ((i % g.w) as i64, (i / g.w) as i64);
+    for y in (ty - n).max(0)..=(ty + n).min(g.h as i64 - 1) {
+        for x in (tx - n).max(0)..=(tx + n).min(g.w as i64 - 1) {
+            let d2 = ((x - tx) * (x - tx) + (y - ty) * (y - ty)) as f64;
+            if d2 < gap * gap && g.filler[y as usize * g.w + x as usize] {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 fn push(out: &mut Vec<DressProp>, g: &mut Grid, rules: &Rules, kind: u8, pos: (u16, u16), h: u64) {
@@ -275,6 +319,8 @@ fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
         clear: keep_clear(map, rules),
         corridor: tall_corridor(map, rules),
         occupied: vec![false; w * h],
+        moat: vec![false; w * h],
+        filler: vec![false; w * h],
     }
 }
 
@@ -423,7 +469,7 @@ fn edges(g: &mut Grid, z: &ZoneRules, rules: &Rules, map_hash: u64, out: &mut Ve
         for i in 0..g.w * g.h {
             let pick = hash::at(seed, i as u64, 0, 4) % rule.kinds.len() as u64;
             let kind = rule.kinds[pick as usize];
-            if !g.open(i, z.zone, &rule.on, rules.is_tall(kind)) {
+            if g.moat[i] || !g.open(i, z.zone, &rule.on, rules.is_tall(kind)) {
                 continue;
             }
             let (tx, ty) = ((i % g.w) as i64, (i / g.w) as i64);
@@ -449,13 +495,14 @@ fn fillers(g: &mut Grid, z: &ZoneRules, rules: &Rules, map_hash: u64, out: &mut 
         for i in 0..g.w * g.h {
             let pick = hash::at(seed, i as u64, 0, 6) % rule.kinds.len() as u64;
             let kind = rule.kinds[pick as usize];
-            if !g.open(i, z.zone, &rule.on, rules.is_tall(kind)) {
+            if g.moat[i] || !g.open(i, z.zone, &rule.on, rules.is_tall(kind)) {
                 continue;
             }
             let h = hash::at(seed, i as u64, 0, 7);
-            if h % 10_000 < thr {
+            if h % 10_000 < thr && filler_room(g, i, rule.min_spacing) {
                 let pos = jitter(i % g.w, i / g.w, h >> 16);
                 push(out, g, rules, kind, pos, h);
+                g.filler[i] = true;
             }
         }
     }
@@ -478,6 +525,7 @@ pub fn dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing {
     }
     let sites = all_sites(&g, map_hash, rules);
     clusters(&mut g, rules, map_hash, &sites, &mut props);
+    mark_moats(&mut g, rules, &sites);
     for z in &rules.zones {
         edges(&mut g, z, rules, map_hash, &mut props);
     }
