@@ -25,7 +25,37 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static int Decide(NameMergeItem[] items, int count, bool[] shown)
         {
-            return 0;
+            int shownCount = 0;
+            // Visit the items in ascending Id order without sorting: each pass takes the smallest Id above the last one taken.
+            bool first = true; uint last = 0;
+            for (int step = 0; step < count; step++)
+            {
+                int k = -1;
+                for (int i = 0; i < count; i++)
+                {
+                    uint id = items[i].Id;
+                    if (!first && id <= last) continue;
+                    if (k < 0 || id < items[k].Id) k = i;
+                }
+                if (k < 0) break;
+                first = false; last = items[k].Id;
+                var a = items[k];
+                bool show = true;
+                if (!a.Elite && !string.IsNullOrEmpty(a.Text))
+                {
+                    for (int j = 0; j < count && show; j++)
+                    {
+                        var b = items[j];
+                        // Only lower ids were visited, so shown[j] is final for them.
+                        if (b.Id >= a.Id || b.Elite || !shown[j] || b.Text != a.Text) continue;
+                        float dx = a.X - b.X, dy = a.Y - b.Y, w = a.Width < b.Width ? a.Width : b.Width;
+                        if (dx * dx + dy * dy < w * w) show = false;
+                    }
+                }
+                shown[k] = show;
+                if (show) shownCount++;
+            }
+            return shownCount;
         }
     }
 }

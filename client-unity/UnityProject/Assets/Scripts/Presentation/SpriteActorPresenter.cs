@@ -158,14 +158,41 @@ namespace Roguehalla.Client
             return a.Attack;
         }
         public void Begin() { _stamp++; }
+        NameMergeItem[] _mergeItems = new NameMergeItem[32]; bool[] _mergeShown = new bool[32]; uint[] _mergeIds = new uint[32];
         public void End()
         {
+            MergeMobNames();
             _remove.Clear(); foreach (var pair in _active) if (pair.Value.Stamp != _stamp) _remove.Add(pair.Key);
             foreach (uint id in _remove)
             {
                 Evict(id);
             }
         }
+        /// <summary>Mobs of one camp that stand together show one name (the lowest id). Runs after every actor's indicators were presented. Players are never merged.</summary>
+        void MergeMobNames()
+        {
+            int n = 0;
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (pair.Value.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                var f = art.IndFacts;
+                if (!f.Mob || f.Dummy || f.Dead || !art.Ind.NameActive) continue;
+                if (n == _mergeItems.Length)
+                {
+                    System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2);
+                }
+                var at = art.Ind.NameWorldPosition;
+                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite };
+                _mergeIds[n] = pair.Key; n++;
+            }
+            if (n < 2) return;
+            // Dictionary order is not id order and Decide wants any order: ids decide. Sort-free because Decide takes ids from the items.
+            NameMerge.Decide(_mergeItems, n, _mergeShown);
+            for (int i = 0; i < n; i++)
+                if (!_mergeShown[i] && _active.TryGetValue(_mergeIds[i], out var hidden)) hidden.Ind.HideName();
+        }
+
         public void Retain(HashSet<uint> membership)
         {
             _remove.Clear(); foreach(var pair in _active) if(!membership.Contains(pair.Key)) _remove.Add(pair.Key);
