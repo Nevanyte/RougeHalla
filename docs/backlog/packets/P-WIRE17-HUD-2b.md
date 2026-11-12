@@ -29,3 +29,13 @@ Public content numbers the legacy HUD prints, still protocol 17, `v17.json` rege
   Not found under the legacy names (map each to its Rust source before inventing one): `FREEZE_RANGE`,
   `SWARM_CLOUD_RADIUS`, `TRIAL_EXIT_STUN_MS`, `BLAZE_BURN_DPS`, `BLAZE_MIN_DIST`, `BLAZE_RANGE`.
 - Weapon scaling is public content (Welcome), as in legacy.
+
+## Carried from the review of P-UNITY-HUD-BUILD-2 (2026-11-12)
+The Unity champion panel leaves these legacy fragments blank because no panel code carries them; this packet (or a
+split of it) delivers them, and a Unity follow-up draws them:
+- the auto row's scaling line (`scaleTerms`, `championCombatModel.ts:135`, e.g. "1x Offense"): static weapon data,
+  the weapon scaling terms in Welcome cover it;
+- the Fire roam line's move-speed percent and arming-burst text (`championCombatModel.ts:118-121`): the roam speed
+  multiplier and burst damage as owner panel codes;
+- tooltip-only numbers (attack-speed mirror, hit multiplier, passive breakdowns): decide per number whether it is
+  worth a panel code; list what is left out.
