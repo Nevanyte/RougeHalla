@@ -38,8 +38,9 @@ namespace Roguehalla.Client
         public RectTransform Root { get { return _root; } }
 
         /// <summary>Legacy <c>hoverId || lockId</c>: the hovered fighter wins, else the locked one. Hidden when the model gives no card.</summary>
-        public void Show(IList<InterpActor> rows, uint hoverId, uint lockId, uint selfId)
+        public void Show(IList<InterpActor> rows, uint hoverId, uint lockId, uint selfId, bool localAlive = true)
         {
+            if (hoverId == 0 && !localAlive) lockId = 0;   // RaidScene.ts:1648: the lock only counts while the local fighter is alive
             uint id = hoverId != 0 ? hoverId : lockId;
             int at = -1;
             if (id != 0 && rows != null)

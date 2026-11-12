@@ -15,6 +15,41 @@ public sealed class InspectorCardViewEditModeTests
     };
 
     [Test]
+    public void ALockedFighterHasNoCardWhileTheLocalFighterIsDead()
+    {
+        var host = new GameObject("Inspector dead test", typeof(RectTransform));
+        try
+        {
+            var view = new InspectorCardView(host.transform);
+            var rows = new List<InterpActor> { Row(Other) };
+            view.Show(rows, 0, Other, Self, false);
+            Assert.That(view.Visible, Is.False);
+            view.Show(rows, Other, 0, Self, false);   // hover still counts
+            Assert.That(view.Visible, Is.True);
+        }
+        finally { Object.DestroyImmediate(host); }
+    }
+
+    [Test]
+    public void AHoveredFighterOutsideTheDeliveredMembershipShowsNoCard()
+    {
+        var go = new GameObject("inspector arena");
+        try
+        {
+            var arena = go.AddComponent<Roguehalla.Client.ArenaView>();
+            arena.GetType().GetMethod("Awake", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(arena, null);
+            var rows = new List<InterpActor> { Row(Other) };
+            arena.SetHover(Other);
+            arena.RetainObservedActors(rows, null); arena.Present(rows, null, null, 0f);
+            Assert.That(arena.Inspector.Visible, Is.True, "a member shows the card");
+            var none = new List<InterpActor>();
+            arena.RetainObservedActors(none, null); arena.Present(rows, null, null, 0f);   // left vision; the interpolated list still has the row
+            Assert.That(arena.Inspector.Visible, Is.False);
+        }
+        finally { Object.DestroyImmediate(go); }
+    }
+
+    [Test]
     public void HoveringShowsTheModelsLinesMovingOffHidesAndALockKeepsIt()
     {
         var host = new GameObject("Inspector test", typeof(RectTransform));

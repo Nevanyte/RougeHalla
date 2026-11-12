@@ -165,7 +165,7 @@ namespace Roguehalla.Client
         {
             var go = new GameObject("InspectorCardCanvas", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler));
             go.transform.SetParent(transform, false);
-            var canvas = go.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 5;
+            var canvas = go.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = -1;   // below MatchUI and its modals, above the hurt vignette (-10)
             var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
