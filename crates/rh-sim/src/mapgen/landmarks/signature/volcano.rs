@@ -252,12 +252,16 @@ fn stream(
         let g = d.stream_gap;
         (-g..=g).all(|ny| (-g..=g).all(|nx| at(t.0 + nx, t.1 + ny).is_none_or(|j| mark[j] != 2)))
     };
-    let wide = |t: (i32, i32), sd: (i32, i32)| lava_ok(t) && lava_ok((t.0 + sd.0, t.1 + sd.1));
-    let sd = side(h0);
+    // A path tile and its side cell, which is across the heading the path entered that tile with.
+    let pair = |t: (i32, i32), h: i32| {
+        let sd = side(h);
+        [t, (t.0 + sd.0, t.1 + sd.1)]
+    };
+    let wide = |t: (i32, i32), h: i32| pair(t, h).iter().all(|&q| lava_ok(q));
     let v = DIR16[h0 as usize];
     let mut pos = (ox + d.stream_start * v[0], oy + d.stream_start * v[1]);
     let first = tile(pos);
-    if !wide(first, sd) {
+    if !wide(first, h0) {
         return None;
     }
     // (position, heading, tile) per path tile.
@@ -281,13 +285,10 @@ fn stream(
                 pos = next;
                 continue 'grow;
             }
-            if path
-                .iter()
-                .any(|p| p.2 == t || (p.2 .0 + sd.0, p.2 .1 + sd.1) == t)
-            {
+            if path.iter().any(|p| pair(p.2, p.1).contains(&t)) {
                 continue;
             }
-            if wide(t, sd) {
+            if wide(t, hn) {
                 pos = next;
                 h = hn;
                 path.push((pos, h, t));
@@ -299,13 +300,18 @@ fn stream(
     while path.len() >= d.stream_min {
         let &(p, hp, _) = path.last().unwrap();
         let mut cells: Vec<usize> = Vec::new();
-        for &(_, _, t) in &path {
-            for q in [t, (t.0 + sd.0, t.1 + sd.1)] {
+        for &(_, ht, t) in &path {
+            for q in pair(t, ht) {
                 let i = at(q.0, q.1).unwrap();
                 if !cells.contains(&i) {
                     cells.push(i);
                 }
             }
+        }
+        // Where the heading changes the pairs can leave a neck: fill it, or end the stream a tile sooner.
+        if !widen(&mut cells, &lava_ok) {
+            path.pop();
+            continue;
         }
         let pc = tile(step(step(p, hp), hp));
         for &r2 in d.pool_d2 {
@@ -318,6 +324,117 @@ fn stream(
         path.pop();
     }
     None
+}
+
+/// The first tile of `cells` that keeps the stream from being two tiles wide, with the reason: `Some(axis)` for a neck
+/// (its run of stream tiles along `axis`, 0 = x, 1 = y, is 1 while the run along the other axis is 3 or more), `None`
+/// for a tile in no 2x2 window holding 3 stream tiles.
+fn first_thin(cells: &[usize]) -> Option<((i32, i32), Option<usize>)> {
+    let has = |q: (i32, i32)| at(q.0, q.1).is_some_and(|i| cells.contains(&i));
+    let run = |c: (i32, i32), d: (i32, i32)| {
+        let mut n = 1;
+        for s in [1, -1] {
+            let mut p = (c.0 + s * d.0, c.1 + s * d.1);
+            while has(p) {
+                n += 1;
+                p = (p.0 + s * d.0, p.1 + s * d.1);
+            }
+        }
+        n
+    };
+    cells.iter().find_map(|&i| {
+        let c = ((i % W) as i32, (i / W) as i32);
+        let (rx, ry) = (run(c, (1, 0)), run(c, (0, 1)));
+        if rx.min(ry) == 1 && rx.max(ry) >= 3 {
+            return Some((c, Some(usize::from(rx != 1))));
+        }
+        let window = window_offsets().iter().any(|&(ox, oy)| {
+            window_tiles()
+                .iter()
+                .filter(|&&(dx, dy)| has((c.0 + ox + dx, c.1 + oy + dy)))
+                .count()
+                >= 3
+        });
+        (!window).then_some((c, None))
+    })
+}
+
+/// The offsets of the four 2x2 windows holding a tile (geometry, not a tunable: no content entry).
+fn window_offsets() -> [(i32, i32); 4] {
+    [(0, 0), (-1, 0), (0, -1), (-1, -1)]
+}
+
+/// The tiles of a 2x2 window from its offset.
+fn window_tiles() -> [(i32, i32); 4] {
+    [(0, 0), (1, 0), (0, 1), (1, 1)]
+}
+
+/// Make the stream two tiles wide (`first_thin` finds nothing) by adding lava tiles `ok` allows: beside a neck, on the
+/// side its diagonal neighbours already favour; beside a lone tile, the missing tile of its fullest 2x2 window. `false`
+/// when a thin tile has no allowed fill (or the fills run past the stream's own length).
+fn widen(cells: &mut Vec<usize>, ok: &impl Fn((i32, i32)) -> bool) -> bool {
+    let limit = 2 * cells.len();
+    for _ in 0..=limit {
+        let Some((c, neck)) = first_thin(cells) else {
+            return true;
+        };
+        let has = |q: (i32, i32)| at(q.0, q.1).is_some_and(|i| cells.contains(&i));
+        let mut fills: Vec<(i32, i32)> = Vec::new();
+        match neck {
+            // A neck along `axis`: fill across it, on the side with more stream tiles diagonally beside it.
+            Some(axis) => {
+                let across = |s: i32| if axis == 0 { (s, 0) } else { (0, s) };
+                let along = |s: i32| if axis == 0 { (0, s) } else { (s, 0) };
+                let support = |s: i32| {
+                    [-1, 1]
+                        .iter()
+                        .filter(|&&a| {
+                            let (o, l) = (across(s), along(a));
+                            has((c.0 + o.0 + l.0, c.1 + o.1 + l.1))
+                        })
+                        .count()
+                };
+                let sides = if support(-1) > support(1) {
+                    [-1, 1]
+                } else {
+                    [1, -1]
+                };
+                fills.extend(
+                    sides
+                        .iter()
+                        .map(|&s| (c.0 + across(s).0, c.1 + across(s).1)),
+                );
+            }
+            // No window with three: the missing tiles of the fullest windows first.
+            None => {
+                let mut windows: Vec<(usize, (i32, i32))> = window_offsets()
+                    .iter()
+                    .map(|&(ox, oy)| {
+                        let n = window_tiles()
+                            .iter()
+                            .filter(|&&(dx, dy)| has((c.0 + ox + dx, c.1 + oy + dy)))
+                            .count();
+                        (n, (ox, oy))
+                    })
+                    .collect();
+                // Stable: equally full windows keep the `window_offsets` order.
+                windows.sort_by_key(|w| std::cmp::Reverse(w.0));
+                for (_, (ox, oy)) in windows {
+                    fills.extend(
+                        window_tiles()
+                            .iter()
+                            .map(|&(dx, dy)| (c.0 + ox + dx, c.1 + oy + dy))
+                            .filter(|&q| !has(q)),
+                    );
+                }
+            }
+        }
+        let Some(q) = fills.into_iter().find(|&q| !has(q) && ok(q)) else {
+            return false;
+        };
+        cells.push(at(q.0, q.1).unwrap());
+    }
+    false
 }
 
 /// The pool round `pc`: every tile within squared distance `r2` that is not the stream's, all free; at least

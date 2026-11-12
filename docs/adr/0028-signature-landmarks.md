@@ -2,7 +2,7 @@
 
 Status: **Proposed.** Owner beta-follow-up decisions 5 and 6 (MIGRATION, 2026-11-10); owner direction 2026-11-12 (the
 generation order and the core rules G1-G8 below). Packets P-SIGNATURE-1, P-SIGNATURE-1-fix (the server post-pass) and
-P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner
+P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator), P-MAPGEN-SIG-FIRE-2 (craters sized by band, streams two tiles wide). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner
 signs.
 
 **Per-operation checklist.** D1: new terrain with no legacy counterpart, an intentional difference (DEV-020); with the
@@ -85,16 +85,23 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    fanned within 67.5 degrees of the front (DIR16 steps -2/+2, -3/+1, -1/+3 for two; -3/0/+3 and neighbours for three),
    15-22 path tiles each for two streams, 9-14 for three. A stream is a line through free ground (Fire floor outside
    the legacy landmark protection, which holds the camp clearings, the camp halos and every apron); where blocked it
-   bends one direction step at a time (at most two from its own heading, three from the front) or stops, and it ends
-   in a lava pool (squared radius 4, else 2; at least 6 lava tiles with a 2x2 block) touching its last tile, which is
+   bends one direction step at a time (at most two from its own heading, three from the front) or stops. Each path
+   tile is paired with the 4-neighbour across the heading it was entered with, and a neck left at a turn (a tile whose
+   run of the stream's lava is 1 along one axis and 3 or more along the other, or a tile in no 2x2 window of 3) is
+   filled beside it where free; a stream that cannot be made two tiles wide so is cut a tile shorter
+   (P-MAPGEN-SIG-FIRE-2). It ends in a lava pool (squared radius 4, else 2; at least 6 lava tiles with a 2x2 block) touching its last tile, which is
    nearer the coliseum than the volcano centre. Streams and pools keep 3 tiles from each other except beside the cone.
    Ember floor edges every stream and pool, owned by it. A site is used only with at least two streams, total lava
    (crater, streams, pools) within 80-150 tiles (the legacy river held 107-158), and the zone's floor unsplit. Site
    choice: the back-edge centres whose cone fits, in tiers by the cone's distance from every Fire camp (at least 12,
    9, 6 tiles), 24 uniform draws per tier. The Fire styler (`style_scorch`) learns signature mode from the `Volcano`
-   feature in its zone (no new styler input): it places no lava river, and a crater (a camp's pen; it cannot move) that
-   would reach the volcano's core band shrinks a quarter tile at a time or is dropped; no crater bowl claims floor in a
-   stream's or pool's apron.
+   feature in its zone (no new styler input): it places no lava river, and a crater (a camp's pen; it cannot move)
+   takes its size from its camp's band, fixed before any pen is drawn (P-MAPGEN-SIG-FIRE-2): the band of
+   `dc - ceil(R / 4)`, `dc` the camp tile's distance from the footprint and `R` its largest radius option (the radius
+   options are R, R - 4, R - 8 quarter tiles, those at least the minimum). Near takes the largest option, mid the
+   second (the smallest when there is one), far the smallest; a core camp takes the largest option that keeps every
+   tile out of the core band. Legacy's freer-share choice is skipped. A camp whose band's option the route-stretch,
+   rim or core checks refuse has no crater. No crater bowl claims floor in a stream's or pool's apron.
 
 ## Measurements (seeds 1-16, `decor: false`, debug test build, macOS arm64)
 
@@ -111,8 +118,10 @@ the map edge, where the door side points into a neighbouring zone or any church 
   instead of placing it), and re-pinning the option-on Holy layouts: a styler packet.
 - The Frost anchor is absent until its packet. Only the Fire styler arranges round its anchor; the others wait for
   `P-MAPGEN-SIG-STYLE-1`.
-- The Fire craters stay camp pens: by band they only shrink or drop (none reaches the core band). That the near-band
-  craters average larger than the mid and far ones is measured, not arranged.
+- The Fire craters stay camp pens: size and presence are their only levers, and both now follow the camp's band
+  (seeds 1-32: near-band craters 136 tiles on average against 90 far). Density does not yet fall with distance: far
+  pens are not thinned (a rule that drops them on purpose meets the count floor of option-off minus two; owner
+  question).
 - Elite bushes read the stylers' `protect` and stay out of every apron. Repair's walls (the safety net's connectivity
   fill and `wall-far`/`wall-stray`, recorded as `Infill`) keep off the footprint (`masks.boxes`) but not the rest of the
   apron; the intact check allows them there.
