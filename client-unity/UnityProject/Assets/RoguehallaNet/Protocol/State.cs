@@ -110,6 +110,16 @@ namespace Roguehalla.Net.Protocol
         public const double Quantum = 1e-4;
         public const byte StatCount = 9;
         public const int MaxSummaryMobRows = 20;
+        /// <summary>P-WIRE17-HUD-2: champion panel codes (0..22, append only) and the most a summary carries.</summary>
+        public const byte PanelCodeCount = 23;
+        public const int MaxPanelValues = 23;
+    }
+
+    /// <summary>P-WIRE17-HUD-2: one champion panel number: its code and its value in <see cref="Hud.Quantum"/> units.</summary>
+    public struct WirePanelValue
+    {
+        public byte Code; public int Value;
+        public double Scaled => Value * Hud.Quantum;
     }
 
     /// <summary>A camp's per-kill reward: HUD stat code and amount in <see cref="Hud.Quantum"/> units (greater than 0).</summary>
@@ -134,6 +144,8 @@ namespace Roguehalla.Net.Protocol
     {
         public int[] Gains = new int[9];
         public WireMobBonusRow[] MobRows = Array.Empty<WireMobBonusRow>();
+        /// <summary>P-WIRE17-HUD-2: champion panel values, strictly ascending by code. STUB: not yet written or read.</summary>
+        public WirePanelValue[] Panel = Array.Empty<WirePanelValue>();
         public double Gain(int stat) => Gains[stat] * Hud.Quantum;
     }
     public struct WireBuild { public byte[] Cards, Boosts; }

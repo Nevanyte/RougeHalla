@@ -316,6 +316,9 @@ pub struct Observation {
     /// P-WIRE17-HUD-1: the viewer's own GAINED strip ([`crate::build_summary::build_summary`] of the viewer); None
     /// when the viewer is not seated. Never another seat's (C-OBS).
     pub summary: Option<SummaryView>,
+    /// P-WIRE17-HUD-2: the viewer's own champion panel ([`crate::build_summary::champion_panel`] of the viewer);
+    /// Some exactly when `summary` is Some. Never another seat's (C-OBS). STUB: never filled.
+    pub panel: Option<crate::build_summary::ChampionPanel>,
     pub events: Vec<SeenEvent>,
     /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
     /// carries no position, faction, health or sight fact.
@@ -713,6 +716,7 @@ impl Default for Observation {
             camps: Vec::new(),
             camp_hud: Vec::new(),
             summary: None,
+            panel: None,
             events: Vec::new(),
             roster: Vec::new(),
         }
@@ -1568,3 +1572,7 @@ mod indicator_tests;
 #[cfg(test)]
 #[path = "observe/hud_tests.rs"]
 mod hud_tests;
+
+#[cfg(test)]
+#[path = "observe/panel_tests.rs"]
+mod panel_tests;

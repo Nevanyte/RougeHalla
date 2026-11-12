@@ -514,7 +514,12 @@ fn summary(observation: &Observation) -> Result<Option<WireBuildSummary>, Encode
             })
         })
         .collect::<Result<_, EncodeError>>()?;
-    Ok(Some(WireBuildSummary { gains, mob_rows }))
+    // STUB (P-WIRE17-HUD-2): the observed champion panel is not projected yet.
+    Ok(Some(WireBuildSummary {
+        gains,
+        mob_rows,
+        panel: Vec::new(),
+    }))
 }
 
 /// Whether the client's summary (`sent`, what it holds) is stale for the observed `view`: presence, a row's mob, stat

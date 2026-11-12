@@ -692,6 +692,8 @@ fn state_all_max_budget() -> ServerMsg {
                 total: i32::MIN,
             })
             .collect(),
+        // STUB (P-WIRE17-HUD-2): the max sample carries every panel code (see the packet brief).
+        panel: Vec::new(),
     };
     let projectiles = (0..512)
         .map(|i| WireProjectile {
@@ -1190,6 +1192,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                             total: 3_750_000,
                         },
                     ],
+                    panel: Vec::new(),
                 }))],
             },
         ),

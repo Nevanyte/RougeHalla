@@ -964,6 +964,22 @@ pub struct WireMobBonusRow {
 pub struct WireBuildSummary {
     pub gains: [i32; 9],
     pub mob_rows: Vec<WireMobBonusRow>,
+    /// P-WIRE17-HUD-2: the owner's champion panel values, strictly ascending by code, at most [`MAX_PANEL_VALUES`].
+    /// Appended after the mob rows: count u8, then rows of code u8 (`< PANEL_CODE_COUNT`) and value i32 LE in
+    /// [`HUD_QUANTUM`] units. STUB: not yet written or read.
+    pub panel: Vec<WirePanelValue>,
+}
+
+/// P-WIRE17-HUD-2: how many champion panel codes exist (`rh_sim::build_summary::PanelCode`; append only).
+pub const PANEL_CODE_COUNT: u8 = 23;
+/// P-WIRE17-HUD-2: the most panel values a build summary carries (one per code).
+pub const MAX_PANEL_VALUES: usize = 23;
+
+/// P-WIRE17-HUD-2: one champion panel number: its code and its value in [`HUD_QUANTUM`] units.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WirePanelValue {
+    pub code: u8,
+    pub value: i32,
 }
 impl WireBuildSummary {
     fn len(&self) -> usize {
@@ -1024,7 +1040,11 @@ impl WireBuildSummary {
                 total: r.u32()? as i32,
             });
         }
-        let v = Self { gains, mob_rows };
+        let v = Self {
+            gains,
+            mob_rows,
+            panel: Vec::new(),
+        };
         match v.fault() {
             None => Ok(v),
             Some(why) => Err(DecodeError::BadField(why)),

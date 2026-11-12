@@ -135,3 +135,134 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
     s.life_steal = crate::status_runtime::stats::lifesteal_total(0., rows, mult, 0., farm_ls);
     Some(s)
 }
+
+/// P-WIRE17-HUD-2: one number the legacy bottom-left champion panel prints
+/// (`packages/client/src/ui/championCombatModel.ts:91-216`). The wire code is the variant index (append only; the
+/// Wish row and other content numbers are appended by a later packet). Units per code: see the packet brief.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub enum PanelCode {
+    /// Auto row: raw physical damage of one held-weapon hit (points).
+    HitPhysical,
+    /// Auto row: raw magic damage of one hit (points).
+    HitMagic,
+    /// Auto row: raw true damage of one hit (points).
+    HitTrue,
+    /// Auto row: attacks per second.
+    AttacksPerSecond,
+    /// Fire passive: burn magic damage per second.
+    BurnDps,
+    /// Fire passive: burn DPS per point of Soul Offense (content constant).
+    BurnSoRatio,
+    /// Fire passive: burn DPS per point of Offense (content constant).
+    BurnOffenseRatio,
+    /// Fire passive: the folded damage-over-time multiplier.
+    DotMult,
+    /// Fire: roam charge, 0..=1000.
+    RoamCharge,
+    /// Fire: the charged burst is armed (1) or not (0).
+    RoamArmed,
+    /// Sentenced passive: a tier-1 mark pulse as a fraction of the target's max hp per hit.
+    MarkPulse,
+    /// Sentenced passive: the mark share each kill stack adds (fraction of target max hp; content constant).
+    MarkKillStack,
+    /// Plague passive: disease magic damage per second.
+    DiseaseDps,
+    /// Plague: bodies eaten (corpse stacks).
+    CorpseStacks,
+    /// Plague: the living zombie's hp (present only while it lives and stacks > 0).
+    ZombieHp,
+    /// Plague: the living zombie's max hp (present with `ZombieHp`).
+    ZombieMaxHp,
+    /// Frost passive: the attack-speed slow, a fraction.
+    ChillSlow,
+    /// Frost passive: the move-speed slow, a fraction (content constant).
+    ChillMoveSlow,
+    /// Frost: Frozen Justice's Defense/Soul Defense bonus (content constant).
+    EliteGuardBonus,
+    /// Frost: Frozen Justice is active (1) or not (0).
+    EliteGuardActive,
+    /// Holy passive: faction share plus earned camp leech, a fraction.
+    HolyLifeSteal,
+    /// Holy: eligible camp clears.
+    HolyCampClears,
+    /// Holy: earned camp leech, a fraction (Bloodthirst doubles it below half health).
+    HolyCampLeech,
+}
+
+/// How many panel codes exist (`PanelCode::ALL.len()`).
+pub const PANEL_CODE_COUNT: usize = 23;
+
+impl PanelCode {
+    pub const ALL: [PanelCode; PANEL_CODE_COUNT] = [
+        PanelCode::HitPhysical,
+        PanelCode::HitMagic,
+        PanelCode::HitTrue,
+        PanelCode::AttacksPerSecond,
+        PanelCode::BurnDps,
+        PanelCode::BurnSoRatio,
+        PanelCode::BurnOffenseRatio,
+        PanelCode::DotMult,
+        PanelCode::RoamCharge,
+        PanelCode::RoamArmed,
+        PanelCode::MarkPulse,
+        PanelCode::MarkKillStack,
+        PanelCode::DiseaseDps,
+        PanelCode::CorpseStacks,
+        PanelCode::ZombieHp,
+        PanelCode::ZombieMaxHp,
+        PanelCode::ChillSlow,
+        PanelCode::ChillMoveSlow,
+        PanelCode::EliteGuardBonus,
+        PanelCode::EliteGuardActive,
+        PanelCode::HolyLifeSteal,
+        PanelCode::HolyCampClears,
+        PanelCode::HolyCampLeech,
+    ];
+    /// Wire code (the variant index).
+    pub fn code(self) -> u8 {
+        self as u8
+    }
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.get(usize::from(code)).copied()
+    }
+}
+
+/// P-WIRE17-HUD-2: the owner's champion panel numbers, unrounded; a code is present only when the owner's faction
+/// panel prints it. Stack array: building one never allocates.
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ChampionPanel {
+    values: [Option<f64>; PANEL_CODE_COUNT],
+}
+
+impl ChampionPanel {
+    pub fn get(&self, code: PanelCode) -> Option<f64> {
+        self.values[code as usize]
+    }
+    pub fn set(&mut self, code: PanelCode, value: f64) {
+        self.values[code as usize] = Some(value);
+    }
+    pub fn clear(&mut self, code: PanelCode) {
+        self.values[code as usize] = None;
+    }
+    /// The present values in ascending code order.
+    pub fn iter(&self) -> impl Iterator<Item = (PanelCode, f64)> + '_ {
+        PanelCode::ALL
+            .iter()
+            .filter_map(|c| self.get(*c).map(|v| (*c, v)))
+    }
+    /// The present codes in ascending order.
+    pub fn codes(&self) -> impl Iterator<Item = PanelCode> + '_ {
+        self.iter().map(|(c, _)| c)
+    }
+}
+
+/// The champion panel for one player; `None` when `id` is not seated. Read-only, allocation-free.
+///
+/// STUB (P-WIRE17-HUD-2): returns an empty panel for a seated player. The implementer fills every code the
+/// player's faction panel prints (packet brief, "Field list").
+pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
+    sim.player(id)?;
+    Some(ChampionPanel::default())
+}

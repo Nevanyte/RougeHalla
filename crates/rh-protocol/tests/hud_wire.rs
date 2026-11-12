@@ -198,6 +198,7 @@ fn summary() -> WireBuildSummary {
                 total: 3_750_000,
             },
         ],
+        panel: Vec::new(),
     }
 }
 
@@ -259,6 +260,7 @@ fn build_summary_refuses_an_over_cap_mob_row_count() {
     let full = WireBuildSummary {
         gains: [0; 9],
         mob_rows: rows(MAX_SUMMARY_MOB_ROWS),
+        panel: Vec::new(),
     };
     let ok = round_trip(&state(vec![StateItem::BuildSummary(Some(full.clone()))]));
     assert_eq!(ok, summary_frame(&full));
@@ -266,6 +268,7 @@ fn build_summary_refuses_an_over_cap_mob_row_count() {
     let over = WireBuildSummary {
         gains: [0; 9],
         mob_rows: rows(MAX_SUMMARY_MOB_ROWS + 1),
+        panel: Vec::new(),
     };
     match state(vec![StateItem::BuildSummary(Some(over.clone()))]).try_encode() {
         Err(EncodeError::TooMany { n, max, .. }) => {
