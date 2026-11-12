@@ -1344,6 +1344,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rh-mapdress"
+version = "0.1.0"
+dependencies = [
+ "rh-sim",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rh-parity"
 version = "0.1.0"
 dependencies = [
