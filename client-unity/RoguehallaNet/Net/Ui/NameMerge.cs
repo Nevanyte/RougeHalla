@@ -8,6 +8,7 @@ namespace Roguehalla.Net.Ui
         public float X, Y;     // where the name is anchored
         public float Width;    // how wide the drawn text is, in the same unit as X and Y
         public bool Elite;     // an elite's name is never merged away
+        public bool Always;    // a mob that is engaged or locked: its own name is always shown (DecidePacks only; Decide ignores it)
     }
 
     /// <summary>
@@ -16,6 +17,13 @@ namespace Roguehalla.Net.Ui
     /// </summary>
     public static class NameMerge
     {
+        /// <summary>
+        /// How close two same-named mobs must stand to belong to one pack (DecidePacks), in legacy pixels: 4 tiles of 32. A TUNING value
+        /// (P-UNITY-NAME-GROUP-1; owner direction 2026-11-12, less clutter), not a legacy number. A caller working in world units passes
+        /// <c>PackDistancePx * ArenaView.Scale</c> (4 units), because the same unit must be used for X, Y and the distance.
+        /// </summary>
+        public const float PackDistancePx = 128f;
+
         /// <summary>
         /// Writes <c>shown[i]</c> for each of the first <paramref name="count"/> items and returns how many are shown. Rules: items are taken in
         /// ascending Id order (the order of <paramref name="items"/> does not matter); a non-elite item is hidden when a non-elite item of the
@@ -56,6 +64,21 @@ namespace Roguehalla.Net.Ui
                 if (show) shownCount++;
             }
             return shownCount;
+        }
+
+        /// <summary>
+        /// The pack rule (P-UNITY-NAME-GROUP-1). Writes <c>shown[i]</c> for each of the first <paramref name="count"/> items and returns how many
+        /// are shown. Stub: the implementer fills the body. Rules: only a non-elite, non-<see cref="NameMergeItem.Always"/> item with a
+        /// non-empty Text takes part in packs; every other item is shown and neither joins, links nor suppresses a pack. Two taking-part items of
+        /// the same Text whose anchors are strictly closer than <paramref name="packDistance"/> (Euclidean, same unit as X and Y; Width is
+        /// ignored) are in one pack, and packs chain (A near B and B near C is one pack even when A and C are far apart). Exactly one item of a
+        /// pack is shown, the one with the lowest Id, wherever it sits in <paramref name="items"/>; the rest are hidden. Allocation-free: all
+        /// three arrays are the caller's, <paramref name="shown"/> and <paramref name="scratch"/> at least <paramref name="count"/> long
+        /// (<paramref name="scratch"/> is free working space for a union-find, its contents on return are unspecified).
+        /// </summary>
+        public static int DecidePacks(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch)
+        {
+            return 0;
         }
     }
 }
