@@ -110,9 +110,10 @@ namespace Roguehalla.Net.Protocol
         public const double Quantum = 1e-4;
         public const byte StatCount = 9;
         public const int MaxSummaryMobRows = 20;
-        /// <summary>P-WIRE17-HUD-2: champion panel codes (0..22, append only) and the most a summary carries.</summary>
-        public const byte PanelCodeCount = 23;
-        public const int MaxPanelValues = 23;
+        /// <summary>P-WIRE17-HUD-2: champion panel codes (0..27 after P-WIRE17-HUD-2c, append only) and the most a summary
+        /// carries.</summary>
+        public const byte PanelCodeCount = 28;
+        public const int MaxPanelValues = 28;
     }
 
     /// <summary>P-WIRE17-HUD-2: one champion panel number: its code and its value in <see cref="Hud.Quantum"/> units.</summary>

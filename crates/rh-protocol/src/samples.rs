@@ -931,6 +931,11 @@ pub fn sample_hud() -> crate::WireHudContent {
         0.3,    // LastStandSpeedBonus
         0.3,    // LastStandHealShare
         1.0,    // LastStandFloorHp
+        // STUB (P-WIRE17-HUD-2c): placeholders for codes 19-22; the implementer writes the legacy Fire roam constants.
+        0.0, // FireRoamRampMs
+        0.0, // FireRoamChargeMax
+        0.0, // FireRoamBurstBase
+        0.0, // FireRoamBurstAdShare
     ];
     crate::WireHudContent {
         scaling: vec![

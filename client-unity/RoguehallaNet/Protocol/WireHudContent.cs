@@ -13,6 +13,8 @@ namespace Roguehalla.Net.Protocol
         TrialMoveMult = 6, TrialTakenMult = 7, TrialExitStunMs = 8, TrialRadius = 9, TrialConvictedRadius = 10,
         BlazeBurnDps = 11, BlazeBurnMs = 12, BlazeMinDist = 13, BlazeMaxDist = 14, LastStandMs = 15,
         LastStandSpeedBonus = 16, LastStandHealShare = 17, LastStandFloorHp = 18,
+        // P-WIRE17-HUD-2c: the Fire roam constants (shared/fireRoam.ts; championCombatModel.ts:115-116).
+        FireRoamRampMs = 19, FireRoamChargeMax = 20, FireRoamBurstBase = 21, FireRoamBurstAdShare = 22,
     }
 
     /// <summary>One weapon's damage scaling (legacy <c>WeaponSpec.scaling</c> and <c>dominant</c>).</summary>
@@ -45,7 +47,7 @@ namespace Roguehalla.Net.Protocol
     public sealed class WireHudContent
     {
         public const int MaxScalingRows = 32, ScalingRowLength = 1 + 8 * 4 + 1, TermRowLength = 1 + 8;
-        public const byte TermCount = 19;
+        public const byte TermCount = 23;
         public const int MaxTerms = TermCount;
         public const double MaxValue = 1e6;
 

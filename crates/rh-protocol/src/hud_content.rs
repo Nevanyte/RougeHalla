@@ -75,10 +75,19 @@ pub enum HudTerm {
     LastStandHealShare = 17,
     /// Last Stand health floor, hit points (`LAST_STAND_FLOOR_HP`, :165; the panel prints "1 HP").
     LastStandFloorHp = 18,
+    /// P-WIRE17-HUD-2c: Fire roam ramp, ms out of combat to full charge (`FIRE_ROAM_RAMP_MS`, shared/fireRoam.ts:2;
+    /// championCombatModel.ts:116 prints it / 1000 as seconds).
+    FireRoamRampMs = 19,
+    /// P-WIRE17-HUD-2c: Fire roam full charge, charge units (`FIRE_ROAM_CHARGE_MAX`, fireRoam.ts:4; printed at :115).
+    FireRoamChargeMax = 20,
+    /// P-WIRE17-HUD-2c: Fire roam burst base damage (`FIRE_ROAM_BURST_BASE`, fireRoam.ts:5; printed at :116).
+    FireRoamBurstBase = 21,
+    /// P-WIRE17-HUD-2c: Fire roam burst damage per bonus Offense (`FIRE_ROAM_BURST_AD_SHARE`, fireRoam.ts:7; :116).
+    FireRoamBurstAdShare = 22,
 }
 
 /// Number of [`HudTerm`] codes: a code at or above it is refused.
-pub const HUD_TERM_COUNT: u8 = 19;
+pub const HUD_TERM_COUNT: u8 = 23;
 /// Most term rows a block may carry (each code at most once).
 pub const MAX_HUD_TERMS: usize = HUD_TERM_COUNT as usize;
 

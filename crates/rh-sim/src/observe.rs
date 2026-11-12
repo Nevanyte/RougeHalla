@@ -1578,3 +1578,7 @@ mod hud_tests;
 #[cfg(test)]
 #[path = "observe/panel_tests.rs"]
 mod panel_tests;
+
+#[cfg(test)]
+#[path = "observe/panel_tooltip_tests.rs"]
+mod panel_tooltip_tests;

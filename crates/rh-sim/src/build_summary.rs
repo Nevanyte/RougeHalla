@@ -189,10 +189,21 @@ pub enum PanelCode {
     HolyCampClears,
     /// Holy: earned camp leech, a fraction (Bloodthirst doubles it below half health).
     HolyCampLeech,
+    /// P-WIRE17-HUD-2c, Fire: the roam move-speed bonus for the code-8 charge, `speed_mult(charge) - 1` (a fraction;
+    /// legacy prints it x 100 as "% move speed"). Follows the charge, not the armed flag (legacy :116).
+    RoamSpeedBonus,
+    /// P-WIRE17-HUD-2c, Fire: the armed burst's raw physical damage, `FIRE_ROAM_BURST_BASE + AD_SHARE x max(0, Offense)`.
+    RoamBurstDamage,
+    /// P-WIRE17-HUD-2c, every champion: the card fold's hit multiplier (the `h` of codes 0-2).
+    HitMult,
+    /// P-WIRE17-HUD-2c, every champion: the weapon scaling's physical addition per hit, before the hit multiplier.
+    ScalingPhysical,
+    /// P-WIRE17-HUD-2c, every champion: the weapon scaling's magic addition per hit, before the hit multiplier.
+    ScalingMagic,
 }
 
 /// How many panel codes exist (`PanelCode::ALL.len()`).
-pub const PANEL_CODE_COUNT: usize = 23;
+pub const PANEL_CODE_COUNT: usize = 28;
 
 impl PanelCode {
     pub const ALL: [PanelCode; PANEL_CODE_COUNT] = [
@@ -219,6 +230,11 @@ impl PanelCode {
         PanelCode::HolyLifeSteal,
         PanelCode::HolyCampClears,
         PanelCode::HolyCampLeech,
+        PanelCode::RoamSpeedBonus,
+        PanelCode::RoamBurstDamage,
+        PanelCode::HitMult,
+        PanelCode::ScalingPhysical,
+        PanelCode::ScalingMagic,
     ];
     /// Wire code (the variant index).
     pub fn code(self) -> u8 {
