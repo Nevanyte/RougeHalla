@@ -45,6 +45,10 @@ Split from P-WIRE17-HUD-1 (size). Still protocol 17, `v17.json` regenerated:
 - One sanity test: a known Holy and a known Fire build's panel values within one quantum of the legacy formulas worked by
   hand from `championCombatModel.ts`.
 - Values that change every tick (hp-dependent leech, roam charge) are quantized so deltas stay small.
+- Carries the reviewer note on P-WIRE17-HUD-1 (2026-11-11, MINOR; this is its fix packet, same tier, same decoders):
+  shared negative vectors in `protocol/fixtures/v17.json` for the HUD-1 fields, refused identically by the Rust, C# and
+  JS decoders: a camp reward stat code out of range, a ward verdict byte other than 0, 1 or 2, a ward verdict without
+  its expiry, a build summary with the wrong number of gains, and a mob-bonus row with an unknown stat.
 
 ## 10. Risk and suggested model tier
 Opus: observation, wire and three decoders; panel formulas cross several modifier folds.
