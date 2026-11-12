@@ -35,6 +35,7 @@ fn main() {
             lobby_seconds: 5.,
             fill_seconds: 3.,
             hitboxes,
+            regen_in_combat: rh_sim::RegenInCombat::Off,
             ..SimConfig::default()
         };
         let agents = (0..8)
