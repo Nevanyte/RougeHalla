@@ -838,20 +838,28 @@ impl Director {
     }
 
     /// The record caller (source BotManager.onResult): a resolved fill bot's run goes to the learning store with the
-    /// facts the room has. The brain's own choice list needs the ported memory layer (P-BOTS-1 remainder); the manager's
-    /// managed faction key is recorded now.
-    fn record_bot_result(&self, spec: &crate::bot_fill::BotSeatSpec, result: &rh_sim::RunResult) {
+    /// facts the room has, the seat policy's own choice keys (a Brain seat's opener/second/spawn/boon/camp; none for
+    /// HumanBot) and the manager's faction key.
+    fn record_bot_result(
+        &self,
+        spec: &crate::bot_fill::BotSeatSpec,
+        result: &rh_sim::RunResult,
+        choices: &[String],
+    ) {
         let Some(sink) = self.learning.lock().expect("director").clone() else {
             return;
         };
-        sink.record(BotRunFacts {
-            tier: crate::bot_learning::learning_tier(spec.tier),
-            persona: spec.persona,
-            faction: spec.faction,
-            outcome: BotRunFacts::outcome(result.outcome),
-            place: result.place,
-            players: result.players,
-        });
+        sink.record_choices(
+            BotRunFacts {
+                tier: crate::bot_learning::learning_tier(spec.tier),
+                persona: spec.persona,
+                faction: spec.faction,
+                outcome: BotRunFacts::outcome(result.outcome),
+                place: result.place,
+                players: result.players,
+            },
+            choices,
+        );
     }
 
     /// The fill policy a new room gets, with the room's fill count (the config's own fill_to is the default for
@@ -1148,15 +1156,16 @@ impl Director {
                     profile,
                     bot,
                     bot_spec,
+                    bot_choices,
                     fence,
                     result,
                     roster,
                 } => {
                     if bot {
                         // Bots never touch profile persistence (legacy rule), but a resolved fill bot's run is the
-                        // learning store's record (source BotManager.onResult).
+                        // learning store's record (source BotManager.onResult), with the seat's own choices.
                         if let Some(spec) = &bot_spec {
-                            this.record_bot_result(spec, &result);
+                            this.record_bot_result(spec, &result, &bot_choices);
                         }
                         continue;
                     }
@@ -2398,6 +2407,7 @@ mod tests {
         for bot in [true, false] {
             d.reports
                 .send(RoomReport::Result {
+                    bot_choices: Vec::new(),
                     admission: None,
                     match_id: m,
                     profile: "subject".into(),
@@ -2547,6 +2557,7 @@ mod tests {
         assert!(d.persistence.acquire("archer", id(2)).await.is_err());
         d.reports
             .send(RoomReport::Result {
+                bot_choices: Vec::new(),
                 admission: None,
                 match_id: m,
                 profile: "archer".into(),
@@ -2728,6 +2739,7 @@ mod tests {
             .insert("papa".into(), seat(7, m, fence, SeatState::Seated));
         d.reports
             .send(RoomReport::Result {
+                bot_choices: Vec::new(),
                 admission: None,
                 match_id: m,
                 profile: "papa".into(),
@@ -2844,6 +2856,7 @@ mod tests {
             .unwrap();
         d.reports
             .send(RoomReport::Result {
+                bot_choices: Vec::new(),
                 admission: None,
                 match_id: m,
                 profile: "papa".into(),
@@ -3165,6 +3178,7 @@ mod tests {
             .unwrap();
         d.reports
             .send(RoomReport::Result {
+                bot_choices: Vec::new(),
                 admission: None,
                 match_id: m,
                 profile: "papa".into(),
@@ -3365,6 +3379,7 @@ mod tests {
         result.players = 4;
         d.reports
             .send(RoomReport::Result {
+                bot_choices: Vec::new(),
                 admission: None,
                 match_id: id(1),
                 profile: "Wren".into(),

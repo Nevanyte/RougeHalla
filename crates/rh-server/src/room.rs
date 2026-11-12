@@ -13,7 +13,7 @@ use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::bots::delay::DelayLine;
 use rh_policy::bots::random::Rng;
-use rh_policy::bots::HumanBot;
+use rh_policy::bots::{BrainBot, HumanBot};
 use rh_policy::{drive_seats_queued, scripted, MatchStart, Policy, Seat};
 use rh_protocol::map::EncodedMap;
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
@@ -166,6 +166,9 @@ pub enum RoomReport {
         /// A bot's fill spec when it is a managed fill bot (the learning record caller's tier/persona/faction); None
         /// for a human or an unmanaged bot.
         bot_spec: Option<BotSeatSpec>,
+        /// A bot seat's own choice keys for the learning record (`Policy::finish`); empty for a human or a policy that
+        /// keeps none.
+        bot_choices: Vec<String>,
         fence: Option<i64>,
         result: RunResult,
         roster: Roster,
@@ -1155,14 +1158,40 @@ impl Room {
             return;
         };
         self.report_bot(&name, true);
-        let policy: Box<dyn Policy> = Box::new(HumanBot::new(spec.tier, spec.persona));
+        let brain = self
+            .fill
+            .as_ref()
+            .filter(|fill| fill.config().brain == crate::bot_fill::BotBrain::Full)
+            .map(|fill| fill.config().learned.clone());
+        let budgeted = brain.is_some();
+        let (policy, fallback, replay_name): (Box<dyn Policy>, Box<dyn Policy>, &str) = match brain
+        {
+            // P-BOT-BRAIN-LIVE-1: the Brain plays the seat; a faulted Brain hands it to HumanBot, not to Idle.
+            Some(learned) => (
+                Box::new(
+                    BrainBot::new(
+                        spec.tier,
+                        spec.persona,
+                        rh_policy::bots::brain_features(self.sim.config(), self.sim.shared_arena()),
+                    )
+                    .with_learned(learned),
+                ),
+                Box::new(HumanBot::new(spec.tier, spec.persona)),
+                "brain",
+            ),
+            None => (
+                Box::new(HumanBot::new(spec.tier, spec.persona)),
+                Box::new(scripted::Idle),
+                "human",
+            ),
+        };
         let interval = policy.spec().decision_interval_ticks;
         self.record(ReplayInput::Join {
             profile: name,
             faction: Some(spec.faction),
             bot: true,
             policy: Some(BotPolicy {
-                name: "human".into(),
+                name: replay_name.into(),
                 interval,
                 seed: u64::from(spec.seed),
             }),
@@ -1170,8 +1199,11 @@ impl Room {
         let mut seat = Seat::new(
             &MatchStart::of(&self.sim, id, u64::from(spec.seed)),
             policy,
-            Box::new(scripted::Idle),
+            fallback,
         );
+        if budgeted {
+            seat.budget = Some(crate::bot_fill::BRAIN_DECISION_BUDGET);
+        }
         seat.bind_fx(&self.sim).expect("new bot is unbound");
         self.bots.push(seat);
         self.bot_specs.push((id, spec));
@@ -1602,12 +1634,24 @@ impl Room {
                         continue;
                     }
                 }
+                // Source BotManager.onResult: the seat's `runner.end(result)` summary, asked once.
+                let bot_choices = if *bot {
+                    self.bots
+                        .iter_mut()
+                        .find(|seat| seat.player() == *id)
+                        .and_then(|seat| seat.finish(Some(result)))
+                        .map(|finish| finish.choices)
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
                 let _ = self.reports.send(RoomReport::Result {
                     admission,
                     match_id: self.id,
                     profile: result.profile.clone(),
                     bot: *bot,
                     bot_spec,
+                    bot_choices,
                     fence,
                     result: result.clone(),
                     roster: Roster {

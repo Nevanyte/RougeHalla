@@ -170,6 +170,69 @@ fn optional_text_presence(value: &BVal, key: &'static str) -> R<Option<String>> 
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// The degraded fair profile (P-BOT-BRAIN-LIVE-1, docs/DEVIATIONS.md): a fact the accepted frame does not publish is an own
+// `undefined` member of the composed record (compose14.rs), never a plausible default. The readers below give each such
+// leaf the typed value that reproduces what the source does with `undefined` at every consumer of that leaf: JS
+// ToNumber(undefined) is NaN (every comparison false, arithmetic NaN), a held lock whose target is redacted is a non-null
+// id equal to no fighter, and `undefined === undefined` keeps the minimap's refresh test self-equal. A declared record
+// that never carries `undefined` (the frozen corpus) reads exactly as before.
+
+/// A held lock whose target the viewer may not see (`WireOwnerLock::Held { target: None }`): source `attackTarget` is
+/// `undefined`, so `!== null` holds and `=== id` never does. No rendered fighter or mob id is empty.
+pub(crate) const UNDEFINED_LOCK_ID: &str = "";
+/// The minimap's `t` when no minimap is published: equal to itself (source `undefined !== undefined` is false) and
+/// different from Memory's initial `-Infinity` (the source's first `undefined !== -Infinity` refresh runs once).
+pub(crate) const MINIMAP_T_UNDEFINED: f64 = f64::MIN;
+
+/// A declared number, or NaN for an own `undefined` member (JS ToNumber).
+fn number_or_undefined(value: &BVal, key: &'static str) -> R<f64> {
+    match value.get(key) {
+        Some(BVal::Undefined) => Ok(f64::NAN),
+        _ => number(value, key),
+    }
+}
+
+/// A declared label, or the empty text for an own `undefined` member (labels only: never an identity).
+fn text_or_undefined(value: &BVal, key: &'static str) -> R<String> {
+    match value.get(key) {
+        Some(BVal::Undefined) => Ok(String::new()),
+        _ => text(value, key),
+    }
+}
+
+/// A declared flag, or false for an own `undefined` member (JS truthiness; the roster's bot label only).
+fn boolean_or_undefined(value: &BVal, key: &'static str) -> R<bool> {
+    match value.get(key) {
+        Some(BVal::Undefined) => Ok(false),
+        _ => boolean(value, key),
+    }
+}
+
+/// Source `self.attackTarget`: null (clear), a fighter id, or `undefined` (held, target redacted).
+fn lock_target(value: &BVal) -> R<Option<String>> {
+    match value.get("attackTarget") {
+        Some(BVal::Undefined) => Ok(Some(UNDEFINED_LOCK_ID.to_string())),
+        _ => optional_text(value, "attackTarget"),
+    }
+}
+
+/// Source `minimap.t`, with the self-equal stand-in for an unpublished minimap.
+fn minimap_t(value: &BVal) -> R<f64> {
+    match value.get("t") {
+        Some(BVal::Undefined) => Ok(MINIMAP_T_UNDEFINED),
+        _ => number(value, "t"),
+    }
+}
+
+/// Strategy's `hud.alive` is an unsigned count read once, by `alive > 2`; `undefined > 2` is false, as is `0 > 2`.
+fn strategy_alive(value: &BVal) -> R<u32> {
+    match value.get("alive") {
+        Some(BVal::Undefined) => Ok(0),
+        _ => Ok(uint_field(value, "alive", u32::MAX as u64)? as u32),
+    }
+}
+
 fn array<'a>(value: &'a BVal, key: &'static str) -> R<&'a [BVal]> {
     match value.get(key) {
         Some(BVal::Arr(rows)) => Ok(rows),
@@ -301,8 +364,8 @@ pub(crate) fn memory_percept(p: &Percept) -> Result<MemoryPercept, BrainError> {
         object(row, "fighters")?;
         fighters.push(PerceptFighter {
             id: text(row, "id")?,
-            name: text(row, "name")?,
-            bot: boolean(row, "bot")?,
+            name: text_or_undefined(row, "name")?,
+            bot: boolean_or_undefined(row, "bot")?,
             x: number(row, "x")?,
             y: number(row, "y")?,
             facing: number(row, "facing")?,
@@ -310,7 +373,7 @@ pub(crate) fn memory_percept(p: &Percept) -> Result<MemoryPercept, BrainError> {
             hp_frac: number(row, "hpFrac")?,
             faction: optional_faction(row, "faction")?,
             in_hand: weapon_field(row, "inHand")?,
-            draw_started_at: number(row, "drawStartedAt")?,
+            draw_started_at: number_or_undefined(row, "drawStartedAt")?,
             bounty: number(row, "bounty")?,
             vx: number(row, "vx")?,
             vy: number(row, "vy")?,
@@ -348,16 +411,16 @@ pub(crate) fn memory_percept(p: &Percept) -> Result<MemoryPercept, BrainError> {
     for row in array(raw, "projectiles")? {
         object(row, "projectiles")?;
         projectiles.push(PerceptProjectile {
-            id: text(row, "id")?,
+            id: text_or_undefined(row, "id")?,
             kind: text(row, "kind")?,
             x: number(row, "x")?,
             y: number(row, "y")?,
             vx: number(row, "vx")?,
             vy: number(row, "vy")?,
-            x0: number(row, "x0")?,
-            y0: number(row, "y0")?,
-            t0: number(row, "t0")?,
-            range: number(row, "range")?,
+            x0: number_or_undefined(row, "x0")?,
+            y0: number_or_undefined(row, "y0")?,
+            t0: number_or_undefined(row, "t0")?,
+            range: number_or_undefined(row, "range")?,
             from: optional_text(row, "from")?,
         });
     }
@@ -382,14 +445,14 @@ pub(crate) fn memory_percept(p: &Percept) -> Result<MemoryPercept, BrainError> {
         view_t: number(raw, "viewT")?,
         self_: PerceptSelf {
             id: text(self_raw, "id")?,
-            name: text(self_raw, "name")?,
+            name: text_or_undefined(self_raw, "name")?,
             x: number(self_raw, "x")?,
             y: number(self_raw, "y")?,
             facing: number(self_raw, "facing")?,
             status: text(self_raw, "status")?,
             hp: number(self_raw, "hp")?,
             max_hp: number(self_raw, "maxHp")?,
-            attack_target: optional_text(self_raw, "attackTarget")?,
+            attack_target: lock_target(self_raw)?,
             move_seq: number(self_raw, "moveSeq")?,
         },
         hud_in_coliseum: boolean(hud, "inColiseum")?,
@@ -398,7 +461,7 @@ pub(crate) fn memory_percept(p: &Percept) -> Result<MemoryPercept, BrainError> {
         containers,
         projectiles,
         minimap: PerceptMinimap {
-            t: number(minimap, "t")?,
+            t: minimap_t(minimap)?,
             mobs: minimap_mobs,
         },
         events,
@@ -563,7 +626,7 @@ pub(crate) fn strategy_percept(p: &Percept) -> Result<strat::StrategyPercept, Br
         now: number(raw, "now")?,
         self_: strat::StrategySelf {
             id: text(self_raw, "id")?,
-            name: text(self_raw, "name")?,
+            name: text_or_undefined(self_raw, "name")?,
             faction: optional_faction(self_raw, "faction")?,
             x: number(self_raw, "x")?,
             y: number(self_raw, "y")?,
@@ -574,7 +637,7 @@ pub(crate) fn strategy_percept(p: &Percept) -> Result<strat::StrategyPercept, Br
             barrier: number(self_raw, "barrier")?,
             draw_started_at: number(self_raw, "drawStartedAt")?,
             ready_at: number(self_raw, "readyAt")?,
-            immune_until: number(self_raw, "immuneUntil")?,
+            immune_until: number_or_undefined(self_raw, "immuneUntil")?,
             sig: number(self_raw, "sig")?,
             brand: number(self_raw, "brand")?,
             as_mult: number(self_raw, "asMult")?,
@@ -590,7 +653,7 @@ pub(crate) fn strategy_percept(p: &Percept) -> Result<strat::StrategyPercept, Br
             move_seq: number(self_raw, "moveSeq")?,
             weapons: weapon_pair(self_raw, "weapons")?,
             slot: uint_field(self_raw, "slot", 1)? as u8,
-            attack_target: optional_text(self_raw, "attackTarget")?,
+            attack_target: lock_target(self_raw)?,
             mob_kills: number(self_raw, "mobKills")?,
             power: number(self_raw, "power")?,
             kills: number(self_raw, "kills")?,
@@ -603,7 +666,7 @@ pub(crate) fn strategy_percept(p: &Percept) -> Result<strat::StrategyPercept, Br
             patience_ends_at: number(hud, "patienceEndsAt")?,
             sudden_death_at: number(hud, "suddenDeathAt")?,
             in_coliseum: boolean(hud, "inColiseum")?,
-            alive: uint_field(hud, "alive", u32::MAX as u64)? as u32,
+            alive: strategy_alive(hud)?,
             gates_locked: boolean(hud, "gatesLocked")?,
         },
         fighters,
@@ -649,8 +712,8 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
         object(row, "fighters")?;
         fighters.push(tact::TacticFighter {
             id: text(row, "id")?,
-            name: text(row, "name")?,
-            bot: boolean(row, "bot")?,
+            name: text_or_undefined(row, "name")?,
+            bot: boolean_or_undefined(row, "bot")?,
             x: number(row, "x")?,
             y: number(row, "y")?,
             facing: number(row, "facing")?,
@@ -659,7 +722,7 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
             barrier_frac: number(row, "barrierFrac")?,
             faction: optional_faction(row, "faction")?,
             in_hand: weapon_field(row, "inHand")?,
-            draw_started_at: number(row, "drawStartedAt")?,
+            draw_started_at: number_or_undefined(row, "drawStartedAt")?,
             bounty: number(row, "bounty")?,
             immune: boolean(row, "immune")?,
             sig: number(row, "sig")?,
@@ -688,7 +751,7 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
             status: text(row, "status")?,
             hp_frac: number(row, "hpFrac")?,
             in_hand: weapon_field(row, "inHand")?,
-            draw_started_at: number(row, "drawStartedAt")?,
+            draw_started_at: number_or_undefined(row, "drawStartedAt")?,
             sig: number(row, "sig")?,
             brand: number(row, "brand")?,
             vx: number(row, "vx")?,
@@ -717,16 +780,16 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
     for row in array(raw, "projectiles")? {
         object(row, "projectiles")?;
         projectiles.push(tact::TacticProjectile {
-            id: text(row, "id")?,
+            id: text_or_undefined(row, "id")?,
             kind: projectile_kind(&text(row, "kind")?)?,
             x: number(row, "x")?,
             y: number(row, "y")?,
             vx: number(row, "vx")?,
             vy: number(row, "vy")?,
-            x0: number(row, "x0")?,
-            y0: number(row, "y0")?,
-            t0: number(row, "t0")?,
-            range: number(row, "range")?,
+            x0: number_or_undefined(row, "x0")?,
+            y0: number_or_undefined(row, "y0")?,
+            t0: number_or_undefined(row, "t0")?,
+            range: number_or_undefined(row, "range")?,
             from: optional_text(row, "from")?,
         });
     }
@@ -750,7 +813,7 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
         view_t: number(raw, "viewT")?,
         self_: tact::TacticSelf {
             id: text(self_raw, "id")?,
-            name: text(self_raw, "name")?,
+            name: text_or_undefined(self_raw, "name")?,
             x: number(self_raw, "x")?,
             y: number(self_raw, "y")?,
             facing: number(self_raw, "facing")?,
@@ -761,10 +824,10 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
             faction: optional_faction(self_raw, "faction")?,
             weapons: weapon_pair(self_raw, "weapons")?,
             slot: uint_field(self_raw, "slot", 1)? as u8,
-            attack_target: optional_text(self_raw, "attackTarget")?,
+            attack_target: lock_target(self_raw)?,
             draw_started_at: number(self_raw, "drawStartedAt")?,
             ready_at: number(self_raw, "readyAt")?,
-            immune_until: number(self_raw, "immuneUntil")?,
+            immune_until: number_or_undefined(self_raw, "immuneUntil")?,
             sig: number(self_raw, "sig")?,
             brand: number(self_raw, "brand")?,
             power: number(self_raw, "power")?,
@@ -787,9 +850,9 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
             in_coliseum: boolean(hud, "inColiseum")?,
             gates_locked: boolean(hud, "gatesLocked")?,
             started_with: number(hud, "startedWith")?,
-            alive: number(hud, "alive")?,
+            alive: number_or_undefined(hud, "alive")?,
             player_count: number(hud, "playerCount")?,
-            min_players: number(hud, "minPlayers")?,
+            min_players: number_or_undefined(hud, "minPlayers")?,
             winner: text(hud, "winner")?,
         },
         fighters,
@@ -797,7 +860,7 @@ pub(crate) fn tactic_percept(p: &Percept) -> Result<tact::TacticPercept, BrainEr
         containers,
         projectiles,
         minimap: tact::TacticMinimap {
-            t: number(minimap, "t")?,
+            t: minimap_t(minimap)?,
             mobs: minimap_mobs,
             gates_locked: boolean(minimap, "gatesLocked")?,
         },
@@ -1045,7 +1108,7 @@ pub(crate) fn module_percept(p: &Percept) -> Result<ModulePercept, BrainError> {
         view_t: number(raw, "viewT")?,
         self_: ModuleSelf {
             id: text(self_raw, "id")?,
-            name: text(self_raw, "name")?,
+            name: text_or_undefined(self_raw, "name")?,
             x: number(self_raw, "x")?,
             y: number(self_raw, "y")?,
             facing: number(self_raw, "facing")?,
@@ -1057,7 +1120,7 @@ pub(crate) fn module_percept(p: &Percept) -> Result<ModulePercept, BrainError> {
             faction: optional_faction(self_raw, "faction")?,
             weapons: weapon_pair(self_raw, "weapons")?,
             slot: uint_field(self_raw, "slot", 1)? as u8,
-            attack_target: optional_text(self_raw, "attackTarget")?,
+            attack_target: lock_target(self_raw)?,
             build,
             record: declared_record(self_raw, "self")?,
         },
@@ -1424,7 +1487,7 @@ pub(crate) fn hand_percept(p: &Percept) -> Result<hand::Percept, BrainError> {
                 ]
             },
             slot: uint_field(self_raw, "slot", 1)? as u8,
-            attack_target: optional_text(self_raw, "attackTarget")?,
+            attack_target: lock_target(self_raw)?,
             // The private source SelfView declares no owner lock; the public field's documented "unavailable" is None.
             owner_lock: None,
             ready_at: number(self_raw, "readyAt")?,

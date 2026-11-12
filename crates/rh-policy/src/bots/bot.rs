@@ -148,12 +148,6 @@ impl HumanBot {
     fn persona_params(&self) -> &'static PersonaParams {
         PersonaParams::by_id(self.persona)
     }
-    fn resolve(&self, id: &str) -> Option<PlayerId> {
-        self.ids
-            .iter()
-            .find(|(rendered, _)| rendered == id)
-            .map(|(_, real)| *real)
-    }
 
     /// The front end's chosen target as the Wish module sees it: the nearest targetable player it would fight/approach, else
     /// the nearest living mob it would farm. (The bounded front end has no explicit goal enum; this mirrors its branch order.
@@ -705,38 +699,85 @@ impl HumanBot {
 
 impl HumanBot {
     fn emit(&self, cmd: crate::bots::types::Command, out: &mut Vec<PublicCommand>) {
-        use crate::bots::types::Command as C;
-        match cmd {
-            C::Move { x, y } => out.push(PublicCommand::Move { x, y, seq: None }),
-            C::Stop {} => out.push(PublicCommand::Stop { seq: None }),
-            C::Target { id } => {
-                if let Some(actor) = self.resolve(&id) {
-                    out.push(PublicCommand::Target { actor });
-                }
+        emit_command(cmd, None, &RenderedIds(&self.ids), out);
+    }
+}
+
+/// What a released command may name: the references of the accepted frame it was decided on. Anything else resolves to
+/// `None` and the command is dropped (never a fabricated actor, item or chest).
+pub(crate) trait CommandRefs {
+    fn actor(&self, id: &str) -> Option<PlayerId>;
+    fn pickup(&self, _id: &str) -> Option<u32> {
+        None
+    }
+    fn chest(&self, _id: &str) -> Option<u32> {
+        None
+    }
+}
+
+/// HumanBot's rendered-key table. Its loot executors are not connected: pickups and chest picks resolve to nothing.
+struct RenderedIds<'a>(&'a [(String, PlayerId)]);
+impl CommandRefs for RenderedIds<'_> {
+    fn actor(&self, id: &str) -> Option<PlayerId> {
+        self.0
+            .iter()
+            .find(|(rendered, _)| rendered == id)
+            .map(|(_, real)| *real)
+    }
+}
+
+/// The one mapping from a released source command to the public proposal a seat submits (shared by HumanBot and
+/// BrainBot). `seq` is the Brain's stamped move/stop order number (None: unstamped).
+pub(crate) fn emit_command(
+    cmd: crate::bots::types::Command,
+    seq: Option<u8>,
+    refs: &dyn CommandRefs,
+    out: &mut Vec<PublicCommand>,
+) {
+    use crate::bots::types::Command as C;
+    match cmd {
+        C::Move { x, y } => out.push(PublicCommand::Move { x, y, seq }),
+        C::Stop {} => out.push(PublicCommand::Stop { seq }),
+        C::Target { id } => {
+            if let Some(actor) = refs.actor(&id) {
+                out.push(PublicCommand::Target { actor });
             }
-            C::Attack { a } => out.push(PublicCommand::Attack { a, t: None }),
-            C::Release { a } => out.push(PublicCommand::Release { a, t: None }),
-            C::Swap { slot } => out.push(PublicCommand::Swap { slot: Some(slot) }),
-            C::Cast { slot, x, y, id } => {
-                let slot = match slot.as_str() {
-                    "wish" => rh_sim::abilities::Slot::Wish,
-                    "q" => rh_sim::abilities::Slot::Q,
-                    "e" => rh_sim::abilities::Slot::E,
-                    _ => return,
-                };
-                out.push(PublicCommand::Cast {
-                    slot,
-                    x,
-                    y,
-                    id: id.as_deref().and_then(|id| self.resolve(id)),
-                    t: None,
-                    seq: None,
-                });
+        }
+        C::Attack { a } => out.push(PublicCommand::Attack { a, t: None }),
+        C::Release { a } => out.push(PublicCommand::Release { a, t: None }),
+        C::Swap { slot } => out.push(PublicCommand::Swap { slot: Some(slot) }),
+        C::Cast { slot, x, y, id } => {
+            let slot = match slot.as_str() {
+                "wish" => rh_sim::abilities::Slot::Wish,
+                "q" => rh_sim::abilities::Slot::Q,
+                "e" => rh_sim::abilities::Slot::E,
+                _ => return,
+            };
+            out.push(PublicCommand::Cast {
+                slot,
+                x,
+                y,
+                id: id.as_deref().and_then(|id| refs.actor(id)),
+                t: None,
+                seq: None,
+            });
+        }
+        C::Plan { spawn, boon, ready } => out.push(PublicCommand::Plan { spawn, boon, ready }),
+        C::Pickup { container_id } => {
+            if let Some(handle) = refs
+                .pickup(&container_id)
+                .and_then(rh_sim::PickupHandle::new)
+            {
+                out.push(PublicCommand::Pickup { handle });
             }
-            C::Plan { spawn, boon, ready } => out.push(PublicCommand::Plan { spawn, boon, ready }),
-            // Frame14 retains item/chest handles. Connecting their source loot executors is still
-            // pending; the compatibility front end never invents a handle from a row index.
-            C::Pickup { .. } | C::Choose { .. } => {}
+        }
+        C::Choose { chest, pick, .. } => {
+            if let Some(handle) = refs
+                .chest(&chest)
+                .and_then(rh_sim::reward_chests::RewardChestHandle::from_wire)
+            {
+                out.push(PublicCommand::Choose { handle, pick });
+            }
         }
     }
 }

@@ -4,7 +4,7 @@
 //! Source loss/retention rules are modeled, NOT approved as safe public intake bounds.
 #![allow(dead_code)] // Deliberately inactive until the separate publication/acceptance contract.
 
-mod brain;
+pub(crate) mod brain;
 mod data;
 mod input;
 mod memory;
