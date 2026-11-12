@@ -563,9 +563,23 @@ namespace Roguehalla.Client
 
         // ------------------------------------------------------------------ viewport-dependent sizes
 
+        /// <summary>
+        /// The phase pill is centred at the top; in a narrow window the (now 294 wide) plate would sit under its left end, so the pill moves right
+        /// to keep a small gap from the plate's right edge, as far as the window's right edge allows. Wider windows are untouched.
+        /// </summary>
+        void PlacePhasePill()
+        {
+            if (_phasePill == null || _viewport.UiWidth <= 0f) return;
+            float width = _phasePill.sizeDelta.x, uiWidth = _viewport.UiWidth;
+            float left = uiWidth * .5f - width * .5f, minLeft = PlateLeft + HudLayout.PlateWidth(uiWidth) + 8f;
+            float shift = Mathf.Clamp(minLeft - left, 0f, Mathf.Max(0f, uiWidth * .5f - width * .5f - 8f));
+            HudUi.Place(_phasePill, HudAnchor.TopCenter, shift, BannerTop, width, _phasePill.sizeDelta.y);
+        }
+
         void ApplyLegacyViewport(HudViewport viewport)
         {
             _viewport = viewport;
+            PlacePhasePill();
             if (_vitalsPanel != null) _vitalsPanel.sizeDelta = new Vector2(HudLayout.PlateWidth(viewport.UiWidth), _vitalsPanel.sizeDelta.y);
             if (_championHud != null)
                 _championHud.sizeDelta = new Vector2(HudLayout.ChampionWidth(viewport.UiWidth, viewport.Narrow), _championHud.sizeDelta.y);

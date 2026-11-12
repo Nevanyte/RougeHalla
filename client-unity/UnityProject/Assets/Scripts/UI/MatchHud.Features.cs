@@ -207,6 +207,7 @@ namespace Roguehalla.Client
             {
                 float w = _phaseStrip.GetPreferredValues(text, 0f, 0f).x;
                 _phasePill.sizeDelta = new Vector2(Mathf.Max(120f, Mathf.Ceil(w) + 24f), _phasePill.sizeDelta.y);
+                PlacePhasePill();
             }
         }
         void ToggleBuild()
