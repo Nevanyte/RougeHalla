@@ -38,8 +38,8 @@ namespace Roguehalla.Client.Tests
         {
             var chip = TerrainChips.For(code, MapBlob.GroundTerrainAll, FactionId.Holy)[0];
             _hud.ShowTerrain(true, code, MapBlob.GroundTerrainAll, FactionId.Holy);
-            StringAssert.Contains(chip.Label, _hud.TerrainChipLabel);
-            StringAssert.Contains(chip.Explanation, _hud.TerrainChipLabel);
+            Assert.That(_hud.TerrainChipLabel, Is.EqualTo(chip.Glyph + " " + chip.Label));
+            Assert.That(_hud.TerrainChipTooltip, Is.EqualTo(chip.Explanation));
         }
 
         [Test]
