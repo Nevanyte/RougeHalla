@@ -897,6 +897,13 @@ pub fn sample_weapons() -> Vec<WireWeapon> {
     ]
 }
 
+/// The sample HUD content block (P-WIRE17-HUD-2b): exactly what the server sends (`rh_policy::delivery::projection::
+/// wire_hud`, held equal by the rh-policy oracle): the six weapons' scaling rows and every [`crate::HudTerm`] code.
+pub fn sample_hud() -> crate::WireHudContent {
+    // STUB (P-WIRE17-HUD-2b): the implementer fills the rows (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Vector names").
+    crate::WireHudContent::default()
+}
+
 /// Writes a weapon table without checking it (for decoder refusal tests).
 pub fn write_weapon_table_for_tests(w: &mut Writer, rows: &[WireWeapon]) {
     crate::weapon::write_weapon_table_for_tests(w, rows);
@@ -1016,6 +1023,7 @@ fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     ServerMsg::Welcome {
         vision,
         weapons: sample_weapons(),
+        hud: sample_hud(),
         archetypes: sample_archetypes(),
         protocol: PROTOCOL_VERSION,
         content_hash: 0x0102_0304_0506_0708,

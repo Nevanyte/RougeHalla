@@ -35,6 +35,7 @@ fn decoded(assets: &MapAssets, mode: GroundMode) -> MapBlob {
         super::archetype_table(),
         &rh_policy::delivery::projection::wire_vision(&assets.arena.map),
         super::weapon_table(),
+        super::hud_content(),
         &assets.welcome_map,
         mode,
     );

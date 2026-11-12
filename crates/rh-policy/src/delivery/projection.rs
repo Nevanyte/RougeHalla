@@ -685,6 +685,15 @@ pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
         .collect()
 }
 
+/// The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): one scaling row per `rh_sim::WeaponId::ALL`
+/// (wire id `code()`) from `rh_sim::modifiers::rules::DEFINITION.weapon_scaling`, and every `rh_protocol::HudTerm` code
+/// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list"). All public content constants,
+/// the same for every viewer (no C-OBS concern).
+pub fn wire_hud() -> rh_protocol::WireHudContent {
+    // STUB (P-WIRE17-HUD-2b): the implementer builds the rows.
+    rh_protocol::WireHudContent::default()
+}
+
 #[cfg(test)]
 mod weapon_table_tests {
     /// Every weapon has exactly one row, in wire order, carrying the sim content's shape; the table passes the decoder's
