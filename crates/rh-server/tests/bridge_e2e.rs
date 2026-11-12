@@ -122,6 +122,9 @@ async fn the_real_bridge_drives_the_real_server_through_a_whole_game_session() {
                 // Two humans are needed to start a match and the lobby timer is long: the room stays a lobby for the test.
                 "--lobby-seconds",
                 "600",
+                // The bridge binds 0.0.0.0 and this test uses dev auth (no database): a public bind refuses that without the
+                // explicit opt-in.
+                "--insecure-dev-auth",
             ])
             .env("GLBRIDGE_FAKE_ADDR", script.to_string())
             .env("GLBRIDGE_FAKE_CALLS", &calls_file)

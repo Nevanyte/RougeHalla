@@ -18,6 +18,7 @@ pub mod humanizer;
 pub mod kite;
 pub mod knowledge;
 pub mod learning;
+pub mod loot;
 pub mod memory_prefix;
 pub mod mob_hunt;
 pub mod orbwalk;

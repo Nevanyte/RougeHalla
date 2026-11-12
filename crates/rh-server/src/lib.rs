@@ -7,6 +7,7 @@ pub mod bot_learning;
 pub mod conn;
 pub mod control;
 pub mod director;
+pub mod edge;
 pub mod hosting;
 pub mod lobby;
 pub mod map_pool;
@@ -23,8 +24,8 @@ pub mod spool;
 pub mod wire;
 pub mod wire_state;
 
-use axum::extract::{State, WebSocketUpgrade};
-use axum::http::{header, StatusCode};
+use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
+use axum::http::{header, Extensions, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -32,6 +33,7 @@ use axum_server::accept::Accept;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
 use axum_server::Handle;
 use director::Director;
+use edge::{EdgeConfig, EdgeGuard, FirstRequestAcceptor, HttpLimits};
 use std::future::Ready;
 use std::io;
 use std::net::SocketAddr;
@@ -40,15 +42,27 @@ use tokio::net::TcpStream;
 
 pub const PROBE_PAGE: &str = include_str!("../web/probe.html");
 
-/// The public listener: the WebSocket endpoint, health, info, the latency probe and the browser proof page.
+/// The public listener: the WebSocket endpoint, health, info, the latency probe and the browser proof page, guarded by an
+/// [`EdgeGuard`] with [`EdgeConfig::default`] (production limits, any origin). main.rs uses [`public_router_guarded`].
 pub fn public_router(director: Arc<Director>) -> Router {
-    Router::new()
+    public_router_guarded(director, EdgeGuard::new(EdgeConfig::default()))
+}
+
+/// [`public_router`] with a caller-configured edge guard (`/ws` limits and origins, `/ping` CORS).
+pub fn public_router_guarded(director: Arc<Director>, guard: Arc<EdgeGuard>) -> Router {
+    let guarded = Router::new()
         .route("/ws", get(ws))
+        .route("/ping", get(ping))
+        .with_state(WsState {
+            director: director.clone(),
+            guard,
+        });
+    Router::new()
         .route("/healthz", get(healthz))
         .route("/info", get(info))
-        .route("/ping", get(ping))
         .route("/probe", get(|| async { Html(PROBE_PAGE) }))
         .with_state(director)
+        .merge(guarded)
 }
 
 /// [`public_router`] plus the account service (`/api/*`, `/readyz`): profile claim/open, shop, leaderboard, health. Serve it
@@ -65,6 +79,28 @@ pub fn public_router_with_lobby(
     lobby: lobby::LobbyConfig,
 ) -> Router {
     public_router(director.clone())
+        .merge(lobby::router(director.clone(), lobby))
+        .merge(api::router(director, api))
+}
+
+/// [`public_router_with_api`] with a caller-configured edge guard (main.rs).
+pub fn public_router_with_api_guarded(
+    director: Arc<Director>,
+    api: api::AccountApi,
+    guard: Arc<EdgeGuard>,
+) -> Router {
+    public_router_guarded(director.clone(), guard).merge(api::router(director, api))
+}
+
+/// The server binary's public listener: [`public_router_with_api_guarded`] plus the lobby activity endpoint with its
+/// settings (`/api/lobby`, `/api/lobby/presence`), as [`public_router_with_lobby`] serves it.
+pub fn public_router_with_lobby_guarded(
+    director: Arc<Director>,
+    api: api::AccountApi,
+    lobby: lobby::LobbyConfig,
+    guard: Arc<EdgeGuard>,
+) -> Router {
+    public_router_guarded(director.clone(), guard)
         .merge(lobby::router(director.clone(), lobby))
         .merge(api::router(director, api))
 }
@@ -91,14 +127,33 @@ pub const WS_WRITE_BUFFER: usize = 16 * 1024;
 /// fails and the connection ends, the same end a stalled client reaches through `SEND_TIMEOUT`.
 pub const WS_MAX_WRITE_BUFFER: usize = WS_WRITE_BUFFER + 2 * rh_protocol::MAX_SERVER_FRAME;
 
-async fn ws(upgrade: WebSocketUpgrade, State(d): State<Arc<Director>>) -> Response {
+#[derive(Clone)]
+struct WsState {
+    director: Arc<Director>,
+    guard: Arc<EdgeGuard>,
+}
+
+/// The edge checks run before the upgrade (a refused socket gets a plain 403/429/503 and is never upgraded); the ticket then
+/// lives as long as the connection.
+async fn ws(
+    upgrade: WebSocketUpgrade,
+    State(s): State<WsState>,
+    headers: HeaderMap,
+    ext: Extensions,
+) -> Response {
+    let peer = ext.get::<ConnectInfo<SocketAddr>>().map(|c| c.0.ip());
+    let ticket = match s.guard.admit_ws(peer, &headers) {
+        Ok(t) => t,
+        Err(refused) => return refused.into_response(),
+    };
+    let d = s.director;
     upgrade
         .read_buffer_size(WS_READ_BUFFER)
         .write_buffer_size(WS_WRITE_BUFFER)
         .max_write_buffer_size(WS_MAX_WRITE_BUFFER)
         .max_message_size(rh_protocol::MAX_CLIENT_FRAME)
         .max_frame_size(rh_protocol::MAX_CLIENT_FRAME)
-        .on_upgrade(move |sock| conn::serve(sock, d))
+        .on_upgrade(move |sock| conn::serve_guarded(sock, d, Some(ticket)))
 }
 
 async fn healthz(State(d): State<Arc<Director>>) -> impl IntoResponse {
@@ -109,20 +164,28 @@ async fn healthz(State(d): State<Arc<Director>>) -> impl IntoResponse {
     }
 }
 
+/// The public identity a client or probe needs: protocol, content hash and the coarse lifecycle state. Room, player and
+/// result counters are on the loopback control listener (`GET /control/info`).
 async fn info(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    ([(header::CACHE_CONTROL, "no-store")], Json(d.info()))
+    ([(header::CACHE_CONTROL, "no-store")], Json(d.public_info()))
 }
 
 /// The regional latency probe a browser times (docs/hosting/LATENCY_PROBES.md): tiny, uncached, served by the game
-/// process itself so it measures the same path as the game's WebSocket.
-async fn ping() -> impl IntoResponse {
-    (
-        [
-            (header::CACHE_CONTROL, "no-store"),
-            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-        ],
-        "pong",
-    )
+/// process itself so it measures the same path as the game's WebSocket. Readable cross-origin by the `/ws` origin policy
+/// (`*` only when that policy is "any origin").
+async fn ping(State(s): State<WsState>, headers: HeaderMap) -> Response {
+    let origin = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok());
+    let mut r = ([(header::CACHE_CONTROL, "no-store")], "pong").into_response();
+    let policy = &s.guard.config().origins;
+    if let Some(v) = policy.cors_allow(origin) {
+        r.headers_mut()
+            .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, v);
+    }
+    if !matches!(policy, edge::OriginPolicy::Any) {
+        r.headers_mut()
+            .append(header::VARY, HeaderValue::from_static("Origin"));
+    }
+    r
 }
 
 /// Callback run on every accepted TCP stream after `TCP_NODELAY` was applied (tests read the socket option back here).
@@ -187,21 +250,39 @@ pub async fn serve_with(
     handle: Handle,
     acceptor: NoDelay,
 ) -> io::Result<()> {
+    serve_with_limits(bind, tls, router, handle, acceptor, HttpLimits::default()).await
+}
+
+/// [`serve_with`] with explicit HTTP limits (`--http-header-timeout-secs`). Every accepted connection must show its HTTP
+/// version within the header timeout ([`FirstRequestAcceptor`], after TLS when TLS is on) and hyper bounds every HTTP/1
+/// request head, idle keep-alive included, by the same timeout ([`edge::configure_http`]).
+pub async fn serve_with_limits(
+    bind: SocketAddr,
+    tls: Option<RustlsConfig>,
+    router: Router,
+    handle: Handle,
+    acceptor: NoDelay,
+    limits: HttpLimits,
+) -> io::Result<()> {
     let svc = router.into_make_service_with_connect_info::<SocketAddr>();
+    let deadline = limits.header_read_timeout;
     match tls {
         Some(cfg) => {
-            axum_server::bind(bind)
-                .acceptor(RustlsAcceptor::new(cfg).acceptor(acceptor))
-                .handle(handle)
-                .serve(svc)
-                .await
+            let mut server = axum_server::bind(bind)
+                .acceptor(FirstRequestAcceptor::new(
+                    RustlsAcceptor::new(cfg).acceptor(acceptor),
+                    deadline,
+                ))
+                .handle(handle);
+            edge::configure_http(server.http_builder(), limits);
+            server.serve(svc).await
         }
         None => {
-            axum_server::bind(bind)
-                .acceptor(acceptor)
-                .handle(handle)
-                .serve(svc)
-                .await
+            let mut server = axum_server::bind(bind)
+                .acceptor(FirstRequestAcceptor::new(acceptor, deadline))
+                .handle(handle);
+            edge::configure_http(server.http_builder(), limits);
+            server.serve(svc).await
         }
     }
 }

@@ -140,6 +140,10 @@ pub enum RoomCmd {
     /// The hosting layer ends the room now (control API `end` mode `abort`): seated players are closed out and their seats
     /// and leases freed, and no result is invented for an interrupted match.
     Abort,
+    /// The process drain reached its maximum duration (`--drain-max-secs`): every seated human is closed out as if it had
+    /// left (a player still standing in a run is MIA, so the result it earned is reported and written under its fence),
+    /// then the room closes. Unlike `Abort`, results are kept.
+    DrainEnd,
     /// Tests: the room task panics (the crash path).
     #[cfg(test)]
     Crash,
@@ -833,6 +837,14 @@ impl Room {
                 self.finish(true);
             }
             RoomCmd::Drain => self.draining = true,
+            RoomCmd::DrainEnd => {
+                self.draining = true;
+                let seated: Vec<PlayerId> = self.humans.iter().map(|h| h.player).collect();
+                for player in seated {
+                    self.leave(player, GoneReason::Aborted);
+                }
+                self.finish(false);
+            }
             #[cfg(test)]
             RoomCmd::Crash => panic!("test: the room task panics"),
         }
@@ -1711,7 +1723,12 @@ impl Room {
     /// so the director frees every seat and gives the leases back instead of holding them until the process restarts.
     /// The simulation is not touched (its state is suspect: no results, no final hash). Never panics itself.
     fn crashed(&mut self) {
-        eprintln!("[room] the room task panicked: reporting it closed");
+        eprintln!(
+            "[server] ERROR event=room_task_panicked room={} ticks={} humans={} action=reporting_closed",
+            crate::control::room_id_hex(self.id),
+            self.stats().ticks,
+            self.humans.len()
+        );
         for h in &self.humans {
             if let Some(o) = &h.outbox {
                 o.close(RejectCode::Kicked);

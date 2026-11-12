@@ -107,6 +107,10 @@ func serverArgs(gamePort int, controlAddr, mapPath, tlsCert, tlsKey, tokenFile s
 	}
 	if tokenFile != "" {
 		a = append(a, "--control-token-file", tokenFile)
+	} else {
+		// rh-server refuses --control without a token unless loopback-only is stated explicitly. With no
+		// GLBRIDGE_CONTROL_TOKEN configured this is the pre-existing behaviour, now spelled out; set the token to enforce it.
+		a = append(a, "--control-insecure-loopback")
 	}
 	if mapPath != "" {
 		a = append(a, "--map", mapPath)

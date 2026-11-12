@@ -163,12 +163,12 @@ struct Sampler {
 }
 
 /// Samples every `sample_secs`: server and harness CPU/RSS (via `ps`), the control health document (rooms, state, server
-/// metrics) and the live client counters.
+/// metrics), the control info document (players, lobbies; the public `/info` carries identity and state only) and the live
+/// client counters.
 fn start_sampler(
     sh: Arc<Shared>,
     pid: Option<u32>,
     control: Option<std::net::SocketAddr>,
-    public_info: Option<std::net::SocketAddr>,
 ) -> Sampler {
     let series = Arc::new(Mutex::new(Vec::new()));
     let stop = Arc::new(AtomicBool::new(false));
@@ -204,8 +204,8 @@ fn start_sampler(
                 Some(c) => get_json(c, "/control/health").await,
                 None => None,
             };
-            let info = match public_info {
-                Some(a) => get_json(a, "/info").await.map(|(_, v)| v),
+            let info = match control {
+                Some(c) => get_json(c, "/control/info").await.map(|(_, v)| v),
                 None => None,
             };
             let m = health
@@ -323,8 +323,7 @@ pub async fn run_against(
         connector: connector(sc),
     };
     let sh = Shared::new(sc.clone(), target, rh_sim::content::content_hash());
-    let info_addr = (!sc.tls).then_some(running.public);
-    let sampler = start_sampler(sh.clone(), running.pid, running.control, info_addr);
+    let sampler = start_sampler(sh.clone(), running.pid, running.control);
     let cpu_first = running.pid.and_then(sys::sample_process);
 
     // Players.
@@ -421,8 +420,9 @@ pub async fn run_against(
             .unwrap_or(Value::Null),
         None => Value::Null,
     };
-    let final_info = match info_addr {
-        Some(a) => get_json(a, "/info").await.map(|(_, v)| v),
+    // The operator counters (rooms, players, results, closed rooms) live on the loopback control listener.
+    let final_info = match running.control {
+        Some(c) => get_json(c, "/control/info").await.map(|(_, v)| v),
         None => None,
     };
 

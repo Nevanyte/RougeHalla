@@ -7,11 +7,29 @@ use rh_sim::Vec2;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Goal {
     Idle,
-    Roam { to: Vec2, why: &'static str },
-    Hold { at: Vec2, why: &'static str },
-    Fight { target: String },
-    Farm { target: String },
+    Roam {
+        to: Vec2,
+        why: &'static str,
+    },
+    Hold {
+        at: Vec2,
+        why: &'static str,
+    },
+    Fight {
+        target: String,
+    },
+    Farm {
+        target: String,
+    },
     WishSlip,
+    /// World tactics LOOT (world.ts actLoot): a container under its public cue key (bots::loot).
+    Loot {
+        container: String,
+    },
+    /// The chests module goal (chests.ts act): a reward chest under its public cue key (bots::loot).
+    Chest {
+        chest: String,
+    },
 }
 impl Goal {
     fn same_key(&self, other: &Self) -> bool {
@@ -24,6 +42,8 @@ impl Goal {
             (Self::Hold { why: a, .. }, Self::Hold { why: b, .. }) => a == b,
             (Self::Fight { target: a }, Self::Fight { target: b })
             | (Self::Farm { target: a }, Self::Farm { target: b }) => a == b,
+            (Self::Loot { container: a }, Self::Loot { container: b })
+            | (Self::Chest { chest: a }, Self::Chest { chest: b }) => a == b,
             _ => false,
         }
     }

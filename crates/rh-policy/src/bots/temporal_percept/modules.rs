@@ -24,6 +24,14 @@ pub(super) use planning::PlanningModule;
 pub(super) use registry::Registry;
 pub(super) use wishes::WishesModule;
 
+// Live loot seat lease (fix-bot-loot): the live HumanBot's chest pick/walk executor reuses the two parity-captured leaves
+// as they are (source `chooseOption` and the `ChestHunter` class), never the private module engine or Brain composer.
+pub(crate) mod live_chests {
+    pub(crate) use super::chest_hunt::{ChestDecision, ChestHunter, ChestInput, CHEST_HUNT};
+    pub(crate) use super::choice::choose_option;
+    pub(crate) use super::types::{CardCounts, ChestSelf, HuntChest, HuntSelf};
+}
+
 #[cfg(test)]
 mod catalog_tests;
 #[cfg(test)]

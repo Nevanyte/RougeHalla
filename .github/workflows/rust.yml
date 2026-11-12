@@ -4,7 +4,7 @@ name: Rust foundation
 
 on:
   push:
-    branches: [main, optimization_port]
+    branches: [main, optimization_port, feature/unity-rework, "integration/**"]
     paths: ["crates/**", "protocol/**", "parity/**", "maps/**", "packages/shared/src/**", "packages/server/src/**", "package.json", "package-lock.json", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   pull_request:
     paths: ["crates/**", "protocol/**", "parity/**", "maps/**", "packages/shared/src/**", "packages/server/src/**", "package.json", "package-lock.json", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
@@ -107,6 +107,7 @@ jobs:
           node tools/protocol-js/check-vectors.mjs
           node tools/protocol-js/check-first-playable.mjs
           node --test tools/browser-proof/protocol14-ui/contract.test.cjs
+          node --test tools/release/check-identity.test.mjs tools/unity-browser-reload-proof/*.test.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: "22.23.4"
