@@ -185,12 +185,12 @@ namespace Roguehalla.Client
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
                 icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 59, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
                 // The run-time text-scale re-apply (MatchHud.ApplyTextScale) would overwrite these sizes, so these labels leave it: they keep
                 // an auto-size range with a floor, no ellipsis, and a box that holds the widest text at the floor with room to spare.
                 KeepFit(name, 7f, 8f);
                 name.overflowMode = TextOverflowModes.Overflow;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 31, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                var value = HudUi.Label(HudUi.At(cell, "Value", 79, 0, 30, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
                 KeepFit(value, 6f, 10f); value.overflowMode = TextOverflowModes.Overflow;
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
@@ -272,6 +272,7 @@ namespace Roguehalla.Client
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 _championRow[i] = row;
                 _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 72, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
+                KeepFit(_championLabel[i], 8f, theme.SizeTiny); _championLabel[i].overflowMode = TextOverflowModes.Overflow;
                 _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 80, 1, 152, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
                 KeepFit(_championValue[i], 10f, 12f);
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
