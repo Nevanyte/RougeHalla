@@ -893,7 +893,10 @@ impl Director {
         let map = match &self.cfg.map_pool {
             Some(pool) if !sim.training => {
                 let (map, served) = pool.take_served();
-                eprintln!("[maps] match start: {served}");
+                eprintln!(
+                    "[maps] match start: match={} {served}",
+                    crate::control::room_id_hex(id)
+                );
                 map
             }
             _ => self.map.clone(),

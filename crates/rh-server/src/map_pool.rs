@@ -6,9 +6,10 @@
 //! queue is short: an idle server generates nothing. Every map is admitted again on arrival ([`admit`]: it fits the wire,
 //! seats every player and encodes as a Welcome), and what the pool serves is that admitted [`MapAssets`].
 //!
-//! An empty queue (a burst, a worker that is down or still warming) falls back to one certification on the calling
-//! thread, logged. If `MAP_FALLBACK_SEEDS` fresh seeds all fail there, the room gets the server's configured map instead
-//! of an error (legacy throws; a room that cannot open is worse than a repeated map). A worker that panics, reports a
+//! An empty queue (a burst, a worker that is down or still warming) serves the configured map at once when a worker
+//! exists, logged; the calling thread never certifies. `target` 0 (no worker) is the inline mode, for tests only: it
+//! certifies on the calling thread, and if `MAP_FALLBACK_SEEDS` fresh seeds all fail there the room gets the configured
+//! map instead of an error (legacy throws; a room that cannot open is worse than a repeated map). A worker that panics, reports a
 //! generator error, keeps sending maps that fail admission, or answers nothing for `MAP_WORKER_HANG` while it owes a reply
 //! is replaced, with a restart delay that doubles per failure in a row (1 s up to 60 s). A hung thread cannot be killed:
 //! it is abandoned (its replies go nowhere) and keeps its core until the generator returns.
@@ -125,7 +126,8 @@ pub struct MapPoolStats {
     /// Rooms served without a queued map because the queue was empty: the configured map at once (a pool with a
     /// worker), or a map certified on the calling thread (`target` 0, tests only).
     pub fallbacks: u64,
-    /// Rooms given the configured map because every fallback seed failed.
+    /// Rooms given the configured map because every fallback seed failed. Operators read `fallbacks + configured` for
+    /// "rooms that got the configured map".
     pub configured: u64,
     /// Seeds that certified in no attempt or failed (worker and fallback).
     pub discards: u64,
@@ -577,8 +579,9 @@ fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
         st.abandoned.push(w.alive);
     }
     let live = Shared::live_abandoned(&mut st);
-    let cap_msg = (live >= MAP_ABANDONED_CAP)
-        .then(|| format!("[maps] {live} abandoned workers still running: the pool serves the configured map"));
+    let cap_msg = (live >= MAP_ABANDONED_CAP).then(|| {
+        format!("[maps] {live} abandoned workers still running: the pool serves the configured map")
+    });
     let reason = match why {
         Failure::Hang => {
             st.stats.hangs += 1;
