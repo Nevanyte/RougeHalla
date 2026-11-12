@@ -252,14 +252,22 @@ pub struct SimConfig {
     pub mob_spacing: crate::archetype::MobSpacing,
     /// Passive regeneration while fighting (P-REGEN-COMBAT-1): `Legacy` (the default: the in-repo legacy oracle's
     /// `PLAYER_REGEN_SHARE_IN`) or `Off` (unreleased legacy f8cd956e, owner decision 2026-11-10: out of combat only; the
-    /// live profiles opt in). Serialized like [`crate::archetype::MobSpacing`]: `Legacy` adds nothing to any hash.
+    /// live profiles opt in). `Legacy` adds nothing to any hash; `Off` folds a tag of its own, never `mob_spacing`'s
+    /// `"off"` (see [`RegenInCombat`]).
     #[serde(default)]
     pub regen_in_combat: RegenInCombat,
 }
 
 /// `SimConfig::regen_in_combat`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
 /// unit), so a config that leaves it alone has the statics digest, state hashes, checkpoints and replays it had before
-/// the field existed; `Off` is the string `"off"`, folded into all of them.
+/// the field existed. `Off` is the string `"off"` in a human-readable format (the JSON config, checkpoint and replay)
+/// and the string `"regen_in_combat=off"` in any other (the state hasher), and is folded into all of them.
+///
+/// Why two spellings (P-REGEN-COMBAT-1-fix): the hasher folds values, not field names, and this field comes right after
+/// [`crate::archetype::MobSpacing`], whose default also folds nothing and whose `Off` is also `"off"`. With `"off"` in
+/// the hash, `mob_spacing = Off, regen_in_combat = Legacy` and `mob_spacing = Auto, regen_in_combat = Off` folded the same
+/// words and shared one statics digest. The tag has another length (19 bytes, not 3), so the first word it folds (its
+/// length) already differs from anything `mob_spacing` writes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RegenInCombat {
     #[default]
@@ -267,20 +275,28 @@ pub enum RegenInCombat {
     Off,
 }
 
+/// What `RegenInCombat::Off` writes to a serializer that is not human-readable (the state hasher): a string no other
+/// config field writes. JSON keeps `"off"`.
+const REGEN_IN_COMBAT_OFF_TAG: &str = "regen_in_combat=off";
+
 impl serde::Serialize for RegenInCombat {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Legacy => s.serialize_unit(),
-            Self::Off => s.serialize_str("off"),
+            Self::Off if s.is_human_readable() => s.serialize_str("off"),
+            Self::Off => s.serialize_str(REGEN_IN_COMBAT_OFF_TAG),
         }
     }
 }
 
 impl<'de> serde::Deserialize<'de> for RegenInCombat {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // Each format reads back exactly what it writes; JSON refuses the tag as it refuses any other unknown value.
+        let human = d.is_human_readable();
         match Option::<String>::deserialize(d)?.as_deref() {
             None => Ok(Self::Legacy),
-            Some("off") => Ok(Self::Off),
+            Some("off") if human => Ok(Self::Off),
+            Some(REGEN_IN_COMBAT_OFF_TAG) if !human => Ok(Self::Off),
             Some(other) => Err(serde::de::Error::custom(format!(
                 "regen_in_combat must be null or \"off\", not {other:?}"
             ))),
