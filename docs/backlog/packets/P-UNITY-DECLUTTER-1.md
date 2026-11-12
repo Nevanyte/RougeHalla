@@ -75,7 +75,36 @@ dimming and the timer text, with tests; the map layer and the overhead presenter
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-DECLUTTER-1` passes; new screenshots (the coordinator re-captures).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-DECLUTTER-1`
+- `client-unity/RoguehallaNet.Tests/CampGlyphsTests.cs` (model: 10 methods, 13 cases)
+- `client-unity/UnityProject/Assets/Tests/Editor/DeclutterEditModeTests.cs` (+ its `.meta`) (map drawing and role badge, 18 cases)
+- Replaced (deleted in the `stub:` commit, superseded by `NoMobCarriesARoleBadgeOrItsBackplate`):
+  `HudVisualFixEditModeTests.OnlyTheRolesLegacyMarksGetARoleBadge` (7 cases). No `CampMarksTests` or `TacticalMapEditModeTests` case
+  pins the zone shape or the ring (they test counts, clocks, badges), so none was replaced; they must stay green.
+
+## Model signatures (stubbed in the `stub:` commit, `CampMarks.cs`)
+- `CampMarks.Glyphs(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, CampSurface surface, List<CampGlyphRow> into)`
+  fills one `CampGlyphRow` per camp for Minimap/TabMap (none for World, none on a row-count mismatch or null).
+- `CampGlyphRow { Index, WorldX, WorldY, Zone, IconKey (null = neutral dot), IconRgb, AmountText (Tab only), Elite, EliteText ("Aug", Tab
+  only), Dim (cleared), Clock (bare seconds, cleared and RespawnAt>0 and active, else null), Engaged (state 1 and Tab only) }`;
+  `CampMarks.NeutralRgb = 0xb4c9dc`. Clock rounding as `Markers`. Rows are produced while inactive too (no clock then).
+- The map layer stops calling `CampMarks.Markers` and `CampBadges.Rewards` (still tested and kept; `WorldLabels`, `Wards`,
+  `Rewards` for the World surface stay in use). Keep `CampMarkerCount` = camp rows, `RewardBadgeCount` and `BadgesDrawn` = rows with a
+  real icon (not dots, not elite) so `TacticalMapEditModeTests` stays green.
+
+## Test-visible accessors (stubbed on `TacticalMapMarks`)
+`CampShapesDrawn` (must be 0), `EngagedRingsDrawn` (mesh pass; Tab only), `EliteMarkersDrawn` (mesh pass; one per drawn elite camp),
+`CampBuffGlyphsDrawn` and `CampDimGlyphsDrawn` (set in `Present`'s `RefreshBadgeIcons`: icon Images plus neutral dots, and the dimmed
+subset; the stub counts icons only and never dims). Counts exclude camps under a contact (`ContactNear`).
+
+## Drawing the implementer changes
+- `TacticalMapMarks.DrawCamps` (zone-shape glyph, cross, engaged ring, elite diamond), `DrawBadges` (plate under the stat Image, elite
+  square on Tab), `RefreshBadgeIcons` (the stat Image, now also dimmed and the neutral dot), `RefreshCampClocks` (clock from the glyph
+  row; keep the chest one-badge rule `ChestBadges.Replaces`), `RefreshBadgeTexts` (amount and "Aug"), `Present` (the Markers/Rewards calls).
+- `ShowcaseIdentityOwner`: delete `_roleBack`/`_roleGlyph`, their `CreatePart`, `Set`, `Place`, `HideAll` lines and `roleMark`. The tests
+  require the child objects "Mob role badge glyph" and "Mob role badge backplate" to not exist at all.
+- Elite marker today: `DrawCamps` draws a gold (0xffd54f) `MapGlyph.Diamond` via `Marker(...)` at `p + (0, size + 3)`, size `6f * s`, on both
+  maps; on the Tab map `DrawBadges` also draws a `ChestTone` square for `EliteIconKey` and `RefreshBadgeTexts` writes `EliteText`
+  ("Aug") beside it. Reuse that diamond as the single elite marker (anchored to the glyph, not the removed zone shape).
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`,
