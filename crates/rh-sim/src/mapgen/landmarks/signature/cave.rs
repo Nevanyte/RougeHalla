@@ -2,9 +2,10 @@
 //! back edge round the zone's far elite camp (the elite camp farthest from the map centre), its interior holding the
 //! camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
 //! map border, so the chamber may be off-centre. It is closed except for one mouth (`2 * mouth + 1` floor tiles) in the
-//! front wall (the dominant axis of DIR16 toward the coliseum), its axis up to `door_shift` tiles off the camp's, with
-//! `doorway` tiles of free Frost floor beyond it. The cave owns its walls and its ice: every interior tile with interior
-//! floor on all eight sides (so never against a wall or the mouth row) outside every camp halo; at least `cave_ice_min`.
+//! wall toward the coliseum (the dominant axis of DIR16 toward it, else the other axis), nearer the coliseum than the
+//! camp, its axis up to `door_shift` tiles off the camp's, with `doorway` tiles of free Frost floor beyond it. The cave
+//! owns its walls and its ice: every interior tile with interior floor on all eight sides (so never against a wall or
+//! the mouth row) outside every camp halo and the open map corners; at least `cave_ice_min`.
 //!
 //! Choice: the mouth axis nearest the camp that admits any chamber; among those chambers one uniform draw (redrawn while
 //! a choice would split the zone's floor or leave a wall piece under `piece_min`).
