@@ -106,7 +106,7 @@ const EXTRA_KEYS: [&str; 10] = [
     "relics",
     "effectsNext",
 ];
-const PERCEPT_KEYS: [&str; 12] = [
+pub(super) const PERCEPT_KEYS: [&str; 12] = [
     "now",
     "viewT",
     "self",
@@ -1840,7 +1840,7 @@ const SELF_REQUIRED: [&str; 25] = [
     "gv",
     "bounty",
 ];
-const SELF_KEYS: [&str; 28] = [
+pub(super) const SELF_KEYS: [&str; 28] = [
     "id",
     "name",
     "x",
@@ -1870,7 +1870,7 @@ const SELF_KEYS: [&str; 28] = [
     "moveSeq",
     "build",
 ];
-const HUD_KEYS: [&str; 13] = [
+pub(super) const HUD_KEYS: [&str; 13] = [
     "phase",
     "training",
     "lobbyEndsAt",
@@ -1885,7 +1885,7 @@ const HUD_KEYS: [&str; 13] = [
     "minPlayers",
     "winner",
 ];
-const FIGHTER_KEYS: [&str; 23] = [
+pub(super) const FIGHTER_KEYS: [&str; 23] = [
     "id",
     "name",
     "bot",
@@ -1910,7 +1910,7 @@ const FIGHTER_KEYS: [&str; 23] = [
     "tint",
     "central",
 ];
-const MOB_KEYS: [&str; 19] = [
+pub(super) const MOB_KEYS: [&str; 19] = [
     "id",
     "kind",
     "name",
@@ -1931,7 +1931,7 @@ const MOB_KEYS: [&str; 19] = [
     "los",
     "central",
 ];
-const CONTAINER_KEYS: [&str; 9] = [
+pub(super) const CONTAINER_KEYS: [&str; 9] = [
     "id",
     "kind",
     "x",
@@ -1942,12 +1942,12 @@ const CONTAINER_KEYS: [&str; 9] = [
     "interactable",
     "dist",
 ];
-const PROJECTILE_KEYS: [&str; 11] = [
+pub(super) const PROJECTILE_KEYS: [&str; 11] = [
     "id", "kind", "x", "y", "vx", "vy", "x0", "y0", "t0", "range", "from",
 ];
-const MINIMAP_KEYS: [&str; 3] = ["t", "mobs", "gatesLocked"];
-const MINIMAP_MOB_KEYS: [&str; 5] = ["id", "x", "y", "faction", "elite"];
-const FEATURE_KEYS: [&str; 10] = [
+pub(super) const MINIMAP_KEYS: [&str; 3] = ["t", "mobs", "gatesLocked"];
+pub(super) const MINIMAP_MOB_KEYS: [&str; 5] = ["id", "x", "y", "faction", "elite"];
+pub(super) const FEATURE_KEYS: [&str; 10] = [
     "messageTypes",
     "wishes",
     "statusEffects",
@@ -1959,7 +1959,8 @@ const FEATURE_KEYS: [&str; 10] = [
     "camps",
     "hazards",
 ];
-const EXTRAS_KEYS: [&str; 6] = ["wish", "skills", "chests", "camps", "effects", "fields"];
+pub(super) const EXTRAS_KEYS: [&str; 6] =
+    ["wish", "skills", "chests", "camps", "effects", "fields"];
 
 fn number_field_finite(value: &SVal, name: &str, path: &str) -> R<f64> {
     finite_number(value, name, path)
@@ -2540,7 +2541,7 @@ fn validate_features_record(value: &SVal, path: &str) -> R<()> {
 
 /// The complete declared Brain percept grammar. `diagnostic` values (frozen expected trace context percepts) use the
 /// same grammar: they are declared source percepts, never a different shape.
-fn validate_percept(value: &SVal, path: &str) -> R<()> {
+pub(super) fn validate_percept(value: &SVal, path: &str) -> R<()> {
     // `closed(p, [...])` then `finite(p)`: every declared input number anywhere in the percept is finite.
     closed(value, &PERCEPT_KEYS, path)?;
     check_finite(value, path)?;
