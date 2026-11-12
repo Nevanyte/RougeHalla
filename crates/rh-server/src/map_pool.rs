@@ -570,16 +570,18 @@ fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
     let mut st = s.lock();
     st.reject_streak = 0;
     st.stats.crashes += 1;
+    // Every failure kind keeps the old thread's flag: after an error or the reject-limit crash it can still run one
+    // more `make` from its queued request. A flag whose thread has ended is pruned, so a clean exit costs nothing.
+    if let Some(w) = old {
+        st.abandoned.push(w.alive);
+    }
+    let live = Shared::live_abandoned(&mut st);
+    if live >= MAP_ABANDONED_CAP {
+        eprintln!("[maps] {live} abandoned workers still running: the pool serves the configured map");
+    }
     let reason = match why {
         Failure::Hang => {
             st.stats.hangs += 1;
-            if let Some(w) = old {
-                st.abandoned.push(w.alive);
-            }
-            let live = Shared::live_abandoned(&mut st);
-            if live >= MAP_ABANDONED_CAP {
-                eprintln!("[maps] {live} abandoned workers still running: the pool serves the configured map");
-            }
             format!("no reply within {} ms", s.opts.hang.as_millis())
         }
         Failure::Crash(reason) => reason,
