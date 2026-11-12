@@ -29,8 +29,10 @@ none (P-REGEN-COMBAT-1 is merged)
 ## 5. Exclusive write scope
 - `crates/rh-sim/src/statics.rs` (the encoding of `RegenInCombat`), `crates/rh-sim/src/hash.rs` (doc comment only)
 - `crates/rh-sim/tests/hash_coverage.rs` (new cases)
-- `crates/rh-server/tests/source_arena_soak.rs` and the `live_config` helper of the hitbox comparison in `rh-headless`
-  (make them build the live profile's `regen_in_combat`); name the exact files in the hand-off
+- The two harness mirrors of the live config (make them build the live profile's `regen_in_combat = Off`; the brief
+  first said the soak sits under `rh-server/tests/`, it does not):
+  - `crates/rh-headless/tests/source_arena_soak.rs` (`fn live_config`, :13)
+  - `crates/rh-headless/examples/hitbox_compare.rs` (`pub fn live_config`, :38)
 - Checkpoint or replay version constants only if the encoding change makes an existing `Off` checkpoint unreadable
   (say which and why; nothing with `Off` has shipped)
 
@@ -46,12 +48,39 @@ none (P-REGEN-COMBAT-1 is merged)
 ## 8. Acceptance checks
 - Oracle (`hash_coverage.rs`): the four combinations of `mob_spacing` in {Auto, Off} and `regen_in_combat` in
   {Legacy, Off} give four different statics digests (today two collide); `Legacy` + default spacing equals the digest
-  before this packet (pinned constant already in the file, or the existing equality test).
-- A checkpoint taken under `regen_in_combat = Off` is refused by a sim built with `mob_spacing = Off` and `Legacy`.
+  before this packet (no pinned constant exists in the file: the guard is an equality with a config that has neither
+  field, the way the config read before either existed).
+- A replay recorded under `regen_in_combat = Off` does not verify (diverges at step 0) when its config is swapped to
+  `mob_spacing = Off, regen_in_combat = Legacy`, and the same checkpoint restored under that config has another state
+  hash. (`Sim::restore` takes the config from the checkpoint itself and compares it with nothing, `checkpoint.rs:66`;
+  the replay's per-step hashes, `replay.rs:225-250`, are the artifact that checks the statics identity.)
 - `cargo run -p rh-parity --bin parity-report` all MATCH; `scripts/gate.sh --oracle packet/P-REGEN-COMBAT-1-fix` passes.
 
+### Collision observed by the oracle (2026-11-11, on `feature/unity-rework` @ 980229ed)
+`mob_spacing = Auto, regen_in_combat = Off` and `mob_spacing = Off, regen_in_combat = Legacy` give the same state hash
+`0xf68448868dd62ffe` for the same World (seed 75, one Holy fighter, one step). Cause: `SimConfig` serializes
+`mob_spacing` then `regen_in_combat` as its last two fields (`statics.rs:252-257`); each default is a unit, which
+`HashSer::serialize_unit` folds as nothing (`hash.rs:190`), each `Off` is the string `"off"` (`statics.rs:270-277`,
+`archetype.rs:91-98`), and struct fields fold no name (`hash.rs:302`). The digest (`statics.rs:76`) therefore sees the
+same word sequence `[.., hitboxes, len 3, "off"]` for both. The replay recorded under `regen_in_combat = Off` verified
+in full under the other config (final hash `10054959343917700989`).
+
+### Constraint the implementer must respect
+The existing case `regen_in_combat_off_state` (`hash_coverage.rs:686`) asserts that the JSON checkpoint carries
+`regen_in_combat: "off"`, and it is not to be edited. So the JSON encoding stays `"off"` (and `null` for `Legacy`); only
+what the hashing serializer folds for `Off` may change. `HashSer::is_human_readable` returns `false` (`hash.rs:133`) and
+`serde_json` returns `true`, so `Serialize for RegenInCombat` can fold a value distinct from any `mob_spacing` encoding
+when not human-readable while still writing `"off"` to JSON; then `Deserialize` must keep reading JSON `"off"` (and any
+non-human-readable form it writes, if a binary checkpoint format is in use). If the implementer finds this impossible,
+changing the existing assertion needs owner approval: stop and say so. Do not touch `MobSpacing`'s encoding (moves
+`Off` A/B hashes; out of scope).
+
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-REGEN-COMBAT-1-fix`
+- `crates/rh-sim/tests/hash_coverage.rs`: the new items after `native29_produced_hints_and_all_three_config_tags_roundtrip`
+  (`spacing_regen_base`, `with_spacing_regen`, `mob_spacing_and_regen_in_combat_are_four_separate_statics_identities`
+  (fails today), `a_regen_off_replay_does_not_verify_under_spacing_off` (fails today),
+  `the_default_spacing_and_regen_still_fold_nothing` (guard, passes today)). Commit `oracle: P-REGEN-COMBAT-1-fix`.
+- `docs/backlog/packets/P-REGEN-COMBAT-1-fix.md` (this brief)
 
 ## 9. Validation commands
 - `cargo test -p rh-sim --test hash_coverage`, `scripts/gate.sh --quick`
