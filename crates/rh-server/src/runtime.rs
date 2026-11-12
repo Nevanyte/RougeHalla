@@ -23,6 +23,9 @@ pub struct Settings {
     /// `--map-pool` (P-MAP-3, source-arena only, off by default): every room takes its own certified generated map from
     /// [`crate::map_pool::MapPool`]; `--map` is the last resort.
     pub map_pool: bool,
+    /// `--signature-landmarks` (owner decision 6; needs `--map-pool`): pooled maps get the signature landmarks
+    /// ([`crate::signature`]).
+    pub signature_landmarks: bool,
 }
 
 /// `--lobby-timing legacy|matchmaking`, default legacy. `matchmaking` is a 15 s lobby with bots at second 13.
@@ -94,18 +97,15 @@ fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> 
         .ok_or_else(|| format!("{flag} requires a value"))
 }
 
-/// `--map-pool`: a bare switch, at most once.
-fn map_pool_flag(args: &[String]) -> Result<bool, String> {
-    if args
-        .iter()
-        .any(|a| a.starts_with("--map-pool") && a != "--map-pool")
-    {
-        return Err("unknown --map-pool option; it takes no value".into());
+/// A bare switch such as `--map-pool`, at most once.
+fn switch_flag(args: &[String], flag: &str) -> Result<bool, String> {
+    if args.iter().any(|a| a.starts_with(flag) && a != flag) {
+        return Err(format!("unknown {flag} option; it takes no value"));
     }
-    match args.iter().filter(|a| *a == "--map-pool").count() {
+    match args.iter().filter(|a| *a == flag).count() {
         0 => Ok(false),
         1 => Ok(true),
-        _ => Err("--map-pool must occur once".into()),
+        _ => Err(format!("{flag} must occur once")),
     }
 }
 
@@ -188,8 +188,12 @@ impl Settings {
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
             hitboxes: hitboxes_flag(args, LIVE_DEFAULT_HITBOXES)?,
             lobby_timing: lobby_timing_flag(args)?,
-            map_pool: map_pool_flag(args)?,
+            map_pool: switch_flag(args, "--map-pool")?,
+            signature_landmarks: switch_flag(args, "--signature-landmarks")?,
         };
+        if settings.signature_landmarks && !settings.map_pool {
+            return Err("--signature-landmarks needs --map-pool".into());
+        }
         if training && settings.map_pool {
             return Err("training uses the practice arena; --map-pool is not accepted".into());
         }
@@ -289,6 +293,8 @@ mod tests {
             "--runtime training --map-pool",
             "--runtime source-arena --map x --map-pool --map-pool",
             "--runtime source-arena --map x --map-pool=on",
+            "--runtime source-arena --map x --signature-landmarks",
+            "--runtime training --map-pool --signature-landmarks",
         ] {
             assert!(parse(args).is_err(), "{args}");
         }
@@ -303,7 +309,11 @@ mod tests {
         let pooled = parse("--runtime source-arena --map x --map-pool")
             .unwrap()
             .unwrap();
-        assert!(pooled.map_pool);
+        assert!(pooled.map_pool && !pooled.signature_landmarks);
+        let signed = parse("--runtime source-arena --map x --map-pool --signature-landmarks")
+            .unwrap()
+            .unwrap();
+        assert!(signed.map_pool && signed.signature_landmarks);
         assert_eq!(
             pooled.sim(),
             sim,

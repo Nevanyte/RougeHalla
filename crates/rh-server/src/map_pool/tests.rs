@@ -211,8 +211,14 @@ fn the_restart_delay_doubles_and_is_capped() {
 /// they differ, and the source-arena profile builds a match on one and steps it.
 #[test]
 fn the_real_generator_serves_distinct_playable_maps() {
-    let a = StyledMaker.make(1).unwrap().expect("seed 1 certifies");
-    let b = StyledMaker.make(2).unwrap().expect("seed 2 certifies");
+    let a = StyledMaker::default()
+        .make(1)
+        .unwrap()
+        .expect("seed 1 certifies");
+    let b = StyledMaker::default()
+        .make(2)
+        .unwrap()
+        .expect("seed 2 certifies");
     assert_ne!(a.map.layers(), b.map.layers());
     let a = admit(a).unwrap();
     admit(b).unwrap();

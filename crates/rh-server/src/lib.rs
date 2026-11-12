@@ -17,6 +17,7 @@ pub mod persist;
 pub mod public_ground;
 pub mod room;
 pub mod runtime;
+pub mod signature;
 #[cfg(feature = "postgres")]
 pub mod spool;
 pub mod wire;

@@ -48,7 +48,11 @@ pub trait MapMaker: Send + Sync + 'static {
 
 /// The generator as the server runs it: legacy `certifiedMap(seed, { decor: false })`, the complete styled pipeline. The
 /// server builds no decor (props are cosmetic and the client draws its own).
-pub struct StyledMaker;
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StyledMaker {
+    /// Add the signature landmarks (`crate::signature`, owner decision 6) to every map.
+    pub signature: bool,
+}
 
 impl MapMaker for StyledMaker {
     fn make(&self, seed: u32) -> Result<Option<Arena>, String> {
@@ -59,12 +63,21 @@ impl MapMaker for StyledMaker {
             decor: false,
             ..pipeline::Options::default()
         };
-        let Some(map) = generator
+        let Some(mut map) = generator
             .certified_styled(i64::from(seed), options)
             .map_err(|e| format!("{e:?}"))?
         else {
             return Ok(None);
         };
+        if self.signature {
+            let report = crate::signature::apply(&mut map);
+            if !report.skipped.is_empty() {
+                eprintln!(
+                    "[maps] seed {seed}: signature landmarks placed {:?}, skipped {:?}",
+                    report.placed, report.skipped
+                );
+            }
+        }
         let legacy_map_hash_u32 =
             u32::from_str_radix(&map_hash::map_hash(&map), 16).map_err(|e| e.to_string())?;
         let arena = rh_sim::mapdata::MapExport {
@@ -191,11 +204,11 @@ pub struct MapPool {
 }
 
 impl MapPool {
-    /// Starts a pool over the real generator with the legacy sizes.
-    pub fn start(configured: MapAssets) -> Self {
+    /// Starts a pool over the real generator with the legacy sizes; `signature` adds the signature landmarks.
+    pub fn start(configured: MapAssets, signature: bool) -> Self {
         Self::with(
             configured,
-            Arc::new(StyledMaker),
+            Arc::new(StyledMaker { signature }),
             Box::new(fresh_seed),
             MapPoolOptions::default(),
         )
