@@ -98,6 +98,7 @@ async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig
             hitboxes: Default::default(),
             mob_spacing: Default::default(),
             regen_in_combat: rh_sim::RegenInCombat::Legacy,
+            camp_buffs: rh_sim::CampBuffRule::Legacy,
             walk_hints: None,
             regen: false,
             quests: false,

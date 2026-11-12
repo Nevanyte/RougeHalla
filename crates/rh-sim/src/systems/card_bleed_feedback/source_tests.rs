@@ -190,6 +190,7 @@ fn config_with_hitboxes(input: &V, hitboxes: crate::archetype::HitboxMode) -> Si
         hitboxes,
         mob_spacing: Default::default(),
         regen_in_combat: crate::RegenInCombat::Legacy,
+        camp_buffs: crate::CampBuffRule::Legacy,
     }
 }
 

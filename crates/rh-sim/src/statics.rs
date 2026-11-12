@@ -256,6 +256,55 @@ pub struct SimConfig {
     /// `"off"` (see [`RegenInCombat`]).
     #[serde(default)]
     pub regen_in_combat: RegenInCombat,
+    /// Which stat a camp's normal kills pay (P-CAMP-BUFF-THEMES-1): `Legacy` (the default: the in-repo legacy oracle,
+    /// a camp pays its own mob type's stat, `packages/shared/src/rosters.ts` bag roll) or `Themed` (unreleased legacy
+    /// a7b5c4ce, owner decision 2026-11-10: each zone a theme of four stats, every stat within a max distance of every
+    /// camp, an even spread; the live profiles opt in). `Legacy` adds nothing to any hash; `Themed` folds a tag of its
+    /// own (see [`CampBuffRule`]).
+    #[serde(default)]
+    pub camp_buffs: CampBuffRule,
+}
+
+/// `SimConfig::camp_buffs`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
+/// unit), so a config that leaves it alone has the statics digest, state hashes, checkpoints and replays it had before
+/// the field existed. `Themed` is the string `"themed"` in a human-readable format (the JSON config, checkpoint and
+/// replay) and the string `"camp_buffs=themed"` in any other (the state hasher): a value no other config field writes,
+/// for the reason [`RegenInCombat`] documents (the hasher folds values, not field names, and this field follows two
+/// others whose default also folds nothing).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CampBuffRule {
+    #[default]
+    Legacy,
+    Themed,
+}
+
+/// What `CampBuffRule::Themed` writes to a serializer that is not human-readable (the state hasher). JSON keeps
+/// `"themed"`.
+const CAMP_BUFFS_THEMED_TAG: &str = "camp_buffs=themed";
+
+impl serde::Serialize for CampBuffRule {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Legacy => s.serialize_unit(),
+            Self::Themed if s.is_human_readable() => s.serialize_str("themed"),
+            Self::Themed => s.serialize_str(CAMP_BUFFS_THEMED_TAG),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CampBuffRule {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // Each format reads back exactly what it writes; JSON refuses the tag as it refuses any other unknown value.
+        let human = d.is_human_readable();
+        match Option::<String>::deserialize(d)?.as_deref() {
+            None => Ok(Self::Legacy),
+            Some("themed") if human => Ok(Self::Themed),
+            Some(CAMP_BUFFS_THEMED_TAG) if !human => Ok(Self::Themed),
+            Some(other) => Err(serde::de::Error::custom(format!(
+                "camp_buffs must be null or \"themed\", not {other:?}"
+            ))),
+        }
+    }
 }
 
 /// `SimConfig::regen_in_combat`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
@@ -340,6 +389,7 @@ impl Default for SimConfig {
             hitboxes: crate::archetype::HitboxMode::LegacyCircle,
             mob_spacing: crate::archetype::MobSpacing::Auto,
             regen_in_combat: RegenInCombat::Legacy,
+            camp_buffs: CampBuffRule::Legacy,
         }
     }
 }

@@ -25,6 +25,7 @@ async fn start(creds: &Creds, max_rooms: usize) -> InProc {
         hitboxes: Default::default(),
         mob_spacing: Default::default(),
         regen_in_combat: rh_sim::RegenInCombat::Legacy,
+        camp_buffs: rh_sim::CampBuffRule::Legacy,
         walk_hints: None,
         regen: false,
         quests: false,

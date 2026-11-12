@@ -36,6 +36,7 @@ fn main() {
             fill_seconds: 3.,
             hitboxes,
             regen_in_combat: rh_sim::RegenInCombat::Off,
+            camp_buffs: rh_sim::CampBuffRule::Legacy,
             ..SimConfig::default()
         };
         let agents = (0..8)

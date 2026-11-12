@@ -1,5 +1,6 @@
 //! Pure source-derived catalog and draw-injected rosters. No runtime actor, faction sheet or RNG port.
 use crate::content::{self, FactionId, Shape, WeaponId};
+pub mod camp_buffs;
 pub mod rosters;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

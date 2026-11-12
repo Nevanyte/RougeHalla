@@ -890,6 +890,7 @@ async fn main() {
             hitboxes: core_hitboxes,
             mob_spacing: Default::default(),
             regen_in_combat: rh_sim::RegenInCombat::Legacy,
+            camp_buffs: rh_sim::CampBuffRule::Legacy,
             walk_hints: None,
             regen: false,
             quests: false,

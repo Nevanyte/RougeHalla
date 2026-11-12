@@ -689,6 +689,34 @@ fn regen_in_combat_off_state() -> (&'static str, Sim) {
     ("regen in combat off (live profiles)", sim)
 }
 
+/// `SimConfig::camp_buffs = Themed` (P-CAMP-BUFF-THEMES-1, the live profiles), config only (no camps on the practice
+/// arena): serializes as `"themed"`; restoring it as `null` (`Legacy`) must change the hash.
+fn camp_buffs_themed_state() -> (&'static str, Sim) {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            camp_buffs: rh_sim::CampBuffRule::Themed,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(78),
+        &[Placement {
+            profile: "hash-camp-buffs".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    assert_eq!(
+        serde_json::to_value(&sim).unwrap()["statics"]["config"]["camp_buffs"],
+        serde_json::json!("themed")
+    );
+    ("camp buffs themed (live profiles, config only)", sim)
+}
+
 /// Admitted Training worlds produce their hints through ordinary validated movement.
 /// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
 fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
@@ -900,6 +928,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     states.extend(produced_walk_hint_states());
     states.push(mob_spacing_off_state());
     states.push(regen_in_combat_off_state());
+    states.push(camp_buffs_themed_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
