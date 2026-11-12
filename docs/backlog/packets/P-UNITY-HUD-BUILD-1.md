@@ -59,7 +59,8 @@ formats; it computes nothing.
 - One EditMode case: the HUD draws the formatter's cells.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-HUD-BUILD-1`
+- `client-unity/RoguehallaNet.Tests/BuildHudTextTests.cs` (10 cases; `NoSummaryYetGivesNoCellsAndNoMobLinesNotZeros` already passes against the stub, the other nine fail)
+- Stub the implementer replaces (not an oracle file): `client-unity/RoguehallaNet/Net/Ui/BuildHudText.cs` (`BuildHudText.Cells(WireBuildSummary)`, `BuildHudText.MobLines(WireBuildSummary)`, structs `BuildCell {Label, Value, Dim}` and `MobBonusLine {Label, Total}`), its synced copy and `.meta`
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`
@@ -74,3 +75,25 @@ Sonnet. Medium: text and layout over a pure formatter; no rule.
 - The summary arrives quantized: format what arrives, do not "repair" it.
 
 ## Notes from previous attempts
+
+## Legacy rules as verified (oracle author)
+Gains arrive as integers of 1e-4; expectations are exact decimal arithmetic on the raw integer, rounded half up (JS `Math.round`, so 1.25 -> 1.3 and -0.25 -> -0.2; not C# banker's rounding).
+- Cell order Offense, SO, Damage gained, Attack speed, Life steal, Health gained, Defense, Soul Defense, Move speed: `packages/client/src/ui/buildModel.ts:14` (`HUD_GAIN_IDS`), matches wire stat codes 0-8. Short labels (the visible `label`, note "SO" and bare "Defense"/"Soul Defense"): `buildModel.ts:171-179`. Long aria/tooltip names (`buildHud.ts` `FULL_BUILD_LABELS`, "Soul Offence", "Defense gained") are NOT pinned.
+- Points cells (Offense, SO, Defense, Soul Defense): `signed(num(v))`, `buildModel.ts:171,172,177,178,184`; `num` = one decimal, half up, no ".0" (`:47-50`). A negative keeps "-"; zero and a value rounding to zero show "+0".
+- Percent cells (Damage, Life steal): `percentPoints` `:159` = `+` only when > 0, `round(v*10000)/100` as the shortest number, then "%". Attack speed and Move speed: `speedGain` `:160-163`, same format on `mult-1` (wire already carries the change). Zero shows "0%".
+- Health: `+${num(hpGain)}` `:176`, always a plus, "+0" when zero.
+- Zero handling: the cell is shown and greyed (`dim`), never hidden: `buildModel.ts:171-179` (`dim: ... === 0`), `buildHud.ts:133` (`classList.toggle("dim")`). Dim is decided on the unrounded value (`:171`).
+- Empty state: legacy hides the whole strip without a player (`buildHud.ts:101-108`, `update`; root hidden at :106); pinned here as `Cells(null)` is empty. Mob table with no rows: "No normal-mob bonuses yet" (`mobStatsHud.ts:39`).
+- Mob rows: label `${name} ×${count}` (`mobStatsHud.ts:35,56`, name from `mobs.ts:138-169`, wire mob code = catalog index), total `mobStatText` (`shared/mobStats.ts:130-141`): `+<amount> <suffix>`, suffixes from `mobStats.ts:53-74` by stat code (damage, move speed, max health, Soul Offence, Defense, Soul Defense, attack speed, lifesteal, Offense). Percent stats: `toLocaleString("en-US", maxFractionDigits 2)` + "%" (so thousands separators); flat stats: the raw number, not rounded to one decimal (3 x 1.25 = 3.75).
+
+### Pinned legacy quirks (flag, do not fix)
+- A tiny negative points value (-0.04) shows "+0" and is not greyed (`-0` -> "0" -> `signed`). A naive C# `ToString` would print "-0".
+- Percent totals in the mob row use thousands separators.
+
+### Legacy shows, the summary does not carry
+- Per-kill reward text ("+3% damage per kill", `mobStats.ts:87-96`, `mobStatsHud.ts:68`), the per-type catalog of unowned mobs and zone headings (`mobStatsHud.ts:20-24,79`): these are static content, not in the summary; not pinned. The implementer may omit them.
+- Strip label suffix for Sentenced "Sentence: n/5" (`buildHud.ts:114`), and tooltip texts (`buildModel.ts:171-179`): not pinned (tooltips keep working as they do today).
+- Elite mob types have no reward row; `MobLines` behaviour for a mob code of an elite or unknown type is unspecified.
+
+### Decisions for the owner of the Unity side
+- Null summary: strip shows nothing (cells empty) and the mob row stays hidden; my reading of "legacy empty state". The old Unity "—" placeholder for the damage cell is not legacy.
