@@ -120,8 +120,58 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static int PackNames(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch, float[] anchorX, float[] anchorY)
         {
-            for (int i = 0; i < count; i++) { shown[i] = true; anchorX[i] = items[i].X; anchorY[i] = items[i].Y; }
-            return count;
+            for (int i = 0; i < count; i++) scratch[i] = i;
+            float d2 = packDistance * packDistance;
+            for (int i = 0; i < count; i++)
+            {
+                if (!Packs(items[i])) continue;
+                for (int j = i + 1; j < count; j++)
+                {
+                    if (!Packs(items[j]) || items[i].Text != items[j].Text) continue;
+                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                    if (dx * dx + dy * dy >= d2) continue;
+                    int ri = Root(scratch, i), rj = Root(scratch, j);
+                    if (ri != rj) scratch[rj] = ri;
+                }
+            }
+            int shownCount = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (!Packs(items[i])) { shown[i] = true; anchorX[i] = items[i].X; anchorY[i] = items[i].Y; shownCount++; continue; }
+                int root = Root(scratch, i);
+                // The carrier: hovered (lowest id), else locked (lowest id), else lowest id.
+                int carrier = -1;
+                float minX = 0, maxX = 0, maxY = 0; bool any = false;
+                for (int j = 0; j < count; j++)
+                {
+                    if (!Packs(items[j]) || Root(scratch, j) != root) continue;
+                    if (!any) { minX = maxX = items[j].X; maxY = items[j].Y; any = true; }
+                    else
+                    {
+                        if (items[j].X < minX) minX = items[j].X;
+                        if (items[j].X > maxX) maxX = items[j].X;
+                        if (items[j].Y > maxY) maxY = items[j].Y;
+                    }
+                    if (carrier < 0 || Better(items[j], items[carrier])) carrier = j;
+                }
+                bool show = carrier == i;
+                shown[i] = show;
+                if (!show) continue;
+                shownCount++;
+                if (items[i].Single != 0) { anchorX[i] = items[i].X; anchorY[i] = items[i].Y; }
+                else { anchorX[i] = (minX + maxX) * 0.5f; anchorY[i] = maxY; }
+            }
+            return shownCount;
+        }
+
+        static bool Packs(NameMergeItem it) { return !it.Elite && !string.IsNullOrEmpty(it.Text); }
+
+        // a is a better carrier than b: hovered beats locked beats nothing, then the lower id.
+        static bool Better(NameMergeItem a, NameMergeItem b)
+        {
+            int ra = a.Single == 2 ? 2 : a.Single == 1 ? 1 : 0, rb = b.Single == 2 ? 2 : b.Single == 1 ? 1 : 0;
+            if (ra != rb) return ra > rb;
+            return a.Id < b.Id;
         }
 
         static bool InPacks(NameMergeItem it) { return !it.Elite && !it.Always && !string.IsNullOrEmpty(it.Text); }

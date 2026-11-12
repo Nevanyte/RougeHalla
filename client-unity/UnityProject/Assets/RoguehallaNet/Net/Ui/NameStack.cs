@@ -26,6 +26,39 @@ namespace Roguehalla.Net.Ui
         public static void Separate(NameStackItem[] items, int count, float gap, float[] lift)
         {
             for (int i = 0; i < count; i++) lift[i] = 0f;
+            // placed[k] is true once label k has its final lift; labels are visited in ascending (Dist, Id) order.
+            // Allocation-free: a visited label is marked with a NaN lift until it is placed.
+            for (int i = 0; i < count; i++) lift[i] = float.NaN;
+            for (int step = 0; step < count; step++)
+            {
+                int k = -1;
+                for (int i = 0; i < count; i++)
+                {
+                    if (!float.IsNaN(lift[i])) continue;
+                    if (k < 0 || items[i].Dist < items[k].Dist || (items[i].Dist == items[k].Dist && items[i].Id < items[k].Id)) k = i;
+                }
+                float y = items[k].Y;
+                bool moved = true;
+                while (moved)
+                {
+                    moved = false;
+                    for (int p = 0; p < count; p++)
+                    {
+                        if (p == k || float.IsNaN(lift[p])) continue;
+                        if (!Hits(items[k], y, items[p], items[p].Y + lift[p])) continue;
+                        y = items[p].Y + lift[p] + items[p].H + gap;
+                        moved = true;
+                    }
+                }
+                lift[k] = y - items[k].Y;
+                if (lift[k] < 0f) lift[k] = 0f;
+            }
+        }
+
+        static bool Hits(NameStackItem a, float ay, NameStackItem b, float by)
+        {
+            return a.X - a.W * 0.5f < b.X + b.W * 0.5f && b.X - b.W * 0.5f < a.X + a.W * 0.5f
+                && ay < by + b.H && by < ay + a.H;
         }
     }
 }
