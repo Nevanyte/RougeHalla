@@ -59,15 +59,24 @@ pub struct StyledMaker {
     pub signature: bool,
 }
 
+impl StyledMaker {
+    /// The generator options this maker runs with: no decor, and with `signature` the generator places the church and
+    /// the bog tree itself (P-MAPGEN-SIGNATURE-CORE-1).
+    pub fn options(&self) -> rh_sim::mapgen::pipeline::Options {
+        rh_sim::mapgen::pipeline::Options {
+            decor: false,
+            signature: self.signature,
+            ..rh_sim::mapgen::pipeline::Options::default()
+        }
+    }
+}
+
 impl MapMaker for StyledMaker {
     fn make(&self, seed: u32) -> Result<Option<Arena>, String> {
         use rh_sim::mapgen::{coliseum, map_hash, pipeline};
         let fixed = coliseum::fixed_layout();
         let generator = pipeline::Pipeline::new(&fixed);
-        let options = pipeline::Options {
-            decor: false,
-            ..pipeline::Options::default()
-        };
+        let options = self.options();
         let Some(mut map) = generator
             .certified_styled(i64::from(seed), options)
             .map_err(|e| format!("{e:?}"))?

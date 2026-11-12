@@ -30,6 +30,9 @@ fn kind(k: FeatureKind) -> &'static str {
         FeatureKind::Hall => "hall",
         FeatureKind::Infill => "infill",
         FeatureKind::Bush => "bush",
+        FeatureKind::BogTree => "bogTree",
+        FeatureKind::Church => "church",
+        FeatureKind::Graveyard => "graveyard",
     }
 }
 fn job(j: FeatureJob) -> &'static str {
@@ -250,7 +253,7 @@ fn feature_detail(m: &GameMapData, failure: &Failure, strict: &[u8]) -> Option<S
             }
         }
         "feature-kind-tiles" => {
-            let def = rules::KINDS.iter().find(|r| r.kind == f.kind).unwrap();
+            let def = rules::kind(f.kind);
             if key.starts_with('t') {
                 let i = *owned_strict
                     .iter()

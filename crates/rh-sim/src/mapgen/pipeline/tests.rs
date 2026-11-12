@@ -207,7 +207,8 @@ fn actual_phase_streams_options_null_and_retry_wrappers() {
             Options {
                 decor: index == 6,
                 shape_gates: index != 7,
-                bushes: index != 8
+                bushes: index != 8,
+                signature: false,
             }
         );
         if case.map.is_some() {

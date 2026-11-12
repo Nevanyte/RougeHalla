@@ -397,6 +397,8 @@ fn every_dto_field_requires_an_explicit_hashing_decision() {
         ground_spots: _,
         features: _,
         feature_grid: _,
+        // Not hashed: the anchors restate the signature features (kind, bbox), which the hash already covers.
+        anchors: _,
     } = &map;
     let CampDef {
         id: _,
