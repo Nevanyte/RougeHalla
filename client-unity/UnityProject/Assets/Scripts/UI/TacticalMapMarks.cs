@@ -397,7 +397,9 @@ namespace Roguehalla.Client
             DrawBadges(vh, ink, s);
             for (int i = 1; i < _route.Count; i++) LineAA(vh, At(_route[i - 1]), At(_route[i]), 2f, Alpha(theme.Accent, .8f));
             foreach (var point in _route) Marker(vh, At(point), 7f, MapGlyph.Disc, theme.Accent, ink);
-            foreach (var row in _chestRows)
+            // The box is drawn only with a map, as its label is (RefreshChestTexts). Chest seconds are not dropped under a
+            // contact dot, unlike camp clocks: legacy draws chest blips above the dots (minimapMarkers.ts:60-65).
+            if (_map != null) foreach (var row in _chestRows)
                 GlyphXY(vh, ChestTextAt(At(new Vector2((float)row.WorldX, (float)row.WorldY))), (row.Text.Length * 6f + 8f) * s, 12f * s, MapGlyph.Square, Alpha(ink, .85f)); // badge box
             foreach (var point in _chests) Marker(vh, At(point), 11f * s, MapGlyph.Plus, theme.Accent, ink);
             foreach (var point in _delivered)
