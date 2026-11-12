@@ -183,7 +183,7 @@ namespace Roguehalla.Client
                     System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2); System.Array.Resize(ref _mergeScratch, n * 2);
                 }
                 var at = art.Ind.NameWorldPosition;
-                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Always = f.M.Engaged || f.Locked };
+                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Always = f.M.Engaged || f.Locked || f.Hovered };
                 _mergeIds[n] = pair.Key; n++;
             }
             if (n < 2) return;
