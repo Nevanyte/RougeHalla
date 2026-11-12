@@ -3,5 +3,6 @@ pub mod recipe_support;
 pub mod recipes;
 pub mod runtime;
 pub mod search;
+pub mod signature;
 pub mod stage;
 pub mod templates;

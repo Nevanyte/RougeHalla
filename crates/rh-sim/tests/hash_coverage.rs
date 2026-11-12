@@ -2553,3 +2553,146 @@ fn native29_produced_hints_and_all_three_config_tags_roundtrip() {
         "None, explicit false and explicit true are separate identities"
     );
 }
+
+/// P-REGEN-COMBAT-1-fix: the two config switches whose default folds nothing into the statics digest. A sim built under
+/// the defaults, stepped once; the tests below change only its statics config and hold every World byte fixed.
+fn spacing_regen_base() -> Value {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            regen: true,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(75),
+        &[Placement {
+            profile: "hash-spacing-regen".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    serde_json::to_value(&sim).unwrap()
+}
+
+/// The same checkpoint restored under `mob_spacing = spacing, regen_in_combat = regen` (through their own serde
+/// encoding, whatever it is). Only the statics config changes, so a different state hash is a different statics digest.
+fn with_spacing_regen(
+    base: &Value,
+    spacing: rh_sim::archetype::MobSpacing,
+    regen: rh_sim::RegenInCombat,
+) -> Sim {
+    let mut cp = base.clone();
+    cp["statics"]["config"]["mob_spacing"] = serde_json::to_value(spacing).unwrap();
+    cp["statics"]["config"]["regen_in_combat"] = serde_json::to_value(regen).unwrap();
+    let sim = Sim::restore(cp).unwrap();
+    assert_eq!(serde_json::to_value(&sim).unwrap()["world"], base["world"]);
+    sim
+}
+
+#[test]
+fn mob_spacing_and_regen_in_combat_are_four_separate_statics_identities() {
+    use rh_sim::archetype::MobSpacing;
+    use rh_sim::RegenInCombat;
+    let base = spacing_regen_base();
+    let mut seen: BTreeMap<u64, String> = BTreeMap::new();
+    for spacing in [MobSpacing::Auto, MobSpacing::Off] {
+        for regen in [RegenInCombat::Legacy, RegenInCombat::Off] {
+            let name = format!("mob_spacing = {spacing:?}, regen_in_combat = {regen:?}");
+            let h = with_spacing_regen(&base, spacing, regen).state_hash();
+            if let Some(other) = seen.insert(h, name.clone()) {
+                panic!("`{other}` and `{name}` share the statics digest (state hash {h:#018x})");
+            }
+        }
+    }
+    assert_eq!(seen.len(), 4);
+}
+
+#[test]
+fn a_regen_off_replay_does_not_verify_under_spacing_off() {
+    use rh_sim::replay::{run_replay, Recorder, ReplayError, ReplayStart};
+    let live = SimConfig {
+        regen: true,
+        regen_in_combat: rh_sim::RegenInCombat::Off,
+        ..Default::default()
+    };
+    let placements = vec![Placement {
+        profile: "hash-regen-replay".into(),
+        faction: FactionId::Holy,
+        bot: false,
+        at: Vec2::new(400., 320.),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    }];
+    let mut sim = Sim::reset_active(
+        live.clone(),
+        practice_arena(),
+        Secrets::from_seed(76),
+        &placements,
+    );
+    let mut rec = Recorder::new(
+        &sim,
+        live.clone(),
+        ReplayStart::Active {
+            placements: placements.clone(),
+        },
+    );
+    for _ in 0..20 {
+        sim.step();
+        rec.stepped(&sim);
+    }
+    let replay = rec.replay;
+    run_replay(&replay).expect("the replay verifies under its own config");
+
+    // The other rule set: spacing off, legacy regen. Its replay identity must not accept the live run's hashes.
+    let mut other = replay.clone();
+    other.config = SimConfig {
+        regen: true,
+        mob_spacing: rh_sim::archetype::MobSpacing::Off,
+        regen_in_combat: rh_sim::RegenInCombat::Legacy,
+        ..Default::default()
+    };
+    match run_replay(&other) {
+        Err(ReplayError::Diverged { step: 0, .. }) => {}
+        r => panic!(
+            "a replay recorded under regen_in_combat = Off must diverge at step 0 under mob_spacing = Off, \
+             regen_in_combat = Legacy; got {:?}",
+            r.map(|(s, _)| s.state_hash())
+        ),
+    }
+
+    // The same for a checkpoint: the live run restored under the other config is a different state.
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    cp["statics"]["config"] = serde_json::to_value(&other.config).unwrap();
+    assert_ne!(
+        Sim::restore(cp).unwrap().state_hash(),
+        sim.state_hash(),
+        "a regen_in_combat = Off checkpoint passes for mob_spacing = Off, regen_in_combat = Legacy"
+    );
+}
+
+#[test]
+fn the_default_spacing_and_regen_still_fold_nothing() {
+    // Guard (passes before and after the fix): `Auto` + `Legacy` hash exactly like a config written before either
+    // field existed, so every pre-existing state hash, checkpoint, replay and parity fixture keeps its value.
+    let base = spacing_regen_base();
+    let h = Sim::restore(base.clone()).unwrap().state_hash();
+    let mut old = base.clone();
+    let config = old["statics"]["config"].as_object_mut().unwrap();
+    config.remove("mob_spacing");
+    config.remove("regen_in_combat");
+    assert_eq!(Sim::restore(old).unwrap().state_hash(), h);
+    assert_eq!(
+        with_spacing_regen(
+            &base,
+            rh_sim::archetype::MobSpacing::Auto,
+            rh_sim::RegenInCombat::Legacy
+        )
+        .state_hash(),
+        h
+    );
+}

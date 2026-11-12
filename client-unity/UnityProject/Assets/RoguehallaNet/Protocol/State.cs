@@ -94,7 +94,61 @@ namespace Roguehalla.Net.Protocol
         /// <summary>Height above the ground position in whole sim units (protocol 16, ADR0024): the shooter's chest at launch.</summary>
         public byte Height;
     }
-    public struct WireCamp { public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt; }
+    public struct WireCamp
+    {
+        public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt;
+        /// <summary>P-WIRE17-HUD-1: the per-kill reward (public content), or null.</summary>
+        public WireCampReward? Reward;
+        /// <summary>P-WIRE17-HUD-1: the camp ward as a verdict for this viewer (never an owner id), or null.</summary>
+        public WireWard? Ward;
+    }
+
+    /// <summary>HUD fixed point (P-WIRE17-HUD-1): every HUD number on the wire is an integer count of 1e-4. Stat codes:
+    /// 0 Offense, 1 Soul Offense, 2 Damage, 3 Attack speed, 4 Life steal, 5 Health, 6 Defense, 7 Soul Defense, 8 Move speed.</summary>
+    public static class Hud
+    {
+        public const double Quantum = 1e-4;
+        public const byte StatCount = 9;
+        public const int MaxSummaryMobRows = 20;
+        /// <summary>P-WIRE17-HUD-2: champion panel codes (0..22, append only) and the most a summary carries.</summary>
+        public const byte PanelCodeCount = 23;
+        public const int MaxPanelValues = 23;
+    }
+
+    /// <summary>P-WIRE17-HUD-2: one champion panel number: its code and its value in <see cref="Hud.Quantum"/> units.</summary>
+    public struct WirePanelValue
+    {
+        public byte Code; public int Value;
+        public double Scaled => Value * Hud.Quantum;
+    }
+
+    /// <summary>A camp's per-kill reward: HUD stat code and amount in <see cref="Hud.Quantum"/> units (greater than 0).</summary>
+    public struct WireCampReward
+    {
+        public byte Stat; public ushort Amount;
+        public double Value => Amount * Hud.Quantum;
+    }
+
+    /// <summary>A live camp ward as this viewer sees it: yours or another player's, and its expiry (server ms).</summary>
+    public struct WireWard { public bool Yours; public double ExpiresAt; }
+
+    /// <summary>One "Mob bonuses" row of the owner's build summary (State key 13).</summary>
+    public struct WireMobBonusRow
+    {
+        public byte MobType, Stat; public uint Stacks; public int Total;
+        public double TotalValue => Total * Hud.Quantum;
+    }
+
+    /// <summary>State key 13: the owner's GAINED strip; Gains in stat-code order, Hud.Quantum units.</summary>
+    public sealed class WireBuildSummary
+    {
+        public int[] Gains = new int[9];
+        public WireMobBonusRow[] MobRows = Array.Empty<WireMobBonusRow>();
+        /// <summary>P-WIRE17-HUD-2: champion panel values (codes 0..22, strictly ascending, at most 23), appended after the
+        /// mob rows. Unity formats them; it never recomputes them (R-AUTH).</summary>
+        public WirePanelValue[] Panel = Array.Empty<WirePanelValue>();
+        public double Gain(int stat) => Gains[stat] * Hud.Quantum;
+    }
     public struct WireBuild { public byte[] Cards, Boosts; }
     /// <summary>One resolved planning option: where it is, which zone and how long the walk takes.</summary>
     public struct WirePlanOption { public uint Index; public ushort X, Y; public byte Zone; public float? WalkSeconds; }
@@ -160,7 +214,7 @@ namespace Roguehalla.Net.Protocol
         public WireMerchant[] Merchants = Array.Empty<WireMerchant>();
         public string[] BarterLabels = new[] { "", "", "" };
     }
-    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11, Roster = 12 }
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11, Roster = 12, BuildSummary = 13 }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
@@ -168,7 +222,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Roster;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.BuildSummary;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static bool QuestFlag(ref Reader r, string field)
@@ -471,7 +525,7 @@ namespace Roguehalla.Net.Protocol
                         item=projectiles;break;
                     case 6:
                         var camps = new CampsState { Rows = new WireCamp[Count(ref r, MaxRows)] };
-                        for(int j=0;j<camps.Rows.Length;j++) camps.Rows[j]=new WireCamp {MobType=r.U8(),Elite=r.U8(),Alive=r.Varint(),State=r.U8(),ClearedAt=r.F64(),RespawnAt=r.F64()};
+                        for(int j=0;j<camps.Rows.Length;j++) camps.Rows[j]=CampsState.ReadRow(ref r);
                         item=camps; break;
                     case 5:
                         var build = new BuildState();
@@ -523,6 +577,8 @@ namespace Roguehalla.Net.Protocol
                         item = trade; break;
                     case 12:
                         item = RosterState.Read(ref r); break;
+                    case 13:
+                        item = BuildSummaryState.Read(ref r); break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
@@ -682,12 +738,32 @@ namespace Roguehalla.Net.Protocol
         internal override void Check()
         {
             Require(Rows != null && Rows.Length <= MaxRows,"camps");
-            foreach(var c in Rows) Require(c.MobType<30 && c.Elite<=30 && c.Alive<=512 && c.State<=2 && Finite(c.ClearedAt) && c.ClearedAt>=0 && Finite(c.RespawnAt) && c.RespawnAt>=c.ClearedAt,"camp");
+            foreach(var c in Rows) Require(c.MobType<30 && c.Elite<=30 && c.Alive<=512 && c.State<=2 && Finite(c.ClearedAt) && c.ClearedAt>=0 && Finite(c.RespawnAt) && c.RespawnAt>=c.ClearedAt
+                && (!c.Reward.HasValue || (c.Reward.Value.Stat < Hud.StatCount && c.Reward.Value.Amount > 0))
+                && (!c.Ward.HasValue || (Finite(c.Ward.Value.ExpiresAt) && c.Ward.Value.ExpiresAt >= 0)),"camp");
         }
         internal override void Write(Writer w)
         {
             w.Varint((uint)Rows.Length);
-            foreach(var c in Rows) { w.U8(c.MobType);w.U8(c.Elite);w.Varint(c.Alive);w.U8(c.State);w.F64(c.ClearedAt);w.F64(c.RespawnAt); }
+            foreach(var c in Rows)
+            {
+                w.U8(c.MobType);w.U8(c.Elite);w.Varint(c.Alive);w.U8(c.State);w.F64(c.ClearedAt);w.F64(c.RespawnAt);
+                if (c.Reward.HasValue) { w.U8((byte)(1 + c.Reward.Value.Stat)); w.U16(c.Reward.Value.Amount); } else w.U8(0);
+                if (c.Ward.HasValue) { w.U8(c.Ward.Value.Yours ? (byte)1 : (byte)2); w.F64(c.Ward.Value.ExpiresAt); } else w.U8(0);
+            }
+        }
+        /// <summary>One row: the pre-HUD head, then reward u8 (0 none / 1 + stat code) [+ amount u16], then ward u8
+        /// (0 none / 1 yours / 2 another player's) [+ expiry f64].</summary>
+        internal static WireCamp ReadRow(ref Reader r)
+        {
+            var c = new WireCamp { MobType = r.U8(), Elite = r.U8(), Alive = r.Varint(), State = r.U8(), ClearedAt = r.F64(), RespawnAt = r.F64() };
+            byte reward = r.U8();
+            if (reward > Hud.StatCount) throw new DecodeException(DecodeError.BadField, "camp reward");
+            if (reward != 0) c.Reward = new WireCampReward { Stat = (byte)(reward - 1), Amount = r.U16() };
+            byte ward = r.U8();
+            if (ward > 2) throw new DecodeException(DecodeError.BadField, "camp ward");
+            if (ward != 0) c.Ward = new WireWard { Yours = ward == 1, ExpiresAt = r.F64() };
+            return c;
         }
     }
 
@@ -871,6 +947,80 @@ namespace Roguehalla.Net.Protocol
                 rows[i] = new WireRosterRow { Id = id, Bot = flags == 1, Name = name };
             }
             return new RosterState { Rows = rows };
+        }
+    }
+
+    /// <summary>
+    /// Key 13 (P-WIRE17-HUD-1): the owning seat's build summary, never another seat's; Value null when unseated. Wire:
+    /// present u8 (0/1); when 1: 9 x i32 gains, count u8 (at most 20), rows of mob u8 (below 30, strictly ascending),
+    /// stat u8 (below 9), stacks varint (at least 1), total i32; then (P-WIRE17-HUD-2) the champion panel: count u8 (at
+    /// most 23, refused before the rows), rows of code u8 (below 23, strictly ascending) and value i32.
+    /// </summary>
+    public sealed class BuildSummaryState : StateItem
+    {
+        public override uint Key { get { return 13; } }
+        public WireBuildSummary Value;
+
+        static string Fault(WireBuildSummary v)
+        {
+            if (v.Gains == null || v.Gains.Length != 9 || v.MobRows == null || v.Panel == null) return "build summary";
+            int previous = -1;
+            foreach (var row in v.MobRows)
+            {
+                if (row.MobType >= 30) return "summary mob code";
+                if (row.MobType <= previous) return "summary mob order";
+                previous = row.MobType;
+                if (row.Stat >= Hud.StatCount) return "summary stat code";
+                if (row.Stacks == 0) return "summary stacks";
+            }
+            previous = -1;
+            foreach (var row in v.Panel)
+            {
+                if (row.Code >= Hud.PanelCodeCount) return "summary panel code";
+                if (row.Code <= previous) return "summary panel order";
+                previous = row.Code;
+            }
+            return null;
+        }
+
+        internal override void Check()
+        {
+            if (Value == null) return;
+            Require(Value.MobRows == null || Value.MobRows.Length <= Hud.MaxSummaryMobRows, "summary mob rows");
+            Require(Value.Panel == null || Value.Panel.Length <= Hud.MaxPanelValues, "summary panel values");
+            string fault = Fault(Value);
+            Require(fault == null, fault);
+        }
+
+        internal override void Write(Writer w)
+        {
+            w.U8(Value != null ? (byte)1 : (byte)0);
+            if (Value == null) return;
+            foreach (int g in Value.Gains) w.U32(unchecked((uint)g));
+            w.U8((byte)Value.MobRows.Length);
+            foreach (var row in Value.MobRows) { w.U8(row.MobType); w.U8(row.Stat); w.Varint(row.Stacks); w.U32(unchecked((uint)row.Total)); }
+            w.U8((byte)Value.Panel.Length);
+            foreach (var row in Value.Panel) { w.U8(row.Code); w.U32(unchecked((uint)row.Value)); }
+        }
+
+        internal static BuildSummaryState Read(ref Reader r)
+        {
+            if (!r.Flag()) return new BuildSummaryState();
+            var v = new WireBuildSummary();
+            for (int i = 0; i < 9; i++) v.Gains[i] = unchecked((int)r.U32());
+            int n = r.U8();
+            if (n > Hud.MaxSummaryMobRows) throw new DecodeException(DecodeError.TooMany, n.ToString());
+            v.MobRows = n == 0 ? Array.Empty<WireMobBonusRow>() : new WireMobBonusRow[n];
+            for (int i = 0; i < n; i++)
+                v.MobRows[i] = new WireMobBonusRow { MobType = r.U8(), Stat = r.U8(), Stacks = r.Varint(), Total = unchecked((int)r.U32()) };
+            int m = r.U8();
+            if (m > Hud.MaxPanelValues) throw new DecodeException(DecodeError.TooMany, m.ToString());
+            v.Panel = m == 0 ? Array.Empty<WirePanelValue>() : new WirePanelValue[m];
+            for (int i = 0; i < m; i++)
+                v.Panel[i] = new WirePanelValue { Code = r.U8(), Value = unchecked((int)r.U32()) };
+            string fault = Fault(v);
+            if (fault != null) throw new DecodeException(DecodeError.BadField, fault);
+            return new BuildSummaryState { Value = v };
         }
     }
 

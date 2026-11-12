@@ -23,7 +23,7 @@ namespace Roguehalla.Client
         HudViewport _viewport;
         // Plate.
         RectTransform _plateBody, _healthRow, _buildBox, _extrasBody;
-        TMP_Text _plateStatus, _hpValue, _extrasLabel, _cardsText, _mobText, _damageGainText;
+        TMP_Text _plateStatus, _hpValue, _extrasLabel, _cardsText, _mobText;
         UnityEngine.UI.Image _hpTrough;
         UnityEngine.UI.Button _extrasToggle;
         readonly RectTransform[] _buildCells = new RectTransform[9];
@@ -43,7 +43,8 @@ namespace Roguehalla.Client
         RectTransform _championHud;
         TMP_Text _championName;
         UnityEngine.UI.Image _championIcon;
-        readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3];
+        readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3], _championLabel = new TMP_Text[3];
+        readonly RectTransform[] _championRow = new RectTransform[3];
         bool _championWanted, _barWanted;
         // Death line, glows, chrome, top-centre and toast pills.
         TMP_Text _deathLine;
@@ -128,7 +129,7 @@ namespace Roguehalla.Client
         static readonly string[] CellNames = { "Offense", "SO", "Damage gained", "Attack speed", "Life steal", "Health gained", "Defense", "Soul Defense", "Move speed" };
         static readonly int[] CellBoost = { 0, 1, -1, 5, 7, 4, 2, 3, 6 };
         static readonly MythicGlyph[] CellGlyph = { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Axe, MythicGlyph.Bow, MythicGlyph.Potion, MythicGlyph.Health, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Speed };
-        const float BuildCellWidth = 109f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 115f, BuildTop = 15f;
+        const float BuildCellWidth = 111f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 113f, BuildTop = 15f;
 
         void CreatePlate()
         {
@@ -184,15 +185,26 @@ namespace Roguehalla.Client
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
                 icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
-                name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = theme.SizeTiny;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 26, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                if (boost >= 0) _buildCounts[boost] = value; else _damageGainText = value;
+                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                // The run-time text-scale re-apply (MatchHud.ApplyTextScale) would overwrite these sizes, so these labels leave it: they keep
+                // an auto-size range with a floor, no ellipsis, and a box that holds the widest text at the floor with room to spare.
+                KeepFit(name, 7f, 8f);
+                name.overflowMode = TextOverflowModes.Overflow;
+                var value = HudUi.Label(HudUi.At(cell, "Value", 79, 0, 30, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                KeepFit(value, 6f, 10f); value.overflowMode = TextOverflowModes.Overflow;
+                _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
                 HudUi.ApplyColors(select, Color.white);
-                HudIconHint.Attach(select, _root, CellNames[i] + " · build boost stacks\nOpen B for the full build ledger.");
+                HudIconHint.Attach(select, _root, CellNames[i] + " · gained from boosts, cards and farmed mobs\nOpen B for the full build ledger.");
             }
+        }
+
+        /// <summary>Auto-size between a floor and a ceiling and drop the label out of the run-time text-scale re-apply, so the fit survives it.</summary>
+        static void KeepFit(TMP_Text label, float floor, float ceiling)
+        {
+            var scale = label.GetComponent<MythicTextScale>(); if (scale != null) UnityEngine.Object.DestroyImmediate(scale);
+            label.enableAutoSizing = true; label.fontSizeMin = floor; label.fontSizeMax = ceiling; label.fontSize = ceiling;
         }
 
         void CreateExtras(UiTheme theme)
@@ -207,6 +219,7 @@ namespace Roguehalla.Client
             _extrasBody = HudUi.At(_plateBody, "ExtrasBody", 0, y + 16, PlateInner, 62);
             _cardsText = HudUi.Label(HudUi.At(_extrasBody, "Cards", 0, 0, PlateInner, 40), "Label", "Cards: none", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.TopLeft, wrap: true);
             _mobText = HudUi.Label(HudUi.At(_extrasBody, "MobBonuses", 0, 42, PlateInner, 18), "Label", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, wrap: true);
+            _mobText.gameObject.SetActive(false); // hidden until a summary arrives
             _extrasBody.gameObject.SetActive(false);
         }
 
@@ -217,8 +230,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++)
                 if (view.Cards[i] > 0) cards.Append(cards.Length > 0 ? " · " : "").Append(CardDisplayCatalog.Title((byte)i)).Append(" ×").Append(view.Cards[i]);
             Set(_cardsText, cards.Length > 0 ? "Cards: " + cards : view.HasBuild ? "Cards: none" : "Cards: awaiting server");
-            // No mob-bonus table is delivered, so the row is left out rather than shown as a placeholder.
-            if (_mobText != null && _mobText.gameObject.activeSelf) _mobText.gameObject.SetActive(false);
+            // The mob-bonus row is drawn from the build summary in ApplyBuildSummary.
         }
 
         void ToggleExtras()
@@ -233,7 +245,7 @@ namespace Roguehalla.Client
         {
             _plateActive = active;
             if (_healthRow == null) return;
-            _healthRow.gameObject.SetActive(active); _buildBox.gameObject.SetActive(active); _extrasToggle.gameObject.SetActive(active);
+            _healthRow.gameObject.SetActive(active); _buildBox.gameObject.SetActive(active && _gainsShown); _extrasToggle.gameObject.SetActive(active);
             _extrasBody.gameObject.SetActive(active && _extrasOpen);
             _plateStatus.gameObject.SetActive(!active); _vitals.gameObject.SetActive(!active); _combatStats.gameObject.SetActive(!active);
             float height = active ? 5 + 18 + BuildTop + 5 * BuildRowStep + 3 + 14 + (_extrasOpen ? 66 : 0) + 8 : 5 + 48 + 6;
@@ -258,8 +270,11 @@ namespace Roguehalla.Client
                 row.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 var rule = HudUi.Box(row, "Rule", HudAnchor.TopLeft, 0, 0, 2, 30);
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
-                HudUi.Label(HudUi.At(row, "Name", 6, 2, 100, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
-                _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 108, 1, 124, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
+                _championRow[i] = row;
+                _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 72, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
+                KeepFit(_championLabel[i], 8f, theme.SizeTiny); _championLabel[i].overflowMode = TextOverflowModes.Overflow;
+                _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 80, 1, 152, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
+                KeepFit(_championValue[i], 10f, 12f);
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
             }
             _damageHit = _championValue[0]; _damageRate = _championScaling[0];
@@ -269,7 +284,7 @@ namespace Roguehalla.Client
             _damageHint = HudIconHint.Attach(focus, _root, DamageUnavailable);
         }
 
-        const string DamageUnavailable = "Combat overview\nAttack speed, windup and move speed as the server applies them.\nRaw values are before target mitigation; this is not measured DPS.";
+        const string DamageUnavailable = "Combat overview\nRaw values are before target mitigation; this is not measured DPS.";
 
         // ------------------------------------------------------------------ weapon bar (section 4)
 
@@ -439,7 +454,7 @@ namespace Roguehalla.Client
             bool active = alive && _session != null && _session.Phase == MatchPhase.Active && !practice;
             if (active != _plateActive) SetPlateMode(active);
             _barWanted = alive;
-            _championWanted = alive && _session != null && (_session.Phase == MatchPhase.Active || practice);
+            _championWanted = _session != null && Roguehalla.Net.Ui.ChampionPanelText.Visible(alive, _session.Phase == MatchPhase.Active, practice);
             if (_deathLine != null)
             {
                 bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && !_results.gameObject.activeSelf && !practice;

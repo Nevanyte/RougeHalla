@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
@@ -143,7 +144,7 @@ namespace Roguehalla.Client
         public void Bind(Session session)
         {
             CloseResumeChooser();
-            Unbind(); _session = session;
+            Unbind(); _session = session; ResetMatchEnded();
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
             session.CollectionsChanged += Collections;
             session.TimelineReset += ResetPlayerFlowTimeline;
@@ -221,7 +222,7 @@ namespace Roguehalla.Client
 
         void OnDisable() { HudIconHint.CloseAll(); CloseResumeChooser(); UnbindTrainingSession(); }
         void OnDestroy() { Unbind(); if (_trainingConsole != null) _trainingConsole.OpenStateChanged -= ConsumeTrainingUiUpdate; if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
-        void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
+        void Changed(SessionState state) { NoteSessionState(state); if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { RefreshTrainingConsole(_session, snapshot); _dirty = true; }
         void Collections(CollectionsView view) { RefreshCollections(view); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Events(ServerMsg.Events events)
@@ -232,6 +233,7 @@ namespace Roguehalla.Client
                 if (_playerFlowEpoch != _session.TimelineEpoch) ResetPlayerFlowTimeline();
                 _orderedNotices?.Append(events);
             }
+            if (_session != null) NoteMatchEnded(events);
             _dirty = true;
         }
         void LateUpdate()
@@ -327,9 +329,16 @@ namespace Roguehalla.Client
             if (!wishChanged && me.Wish.HasValue && _lastWish.HasValue) wishChanged = !WishEquals(me.Wish.Value, _lastWish.Value);
             if (wishChanged || serverTimeMs != _lastServerTime)
             {
-                Set(_wishCard, FormatWishCard(me.Wish, serverTimeMs));
-                Set(_wishSummary, WishIconText(me.Wish, serverTimeMs));
-                if (_wishHint != null) _wishHint.Text = FormatWishCard(me.Wish, serverTimeMs);
+                // Rebuild the texts only when a value they show changed (stock, ability, or a timer's shown whole second).
+                var key = WishTextKey.Of(me.Wish, serverTimeMs);
+                if (!_wishKeyValid || !key.Equals(_wishKey))
+                {
+                    _wishKey = key; _wishKeyValid = true;
+                    _wishCardText = FormatWishCard(me.Wish, serverTimeMs);
+                    Set(_wishCard, _wishCardText);
+                    Set(_wishSummary, WishIconText(me.Wish, serverTimeMs));
+                    if (_wishHint != null) _wishHint.Text = _wishCardText;
+                }
                 _lastWish = me.Wish; _lastServerTime = serverTimeMs;
             }
             RefreshLegacyHud(me, serverTimeMs);
@@ -337,6 +346,7 @@ namespace Roguehalla.Client
 
         internal void ClearOwnerPresentation(string reason)
         {
+            _wishKeyValid = false;
             _lastHp = float.NaN; _lastBarrier = 0f; _lastBarrierRing = 0; _lastWish = null; _lastServerTime = double.NaN;
             Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
             Set(_combatStats, "Awaiting player stats");
@@ -354,23 +364,44 @@ namespace Roguehalla.Client
             if (!wish.HasValue) return "R · WISH\nNone delivered";
             var w = wish.Value;
             var text = new StringBuilder("R · ").Append(w.Ability).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
-            text.Append(" charges\nWish timer: ").Append(FormatSeconds(w.ReadyAt - serverTimeMs));
-            text.Append("\nRecharge ").Append(FormatSeconds(w.RechargeMs));
-            if (w.NextChargeAt.HasValue) text.Append("\nNext charge in ").Append(FormatSeconds(w.NextChargeAt.Value - serverTimeMs));
-            if (w.FullAt.HasValue) text.Append("\nFull charges in ").Append(FormatSeconds(w.FullAt.Value - serverTimeMs));
+            // P-UNITY-HUD-STATUS-1: legacy abilitySlot.ts texts ("Ready in 9", "2:05"); a line whose time has run out reads nothing.
+            var readyIn = SlotText.ReadyIn(w.ReadyAt - serverTimeMs);
+            text.Append(" charges\n").Append(readyIn.Length > 0 ? readyIn : "Ready");
+            var recharge = SlotText.Cooldown(w.RechargeMs);
+            if (recharge.Length > 0) text.Append("\nRecharge ").Append(recharge);
+            if (w.NextChargeAt.HasValue) { var next = SlotText.Cooldown(w.NextChargeAt.Value - serverTimeMs); if (next.Length > 0) text.Append("\nNext charge in ").Append(next); }
+            if (w.FullAt.HasValue) { var full = SlotText.Cooldown(w.FullAt.Value - serverTimeMs); if (full.Length > 0) text.Append("\nFull charges in ").Append(full); }
             if (w.Cast.HasValue)
             {
                 var cast = w.Cast.Value;
-                text.Append("\nCasting ").Append(cast.Ability).Append(" · ").Append(FormatSeconds(cast.LandsAt - serverTimeMs));
+                var landsIn = SlotText.Cooldown(cast.LandsAt - serverTimeMs);
+                text.Append("\nCasting ").Append(cast.Ability);
+                if (landsIn.Length > 0) text.Append(" · ").Append(landsIn);
             }
             return text.ToString();
         }
 
-        static string FormatSeconds(double remainingMs)
+        struct WishTextKey
         {
-            double seconds = Math.Max(0d, Math.Ceiling(remainingMs / 100d) / 10d);
-            return seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s";
+            public bool Has, HasCast; public AbilityId Ability, CastAbility; public int Charges, MaxCharges, Recharge, Ready, Next, Full, Lands;
+            static int Sec(double ms) { return ms > 0d ? (int)Math.Ceiling(ms / 1000d) : 0; }
+            public static WishTextKey Of(WishView? wish, double now)
+            {
+                var k = new WishTextKey();
+                if (!wish.HasValue) return k;
+                var w = wish.Value; k.Has = true; k.Ability = w.Ability; k.Charges = w.Charges; k.MaxCharges = w.MaxCharges;
+                k.Recharge = Sec(w.RechargeMs); k.Ready = Sec(w.ReadyAt - now);
+                k.Next = w.NextChargeAt.HasValue ? Sec(w.NextChargeAt.Value - now) : -1; k.Full = w.FullAt.HasValue ? Sec(w.FullAt.Value - now) : -1;
+                if (w.Cast.HasValue) { k.HasCast = true; k.CastAbility = w.Cast.Value.Ability; k.Lands = Sec(w.Cast.Value.LandsAt - now); }
+                return k;
+            }
+            public bool Equals(WishTextKey o)
+            {
+                return Has == o.Has && HasCast == o.HasCast && Ability == o.Ability && CastAbility == o.CastAbility && Charges == o.Charges && MaxCharges == o.MaxCharges
+                    && Recharge == o.Recharge && Ready == o.Ready && Next == o.Next && Full == o.Full && Lands == o.Lands;
+            }
         }
+        WishTextKey _wishKey; bool _wishKeyValid; string _wishCardText;
 
         static bool WishEquals(WishView a, WishView b)
         {

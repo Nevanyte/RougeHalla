@@ -1344,6 +1344,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rh-mapdress"
+version = "0.1.0"
+dependencies = [
+ "rh-sim",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rh-parity"
 version = "0.1.0"
 dependencies = [
@@ -1400,6 +1409,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "http-body-util",
+ "hyper-util",
  "rcgen",
  "rh-headless",
  "rh-persist",

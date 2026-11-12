@@ -17,6 +17,9 @@ mod tests;
 #[cfg(test)]
 mod protection_cues_tests;
 
+/// Live loot seat lease (fix-bot-loot): only the parity-captured chest pick/walk leaves, for `bots::loot`.
+pub(crate) use modules::live_chests;
+
 use crate::bots::view::{field_in_view, in_view, FieldInView};
 use data::{nullable, num, object, text, MethodValue, Object};
 use input::{Actor, Compose, Event, EventKind, Frame, MethodId, Owner, Percept};

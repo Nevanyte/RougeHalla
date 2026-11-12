@@ -2,6 +2,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Roguehalla.Client;
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using Roguehalla.Net.Protocol;
 using TMPro;
 using UnityEngine;
@@ -40,6 +41,31 @@ namespace Roguehalla.Client.Tests
         public void TearDown() { Object.DestroyImmediate(_root); }
 
         [Test]
+        public void ACoolingAbilitySlotShowsTheLegacyReadyInText()
+        {
+            var me = new SelfView { Hp = 60, MaxHp = 100, Status = ActorStatus.Alive };
+            me.Wish = new WishView { Ability = AbilityId.Blaze, Charges = 0, MaxCharges = 2, ReadyAt = 130000, RechargeMs = 4000 };
+            Invoke("RefreshOwnerPresentation", me, 5000d);
+            StringAssert.Contains(SlotText.ReadyIn(125000), _wish.text);
+            StringAssert.Contains("Ready in 2:05", _wish.text);
+            Assert.That(_summary.text, Is.EqualTo("0/2 · 2:05"));
+        }
+
+        [Test]
+        public void ANewMatchOnTheSameSessionDoesNotInheritThePreviousWinner()
+        {
+            object Field(string n) => typeof(MatchHud).GetField(n, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_hud);
+            var ended = new ServerMsg.Events { Tick = 9, List = new System.Collections.Generic.List<WireEvent> { new WireEvent { Kind = EventKind.MatchEnded, Winner = 7 } } };
+            Invoke("NoteMatchEnded", ended);
+            Assert.That(Field("_matchEnded"), Is.EqualTo(true));
+            Assert.That(Field("_winnerId"), Is.EqualTo((uint?)7));
+            // The rematch reuses the Session (no Bind); entering InMatch starts a fresh match, which then ends without a MatchEnded event.
+            Invoke("NoteSessionState", SessionState.InMatch);
+            Assert.That(Field("_matchEnded"), Is.EqualTo(false));
+            Assert.That(Field("_winnerId"), Is.Null, "a run that ends with no MatchEnded shows the bare Run over, not the old winner");
+        }
+
+        [Test]
         public void OwnerFactsRenderAndClearAcrossWishAndSessionResetTransitions()
         {
             var me = new SelfView { Hp = 60, MaxHp = 100, Barrier = 25, BarrierRingStep = 5, Kills = 2, Gv = 4, Status = ActorStatus.Alive };
@@ -55,12 +81,12 @@ namespace Roguehalla.Client.Tests
             StringAssert.DoesNotContain("Kills", _vitals.text);
             StringAssert.Contains("Kills 2 · GV 4", _stats.text);
             StringAssert.Contains("Blaze", _wish.text); StringAssert.Contains("1/2", _wish.text);
-            Assert.That(_summary.text, Is.EqualTo("1/2 · 0.5s"));
-            StringAssert.Contains("Wish timer: 0.5s", _wish.text);
-            StringAssert.Contains("Recharge 4.0s", _wish.text);
-            StringAssert.Contains("Next charge in 2.0s", _wish.text);
-            StringAssert.Contains("Full charges in 7.0s", _wish.text);
-            StringAssert.Contains("Casting Blaze · 1.5s", _wish.text);
+            Assert.That(_summary.text, Is.EqualTo("1/2 · 1"));
+            StringAssert.Contains("Ready in 1", _wish.text);
+            StringAssert.Contains("Recharge 4", _wish.text);
+            StringAssert.Contains("Next charge in 2", _wish.text);
+            StringAssert.Contains("Full charges in 7", _wish.text);
+            StringAssert.Contains("Casting Blaze · 2", _wish.text);
             StringAssert.DoesNotContain("5500", _wish.text); StringAssert.DoesNotContain("7000", _wish.text);
             StringAssert.DoesNotContain("12000", _wish.text); StringAssert.DoesNotContain("4500", _wish.text);
             StringAssert.DoesNotContain("6500", _wish.text); StringAssert.DoesNotContain("Opening", _wish.text);
@@ -68,24 +94,24 @@ namespace Roguehalla.Client.Tests
             Assert.That(_barrier.anchorMin.x, Is.EqualTo(.60f).Within(.001f));
             Assert.That(_barrier.anchorMax.x, Is.EqualTo(.85f).Within(.001f));
             Invoke("RefreshOwnerPresentation", me, 5250d);
-            StringAssert.Contains("Wish timer: 0.3s", _wish.text);
-            StringAssert.Contains("Next charge in 1.8s", _wish.text);
-            StringAssert.Contains("Full charges in 6.8s", _wish.text);
-            StringAssert.Contains("Casting Blaze · 1.3s", _wish.text);
+            StringAssert.Contains("Ready in 1", _wish.text);
+            StringAssert.Contains("Next charge in 2", _wish.text);
+            StringAssert.Contains("Full charges in 7", _wish.text);
+            StringAssert.Contains("Casting Blaze · 2", _wish.text);
 
             Invoke("RefreshOwnerPresentation", me, 13000d);
-            StringAssert.Contains("Wish timer: 0.0s", _wish.text);
-            StringAssert.Contains("Next charge in 0.0s", _wish.text);
-            StringAssert.Contains("Full charges in 0.0s", _wish.text);
-            StringAssert.Contains("Casting Blaze · 0.0s", _wish.text);
+            StringAssert.Contains("Ready", _wish.text); StringAssert.DoesNotContain("Ready in", _wish.text);
+            StringAssert.DoesNotContain("Next charge in", _wish.text);
+            StringAssert.DoesNotContain("Full charges in", _wish.text);
+            StringAssert.Contains("Casting Blaze", _wish.text); StringAssert.DoesNotContain("Casting Blaze ·", _wish.text);
             StringAssert.Contains("1/2", _wish.text, "elapsed labels never predict stock");
-            Assert.That(_summary.text, Is.EqualTo("1/2 · 0.0s"), "elapsed time never predicts summary stock either");
+            Assert.That(_summary.text, Is.EqualTo("1/2"), "elapsed time never predicts summary stock either");
 
             var stock = me.Wish.Value;
             stock.Charges = 0; me.Wish = stock;
             Invoke("RefreshOwnerPresentation", me, 13010d);
             StringAssert.Contains("0/2", _wish.text);
-            Assert.That(_summary.text, Is.EqualTo("0/2 · 0.0s"));
+            Assert.That(_summary.text, Is.EqualTo("0/2"));
             stock.Charges = 2; stock.NextChargeAt = null; stock.FullAt = null; stock.Cast = null;
             me.Wish = stock;
             Invoke("RefreshOwnerPresentation", me, 13020d);
@@ -95,14 +121,14 @@ namespace Roguehalla.Client.Tests
             StringAssert.DoesNotContain("Full charges in ", _wish.text);
 
             Invoke("RefreshOwnerPresentation", me, 13030d);
-            StringAssert.Contains("Wish timer: 0.0s", _wish.text);
-            StringAssert.Contains("Recharge 4.0s", _wish.text);
+            StringAssert.DoesNotContain("Ready in", _wish.text);
+            StringAssert.Contains("Recharge 4", _wish.text);
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
             Assert.That(_stats.text, Is.EqualTo("Awaiting player stats"), "separated stats clear on owner rebind too");
             Assert.That(_summary.text, Is.EqualTo("—"), "a rebind clears the previous owner's stock immediately");
             Invoke("RefreshOwnerPresentation", me, 13030d);
-            Assert.That(_summary.text, Is.EqualTo("2/2 · 0.0s"));
+            Assert.That(_summary.text, Is.EqualTo("2/2"));
 
             me.Wish = null; me.Barrier = 0;
             Invoke("RefreshOwnerPresentation", me, 13040d);

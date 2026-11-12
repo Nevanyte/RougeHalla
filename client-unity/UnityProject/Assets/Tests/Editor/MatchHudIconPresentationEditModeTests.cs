@@ -73,6 +73,36 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void ChampionPanelDrawsTheFormattersRowsAndHidesThemBeforeTheFirstSummary()
+        {
+            var me = new SelfView { Hp = 70, MaxHp = 100, Weapon = WeaponId.Sword, Faction = FactionId.Holy, Status = ActorStatus.Alive };
+            var rows = (RectTransform[])GetField("_championRow");
+            Invoke("ApplyChampionRows", null, me);
+            Assert.That(rows[0].gameObject.activeSelf, Is.False, "no summary yet: the champion rows are hidden");
+            Assert.That(rows[1].gameObject.activeSelf, Is.False);
+
+            var summary = new WireBuildSummary
+            {
+                Panel = new[]
+                {
+                    new WirePanelValue { Code = 0, Value = 200000 }, new WirePanelValue { Code = 1, Value = 0 },
+                    new WirePanelValue { Code = 2, Value = 0 }, new WirePanelValue { Code = 3, Value = 5000 },
+                    new WirePanelValue { Code = 20, Value = 700 }, new WirePanelValue { Code = 21, Value = 0 },
+                    new WirePanelValue { Code = 22, Value = 0 },
+                },
+            };
+            Invoke("ApplyChampionRows", summary, me);
+            var expected = Roguehalla.Net.Ui.ChampionPanelText.Rows(summary, me.Faction, me.Weapon);
+            var values = (TMP_Text[])GetField("_championValue");
+            var scaling = (TMP_Text[])GetField("_championScaling");
+            Assert.That(rows[0].gameObject.activeSelf, Is.True);
+            Assert.That(values[0].text, Is.EqualTo(expected.Auto.Value).And.EqualTo("20 / hit · 0.5/s"));
+            Assert.That(values[1].text, Is.EqualTo(expected.Passive.Value).And.EqualTo("7% life steal"));
+            Assert.That(scaling[1].text, Is.EqualTo(expected.Passive.Scaling));
+            Assert.That(((HudIconHint)GetField("_damageHint")).Text, Does.Contain(expected.Auto.Detail));
+        }
+
+        [Test]
         public void WishSummaryStaysCompactWhileFullDeliveredDescriptionRemainsFocusedAndDismissible()
         {
             var details = (RectTransform)GetField("_wishDetails");
@@ -92,10 +122,10 @@ namespace Roguehalla.Client.Tests
             };
             Invoke("RefreshOwnerPresentation", me, 5000d);
 
-            Assert.That(summary.text, Is.EqualTo("1/2 · 0.5s"));
+            Assert.That(summary.text, Is.EqualTo("1/2 · 1"));
             StringAssert.Contains("Blaze", hint.Text);
-            StringAssert.Contains("Next charge in 2.0s", hint.Text);
-            StringAssert.Contains("Casting Blaze · 1.5s", hint.Text);
+            StringAssert.Contains("Next charge in 2", hint.Text);
+            StringAssert.Contains("Casting Blaze · 2", hint.Text);
             Assert.That(details.gameObject.activeSelf, Is.False);
 
             var eventData = new BaseEventData(EventSystem.current);

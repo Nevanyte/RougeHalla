@@ -16,7 +16,19 @@ namespace Roguehalla.Net
         /// <summary>Whole sim units the projectile is drawn above its ground position (protocol 16, ADR0024): the shooter's chest at launch, 0 under legacy hitboxes.</summary>
         public float Height;
     }
-    public struct CampView { public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt; }
+    public struct CampView
+    {
+        public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt;
+        /// <summary>P-WIRE17-HUD-1: the per-kill reward (stat code and quantized amount; Value scales it), or null.</summary>
+        public WireCampReward? Reward;
+        /// <summary>P-WIRE17-HUD-1: the ward verdict for this viewer; None when no live ward.</summary>
+        public WardVerdict Ward;
+        /// <summary>The ward's expiry (server ms) when Ward is not None; 0 otherwise.</summary>
+        public double WardExpiresAt;
+    }
+
+    /// <summary>A camp ward as this viewer sees it (never the owner's id).</summary>
+    public enum WardVerdict : byte { None = 0, Yours = 1, Other = 2 }
     public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
     public struct PropView
     {
@@ -286,6 +298,9 @@ namespace Roguehalla.Net
         public TradeView Trade { get; private set; }
         /// <summary>The match roster (State key 12), ascending by id; empty before the key arrives. Each key-12 frame replaces it.</summary>
         public IReadOnlyList<RosterEntry> Roster { get; private set; } = Array.Empty<RosterEntry>();
+        /// <summary>The owner's own GAINED strip (State key 13), as delivered (quantized; WireBuildSummary.Gain scales);
+        /// null when unseated or before the key arrives.</summary>
+        public WireBuildSummary Summary { get; private set; }
         const uint KnownStateMask =
             (1u << ((int)StateKey.Inventory - 1)) | (1u << ((int)StateKey.Props - 1)) |
             (1u << ((int)StateKey.Fields - 1)) | (1u << ((int)StateKey.RewardChests - 1)) |
@@ -314,7 +329,7 @@ namespace Roguehalla.Net
 
         internal void Reset()
         {
-            Plan = null; Arena = null; Quests = null; Trade = null; Roster = Array.Empty<RosterEntry>();
+            Plan = null; Arena = null; Quests = null; Trade = null; Roster = Array.Empty<RosterEntry>(); Summary = null;
             Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
@@ -324,7 +339,7 @@ namespace Roguehalla.Net
             // Decode validated the complete frame before this method can mutate the retained view.
             foreach (var item in state.Items)
             {
-                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Roster)
+                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.BuildSummary)
                     throw new ArgumentException("unknown state key");
                 if (item is TradeState trade)
                 {
@@ -407,7 +422,7 @@ namespace Roguehalla.Net
                 else if(item is CampsState camps)
                 {
                     var rows=new CampView[camps.Rows.Length];
-                    for(int i=0;i<rows.Length;i++) {var c=camps.Rows[i];rows[i]=new CampView {MobType=(MobTypeId)c.MobType,Elite=c.Elite==0?(MobTypeId?)null:(MobTypeId)(c.Elite-1),Alive=c.Alive,State=c.State,ClearedAt=c.ClearedAt,RespawnAt=c.RespawnAt};}
+                    for(int i=0;i<rows.Length;i++) {var c=camps.Rows[i];rows[i]=new CampView {MobType=(MobTypeId)c.MobType,Elite=c.Elite==0?(MobTypeId?)null:(MobTypeId)(c.Elite-1),Alive=c.Alive,State=c.State,ClearedAt=c.ClearedAt,RespawnAt=c.RespawnAt,Reward=c.Reward,Ward=c.Ward.HasValue?(c.Ward.Value.Yours?WardVerdict.Yours:WardVerdict.Other):WardVerdict.None,WardExpiresAt=c.Ward.HasValue?c.Ward.Value.ExpiresAt:0};}
                     Camps=rows;
                 }
                 else if (item is PlanState plan)
@@ -433,6 +448,10 @@ namespace Roguehalla.Net
                 else if (item is TradeState trade)
                 {
                     Trade = new TradeView(trade);
+                }
+                else if (item is BuildSummaryState summary)
+                {
+                    Summary = summary.Value;
                 }
                 else if (item is RosterState roster)
                 {

@@ -4,6 +4,245 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-12 (chat): faction home-ground benefits stay
+
+"Please keep faction region benefits. Holy also gets extra healing from heal zones." The live server therefore uses the
+legacy terrain rule, `terrain::Mode::Map`: Fire is not burned by embers, Plague is not slowed by bog, Frost does not
+slide on ice, and Holy heals more on healing ground (`TERRAIN_HOME_HEAL`). This answers the question the branch
+triage raised and replaces the reading recorded from the cloud session on 2026-11-11 ("live faction terrain
+exemptions stay as they are", taken then as `Mode::All`, which affects every faction). Change: the `source-arena`
+profile in `crates/rh-server/src/runtime.rs`, its admission test and the three harness mirrors (the remainder of
+`fix/mechanics-cons`, commits `67092a68` and `318cbd57`); made by the coordinator after the running gate. The Unity
+terrain chips already show the home-ground note under `Mode::Map` (P-UNITY-HUD-TERRAIN-1's oracle pins it).
+
+## Branch triage 2026-11-12 (owner request: "merge all backend unmerged branches and cut those that are not applicable")
+
+An Opus agent triaged the 147 local branches not merged into `feature/unity-rework`: 4 merged onto
+`integration/backend-salvage` @ `5c0f6754` (two partially), 90 cut (66 already in by content, 7 superseded, 17 not
+applicable), 53 kept. Cut and merged branches are bundled in `.agent-runs/archive/` (`cut-branches-2026-11-12.bundle`,
+`merged-branches-2026-11-12.bundle`; restore with `git fetch <bundle> <branch>:<branch>`); the per-branch ledger is
+`.agent-runs/archive/branch-ledger-2026-11-12.tsv`. 52 clean worktrees were removed. Nothing was pushed.
+
+- **Finding: `integration/launch-fixes` never reached this branch.** Its seven `fix/*` branches were gated on
+  2026-11-10 for the public beta and are not mentioned in this record; the beta ran without its server hardening.
+  A half-finished merge of it sits uncommitted in `RogueHalla-worktrees/rework-launchfix` (left alone).
+- **On the salvage branch, in `reviewer-opus` review before any merge:** `fix/server-security` (edge hardening:
+  origin allow-list, per-address limits, timeouts, dev auth refused on a public bind, a narrow `/info`),
+  `fix/server-resilience` (database retry, panic-surviving director lock, crash record, required control token, drain
+  limit), `fix/bot-loot` (fill bots pick up weapons and choose chest rewards), part of `fix/ci-launch` (CI on this
+  branch; a client-versus-server identity check), part of `fix/mechanics-cons` (a dead player's body drops its camp
+  potions). Operators: `--control` then needs a token file; a server behind `--client-ip-header` counts as public.
+- **Kept for a packet:** `fix/mechanics-sim` (bruiser camp clears, armWishes, Best Offense block hits, returned
+  on-hit, axe shred, riposte, backlash: legacy combat rules not on this branch; it moves the content hash and
+  duplicates the Holy camp lifesteal): P-MECHANICS-SALVAGE-1.
+- **Kept for the owner:** the rest of `fix/mechanics-cons` switches live terrain from `Mode::All` to `Mode::Map`
+  (faction home exemptions, as legacy), which may contradict the owner's 2026-11-11 statement that live faction
+  terrain exemptions stay as they are; seven branches that only change `packages/`; sixteen Unity branches (the Codex
+  hub, account and cosmetics UI lane and others); four worktrees with uncommitted work.
+
+## Owner direction 2026-11-12 (chat): less clutter on the maps and on mobs
+
+After the first real screenshots: no zone type icon on camps (the map's zone tint already shows it); the only mark
+above a camp is the buff it gives; no different logo on each mob; keep it information dense (buff type, a specific
+marker for elites). Packet P-UNITY-DECLUTTER-1, DEV-022. The brute rim asked for by a reviewer of
+P-UNITY-HUD-VISUAL-FIX-1 was cancelled for the same reason.
+
+## Owner approvals 2026-11-12 (chat): "Everything in your plan and all your suggestions work"; "I approve 1-10 you may change the permission json"
+
+Each approval covers exactly the scope written here (the list the coordinator put to the owner, quoted in substance).
+1. **Sub-agent allowlist** in `.claude/settings.json` (cargo, git except push, the gate and scripts, dotnet, node,
+   python3, the Unity batch command, `tools/` and `client-unity/` scripts, read-only shell). Applied. The `ask` and
+   `deny` lists are unchanged.
+2. **The CloudFormation deny rule** stays the owner's to lift (the coordinator does not edit a deny rule); deploying
+   waits on it.
+3. **Keep-awake** during runs (idle sleep only; a closed lid still sleeps).
+4. **Push `feature/unity-rework` after every green gate.**
+5. **Protected-path edits inside the packets that need them:** `hosting/` launch flags (map pool, landmarks, 15 s
+   lobby); `scripts/gate.sh` (the quick gate missed the content-registry test); `docs/REQUIREMENTS.md` and `AGENTS.md`
+   for the narrow R-ML amendment (legacy learner and an offline seeded tuner over existing Brain numbers).
+6. **DEV-013 to DEV-021 signed** by the owner today.
+7. **The bot Brain is built in this session** (P-BOT-BRAIN-LIVE-1); the cloud session's card is not to be started.
+8. **One beta host** (12 hours, about CAD 10) after the final gate, the final combined review and the browser proof.
+9. **Protocol 18** is stamped on the build that is next deployed (protocol 17 was kept across two incompatible
+   key-13 changes while no client was deployed).
+10. **A pull request to `main`** is opened when the plan is complete, for the owner's review; not merged.
+
+Also confirmed by "everything in your plan": the generation rules G1-G8; the roam charge kept at legacy resolution;
+the landmark definitions left out of the content hash; Holy's hall moved into the Landmarks phase in a later packet.
+
+**Owner request, same message:** "use an opus sub agent to merge all backend unmerged branches and cut those that are
+not applicable." An Opus agent triages the 147 local branches not merged into `feature/unity-rework`, merges the
+applicable backend ones onto `integration/backend-salvage` (the coordinator gates, reviews and merges that branch),
+and deletes the rest after bundling them to `.agent-runs/archive/` so a cut branch can be restored.
+
+## Owner direction 2026-11-12 (chat): generation order and core rules
+
+"Like discussed before generation order should be region zones -> landmark places in zones -> set order to randomness and
+thematic obstacles / decor -> around landmark. There should be core rules that tie the random generation together."
+
+- **What it changes.** The landmarks the cloud session added (P-SIGNATURE-1) are placed by `rh-server` *after* the whole
+  map is generated, on leftover floor. That is the wrong order. The landmark step moves into the generator's existing
+  Landmarks phase (`mapgen/pipeline`: Prefix -> Landmarks -> Spawns -> Styler -> ...), behind a `signature` option
+  (default off, pinned maps byte-identical); the zone stylers and `rh-mapdress` then arrange obstacles and decoration
+  in bands around the landmark (the zone's anchor).
+- **The core rules** are G1-G8 in `docs/backlog/packets/P-MAPGEN-SIGNATURE-CORE-1.md` (order; one landmark per zone by
+  a site rule; the landmark is the zone's anchor; distance bands choose obstacle and decoration families; keep-clear
+  outranks theme and the certifier judges; seeded, local randomness; clusters and edges rather than scatter; legacy
+  stays reachable). ADR 0028 is rewritten around them by that packet.
+- **Packets.** P-MAPGEN-SIGNATURE-CORE-1 (option, phase, anchor record, band helper, bog tree and church; Opus; oracle
+  being written), then P-MAPGEN-SIG-FIRE-1 (volcano, streams and pools, craters arranged round it), P-MAPGEN-SIG-FROST-1
+  (cave round the elite camp, lake at its mouth), P-MAPGEN-SIG-STYLE-1 (Plague and Sentenced obstacles in bands),
+  P-DRESS-ANCHOR-1 (decoration rings measured from the landmark, not from a legacy feature). **Superseded:**
+  P-SIGNATURE-2 (post-pass polish; its implementer was stopped, its oracle's shape checks are carried into the new
+  packets). P-SIGNATURE-1-fix stays merged (flag-gated, harmless) until the generator covers all four zones, then
+  `crates/rh-server/src/signature.rs` is deleted.
+
+## Beta follow-up integration 3 (2026-11-11 21:10 CST): HUD data, the cloud branch, three Unity HUD packets
+
+Integration branch `feature/unity-rework`, pushed head `980229ed`. Owner direction of this stretch (2026-11-11, chat):
+"Please bring the build EXACTLY up to the original spec we discussed along with UI enhancements and bug fixes": the
+whole approved plan (below, "Beta follow-up direction") is the scope; work continues packet by packet.
+
+**Merged, in order.**
+| Merge | What | Review |
+|---|---|---|
+| `e018b7fe` | P-WIRE17-HUD-1 (Opus): camp row reward, ward verdict and expiry; owner-only build summary (state key 13: nine GAINED values, mob-bonus rows) | reviewer-opus LAND WITH NOTES (negative vectors for the new fields: folded into P-WIRE17-HUD-2) |
+| `88265fb2` | Cloud session branch `origin/claude/youthful-cerf-qur7nu` @ `60117c0d`: P-REGEN-COMBAT-1, P-MAP-3, P-LEECH-GROUPING-1, P-SIGNATURE-1, full-map cost evidence, `--bot-learning single-writer` in `hosting/technical-demo/bootstrap.py`, the P-BOT-BRAIN-LIVE-1 brief | reviewer-opus per packet: LEECH LAND; REGEN, MAP-3, SIGNATURE LAND WITH NOTES (fix packets below) |
+| `980229ed` and the two before it | P-UNITY-HUD-BUILD-1 (GAINED strip, mob-bonus row), P-UNITY-HUD-CAMPS-2 (camp reward badges with stat icons, ward beacons), P-UNITY-INSPECTOR-1 (enemy inspector card) | reviewer (Sonnet): LAND / LAND WITH NOTES, notes applied before merge |
+
+**Identities now:** protocol 17, observation 25, checkpoint 31, replay 25, policy contract 19, content hash unchanged.
+
+**Gates.** `GATE PASS (full)` on the tree of `88265fb2` (+ docs), 2026-11-11 20:27 to 21:01 CST, with Postgres, parity
+report, JS, C#, Unity EditMode 610 of 610, Unity tool tests and headless smoke; run with `--coordinator
+--allow-protected --regen-fixtures` (the cloud branch's `hosting/` edit and HUD-1's regenerated `v17.json`). Then
+`GATE PASS (quick)` on the three Unity merges: C# tests, sync check, Unity EditMode 615 of 615 (no Rust changed).
+
+**Owner statements taken from the cloud session's record** (`docs/coordination/CLOUD_HANDOFF_2026-11-11.md`; the owner
+pasted that session's summary into this chat and told this coordinator to continue; flagged back to the owner in chat):
+the legacy bot learner runs on the beta's Source unit (the `hosting/` edit above; nothing deployed); the Plague marsh
+slows through bog only and water is presentation (replaces decision 6's graded slow: P-TERRAIN-MARSH-1 is dropped and
+the marsh look moves to the decoration packets); live faction terrain exemptions stay as they are.
+
+**No longer to do** (done by the cloud session, now merged): no regen in combat, the map pool, the landmark pass, the
+leech grouping fix.
+
+**Open review notes, each a packet:** P-MAP-3-fix (no generation under the director lock, capped abandoned workers, log
+the served map), P-REGEN-COMBAT-1-fix (`Off` shares the string encoding of `mob_spacing`'s `Off` in the statics digest),
+P-SIGNATURE-1-fix (graveyard walls, church door tiles, certifier check on a clean base only, ADR 0028 and a DEVIATIONS
+row). Oracles are being written.
+
+**Remaining plan, briefed** (`docs/backlog/packets/`): P-UNITY-HUD-TERRAIN-1 and P-UNITY-HUD-STATUS-1 (implemented, in
+review notes), P-UNITY-HUD-CAMPS-3 (chest seconds; in implementation), P-WIRE17-HUD-2 (champion panel values, weapon
+scaling), P-WIRE17-HUD-3 (room minimum, healing and emblem end times), P-SIGNATURE-2 (landmarks to the owner's
+wording), P-CAMP-BUFF-THEMES-1, P-FROST-WALL-1, P-DRESS-ENGINE-1. **Not yet briefed:** the Unity champion panel
+(P-UNITY-HUD-BUILD-2), Frost Wall on the wire and in Unity, the decoration bake and its Unity drawing, per-zone
+decoration rules and art, the pool on the beta host (`hosting/`, owner approval), the Brain (P-BOT-BRAIN-LIVE-1: the
+cloud session asked that it be started in one place only; not started here), learner runs and the tuner (R-ML
+amendment), the final combined review, Web build and browser proof.
+
+**Balance (decision 1).** The camp-clear bench (P-BALANCE-2) put Archetype hitboxes within single digits of
+`LegacyCircle` (inside the plan's 10% band), so no combat number was retuned; the duel matrix (P-BALANCE-1) stays
+parked under the loose-proof direction.
+
+**Not established.** None of the new Unity HUD work has been seen in a running client (EditMode checks structure and
+text only). The beta host expired 2026-11-11 07:26 CST and is not redeployed: `aws cloudformation` stack commands are
+denied by `.claude/settings.json`, which only the owner can lift.
+
+**Housekeeping.** The main checkout's `target/` (83 GiB) was cleared with `cargo clean` for disk; Rust agents and the
+coordinator's gate now build with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`. Merged agent branches deleted.
+
+## Cloud session branch noted (2026-11-11 19:40 CST): `origin/claude/youthful-cerf-qur7nu` @ `6181bc9e`
+
+Another Claude session, running in the cloud while the laptop was closed, pushed 13 commits on a branch based on the
+last pushed integration head `e43e8cf6`. **Nothing from it is merged here.** What follows is read from that branch
+(its hand-off `docs/coordination/CLOUD_HANDOFF_2026-11-11.md`, packet briefs and commit messages); it is that session's
+account, not verified by this coordinator, and none of its packets had an independent review.
+
+| Packet | What it does | Maps to the approved plan | State on the branch |
+|---|---|---|---|
+| P-REGEN-COMBAT-1 (`3a028a40`) | No passive regeneration in combat, as a `SimConfig::regen_in_combat` switch (default `Legacy`; the live `source-arena` and `training` profiles opt in). `packages/` untouched. Proposes DEV-017. | Replaces the planned legacy port of `f8cd956e`; chosen because editing `packages/shared/src/constants.ts` would invalidate the pinned hash in 218 captures | implemented, `stub:`/`oracle:` commits, unreviewed |
+| P-MAP-3 (`891af976`) | Certified-map pool for source-arena rooms behind `--map-pool` (`crates/rh-server/src/map_pool.rs`), off by default | The plan's map pool (P-POOL-TOOL-1 / P-POOL-SERVER-1) | implemented, unreviewed |
+| P-LEECH-GROUPING-1 (`0a0da282`) | Sums the leech score in legacy order (`kill_augments.rs`) | Closes the integration-1 reviewer finding | implemented, unreviewed |
+| P-SIGNATURE-1 (`6181bc9e`) | With `--map-pool --signature-landmarks`, a server-side pass adds per zone: Fire volcano with lava streams, pools and ember; Sentenced walled church around an elite camp with graves; Plague bog tree ringed by bog; Frost rock arch around an elite camp with an ice floor; a landmark is kept only if the strict certifier finds no new failure (seeds 1-8: bog tree 8, volcano 7, church 6, cave 4) | The plan's signature terrain, done in `rh-server` (`signature.rs`), not as mapgen stylers; rule half only, no Unity art | implemented after the hand-off's recorded gate; **no gate result recorded for it** |
+| hosting (`81ded797`) | `hosting/technical-demo/bootstrap.py`: `--bot-learning single-writer` on the Source unit | The plan's "legacy learner on" | edits a protected path, citing an owner approval given in that session |
+| evidence (`b3cfa848`) | Room cost on generated maps: mean tick 0.8 to 1.8 ms against 0.15 ms on the beta map; 28 to 65 rooms per core against 326 (one run per map, 4-vCPU container) | Needed before the pool goes live | measurement only |
+
+- **Its gate** (full, with Postgres, on code as of `0a0da282`): pass, except one `rh-server` recovery test that cannot run
+  as root in its container; the remaining steps were run by hand and passed. Unity EditMode, the Web build and the
+  capture checks were not run there.
+- **Owner statements recorded only on that branch**, to be confirmed here before they are relied on: the Plague marsh
+  slows through bog only and water is presentation (this coordinator's record, decision 6, says mud and water are graded
+  slows); the legacy bot learner may run on the beta's Source unit.
+- **Not done there, with its reasons:** training practice camps counting as camp clears (needs checkpoint state);
+  zone-themed camp buffs (after P-WIRE17-HUD-1); Frost Wall (collides with P-WIRE17-HUD-1's wire files).
+- **Before merging it:** land this checkout's unpushed commits and `agent/opus/P-WIRE17-HUD-1` first (the order that
+  branch proposes); expect conflicts or compile errors where both sides touch `SimConfig { .. }` literals and
+  `crates/rh-server/src/{director,main,runtime}.rs`; run each packet's reviewer (`reviewer-opus` for the sim, pool and
+  landmark changes); then the full gate and Unity EditMode on the merge.
+
+## Pause point 3 (2026-11-11): retrospective items 1 to 4 applied; where to resume
+
+Head `feature/unity-rework` carries this note. Pushed to origin: `e43e8cf6` (integration 2). Everything after it is local.
+
+**What this stretch did (owner: "Apply 1 to 4" of the session retrospective).**
+- Agent definitions (`38e79d47`): `reviewer-opus` 80 turns, `implementer-opus` 150; implementers commit after each stage;
+  reviewers write the verdict before long test runs; the oracle author commits `stub: <ID>` then `oracle: <ID>` and
+  finishes only with a clean formatter and an empty `git status`. Takes effect after Claude Code restarts.
+- P-AGENT-GATE-1 (Sonnet, Sonnet review LAND WITH NOTES, notes fixed; merged `cdb7731d`): with `--oracle` the gate reads
+  oracle files from non-`stub:` commits only; `tools/pgtest/start.sh` sets a locale and finds Homebrew's PostgreSQL;
+  the gate resolves `PGBIN` or fails before building, and stops only test clusters carrying its own run id; new
+  `client-unity/UnityProject/Tools/editmode.sh`; the gate runs Unity EditMode and the Unity tool tests (quick: when
+  their paths changed; full: always; a named skip without an Editor); `scripts/gate.test.sh` (9 checks) covers the rules.
+
+**Current step: 6 of 6, verification.** A full gate with Postgres was started on `cdb7731d` with `PGBIN` and `LC_ALL`
+unset (the two conditions that failed overnight). Its result line is recorded below when it finishes; if this note
+still says "running", rerun it: `eval "$(tools/pgtest/start.sh)"; scripts/gate.sh --coordinator`.
+
+GATE RESULT: **GATE PASS (full)** on `846fe8b1`, 2026-11-11 19:27 to 19:56 CST, with `PGBIN` and `LC_ALL` unset, including the new
+Unity EditMode step (610 of 610) and the Unity tool tests. An earlier run started 09:02 was invalid: the laptop went to
+clamshell sleep at 09:07 and a timing-sensitive lease test failed.
+
+**After a green gate, in order:** push `feature/unity-rework` (owner pre-approved backup pushes); rerun the Opus review
+of `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (stopped twice by pauses); merge it, full gate, EditMode, push; then
+P-UNITY-HUD-BUILD-1, P-UNITY-HUD-CAMPS-2, P-WIRE17-HUD-2 and the rest of the approved plan (legacy Nov 4 changes, map
+pool, signature terrain, dressing, bots). Not applied from the retrospective: items 5 to 11.
+
+## Paused by the owner (2026-11-11, about 08:50 CST): state to resume from
+
+Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.
+- **Pushed to origin:** `e43e8cf6` (integration 2: full gate PASS, EditMode 608/608, protocol 17).
+- **Local, not pushed, not yet in a full gate:** the P-UNITY-HUD-CAMPS-1 merge `00d19d64` and the records after it.
+- **Implemented, awaiting Opus review:** `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (camp reward, ward verdict, owner build
+  summary key 13; observation 25, policy 19; all checks green by hand, quick gate not rerun after the hash-tape line was
+  regenerated). The review was stopped at the pause and must be run again; its worktree was removed to free disk
+  (the branch holds everything). Points to judge are in the packet brief plus: the summary re-send rule (re-sent when a
+  value moves a whole quantum from what the client holds), and two test files edited outside the brief's scope
+  (`crates/rh-server/src/outbox/scene_candidate/fixture.rs`, `crates/rh-server/src/trade_bridge_tests.rs`).
+- **Next in order:** review and merge P-WIRE17-HUD-1; full gate and EditMode on the result; push. Then
+  P-UNITY-HUD-BUILD-1 (GAINED strip; brief written), P-UNITY-HUD-CAMPS-2 (reward badges, ward beacons; brief to write),
+  P-WIRE17-HUD-2 (champion panel values, weapon scaling; brief on the HUD-1 branch) and the panel in Unity; then the
+  legacy Nov 4 changes, map pool, signature terrain, dressing and bots from the approved plan.
+- **Disk:** about 10 GiB free before the worktree removal; a Rust agent worktree grows to 10-18 GiB.
+- **Gate command:** as in the earlier pause note (`PGBIN`, `LC_ALL`, `tools/pgtest/start.sh`, `scripts/gate.sh --coordinator`).
+
+## Beta follow-up integration 2 (2026-11-11 03:54 CST)
+
+Integration branch `feature/unity-rework`, head `e43e8cf6`, pushed to origin. **Full gate with Postgres: GATE PASS**
+(`.agent-runs/gate/`, the `full` log started 03:22). Unity EditMode on the same tree: 608 of 608. **Identities: protocol
+16 -> 17** (`protocol/fixtures/v17.json`, map section version 2), observation 24, checkpoint 31, replay 25, policy 18,
+content hash `b35f23ed00df75b3`. Client and server must be built together: a protocol-16 client is refused.
+
+- **Merged since integration 1:** P-SIM-BUILDSUMMARY-1 (Sonnet; GAINED strip values, pure function), P-WIRE17-MAP-1
+  (Opus; map blob carries camp markers, coliseum and gates, bush plane; Opus review LAND), P-UNITY-OVERHEAD-2 (Sonnet;
+  statuses at the legacy anchors, badge row removed). On top, not yet in a full gate: P-UNITY-HUD-CAMPS-1 (`00d19d64`;
+  camp markers, respawn clocks, world label, real bushes; EditMode 610 of 610 in its worktree).
+- **Flake recorded:** `rh-server` `result_recovery::a_full_spool_falls_back_to_memory_retry_loudly_and_loses_nothing`
+  failed once in a full gate (left 1, right 2) and passed 3 of 3 alone; unrelated to the merged work as far as read.
+- **In flight:** P-WIRE17-HUD-1 implemented on `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (camp reward, ward verdict,
+  owner build summary key 13; observation 25, policy 19), in Opus review. Split off: P-WIRE17-HUD-2 (champion panel
+  values, weapon scaling). Written, waiting on the wire: P-UNITY-HUD-BUILD-1.
+- **Beta host:** expired 2026-11-11 13:26:29 UTC; not redeployed (see integration 1).
+
 ## Paused by the owner (2026-11-11, about 02:20 CST): state to resume from
 
 Everything is committed locally; nothing is running. Head `feature/unity-rework` is the commit that carries this note.

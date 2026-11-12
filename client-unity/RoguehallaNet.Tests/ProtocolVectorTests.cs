@@ -1096,6 +1096,11 @@ namespace Roguehalla.Net.Tests
                 case "welcome_weapon_reach_over_max": case "welcome_weapon_arc_half_arc_over_pi": case "welcome_weapon_arc_half_arc_zero":
                 case "welcome_weapon_arc_reach_zero": case "welcome_weapon_arc_speed": case "welcome_weapon_projectile_speed_zero":
                 case "welcome_weapon_projectile_half_arc": case "welcome_weapon_none_values": want = DecodeError.BadField; break;
+                // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
+                case "state_camp_reward_stat_10": case "state_camp_ward_verdict_3": case "state_build_summary_mob_stat_9":
+                case "state_build_summary_panel_code_23": case "state_build_summary_panel_order": want = DecodeError.BadField; break;
+                case "state_camp_ward_missing_expiry": case "state_build_summary_gains_short": want = DecodeError.Truncated; break;
+                case "state_build_summary_panel_count_over": want = DecodeError.TooMany; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

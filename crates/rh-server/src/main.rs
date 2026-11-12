@@ -16,8 +16,18 @@
 //!       (account API: PLAYTEST_PASSCODE env sets the claim passcode; 0 disables a limit; see docs/adr/0006-persistence.md)
 //!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
 //!       [--result-spool <dir> [--result-spool-max 4096] [--result-dead-max 1024] [--result-retry-secs 900]]   (needs postgres + --database-url)
+//!       [--db-connect-timeout-secs 60] [--drain-max-secs 55] [--drain-write-wait-secs 20]   (see the shutdown budget below)
 //!
-//!       [--control 127.0.0.1:7778 [--control-token-file <file>]] [--require-admit [--admit-ttl-secs 60]]
+//!       [--control 127.0.0.1:7778 (--control-token-file <file> | --control-insecure-loopback)] [--require-admit [--admit-ttl-secs 60]]
+//!       [--ws-origins '*'|origin,origin (default: --api-cors-origins)] [--ws-max-per-ip 16] [--ws-connect-burst 20]
+//!       [--ws-connect-per-second 2] [--ws-max-pending 256] [--ws-auth-fails-per-minute 10]
+//!       [--ws-auth-fails-per-minute-all 0] [--http-header-timeout-secs 10] (public edge, src/edge.rs; 0 disables a limit)
+//!       [--insecure-dev-auth] [--insecure-self-signed]
+//!
+//! Public exposure (a non-loopback `--bind`, or `--client-ip-header`, which means a reverse proxy forwards public traffic):
+//! the server refuses to start with dev auth (no `--database-url`, `--auth` absent or `dev`: any callsign with any ticket)
+//! unless `--insecure-dev-auth` is passed, and refuses `--self-signed` unless `--insecure-self-signed` is passed. With an
+//! empty origin list `/ws` accepts any browser origin only when not publicly exposed; otherwise browser origins are refused.
 //!
 //! Hosted mode (docs/hosting/CONTROL_API.md): `--require-admit` admits a Hello only with an admit the hosting bridge posted to
 //! `/control/admit` (an extra check after the profile credential check; it never replaces it) and creates rooms only through
@@ -31,31 +41,215 @@
 //! PostgreSQL commit does. See docs/adr/0006-persistence.md, "Addendum: durable result handoff".
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
-//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
+//! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits. `--drain-max-secs N` (default 55,
+//! 0 = no cap) is one deadline from the signal: the matches still running near it are ended (seats closed out, earned results
+//! kept) and anything still unresponsive at N is abandoned. `--drain-write-wait-secs N` (default 20) bounds the wait for
+//! result writes, then 5 s of HTTP shutdown. Total from SIGTERM <= drain-max + write-wait + 5 s = 80 s by default, inside
+//! systemd's default 90 s `TimeoutStopSec`, which the hosting units use. Raise both only with a longer termination grace.
+//!
+//! `--control` requires `--control-token-file <file>` (every control request then carries the bearer token) unless
+//! `--control-insecure-loopback` states that loopback alone is acceptable (local development, load tests).
+//!
+//! `--database-url` retries an unreachable database for `--db-connect-timeout-secs N` (default 60; 0 = one attempt) with
+//! exponential backoff, then exits 69 (schema migration failure: 70; schema newer than this binary: 78; bad flags: 2).
+//! Log lines never carry the connection string.
 
 use rh_server::api::{AccountApi, ApiConfig, CorsPolicy};
 use rh_server::director::{Director, DirectorConfig, LeasePolicy};
+use rh_server::edge::{EdgeConfig, HttpLimits, OriginPolicy};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Exit codes the supervisor can act on (besides 2 = bad command line, 78 = schema newer than this binary).
+#[cfg(feature = "postgres")]
+const EXIT_DB_UNREACHABLE: i32 = 69; // EX_UNAVAILABLE: PostgreSQL did not accept a connection within the connect budget
+#[cfg(feature = "postgres")]
+const EXIT_DB_MIGRATE: i32 = 70; // EX_SOFTWARE: connected, but the schema migration failed
+
+/// The value of `name` when given: `Ok(None)` when absent, an error when the flag has no value after it.
+fn flag_value(args: &[String], name: &str) -> Result<Option<String>, String> {
+    match args.iter().position(|a| a == name) {
+        None => Ok(None),
+        Some(i) => args
+            .get(i + 1)
+            .filter(|v| !v.starts_with("--"))
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| format!("{name} requires a value")),
+    }
+}
+
+/// `--db-connect-timeout-secs` (default 60; 0 = one attempt): how long startup keeps retrying an unreachable database.
+#[cfg(any(feature = "postgres", test))]
+fn db_connect_budget(args: &[String]) -> Result<Duration, String> {
+    match flag_value(args, "--db-connect-timeout-secs")? {
+        None => Ok(Duration::from_secs(60)),
+        Some(v) => v
+            .parse::<u64>()
+            .ok()
+            .filter(|n| *n <= 3600)
+            .map(Duration::from_secs)
+            .ok_or_else(|| "--db-connect-timeout-secs requires whole seconds, 0..=3600".into()),
+    }
+}
+
+/// Retries `op` with exponential backoff (`first_delay`, doubling, capped at `max_delay`) until it succeeds, `fatal` says the
+/// error cannot be cured by waiting, or `budget` is spent (one attempt when it is zero). The last error is returned.
+#[cfg(any(feature = "postgres", test))]
+async fn retry_with_backoff<T, E, Fut>(
+    budget: Duration,
+    first_delay: Duration,
+    max_delay: Duration,
+    fatal: impl Fn(&E) -> bool,
+    show: impl Fn(&E) -> String,
+    mut op: impl FnMut(u32) -> Fut,
+) -> Result<T, E>
+where
+    Fut: std::future::Future<Output = Result<T, E>>,
+    E: std::fmt::Display,
+{
+    let started = tokio::time::Instant::now();
+    let mut delay = first_delay;
+    let mut attempt = 0u32;
+    loop {
+        attempt += 1;
+        match op(attempt).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                let left = budget.saturating_sub(started.elapsed());
+                if fatal(&e) || left.is_zero() {
+                    return Err(e);
+                }
+                let wait = delay.min(left);
+                eprintln!(
+                    "[server] database not reachable (attempt {attempt}): {}; retrying in {}ms ({}s of budget left)",
+                    show(&e),
+                    wait.as_millis(),
+                    left.as_secs()
+                );
+                tokio::time::sleep(wait).await;
+                delay = (delay * 2).min(max_delay);
+            }
+        }
+    }
+}
+
+/// Removes the connection string, and its password and user, from text that is about to be logged. sqlx messages normally
+/// carry none of them, but the log must never depend on that.
+#[cfg(any(feature = "postgres", test))]
+fn redact_secrets(text: &str, url: &[&str]) -> String {
+    let mut out = text.to_string();
+    for u in url {
+        if u.is_empty() {
+            continue;
+        }
+        out = out.replace(u, "<database-url>");
+        if let Some((_, rest)) = u.split_once("://") {
+            if let Some((cred, _)) = rest.split_once('@') {
+                let mut parts = cred.splitn(2, ':');
+                let user = parts.next().unwrap_or("");
+                if let Some(pw) = parts.next().filter(|p| !p.is_empty()) {
+                    out = out.replace(pw, "<redacted>");
+                }
+                if user.len() > 2 {
+                    out = out.replace(user, "<user>");
+                }
+            }
+        }
+    }
+    out
+}
+
+/// One failed connection attempt: the store's own error, or our per-attempt timeout (which is transient, never fatal).
+#[cfg(feature = "postgres")]
+enum ConnectFail {
+    Store(rh_persist::Error),
+    Timeout(u64),
+}
+
+#[cfg(feature = "postgres")]
+impl std::fmt::Display for ConnectFail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectFail::Store(e) => write!(f, "{e}"),
+            ConnectFail::Timeout(s) => write!(f, "no answer within {s}s"),
+        }
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl ConnectFail {
+    /// Waiting cannot cure it: a schema too new for this binary, or a configuration/credential/database-name error.
+    fn fatal(&self) -> bool {
+        matches!(self, ConnectFail::Store(e)
+            if matches!(e, rh_persist::Error::SchemaTooNew { .. }) || e.is_startup_fatal())
+    }
+}
+
 /// `--database-url`: profiles, credentials, session leases and results in PostgreSQL (feature `postgres`).
 #[cfg(feature = "postgres")]
 async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
+    let budget = db_connect_budget(args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid database settings: {e}");
+        std::process::exit(2);
+    });
     // The startup schema gate: a database whose `schema_compat.min_binary` is above this binary (an older server meeting a
     // newer, incompatible schema during a rollout) is refused here, with a plain message and a non-zero exit, before the
-    // server takes a single connection.
-    let store = match rh_persist::Store::connect(url).await {
+    // server takes a single connection. An unreachable database is retried with backoff for the connect budget, then the
+    // process exits with `EXIT_DB_UNREACHABLE` and a line that carries no connection string.
+    // sqlx's own pool keeps retrying a refused connection for 30 s inside one `connect`; each attempt is cut at a third of the
+    // budget (1..=10 s) so the retries and the budget are real. With a zero budget (one attempt) it gets a sane 10 s.
+    let per_attempt = if budget.is_zero() {
+        Duration::from_secs(10)
+    } else {
+        (budget / 3).clamp(Duration::from_secs(1), Duration::from_secs(10))
+    };
+    let store = match retry_with_backoff(
+        budget,
+        Duration::from_millis(500),
+        Duration::from_secs(8),
+        ConnectFail::fatal,
+        |e: &ConnectFail| redact_secrets(&e.to_string(), &[url]),
+        |_| async move {
+            match tokio::time::timeout(per_attempt, rh_persist::Store::connect(url)).await {
+                Ok(r) => r.map_err(ConnectFail::Store),
+                Err(_) => Err(ConnectFail::Timeout(per_attempt.as_secs())),
+            }
+        },
+    )
+    .await
+    {
         Ok(s) => Arc::new(s),
-        Err(e @ rh_persist::Error::SchemaTooNew { .. }) => {
+        Err(ConnectFail::Store(e @ rh_persist::Error::SchemaTooNew { .. })) => {
             eprintln!("rh-server: {e}");
             std::process::exit(78);
         }
-        Err(e) => panic!("connect to PostgreSQL: {e}"),
+        Err(e) => {
+            // A fatal error (bad URL, rejected credentials, missing database) was not retried; the same exit code tells the
+            // supervisor the database is not usable, the event name says why.
+            let event = if e.fatal() {
+                "database_connect_refused_permanently"
+            } else {
+                "database_unreachable"
+            };
+            eprintln!(
+                "[server] ERROR event={event} budget_secs={} detail={:?} action=exit code={EXIT_DB_UNREACHABLE}",
+                budget.as_secs(),
+                redact_secrets(&e.to_string(), &[url])
+            );
+            std::process::exit(EXIT_DB_UNREACHABLE);
+        }
     };
-    store.migrate().await.expect("migrate");
+    if let Err(e) = store.migrate().await {
+        eprintln!(
+            "[server] ERROR event=database_migrate_failed detail={:?} action=exit code={EXIT_DB_MIGRATE}",
+            redact_secrets(&e.to_string(), &[url])
+        );
+        std::process::exit(EXIT_DB_MIGRATE);
+    }
     let owner =
         arg(args, "--instance-id").unwrap_or_else(|| format!("rh-server-{}", std::process::id()));
     (
@@ -267,10 +461,11 @@ struct HostedSettings {
 }
 
 fn hosted_settings(args: &[String]) -> Result<HostedSettings, String> {
-    const KNOWN: [&str; 4] = [
+    const KNOWN: [&str; 5] = [
         "--require-admit",
         "--admit-ttl-secs",
         "--control-token-file",
+        "--control-insecure-loopback",
         "--control",
     ];
     for a in args.iter().skip(1) {
@@ -315,10 +510,67 @@ fn hosted_settings(args: &[String]) -> Result<HostedSettings, String> {
             "--require-admit and --control-token-file need --control (the control listener)".into(),
         );
     }
+    // The control listener can create and end rooms, kick players and drain the process. Loopback is not an authentication
+    // boundary on a shared host (any local process, or an SSRF in a sibling service, reaches it), so a token is required
+    // unless the operator says, explicitly, that loopback alone is acceptable (local development, load tests).
+    let insecure = args.iter().any(|a| a == "--control-insecure-loopback");
+    if args.iter().any(|a| a == "--control") && token.is_none() && !insecure {
+        return Err(
+            "--control needs --control-token-file <file> (control requests then carry `Authorization: Bearer <token>`); \
+             pass --control-insecure-loopback to run the control API unauthenticated on loopback (development only)"
+                .into(),
+        );
+    }
+    if insecure && !args.iter().any(|a| a == "--control") {
+        return Err("--control-insecure-loopback needs --control".into());
+    }
     Ok(HostedSettings {
         require_admit,
         admit_ttl,
         token,
+    })
+}
+
+/// Drain bounds. The hosting stack stops the process with systemd's default `TimeoutStopSec` (90 s: `render.py` and
+/// `bootstrap.py` set none for `rh-server`), then SIGKILL. From the signal, the process exit is bounded by ONE budget:
+///
+///   `--drain-max-secs` (everything up to the last room closing, including the forced end) +
+///   `--drain-write-wait-secs` (result writes in flight) + `HTTP_SHUTDOWN_GRACE` (5 s) <= `TimeoutStopSec`
+///
+/// Defaults: 55 + 20 + 5 = 80 s, 10 s of margin under 90 s. A longer grace (container platforms often give 120 s+) can raise
+/// both flags; keep the sum within it.
+const DEFAULT_DRAIN_MAX: Duration = Duration::from_secs(55);
+const DEFAULT_DRAIN_WRITE_WAIT: Duration = Duration::from_secs(20);
+const HTTP_SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
+
+struct DrainSettings {
+    /// After this long the remaining rooms are ended (results kept); `None` waits for the matches without a cap.
+    max: Option<Duration>,
+    /// How long the exit waits for result writes still in flight.
+    write_wait: Duration,
+}
+
+fn drain_settings(args: &[String]) -> Result<DrainSettings, String> {
+    let secs = |name: &str, default: Duration, zero_ok: bool| -> Result<Duration, String> {
+        match flag_value(args, name)? {
+            None => Ok(default),
+            Some(v) => v
+                .parse::<u64>()
+                .ok()
+                .filter(|n| (*n > 0 || zero_ok) && *n <= 86_400)
+                .map(Duration::from_secs)
+                .ok_or_else(|| {
+                    format!(
+                        "{name} requires whole seconds, {}..=86400",
+                        u8::from(!zero_ok)
+                    )
+                }),
+        }
+    };
+    let max = secs("--drain-max-secs", DEFAULT_DRAIN_MAX, true)?;
+    Ok(DrainSettings {
+        max: (!max.is_zero()).then_some(max),
+        write_wait: secs("--drain-write-wait-secs", DEFAULT_DRAIN_WRITE_WAIT, false)?,
     })
 }
 
@@ -408,6 +660,164 @@ fn api_config(args: &[String]) -> Result<ApiConfig, String> {
     Ok(cfg)
 }
 
+/// Whether this process serves public traffic: a non-loopback bind, or a forwarded-address header (a reverse proxy in front
+/// of a loopback bind forwards public clients).
+fn publicly_exposed(args: &[String], bind: SocketAddr) -> bool {
+    !bind.ip().is_loopback() || args.iter().any(|a| a == "--client-ip-header")
+}
+
+/// What the startup checks of a publicly exposed process decided; `warnings` are printed before serving.
+#[derive(Debug, Default)]
+struct Exposure {
+    public: bool,
+    warnings: Vec<String>,
+}
+
+/// Refuses settings that are unsafe on a public listener unless explicitly accepted: dev auth (`--insecure-dev-auth`) and the
+/// generated self-signed certificate (`--insecure-self-signed`). Also refuses ambiguous TLS flags and misspelt `--insecure-*`
+/// flags (a typo must not silently keep an insecure default).
+fn exposure_check(args: &[String], bind: SocketAddr) -> Result<Exposure, String> {
+    const KNOWN: [&str; 2] = ["--insecure-dev-auth", "--insecure-self-signed"];
+    for a in args.iter().skip(1) {
+        if a.starts_with("--insecure") && !KNOWN.contains(&a.as_str()) {
+            return Err(format!("unknown flag {a} (did you mean one of {KNOWN:?}?)"));
+        }
+    }
+    let flag = |k: &str| args.iter().any(|a| a == k);
+    let public = publicly_exposed(args, bind);
+    let mut warnings = vec![];
+    let dev_auth = arg(args, "--database-url").is_none()
+        && matches!(arg(args, "--auth").as_deref(), None | Some("dev"));
+    if dev_auth && public {
+        if !flag("--insecure-dev-auth") {
+            return Err(format!(
+                "refusing to start: dev auth (any callsign is accepted with any ticket) on a publicly exposed listener \
+                 ({bind}{}); pass --database-url or --auth static:<file>, or --insecure-dev-auth to accept this deliberately",
+                if bind.ip().is_loopback() { ", behind --client-ip-header" } else { "" }
+            ));
+        }
+        warnings.push(format!(
+            "INSECURE: --insecure-dev-auth: {bind} accepts ANY callsign with ANY ticket; never use this for real players"
+        ));
+    }
+    let self_signed = flag("--self-signed");
+    let (cert, key) = (arg(args, "--tls-cert"), arg(args, "--tls-key"));
+    if cert.is_some() != key.is_some()
+        || (cert.is_none() && (flag("--tls-cert") || flag("--tls-key")))
+    {
+        return Err("--tls-cert and --tls-key must be given together, each with a file".into());
+    }
+    if self_signed && cert.is_some() {
+        return Err("--self-signed and --tls-cert/--tls-key are exclusive".into());
+    }
+    if self_signed && public {
+        if !flag("--insecure-self-signed") {
+            return Err(format!(
+                "refusing to start: --self-signed on a publicly exposed listener ({bind}) serves a throwaway certificate \
+                 for localhost that no browser trusts; pass --tls-cert/--tls-key, or --insecure-self-signed to accept this"
+            ));
+        }
+        warnings.push(format!(
+            "INSECURE: --insecure-self-signed: {bind} serves a generated localhost certificate; clients cannot verify it"
+        ));
+    }
+    if (flag("--insecure-dev-auth") && !(dev_auth && public))
+        || (flag("--insecure-self-signed") && !(self_signed && public))
+    {
+        warnings
+            .push("an --insecure-* flag was given but has no effect with these settings".into());
+    }
+    Ok(Exposure { public, warnings })
+}
+
+/// The public edge settings (`--ws-*`, `--http-header-timeout-secs`). The client-address rules come from the account API's
+/// `--client-ip-header`/`--trusted-proxies` (one parse, one trust rule). `--ws-origins` defaults to `--api-cors-origins`; an
+/// empty list means any origin when not publicly exposed and no browser origin otherwise.
+fn edge_settings(
+    args: &[String],
+    api: &ApiConfig,
+    public: bool,
+) -> Result<(EdgeConfig, HttpLimits, Vec<String>), String> {
+    const KNOWN: [&str; 7] = [
+        "--ws-origins",
+        "--ws-max-per-ip",
+        "--ws-connect-burst",
+        "--ws-connect-per-second",
+        "--ws-max-pending",
+        "--ws-auth-fails-per-minute",
+        "--ws-auth-fails-per-minute-all",
+    ];
+    for a in args.iter().skip(1) {
+        if (a.starts_with("--ws-") && !KNOWN.contains(&a.as_str()))
+            || (a.starts_with("--http-") && a != "--http-header-timeout-secs")
+        {
+            return Err(format!("unknown flag {a}"));
+        }
+    }
+    let int = |name: &str, default: u32| -> Result<u32, String> {
+        match args.iter().position(|a| a == name) {
+            None => Ok(default),
+            Some(i) => args
+                .get(i + 1)
+                .and_then(|v| v.parse().ok())
+                .ok_or_else(|| format!("{name} requires a non-negative whole number")),
+        }
+    };
+    let d = EdgeConfig::default();
+    let mut warnings = vec![];
+    let listed = match arg(args, "--ws-origins") {
+        Some(list) if !list.starts_with("--") => OriginPolicy::parse(&list),
+        Some(_) => return Err("--ws-origins requires '*' or a comma list of origins".into()),
+        None if args.iter().any(|a| a == "--ws-origins") => {
+            return Err("--ws-origins requires '*' or a comma list of origins".into())
+        }
+        None => match &api.cors {
+            CorsPolicy::Any => OriginPolicy::Any,
+            CorsPolicy::Origins(list) => OriginPolicy::Only(list.clone()),
+        },
+    };
+    let origins = match listed {
+        OriginPolicy::Only(list) if list.is_empty() && !public => OriginPolicy::Any,
+        OriginPolicy::Only(list) if list.is_empty() => {
+            warnings.push(
+                "no --ws-origins/--api-cors-origins on a publicly exposed listener: browsers cannot open /ws \
+                 (non-browser clients still can)"
+                    .into(),
+            );
+            OriginPolicy::Only(list)
+        }
+        OriginPolicy::Any if public => {
+            warnings
+                .push("/ws accepts any browser origin on a publicly exposed listener ('*')".into());
+            OriginPolicy::Any
+        }
+        other => other,
+    };
+    let cfg = EdgeConfig {
+        origins,
+        client_ip_header: api.client_ip_header.clone(),
+        trusted_proxies: api.trusted_proxies.clone(),
+        max_per_ip: int("--ws-max-per-ip", d.max_per_ip as u32)? as usize,
+        connect_burst: f64::from(int("--ws-connect-burst", d.connect_burst as u32)?),
+        connect_per_second: f64::from(int("--ws-connect-per-second", d.connect_per_second as u32)?),
+        max_pending: int("--ws-max-pending", d.max_pending as u32)? as usize,
+        auth_fails_per_minute: int("--ws-auth-fails-per-minute", d.auth_fails_per_minute)?,
+        auth_fails_per_minute_all: int(
+            "--ws-auth-fails-per-minute-all",
+            d.auth_fails_per_minute_all,
+        )?,
+    };
+    let default_secs = HttpLimits::default().header_read_timeout.as_secs() as u32;
+    let secs = int("--http-header-timeout-secs", default_secs)?;
+    if !(1..=300).contains(&secs) {
+        return Err("--http-header-timeout-secs must be 1..=300".into());
+    }
+    let limits = HttpLimits {
+        header_read_timeout: Duration::from_secs(u64::from(secs)),
+    };
+    Ok((cfg, limits, warnings))
+}
+
 #[tokio::main]
 async fn main() {
     let process_started = tokio::time::Instant::now();
@@ -445,6 +855,10 @@ async fn main() {
         .unwrap_or_else(|| "127.0.0.1:7777".into())
         .parse()
         .expect("--bind");
+    let exposure = exposure_check(&args, bind).unwrap_or_else(|e| {
+        eprintln!("[server] {e}");
+        std::process::exit(2);
+    });
     let arena = if let Some(runtime) = &runtime {
         runtime.arena().unwrap_or_else(|e| {
             eprintln!("[server] invalid runtime map: {e}");
@@ -699,6 +1113,14 @@ async fn main() {
     });
     // The lobby endpoint keys its per-address caps (and its CORS) by the account API's own settings.
     let lobby_cfg = rh_server::lobby::LobbyConfig::from_api(&api_cfg);
+    let (edge_cfg, http_limits, edge_warnings) = edge_settings(&args, &api_cfg, exposure.public)
+        .unwrap_or_else(|e| {
+            eprintln!("[server] invalid edge settings: {e}");
+            std::process::exit(2);
+        });
+    for w in exposure.warnings.iter().chain(&edge_warnings) {
+        eprintln!("[server] warning: {w}");
+    }
     #[cfg(feature = "postgres")]
     let account = match &auth {
         Auth::Postgres(store) => AccountApi::postgres(store.clone(), api_cfg),
@@ -769,7 +1191,12 @@ async fn main() {
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
     director.recover_spooled();
-    let app = rh_server::public_router_with_lobby(director.clone(), account, lobby_cfg);
+    let app = rh_server::public_router_with_lobby_guarded(
+        director.clone(),
+        account,
+        lobby_cfg,
+        rh_server::edge::EdgeGuard::new(edge_cfg),
+    );
 
     if let Some(control) = arg(&args, "--control") {
         let addr: SocketAddr = control.parse().expect("--control");
@@ -796,6 +1223,11 @@ async fn main() {
         });
     }
 
+    let drain = drain_settings(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid drain settings: {e}");
+        std::process::exit(2);
+    });
+    let (drain_max, write_wait) = (drain.max, drain.write_wait);
     let shutdown_director = director.clone();
     tokio::spawn(async move {
         // SIGTERM is how a container platform (and the hosting bridge) asks a process to stop; Ctrl-C is SIGINT.
@@ -812,8 +1244,11 @@ async fn main() {
         }
         #[cfg(not(unix))]
         tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = service_deadline(profile_enabled.then_some(process_started+FIRST_PLAYABLE_LIFETIME)) => {} }
-        eprintln!("[server] draining: no new admissions; active matches finish");
-        shutdown_director.drain().await;
+        eprintln!(
+            "[server] draining: no new admissions; active matches finish (cap: {})",
+            drain_max.map_or("none".to_string(), |d| format!("{}s", d.as_secs()))
+        );
+        shutdown_director.drain_within(drain_max).await;
     });
 
     lifecycle.ready();
@@ -827,10 +1262,10 @@ async fn main() {
     tokio::spawn(async move {
         lc.terminated.notified().await;
         // Results still being written survive the shutdown (bounded: a dead database cannot hold the process forever).
-        if !writes.wait_for_writes(Duration::from_secs(150)).await {
+        if !writes.wait_for_writes(write_wait).await {
             eprintln!("[server] exiting with result writes still pending");
         }
-        let shutdown = || h2.graceful_shutdown(Some(Duration::from_secs(5)));
+        let shutdown = || h2.graceful_shutdown(Some(HTTP_SHUTDOWN_GRACE));
         #[cfg(feature = "postgres")]
         if let Some(live) = &shutdown_learning {
             let report = rh_server::bot_learning::close_then(live, shutdown).await;
@@ -872,9 +1307,16 @@ async fn main() {
         rh_sim::content::content_hash()
     );
     // The one shared serve path (TCP_NODELAY on plain and TLS sockets); the live tests run the same function.
-    rh_server::serve(bind, tls, app, handle)
-        .await
-        .expect("server");
+    rh_server::serve_with_limits(
+        bind,
+        tls,
+        app,
+        handle,
+        rh_server::NoDelay::new(),
+        http_limits,
+    )
+    .await
+    .expect("server");
     eprintln!("[server] terminated");
 }
 
@@ -1023,6 +1465,7 @@ mod tests {
             "rh-server",
             "--control",
             "127.0.0.1:1",
+            "--control-insecure-loopback",
             "--require-admit",
             "--admit-ttl-secs",
             "30",
@@ -1049,6 +1492,164 @@ mod tests {
         ] {
             assert!(hosted_settings(&args(&bad)).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn a_control_listener_needs_a_token_or_an_explicit_insecure_loopback_flag() {
+        let refused = hosted_settings(&args(&["rh-server", "--control", "127.0.0.1:1"]))
+            .err()
+            .expect("refused");
+        assert!(
+            refused.contains("--control-token-file")
+                && refused.contains("--control-insecure-loopback"),
+            "{refused}"
+        );
+        let dir = std::env::temp_dir().join(format!("rh-ctl-token-unit-{}", std::process::id()));
+        std::fs::write(&dir, "tok\n").unwrap();
+        let token = hosted_settings(&args(&[
+            "rh-server",
+            "--control",
+            "127.0.0.1:1",
+            "--control-token-file",
+            dir.to_str().unwrap(),
+        ]))
+        .unwrap();
+        assert_eq!(token.token.as_deref(), Some("tok"));
+        let _ = std::fs::remove_file(&dir);
+        assert!(hosted_settings(&args(&[
+            "rh-server",
+            "--control",
+            "127.0.0.1:1",
+            "--control-insecure-loopback"
+        ]))
+        .unwrap()
+        .token
+        .is_none());
+        // The opt-out means nothing without a control listener, and no control listener means no requirement.
+        assert!(hosted_settings(&args(&["rh-server", "--control-insecure-loopback"])).is_err());
+        assert!(hosted_settings(&args(&["rh-server", "--bind", "x"])).is_ok());
+    }
+
+    #[test]
+    fn drain_and_database_budget_flags_parse_with_safe_defaults() {
+        let d = drain_settings(&args(&["rh-server"])).unwrap();
+        assert_eq!(d.max, Some(Duration::from_secs(55)));
+        assert_eq!(d.write_wait, Duration::from_secs(20));
+        assert!(
+            d.max.unwrap() + d.write_wait + HTTP_SHUTDOWN_GRACE <= Duration::from_secs(80),
+            "inside systemd's default TimeoutStopSec"
+        );
+        let d = drain_settings(&args(&[
+            "rh-server",
+            "--drain-max-secs",
+            "0",
+            "--drain-write-wait-secs",
+            "5",
+        ]))
+        .unwrap();
+        assert_eq!((d.max, d.write_wait), (None, Duration::from_secs(5)));
+        for bad in [
+            vec!["rh-server", "--drain-max-secs", "x"],
+            vec!["rh-server", "--drain-max-secs", "-1"],
+            vec!["rh-server", "--drain-write-wait-secs", "0"],
+            vec!["rh-server", "--drain-max-secs"],
+            vec!["rh-server", "--drain-max-secs", "86401"],
+        ] {
+            assert!(drain_settings(&args(&bad)).is_err(), "{bad:?}");
+        }
+        assert_eq!(
+            db_connect_budget(&args(&["rh-server"])).unwrap(),
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "0"])).unwrap(),
+            Duration::ZERO
+        );
+        assert!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "abc"])).is_err()
+        );
+        assert!(
+            db_connect_budget(&args(&["rh-server", "--db-connect-timeout-secs", "3601"])).is_err()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_connect_retry_backs_off_then_succeeds_or_gives_up_within_its_budget() {
+        let (ms, no_show) = (Duration::from_millis, |e: &String| e.clone());
+        let not_fatal = |_: &String| false;
+        // Two failures, then success: backoff 100, 200.
+        let t0 = tokio::time::Instant::now();
+        let tries = std::cell::Cell::new(0u32);
+        let got = retry_with_backoff(
+            Duration::from_secs(60),
+            ms(100),
+            ms(800),
+            not_fatal,
+            no_show,
+            |n| {
+                tries.set(n);
+                async move {
+                    if n < 3 {
+                        Err(format!("down {n}"))
+                    } else {
+                        Ok(n)
+                    }
+                }
+            },
+        )
+        .await;
+        assert_eq!(got, Ok(3));
+        assert_eq!(t0.elapsed(), ms(300));
+        // Never reachable: stops when the budget is spent, with the last error, and does not overshoot it.
+        let t0 = tokio::time::Instant::now();
+        let got: Result<(), String> = retry_with_backoff(
+            Duration::from_secs(2),
+            ms(500),
+            ms(1000),
+            not_fatal,
+            no_show,
+            |n| async move { Err(format!("down {n}")) },
+        )
+        .await;
+        assert!(got.unwrap_err().starts_with("down "));
+        assert_eq!(t0.elapsed(), Duration::from_secs(2));
+        // Budget zero is one attempt; a fatal error is never retried.
+        let tries = std::cell::Cell::new(0u32);
+        let got: Result<(), String> =
+            retry_with_backoff(Duration::ZERO, ms(100), ms(100), not_fatal, no_show, |n| {
+                tries.set(n);
+                async move { Err("x".to_string()) }
+            })
+            .await;
+        assert!(got.is_err() && tries.get() == 1);
+        let tries = std::cell::Cell::new(0u32);
+        let got: Result<(), String> = retry_with_backoff(
+            Duration::from_secs(60),
+            ms(100),
+            ms(100),
+            |_| true,
+            no_show,
+            |n| {
+                tries.set(n);
+                async move { Err("schema".to_string()) }
+            },
+        )
+        .await;
+        assert!(got.is_err() && tries.get() == 1);
+    }
+
+    #[test]
+    fn logged_database_errors_never_carry_the_connection_string_or_password() {
+        let url = "postgres://rh_admin:s3cr3t-pw@db.internal:5432/roguehalla";
+        let msg = format!("error connecting to {url} (user rh_admin, password s3cr3t-pw): refused");
+        let out = redact_secrets(&msg, &[url]);
+        for leak in ["s3cr3t-pw", "rh_admin", "db.internal", "postgres://"] {
+            assert!(!out.contains(leak), "{leak} leaked: {out}");
+        }
+        assert_eq!(
+            redact_secrets("connection refused", &[url]),
+            "connection refused"
+        );
     }
 
     #[cfg(feature = "postgres")]
@@ -1079,6 +1680,195 @@ mod tests {
         }
     }
 
+    fn bind(s: &str) -> SocketAddr {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn dev_auth_is_refused_on_a_public_listener_unless_explicitly_accepted() {
+        let lo = bind("127.0.0.1:7777");
+        let any = bind("0.0.0.0:7777");
+        let v6 = bind("[::]:7777");
+        // Local development and every test harness: loopback, no proxy header.
+        let e = exposure_check(&args(&["rh-server"]), lo).unwrap();
+        assert!(!e.public && e.warnings.is_empty());
+        assert!(exposure_check(&args(&["rh-server", "--auth", "dev"]), bind("[::1]:1")).is_ok());
+        for public in [any, v6, bind("10.0.0.5:7777")] {
+            for dev in [vec!["rh-server"], vec!["rh-server", "--auth", "dev"]] {
+                let err = exposure_check(&args(&dev), public).unwrap_err();
+                assert!(err.contains("--insecure-dev-auth"), "{err}");
+            }
+        }
+        // Behind a reverse proxy (forwarded-address header) a loopback bind is public too.
+        assert!(exposure_check(
+            &args(&["rh-server", "--client-ip-header", "x-forwarded-for"]),
+            lo
+        )
+        .is_err());
+        // Real credentials on a public bind are fine.
+        for ok in [
+            vec!["rh-server", "--database-url", "postgres://x"],
+            vec!["rh-server", "--auth", "static:/etc/tokens"],
+            vec![
+                "rh-server",
+                "--auth",
+                "dev",
+                "--database-url",
+                "postgres://x",
+            ],
+        ] {
+            let e = exposure_check(&args(&ok), any).unwrap();
+            assert!(e.public && e.warnings.is_empty(), "{ok:?}");
+        }
+        let e = exposure_check(&args(&["rh-server", "--insecure-dev-auth"]), any).unwrap();
+        assert!(e.warnings[0].starts_with("INSECURE"), "{:?}", e.warnings);
+        for typo in ["--insecure-devauth", "--insecure", "--insecure-dev-auth=1"] {
+            assert!(
+                exposure_check(&args(&["rh-server", typo]), lo).is_err(),
+                "{typo}"
+            );
+        }
+        let unused = exposure_check(&args(&["rh-server", "--insecure-dev-auth"]), lo).unwrap();
+        assert_eq!(
+            unused.warnings.len(),
+            1,
+            "an unneeded --insecure flag is called out"
+        );
+    }
+
+    #[test]
+    fn self_signed_tls_is_refused_on_a_public_listener_and_tls_flags_must_pair() {
+        let lo = bind("127.0.0.1:7443");
+        let any = bind("0.0.0.0:7443");
+        let db = ["--database-url", "postgres://x"];
+        let with = |extra: &[&str]| {
+            let mut v = vec!["rh-server"];
+            v.extend_from_slice(&db);
+            v.extend_from_slice(extra);
+            args(&v)
+        };
+        assert!(exposure_check(&with(&["--self-signed"]), lo).is_ok());
+        let err = exposure_check(&with(&["--self-signed"]), any).unwrap_err();
+        assert!(err.contains("--insecure-self-signed"), "{err}");
+        let e = exposure_check(&with(&["--self-signed", "--insecure-self-signed"]), any).unwrap();
+        assert!(e.warnings[0].starts_with("INSECURE"));
+        assert!(exposure_check(&with(&["--tls-cert", "c.pem", "--tls-key", "k.pem"]), any).is_ok());
+        for bad in [
+            vec!["--tls-cert", "c.pem"],
+            vec!["--tls-key", "k.pem"],
+            vec!["--tls-cert"],
+            vec!["--self-signed", "--tls-cert", "c.pem", "--tls-key", "k.pem"],
+        ] {
+            assert!(exposure_check(&with(&bad), lo).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn edge_flags_default_and_ws_origins_follow_the_api_cors_origins() {
+        let api = api_config(&args(&[
+            "rh-server",
+            "--api-cors-origins",
+            "https://play.rougehalla.com",
+            "--client-ip-header",
+            "x-forwarded-for",
+            "--trusted-proxies",
+            "127.0.0.1",
+        ]))
+        .unwrap();
+        let (cfg, limits, warnings) = edge_settings(&args(&["rh-server"]), &api, true).unwrap();
+        assert_eq!(
+            cfg.origins,
+            OriginPolicy::Only(vec!["https://play.rougehalla.com".into()])
+        );
+        assert_eq!(cfg.client_ip_header.as_ref().unwrap(), "x-forwarded-for");
+        assert_eq!(
+            cfg.trusted_proxies,
+            vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]
+        );
+        assert_eq!(cfg.max_per_ip, rh_server::edge::DEFAULT_WS_MAX_PER_IP);
+        assert_eq!(cfg.max_pending, rh_server::edge::DEFAULT_WS_MAX_PENDING);
+        assert_eq!(cfg.auth_fails_per_minute, 10);
+        assert_eq!(cfg.auth_fails_per_minute_all, 0);
+        assert_eq!(limits.header_read_timeout, Duration::from_secs(10));
+        assert!(warnings.is_empty());
+
+        let (cfg, limits, _) = edge_settings(
+            &args(&[
+                "rh-server",
+                "--ws-origins",
+                "https://a.example,https://b.example/",
+                "--ws-max-per-ip",
+                "0",
+                "--ws-connect-burst",
+                "5",
+                "--ws-connect-per-second",
+                "1",
+                "--ws-max-pending",
+                "32",
+                "--ws-auth-fails-per-minute",
+                "3",
+                "--ws-auth-fails-per-minute-all",
+                "100",
+                "--http-header-timeout-secs",
+                "4",
+            ]),
+            &api,
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.origins,
+            OriginPolicy::Only(vec!["https://a.example".into(), "https://b.example".into()])
+        );
+        assert_eq!(
+            (
+                cfg.max_per_ip,
+                cfg.connect_burst,
+                cfg.connect_per_second,
+                cfg.max_pending
+            ),
+            (0, 5.0, 1.0, 32)
+        );
+        assert_eq!(
+            (cfg.auth_fails_per_minute, cfg.auth_fails_per_minute_all),
+            (3, 100)
+        );
+        assert_eq!(limits.header_read_timeout, Duration::from_secs(4));
+    }
+
+    #[test]
+    fn an_empty_origin_list_is_permissive_only_when_not_publicly_exposed() {
+        let api = ApiConfig::default();
+        let (local, _, w) = edge_settings(&args(&["rh-server"]), &api, false).unwrap();
+        assert_eq!(local.origins, OriginPolicy::Any);
+        assert!(w.is_empty());
+        let (public, _, w) = edge_settings(&args(&["rh-server"]), &api, true).unwrap();
+        assert_eq!(public.origins, OriginPolicy::Only(vec![]));
+        assert_eq!(w.len(), 1);
+        let (star, _, w) =
+            edge_settings(&args(&["rh-server", "--ws-origins", "*"]), &api, true).unwrap();
+        assert_eq!(star.origins, OriginPolicy::Any);
+        assert_eq!(w.len(), 1, "a public '*' is called out");
+    }
+
+    #[test]
+    fn edge_flags_refuse_typos_and_bad_values() {
+        let api = ApiConfig::default();
+        for bad in [
+            vec!["rh-server", "--ws-max-per-address", "4"],
+            vec!["rh-server", "--ws-origin", "https://a.example"],
+            vec!["rh-server", "--http-header-timeout", "4"],
+            vec!["rh-server", "--ws-max-per-ip", "-1"],
+            vec!["rh-server", "--ws-max-pending", "x"],
+            vec!["rh-server", "--ws-origins"],
+            vec!["rh-server", "--ws-origins", "--bind"],
+            vec!["rh-server", "--http-header-timeout-secs", "0"],
+            vec!["rh-server", "--http-header-timeout-secs", "301"],
+        ] {
+            assert!(edge_settings(&args(&bad), &api, false).is_err(), "{bad:?}");
+        }
+    }
+
     #[test]
     fn lease_cli_refuses_invalid_values_and_expiry_without_renewal_headroom() {
         for values in [
@@ -1094,5 +1884,95 @@ mod tests {
         ] {
             assert!(lease_policy(&args(&values)).is_err(), "{values:?}");
         }
+    }
+
+    /// Integration of fix/server-security and fix/server-resilience with the integration branch's runtime flags (map pool,
+    /// signature landmarks, lobby timing, hitboxes, bot learning; taken from integration/launch-fixes 3f5e68c8 with
+    /// fix/map-variety's `--generate-maps` replaced by `--map-pool`): each flag family's typo guard (`--insecure*`,
+    /// `--ws-*`/`--http-*`, `--require*`/`--admit*`/`--control*`, `--runtime*`) must accept every other family's real flags in
+    /// one command line.
+    #[test]
+    fn every_flag_parser_accepts_the_other_branches_flags_together() {
+        let token_file =
+            std::env::temp_dir().join(format!("rh-int-flags-token-{}", std::process::id()));
+        std::fs::write(&token_file, "int-token\n").unwrap();
+        let common = [
+            "rh-server",
+            "--bind",
+            "127.0.0.1:7777",
+            "--runtime",
+            "source-arena",
+            "--map",
+            "map.json",
+            "--map-pool",
+            "--signature-landmarks",
+            "--lobby-timing",
+            "matchmaking",
+            "--hitboxes",
+            "archetypes",
+            "--bot-learning",
+            "single-writer",
+            "--client-ip-header",
+            "x-forwarded-for",
+            "--trusted-proxies",
+            "127.0.0.1",
+            "--api-cors-origins",
+            "https://play.example",
+            "--ws-origins",
+            "https://play.example",
+            "--ws-max-per-ip",
+            "16",
+            "--ws-connect-burst",
+            "20",
+            "--ws-connect-per-second",
+            "2",
+            "--ws-max-pending",
+            "256",
+            "--ws-auth-fails-per-minute",
+            "10",
+            "--ws-auth-fails-per-minute-all",
+            "0",
+            "--http-header-timeout-secs",
+            "10",
+            "--insecure-dev-auth",
+            "--db-connect-timeout-secs",
+            "60",
+            "--drain-max-secs",
+            "55",
+            "--drain-write-wait-secs",
+            "20",
+            "--control",
+            "127.0.0.1:7778",
+        ];
+        let token = token_file.to_str().unwrap();
+        for tail in [
+            vec!["--control-insecure-loopback"],
+            vec!["--control-token-file", token],
+        ] {
+            let a = args(&[&common[..], &tail[..]].concat());
+            let bind: SocketAddr = "127.0.0.1:7777".parse().unwrap();
+            let exposure = exposure_check(&a, bind).unwrap();
+            assert!(
+                exposure.public,
+                "--client-ip-header makes the listener public"
+            );
+            hosted_settings(&a).unwrap();
+            let d = drain_settings(&a).unwrap();
+            assert_eq!(d.max, Some(Duration::from_secs(55)));
+            assert_eq!(db_connect_budget(&a).unwrap(), Duration::from_secs(60));
+            let api = api_config(&a).unwrap();
+            edge_settings(&a, &api, exposure.public).unwrap();
+            lease_policy(&a).unwrap();
+            let rt = rh_server::runtime::Settings::from_args(&a)
+                .unwrap()
+                .unwrap();
+            assert_eq!(rt.profile, rh_server::runtime::Profile::SourceArena);
+            assert!(rt.map_pool && rt.signature_landmarks);
+            assert_eq!(
+                rh_server::bot_learning::LearningMode::from_args(&a).unwrap(),
+                rh_server::bot_learning::LearningMode::SingleWriter
+            );
+        }
+        let _ = std::fs::remove_file(&token_file);
     }
 }

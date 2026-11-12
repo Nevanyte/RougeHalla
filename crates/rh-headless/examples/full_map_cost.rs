@@ -37,7 +37,7 @@ fn live_rules() -> SimConfig {
         regen: true,
         regen_in_combat: rh_sim::RegenInCombat::Off,
         quests: true,
-        hazards: terrain::Mode::All,
+        hazards: terrain::Mode::Map,
         abilities: abilities::Mode::Full,
         faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
         lifecycle: ArenaMode::Source(Default::default()),

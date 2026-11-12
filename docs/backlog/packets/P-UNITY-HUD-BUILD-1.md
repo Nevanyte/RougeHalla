@@ -1,4 +1,4 @@
-# P-UNITY-HUD-BUILD-1: the GAINED strip and the bottom-left champion panel show the legacy numbers
+# P-UNITY-HUD-BUILD-1: the GAINED strip and the mob-bonus row show the legacy numbers
 
 - **Serves:** ORDER_OF_OPERATIONS phase 3, item 16 (P-UI-5 HUD build strip); owner direction 2026-11-10 (MIGRATION
   checkpoint, decision 3: "When a stat is farmed it does not represent in the stats gained bar in top left"; "the damage
@@ -9,16 +9,20 @@
 - **D-rules touched:** D1 loose proof (owner direction 2026-11-10) · D2 n/a · D5/D6/D9 none
 
 ## 1. ID and outcome
+**Scope (coordinator, 2026-11-11):** the server side was split. P-WIRE17-HUD-1 (merged) sends the nine GAINED values and
+the mob-bonus rows (`Collections.Summary`, a `WireBuildSummary`: `Gains[9]`, `MobRows`, `Gain(stat)`); the champion panel
+values and weapon scaling are P-WIRE17-HUD-2 (not built). This packet is therefore the GAINED strip and the mob-bonus
+row only; the bottom-left champion panel is `P-UNITY-HUD-BUILD-2`, after P-WIRE17-HUD-2. Paragraphs below that mention
+the champion panel describe that later packet.
+
 The Unity GAINED cells show chest-boost pick counts as "xN", the damage cell is always "—" and the mob-bonus row is
-hidden, so farming a stat changes nothing on screen. The bottom-left panel shows attack-speed and move-speed
-multipliers where legacy shows the weapon's damage per hit and attacks per second, the faction passive's numbers and the
-Wish's numbers. With protocol 17 the owning player receives a build summary from the server. When this lands the GAINED
-strip shows the nine legacy values with the legacy labels, order and number formatting, the mob-bonus row lists the
-farmed stats, and the champion panel's three rows show the legacy text built from the summary. Unity formats; it
-computes nothing.
+hidden, so farming a stat changes nothing on screen. With protocol 17 the owning player receives a build summary from
+the server. When this lands the GAINED strip shows the nine legacy values with the legacy labels, order and number
+formatting, and the mob-bonus row lists the farmed stats, both built from the summary by a pure formatter. Unity
+formats; it computes nothing.
 
 ## 2. Dependencies
-- P-WIRE17-HUD-1 merged (the owner-only build summary, weapon scaling)
+- P-WIRE17-HUD-1 merged (the owner-only build summary: GAINED values and mob-bonus rows)
 
 ## 3. Relevant legacy paths
 - `packages/client/src/ui/buildModel.ts:154-181` (`buildGains`), `buildHud.ts` (labels, order, formatting)
@@ -49,14 +53,14 @@ computes nothing.
   look like real values.
 
 ## 8. Acceptance checks
-- `scripts/gate.sh --quick --oracle packet/P-UNITY-HUD-BUILD-1-oracle` passes; the Unity EditMode suite passes.
+- `scripts/gate.sh --quick --oracle packet/P-UNITY-HUD-BUILD-1` passes; the Unity EditMode suite passes.
 - Unit tests on the pure formatter: a sample summary gives the nine cells in legacy order with legacy labels and
-  formatting (signs, percent, 2-decimal rounding); mob-bonus rows list each farmed stat; the three champion rows read as
-  legacy for a sample of each faction's passive; an absent summary gives the empty state.
+  formatting (signs, percent, rounding); mob-bonus rows list each farmed stat; an absent summary gives the empty state.
 - One EditMode case: the HUD draws the formatter's cells.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-HUD-BUILD-1`
+- `client-unity/RoguehallaNet.Tests/BuildHudTextTests.cs` (10 cases; `NoSummaryYetGivesNoCellsAndNoMobLinesNotZeros` already passes against the stub, the other nine fail)
+- Stub the implementer replaces (not an oracle file): `client-unity/RoguehallaNet/Net/Ui/BuildHudText.cs` (`BuildHudText.Cells(WireBuildSummary)`, `BuildHudText.MobLines(WireBuildSummary)`, structs `BuildCell {Label, Value, Dim}` and `MobBonusLine {Label, Total}`), its synced copy and `.meta`
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`
@@ -71,3 +75,25 @@ Sonnet. Medium: text and layout over a pure formatter; no rule.
 - The summary arrives quantized: format what arrives, do not "repair" it.
 
 ## Notes from previous attempts
+
+## Legacy rules as verified (oracle author)
+Gains arrive as integers of 1e-4; expectations are exact decimal arithmetic on the raw integer, rounded half up (JS `Math.round`, so 1.25 -> 1.3 and -0.25 -> -0.2; not C# banker's rounding).
+- Cell order Offense, SO, Damage gained, Attack speed, Life steal, Health gained, Defense, Soul Defense, Move speed: `packages/client/src/ui/buildModel.ts:14` (`HUD_GAIN_IDS`), matches wire stat codes 0-8. Short labels (the visible `label`, note "SO" and bare "Defense"/"Soul Defense"): `buildModel.ts:171-179`. Long aria/tooltip names (`buildHud.ts` `FULL_BUILD_LABELS`, "Soul Offence", "Defense gained") are NOT pinned.
+- Points cells (Offense, SO, Defense, Soul Defense): `signed(num(v))`, `buildModel.ts:171,172,177,178,184`; `num` = one decimal, half up, no ".0" (`:47-50`). A negative keeps "-"; zero and a value rounding to zero show "+0".
+- Percent cells (Damage, Life steal): `percentPoints` `:159` = `+` only when > 0, `round(v*10000)/100` as the shortest number, then "%". Attack speed and Move speed: `speedGain` `:160-163`, same format on `mult-1` (wire already carries the change). Zero shows "0%".
+- Health: `+${num(hpGain)}` `:176`, always a plus, "+0" when zero.
+- Zero handling: the cell is shown and greyed (`dim`), never hidden: `buildModel.ts:171-179` (`dim: ... === 0`), `buildHud.ts:133` (`classList.toggle("dim")`). Dim is decided on the unrounded value (`:171`).
+- Empty state: legacy hides the whole strip without a player (`buildHud.ts:101-108`, `update`; root hidden at :106); pinned here as `Cells(null)` is empty. Mob table with no rows: "No normal-mob bonuses yet" (`mobStatsHud.ts:39`).
+- Mob rows: label `${name} ×${count}` (`mobStatsHud.ts:35,56`, name from `mobs.ts:138-169`, wire mob code = catalog index), total `mobStatText` (`shared/mobStats.ts:130-141`): `+<amount> <suffix>`, suffixes from `mobStats.ts:53-74` by stat code (damage, move speed, max health, Soul Offence, Defense, Soul Defense, attack speed, lifesteal, Offense). Percent stats: `toLocaleString("en-US", maxFractionDigits 2)` + "%" (so thousands separators); flat stats: the raw number, not rounded to one decimal (3 x 1.25 = 3.75).
+
+### Pinned legacy quirks (flag, do not fix)
+- A tiny negative points value (-0.04) shows "+0" and is not greyed (`-0` -> "0" -> `signed`). A naive C# `ToString` would print "-0".
+- Percent totals in the mob row use thousands separators.
+
+### Legacy shows, the summary does not carry
+- Per-kill reward text ("+3% damage per kill", `mobStats.ts:87-96`, `mobStatsHud.ts:68`), the per-type catalog of unowned mobs and zone headings (`mobStatsHud.ts:20-24,79`): these are static content, not in the summary; not pinned. The implementer may omit them.
+- Strip label suffix for Sentenced "Sentence: n/5" (`buildHud.ts:114`), and tooltip texts (`buildModel.ts:171-179`): not pinned (tooltips keep working as they do today).
+- Elite mob types have no reward row; `MobLines` behaviour for a mob code of an elite or unknown type is unspecified.
+
+### Decisions for the owner of the Unity side
+- Null summary: strip shows nothing (cells empty) and the mob row stays hidden; my reading of "legacy empty state". The old Unity "—" placeholder for the damage cell is not legacy.

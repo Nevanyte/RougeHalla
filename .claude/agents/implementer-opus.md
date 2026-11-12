@@ -5,7 +5,7 @@ model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, Edit, Write
 isolation: worktree
-maxTurns: 80
+maxTurns: 150
 ---
 You make a packet's failing oracle pass with the smallest correct diff, in the areas where a subtle mistake desyncs replays,
 breaks the state hash, leaks hidden state or corrupts stored data.
@@ -14,6 +14,8 @@ breaks the state hash, leaks hidden state or corrupts stored data.
    branch from the integration branch (`docs/agent/INTEGRATION_BRANCH`) and write the failing tests first.
 2. Read the packet, then the `AGENTS.md` of every directory in its write scope.
 3. Change only files in the exclusive write scope. Iterate with `scripts/gate.sh --quick`.
+   Commit after each stage (one layer at a time: sim, wire, C#, JS, tests), red or green: work that exists only in the
+   worktree is lost when the turn limit arrives.
 4. When quick is green, run `scripts/gate.sh --oracle packet/<ID>` once (add `--regen-fixtures` for wire packets) and commit.
 5. Report with the hand-off block in `AGENTS.md`.
 

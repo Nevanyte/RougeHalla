@@ -244,3 +244,187 @@ fn the_real_generator_serves_distinct_playable_maps() {
         sim.step();
     }
 }
+
+// ---- P-MAP-3-fix: no generation on the caller, a cap on abandoned workers, the served map's identity ----
+
+use std::sync::atomic::AtomicUsize;
+use std::thread::ThreadId;
+
+/// A generator that blocks until released. The pool's worker thread blocks for up to three seconds; any other thread
+/// (a caller generating inline) for 40 ms, so a pool that still generates on the caller fails an assertion instead of
+/// hanging the test.
+struct Blocking {
+    entered: AtomicU32,
+    threads: Mutex<Vec<ThreadId>>,
+    release: AtomicBool,
+    live: AtomicUsize,
+    max_live: AtomicUsize,
+}
+
+impl Blocking {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            entered: AtomicU32::new(0),
+            threads: Mutex::new(Vec::new()),
+            release: AtomicBool::new(false),
+            live: AtomicUsize::new(0),
+            max_live: AtomicUsize::new(0),
+        })
+    }
+}
+
+impl MapMaker for Blocking {
+    fn make(&self, _seed: u32) -> Result<Option<Arena>, String> {
+        self.threads.lock().unwrap().push(thread::current().id());
+        self.entered.fetch_add(1, Ordering::SeqCst);
+        let live = self.live.fetch_add(1, Ordering::SeqCst) + 1;
+        self.max_live.fetch_max(live, Ordering::SeqCst);
+        let on_worker = thread::current().name() == Some("map-worker");
+        let limit = if on_worker {
+            Duration::from_secs(3)
+        } else {
+            Duration::from_millis(40)
+        };
+        let t0 = Instant::now();
+        while !self.release.load(Ordering::SeqCst) && t0.elapsed() < limit {
+            thread::sleep(Duration::from_millis(2));
+        }
+        self.live.fetch_sub(1, Ordering::SeqCst);
+        Err("released".into())
+    }
+}
+
+/// Polls for at most `bound`; true if `ok` held.
+fn within(bound: Duration, ok: impl Fn() -> bool) -> bool {
+    let t0 = Instant::now();
+    while !ok() {
+        if t0.elapsed() >= bound {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(2));
+    }
+    true
+}
+
+fn long_hang(target: usize, refill_at: usize) -> MapPoolOptions {
+    MapPoolOptions {
+        hang: Duration::from_secs(5),
+        ..opts(target, refill_at)
+    }
+}
+
+/// Finding 1: `take` runs under the director lock, so an empty pool must hand out the configured map at once. (A pool
+/// with `target` 0 has no worker at all and keeps certifying on the caller; that test-only mode stays.)
+#[test]
+fn an_empty_pool_serves_the_configured_map_without_generating_on_the_caller() {
+    let maker = Blocking::new();
+    let p = pool(maker.clone(), long_hang(2, 1));
+    assert!(
+        within(Duration::from_secs(1), || maker
+            .entered
+            .load(Ordering::SeqCst)
+            >= 1),
+        "the worker never started"
+    );
+    let t0 = Instant::now();
+    let map = p.take();
+    let took = t0.elapsed();
+    maker.release.store(true, Ordering::SeqCst);
+    let me = thread::current().id();
+    assert!(
+        !maker.threads.lock().unwrap().contains(&me),
+        "take called the generator on the calling thread"
+    );
+    assert!(took < Duration::from_millis(30), "take waited {took:?}");
+    assert!(Arc::ptr_eq(&map.arena, &p.shared.configured.arena));
+    assert_eq!(p.stats().fallbacks, 1);
+}
+
+/// Finding 2: a generator that hangs on every call. Hang 50 ms, restart 10..40 ms: the cap is reached in well under a
+/// second, and from then on no new worker starts.
+#[test]
+fn abandoned_workers_are_capped_and_the_pool_degrades_to_the_configured_map() {
+    let maker = Blocking::new();
+    let o = MapPoolOptions {
+        hang: Duration::from_millis(50),
+        ..opts(2, 1)
+    };
+    let p = pool(maker.clone(), o);
+    let degraded = within(Duration::from_millis(1500), || p.stats().degraded);
+    // Time for any uncapped restarts to show up.
+    thread::sleep(Duration::from_millis(300));
+    let stats = p.stats();
+    let started = maker.entered.load(Ordering::SeqCst);
+    let max_live = maker.max_live.load(Ordering::SeqCst);
+    let t0 = Instant::now();
+    let map = p.take();
+    let took = t0.elapsed();
+    maker.release.store(true, Ordering::SeqCst);
+    assert!(degraded, "never reported degraded: {stats:?}");
+    assert_eq!(stats.abandoned, MAP_ABANDONED_CAP as u64, "{stats:?}");
+    // The cap counts abandoned threads; one more may be the current worker.
+    assert!(
+        max_live <= MAP_ABANDONED_CAP + 1,
+        "{max_live} generator calls were live at once"
+    );
+    // One call per worker (the first request of each); a capped pool starts no further worker.
+    assert!(
+        started as usize <= MAP_ABANDONED_CAP + 1,
+        "{started} workers started"
+    );
+    assert!(took < Duration::from_millis(30), "take waited {took:?}");
+    assert!(Arc::ptr_eq(&map.arena, &p.shared.configured.arena));
+}
+
+/// Finding 3: the value the director logs. A pooled map names its seed and its map hash.
+#[test]
+fn a_pooled_map_is_described_by_its_seed_and_hash() {
+    struct Recording {
+        seeds: Mutex<Vec<u32>>,
+        arena: Arena,
+    }
+    impl MapMaker for Recording {
+        fn make(&self, seed: u32) -> Result<Option<Arena>, String> {
+            self.seeds.lock().unwrap().push(seed);
+            Ok(Some(self.arena.clone()))
+        }
+    }
+    let arena = StyledMaker::default()
+        .make(1)
+        .unwrap()
+        .expect("seed 1 certifies");
+    let hash = arena
+        .map
+        .layers()
+        .expect("a certified map has layers")
+        .legacy_map_hash_u32();
+    let maker = Arc::new(Recording {
+        seeds: Mutex::new(Vec::new()),
+        arena,
+    });
+    let p = pool(maker.clone(), opts(2, 1));
+    eventually("a queued map", || p.size() >= 1);
+    let (map, served) = p.take_served();
+    assert!(!Arc::ptr_eq(&map.arena, &p.shared.configured.arena));
+    assert!(!served.configured, "{served:?}");
+    let seed = served.seed.expect("a pooled map has a seed");
+    assert!(maker.seeds.lock().unwrap().contains(&seed));
+    assert_eq!(served.hash, Some(hash));
+    let line = served.to_string();
+    assert!(line.contains(&seed.to_string()), "{line}");
+    assert!(line.contains(&format!("{hash:08x}")), "{line}");
+    assert!(!line.contains("configured"), "{line}");
+}
+
+/// Finding 3, the other half: the configured map says so.
+#[test]
+fn the_configured_map_is_described_as_configured() {
+    let maker = Blocking::new();
+    let p = pool(maker.clone(), long_hang(2, 1));
+    let (map, served) = p.take_served();
+    maker.release.store(true, Ordering::SeqCst);
+    assert!(Arc::ptr_eq(&map.arena, &p.shared.configured.arena));
+    assert!(served.configured, "{served:?}");
+    assert_eq!(served.seed, None);
+    assert!(served.to_string().contains("configured"), "{served}");
+}

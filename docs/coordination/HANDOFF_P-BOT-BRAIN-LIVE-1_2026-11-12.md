@@ -19,8 +19,8 @@ CHANGED:         new: crates/rh-policy/src/bots/brain_bot.rs (+ brain_bot/tests.
                  director.rs, bot_learning.rs, bot_learning/tests.rs}, docs/DEVIATIONS.md
 D-RULES:         D1 loose proof: composed percepts pass the frozen source validators (build_percept); D2 n/a;
                  D9: bots act only through validate + submit (the seat path is unchanged)
-DEVIATIONS:      proposed DEV-018 (platform): the degraded fair profile, as built (row in docs/DEVIATIONS.md)
-SHARED RECORDS:  proposed edits: MIGRATION (record P-BOT-BRAIN-LIVE-1 and DEV-018); backlog row P-BOT-BRAIN-LIVE-1
+DEVIATIONS:      proposed DEV-025 (platform): the degraded fair profile, as built (row in docs/DEVIATIONS.md)
+SHARED RECORDS:  proposed edits: MIGRATION (record P-BOT-BRAIN-LIVE-1 and DEV-025); backlog row P-BOT-BRAIN-LIVE-1
                  "implemented behind --bot-brain, off by default"; crates/rh-policy/AGENTS.md first paragraph ("the full
                  legacy Brain ... is not wired to live bots") is now stale (protected file: owner edit)
 LEGACY DOUBTS:   packages/server/src/bots/brain/memory.ts:563-605 — Memory never forgets a mob; with sample-scoped NPC

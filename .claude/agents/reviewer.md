@@ -21,6 +21,9 @@ Check, in order, and write down each finding with `path:line`:
 6. **Failure handling** on server paths: errors returned and visible, no panics on request paths, no silent dead task.
 7. **Records**: intentional deviations have a proposed `DEVIATIONS.md` row; shared-record edits are proposed, not made.
 
+Write your findings and the verdict before starting any test run that takes more than a minute: a review that ends
+without a verdict is void, and the coordinator's merge gate reruns the suites anyway.
+
 Verdict, exactly one:
 - `LAND`
 - `LAND WITH NOTES`: at most three concrete fixes, each a one-line follow-up packet, marked REAL or MINOR (say when legacy

@@ -420,7 +420,7 @@ async fn source_endpoint_hello_planning_ready_and_live_quest_trade_state() {
     assert_eq!(alice.room, bob.room);
     assert_eq!(
         alice.map.as_ref().unwrap().terrain_mode,
-        rh_protocol::GroundMode::All
+        rh_protocol::GroundMode::Map
     );
     assert!(alice.map.as_ref().unwrap().terrain.is_some());
     alice.until(|c| c.phase == 3 && c.plan.is_some()).await;
@@ -912,7 +912,7 @@ async fn captured_full_source_map_admits_encoded_planning_and_live_public_state(
         .unwrap();
     let map = alice.map.as_ref().unwrap();
     assert_eq!((map.w, map.h), (160, 160));
-    assert_eq!(map.terrain_mode, rh_protocol::GroundMode::All);
+    assert_eq!(map.terrain_mode, rh_protocol::GroundMode::Map);
     assert!(map.terrain.is_some() && map.regions.is_some());
     assert_eq!(alice.room, bob.room);
     alice.until(|c| c.phase == 3 && c.plan.is_some()).await;

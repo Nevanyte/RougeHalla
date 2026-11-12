@@ -6,7 +6,7 @@ set -euo pipefail
 image="${1:?usage: docker-smoke.sh <fakesdk image>}"
 name="rh-fake-$$"
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
-docker run -d --name "$name" --platform linux/arm64 --entrypoint /bin/bash "$image" -c 'exec /local/game/glbridge --poll-interval 200ms --admit-interval 200ms' >/dev/null
+docker run -d --name "$name" --platform linux/arm64 --entrypoint /bin/bash "$image" -c 'exec /local/game/glbridge --poll-interval 200ms --admit-interval 200ms -- --insecure-dev-auth' >/dev/null
 http() { # port method path body
   docker exec "$name" bash -c 'exec 3<>/dev/tcp/127.0.0.1/$1; printf "%s %s HTTP/1.0\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s" "$2" "$3" "${#4}" "$4" >&3; cat <&3' _ "$1" "$2" "$3" "$4" 2>/dev/null || true
 }

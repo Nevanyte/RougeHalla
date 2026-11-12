@@ -36,6 +36,8 @@ impl TryFrom<LayersRepr> for MapLayers {
 pub struct ValidatedMap {
     tiles: Vec<u8>,
     layers: MapLayers,
+    /// The generator's signature anchors, carried for the export only (never part of the sim's layers).
+    anchors: Vec<ZoneAnchor>,
 }
 impl ValidatedMap {
     pub fn layers(&self) -> &MapLayers {
@@ -56,7 +58,7 @@ impl ValidatedMap {
         MapExport {
             format: "rh-map/2".into(),
             legacy_map_hash_u32: self.layers.legacy_map_hash_u32,
-            map: GameMapData::join(self.tiles, self.layers.data),
+            map: GameMapData::join(self.tiles, self.layers.data, self.anchors),
         }
     }
 }
@@ -65,7 +67,7 @@ impl MapExport {
         if self.format != "rh-map/2" {
             return Err(MapDataError::new("format", "expected rh-map/2"));
         }
-        let (tiles, data) = self.map.split();
+        let (tiles, data, anchors) = self.map.split();
         validate::metadata(&data)?;
         validate::collision(&data, &tiles)?;
         Ok(ValidatedMap {
@@ -74,6 +76,7 @@ impl MapExport {
                 legacy_map_hash_u32: self.legacy_map_hash_u32,
                 data,
             },
+            anchors,
         })
     }
 }
@@ -104,7 +107,7 @@ impl MapLayers {
         Ok(MapExport {
             format: "rh-map/2".into(),
             legacy_map_hash_u32: self.legacy_map_hash_u32,
-            map: GameMapData::join(tiles.to_vec(), self.data.clone()),
+            map: GameMapData::join(tiles.to_vec(), self.data.clone(), Vec::new()),
         })
     }
     pub fn validate_for_tiles(&self, tiles: &[u8]) -> Result<(), MapDataError> {

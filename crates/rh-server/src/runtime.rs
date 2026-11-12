@@ -219,7 +219,10 @@ impl Settings {
             hazards: if training {
                 terrain::Mode::Off
             } else {
-                terrain::Mode::All
+                // Owner decision 2026-11-12: factions keep their home-ground benefits (the legacy rule): Fire is not
+                // burned by embers, Plague is not slowed by bog, Frost does not slide on ice, Holy heals more on
+                // healing ground.
+                terrain::Mode::Map
             },
             abilities: abilities::Mode::Full,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,

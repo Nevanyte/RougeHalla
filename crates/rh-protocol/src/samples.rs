@@ -9,8 +9,9 @@ use crate::delta::{
 };
 use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use crate::state::{
-    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_VISIBLE_FIELDS,
-    MAX_VISIBLE_PROPS,
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WirePanelValue, WireWard, HUD_STAT_COUNT,
+    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_SUMMARY_MOB_ROWS,
+    MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS, PANEL_CODE_COUNT,
 };
 use crate::*;
 use crate::{
@@ -391,6 +392,8 @@ fn state_sample() -> ServerMsg {
                 state: 2,
                 cleared_at: 1000.,
                 respawn_at: 181000.,
+                reward: None,
+                ward: None,
             }]),
             StateItem::Projectiles(vec![
                 WireProjectile {
@@ -669,8 +672,34 @@ fn state_all_max_budget() -> ServerMsg {
             state: 2,
             cleared_at: f64::MAX / 2.0,
             respawn_at: f64::MAX,
+            reward: Some(WireCampReward {
+                stat: HUD_STAT_COUNT - 1,
+                amount: u16::MAX,
+            }),
+            ward: Some(WireWard {
+                yours: false,
+                expires_at: f64::MAX,
+            }),
         })
         .collect();
+    let summary = WireBuildSummary {
+        gains: [i32::MIN; 9],
+        mob_rows: (0..MAX_SUMMARY_MOB_ROWS as u8)
+            .map(|i| WireMobBonusRow {
+                mob_type: 10 + i,
+                stat: HUD_STAT_COUNT - 1,
+                stacks: u32::MAX,
+                total: i32::MIN,
+            })
+            .collect(),
+        // P-WIRE17-HUD-2: every panel code; the prop-label padding below absorbs its bytes.
+        panel: (0..PANEL_CODE_COUNT)
+            .map(|code| WirePanelValue {
+                code,
+                value: i32::MIN,
+            })
+            .collect(),
+    };
     let projectiles = (0..512)
         .map(|i| WireProjectile {
             kind: 1,
@@ -739,6 +768,7 @@ fn state_all_max_budget() -> ServerMsg {
             StateItem::Arena(Some(arena)),
             StateItem::Quests(Some(quest_view_at_max_bytes())),
             StateItem::Trade(Some(trade_view_max())),
+            StateItem::BuildSummary(Some(summary)),
         ],
     };
 
@@ -1094,6 +1124,123 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 ],
             },
         ),
+        // P-WIRE17-HUD-1: camp rows with every reward/ward shape, and the owner's build summary (State key 13).
+        (
+            "state_camp_hud",
+            ServerMsg::State {
+                tick: 212,
+                items: vec![StateItem::Camps(vec![
+                    WireCamp {
+                        mob_type: 3,
+                        elite: Some(29),
+                        alive: 2,
+                        state: 0,
+                        cleared_at: 1000.,
+                        respawn_at: 181000.,
+                        reward: Some(WireCampReward {
+                            stat: 6,
+                            amount: 12_500,
+                        }),
+                        ward: Some(WireWard {
+                            yours: true,
+                            expires_at: 61_000.,
+                        }),
+                    },
+                    WireCamp {
+                        mob_type: 7,
+                        elite: None,
+                        alive: 0,
+                        state: 2,
+                        cleared_at: 2000.,
+                        respawn_at: 92_000.,
+                        reward: Some(WireCampReward {
+                            stat: 8,
+                            amount: 50,
+                        }),
+                        ward: Some(WireWard {
+                            yours: false,
+                            expires_at: 90_500.5,
+                        }),
+                    },
+                    WireCamp {
+                        mob_type: 0,
+                        elite: None,
+                        alive: 3,
+                        state: 0,
+                        cleared_at: 0.,
+                        respawn_at: 0.,
+                        reward: None,
+                        ward: None,
+                    },
+                ])],
+            },
+        ),
+        (
+            "state_build_summary",
+            ServerMsg::State {
+                tick: 213,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary {
+                    gains: [
+                        120_000, 50_000, 905, 1_900, -337, 850_000, 65_000, -32_500, 600,
+                    ],
+                    mob_rows: vec![
+                        WireMobBonusRow {
+                            mob_type: 0,
+                            stat: 2,
+                            stacks: 7,
+                            total: 700,
+                        },
+                        WireMobBonusRow {
+                            mob_type: 4,
+                            stat: 6,
+                            stacks: 300,
+                            total: 3_750_000,
+                        },
+                    ],
+                    panel: Vec::new(),
+                }))],
+            },
+        ),
+        // P-WIRE17-HUD-2: a Fire owner's champion panel (codes 0..=9) after an empty mob list.
+        (
+            "state_build_summary_panel",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary {
+                    gains: [25_000, 15_000, 0, -5_000, 0, 0, 0, 0, 0],
+                    mob_rows: Vec::new(),
+                    panel: [
+                        (0, 18_182),
+                        (1, 473_697),
+                        (2, 0),
+                        (3, 19_800),
+                        (4, 643_750),
+                        (5, 6_000),
+                        (6, 5_000),
+                        (7, 12_500),
+                        (8, 2_500_000),
+                        (9, 0),
+                    ]
+                    .into_iter()
+                    .map(|(code, value)| WirePanelValue { code, value })
+                    .collect(),
+                }))],
+            },
+        ),
+        (
+            "state_build_summary_empty",
+            ServerMsg::State {
+                tick: 214,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary::default()))],
+            },
+        ),
+        (
+            "state_build_summary_none",
+            ServerMsg::State {
+                tick: 215,
+                items: vec![StateItem::BuildSummary(None)],
+            },
+        ),
         // Protocol 16, ADR0026: State key 12, the roster (a multi-byte id gap, a bot, a 24-byte name, non-ASCII text).
         (
             "state_roster",
@@ -1336,7 +1483,9 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         alive: 512,
                         state: 0,
                         cleared_at: 0.,
-                        respawn_at: 0.
+                        respawn_at: 0.,
+                        reward: None,
+                        ward: None,
                     };
                     512
                 ])],
@@ -3408,6 +3557,7 @@ fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respaw
     w.u8(state);
     w.f64(clear);
     w.f64(respawn);
+    w.bytes(&[0, 0]); // P-WIRE17-HUD-1: no reward, no ward (the fault under test is in the head)
     w.finish()
 }
 
@@ -4520,7 +4670,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 13]),
+        ("state_unknown_key", vec![0x88, 0, 1, 14]),
         ("state_quest_status_unknown", quest_bad_status),
         ("state_quest_flags_unknown", quest_bad_flags),
         ("state_quest_visited_unknown", quest_bad_visited),
@@ -4630,7 +4780,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 13]),
+        ("state_too_many_keys", vec![0x88, 0, 14]),
         // Protocol 16, ADR0026: State key 12, the roster.
         ("state_roster_count_over_32", vec![0x88, 0, 1, 12, 33]),
         (
@@ -4835,7 +4985,58 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     .chain(malformed_vision())
     .chain(malformed_weapons())
     .chain(malformed_deltas())
+    .chain(malformed_hud())
     .collect()
+}
+
+/// P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward and ward, State key 6; the build summary and
+/// its champion panel, key 13), refused identically by the Rust, C# and JS decoders.
+fn malformed_hud() -> Vec<(&'static str, Vec<u8>)> {
+    // T_STATE, tick 5, one item, key 6, one camp: mob 3, elite 29 (present: 30), alive 2, state 0, cleared_at 1000,
+    // respawn_at 181000; the HUD tail (reward, ward) follows.
+    let camp = |tail: &[u8]| {
+        let mut b = vec![0x88, 5, 1, 6, 1, 3, 30, 2, 0];
+        b.extend_from_slice(&1000f64.to_le_bytes());
+        b.extend_from_slice(&181000f64.to_le_bytes());
+        b.extend_from_slice(tail);
+        b
+    };
+    // T_STATE, tick 5, one item, key 13, present, nine zero gains; the mob rows and the panel follow.
+    let summary = |tail: &[u8]| {
+        let mut b = vec![0x88, 5, 1, 13, 1];
+        b.extend_from_slice(&[0; 36]);
+        b.extend_from_slice(tail);
+        b
+    };
+    let row = |lead: &[u8], value: i32| {
+        let mut b = lead.to_vec();
+        b.extend_from_slice(&value.to_le_bytes());
+        b
+    };
+    let mut gains_short = vec![0x88, 5, 1, 13, 1];
+    gains_short.extend_from_slice(&[0; 32]);
+    let mut mob_stat_9 = vec![1];
+    mob_stat_9.extend(row(&[0, 9, 1], 1));
+    mob_stat_9.push(0);
+    let mut code_23 = vec![0, 1];
+    code_23.extend(row(&[23], 1));
+    let mut order = vec![0, 2];
+    order.extend(row(&[3], 1));
+    order.extend(row(&[3], 1));
+    let mut over = vec![0, 24];
+    for code in 0..24u8 {
+        over.extend(row(&[code], 1));
+    }
+    vec![
+        ("state_camp_reward_stat_10", camp(&[10, 0x10, 0x27, 0])),
+        ("state_camp_ward_verdict_3", camp(&[0, 3])),
+        ("state_camp_ward_missing_expiry", camp(&[0, 1])),
+        ("state_build_summary_gains_short", gains_short),
+        ("state_build_summary_mob_stat_9", summary(&mob_stat_9)),
+        ("state_build_summary_panel_code_23", summary(&code_23)),
+        ("state_build_summary_panel_order", summary(&order)),
+        ("state_build_summary_panel_count_over", summary(&over)),
+    ]
 }
 
 /// What one frame of a chain does to a client's [`SnapshotTracker`].

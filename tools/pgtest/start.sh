@@ -14,8 +14,22 @@ run_pg() {
   fi
 }
 
-PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}"
+if [ -z "${PGBIN:-}" ]; then
+  if [ -x /opt/homebrew/opt/postgresql@16/bin/initdb ]; then
+    PGBIN=/opt/homebrew/opt/postgresql@16/bin
+  else
+    PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+  fi
+fi
 [ -x "$PGBIN/initdb" ] || { echo "postgres binaries not found (set PGBIN)" >&2; exit 1; }
+
+# Without a valid locale PostgreSQL 16 on macOS stops with "postmaster became multithreaded during startup".
+if [ -z "${LC_ALL:-}" ]; then
+  for loc in en_US.UTF-8 C.UTF-8; do
+    if locale -a 2>/dev/null | grep -qxF "$loc"; then LC_ALL="$loc"; break; fi
+  done
+  export LC_ALL="${LC_ALL:-C}"
+fi
 
 STATE_DIR="${RH_PGTEST_STATE:-${TMPDIR:-/tmp}/rh-pgtest-state}"
 mkdir -p "$STATE_DIR"
@@ -42,6 +56,7 @@ run_pg "$PGBIN/pg_ctl" -D "$DIR/data" -l "$DIR/postgres.log" -w \
   start >/dev/null
 
 URL="postgres://postgres@127.0.0.1:$PORT/postgres"
+[ -z "${RH_PGTEST_OWNER:-}" ] || echo "$RH_PGTEST_OWNER" >"$DIR/owner"
 echo "$DIR" >"$STATE_DIR/dir"
 echo "$URL" >"$STATE_DIR/url"
 echo "export DATABASE_URL=$URL"

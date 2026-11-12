@@ -55,13 +55,14 @@ function act(w:any,a:any):any[]{const events:any[]=[];
   if(a.weapon1!==undefined)p.weapon1=a.weapon1;
   if(a.slot!==undefined)p.slot=a.slot;
   if(a.potionSmall!==undefined)p.potionSmall=a.potionSmall;
+  if(a.potionLarge!==undefined)p.potionLarge=a.potionLarge;
   return events;}
  if(a.kind==='grant'){assert.equal(grantCard(w,combatant(w,a.actor),a.card),1,'actual Committed grant');return events;}
  if(a.kind==='addContainer'){const was=w.stepping;if(a.stepping)w.stepping=true;const box=addContainer(w,a.kindOf,a.at,'Chest',a.items.map((def:string)=>({uid:w.newItemUid(),def})));if(a.hold)holdBirth(w,box.id);w.stepping=was;return events;}
  throw Error('unknown action '+a.kind);}
 const cases:any[]=[];
 function add(name:string,setup:any[],actions:any[]){cases.push({name,setup,actions});}
-const setupPlayer=(actor:string,at:any,extra:any={})=>({kind:'setupPlayer',actor,at,hp:extra.hp,weapon0:extra.weapon0,weapon1:extra.weapon1,slot:extra.slot,potionSmall:extra.potionSmall});
+const setupPlayer=(actor:string,at:any,extra:any={})=>({kind:'setupPlayer',actor,at,hp:extra.hp,weapon0:extra.weapon0,weapon1:extra.weapon1,slot:extra.slot,potionSmall:extra.potionSmall,potionLarge:extra.potionLarge});
 const cmd=(actor:string,type:string,payload:any={})=>({actor,type,payload});
 const pickup=(containerId:string)=>cmd('p0','pickup',{containerId});
 const swap=(slot:any)=>cmd('p0','swap',slot===undefined?{}:{slot});
@@ -95,6 +96,15 @@ add('hold-birth-chest-and-between-tick-ground',[setupPlayer('p0',pos.holdP0),
 ]);
 // 6. An ordinary non-locked swap still flips the hand and pays the shared cooldown.
 add('swap-basic',[setupPlayer('p0',pos.ground0,{weapon0:'sword',weapon1:'axe'})],[{kind:'step',commands:[swap(undefined)]}]);
+// 7. A departing carrier's camp potions drop with the small ones (dropBody: weapons, then potionLarge, then potionSmall); each is taken one per action.
+add('body-drop-camp-potions',[setupPlayer('p0',pos.bodyP0),setupPlayer('p1',pos.bodyP1,{weapon0:'sword',potionLarge:2,potionSmall:1})],[
+ {kind:'kick',actor:'p1'},
+ {kind:'step',commands:[pickup('c5')]},
+ {kind:'step',commands:[pickup('c5')]},
+ {kind:'step',commands:[pickup('c5')]},
+ {kind:'step',commands:[pickup('c5')]},
+ {kind:'step',commands:[pickup('c5')]},
+]);
 const rows:any[]=[];
 for(const c of cases){const{w,draws,st}=make();
  for(const p of players)addPlayer(w,p.id,p.id,{faction:p.faction,bot:false});
@@ -132,6 +142,10 @@ assert.deepEqual([p0(at(body,'action-2')).weapon0,p0(at(body,'action-2')).weapon
 assert.deepEqual(at(body,'action-2').containers.find((c:any)=>c.id==='c5').items.map((i:any)=>i.def),['axe','potionSmall','potionSmall']);
 assert.deepEqual([p0(at(body,'action-3')).weapon0,p0(at(body,'action-3')).weapon1],['sword','axe']);
 assert.deepEqual(at(body,'action-3').containers.find((c:any)=>c.id==='c5').items.map((i:any)=>i.def),['potionSmall','potionSmall'],'a body stays as an empty prop once looted');
+const camp=byName('body-drop-camp-potions');
+assert.deepEqual(at(camp,'action-0').containers.filter((c:any)=>c.kind==='body').map((c:any)=>c.items.map((i:any)=>i.def)),[['sword','potionLarge','potionLarge','potionSmall']],'dropBody order: weapons, camp potions, small potions');
+assert(!at(camp,'action-0').players.some((p:any)=>p.id==='p1'),'the departed carrier is gone');
+assert.deepEqual([at(camp,'action-5').players.find((p:any)=>p.id==='p0').potionLarge,at(camp,'action-5').players.find((p:any)=>p.id==='p0').potionSmall],[2,1],'every dropped potion is takeable');
 const hold=byName('hold-birth-chest-and-between-tick-ground');
 assert(at(hold,'action-0').notices.length===2&&at(hold,'action-0').notices.every((n:any)=>n.text==='Nothing there'),'held chest and between-tick ground both wait');
 assert.equal(at(hold,'action-1').containers.find((c:any)=>c.id==='c5').opened,true,'the held chest opens two ticks on');

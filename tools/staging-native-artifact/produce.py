@@ -68,7 +68,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def get_loopback(port, path):
-    require(type(port) is int and 1024 <= port <= 65535 and path in ('/readyz', '/info', '/healthz'), 'GET readiness allowlist')
+    require(type(port) is int and 1024 <= port <= 65535 and path in ('/readyz', '/info', '/control/info', '/healthz'),
+            'GET readiness allowlist')
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     with opener.open('http://127.0.0.1:' + str(port) + path, timeout=1) as response:
         require(response.status == 200, 'readiness HTTP status refused')
@@ -150,11 +151,15 @@ def probe(binary, psql, env, scratch, diagnostics=None):
     diag = diagnostics or Diagnostics()
     with diag.stage('database-fresh'):
         require(sql(psql, "SELECT count(*) FROM pg_tables WHERE schemaname='public'", env) == '0', 'CI database is not fresh')
-    with socket.socket() as listener:
+    with socket.socket() as listener, socket.socket() as control_listener:
         listener.bind(('127.0.0.1', 0)); port = listener.getsockname()[1]
+        control_listener.bind(('127.0.0.1', 0)); control_port = control_listener.getsockname()[1]
     started = time.monotonic()
+    # The room/player/result counters are on the loopback control listener; the public /info carries identity and state only.
+    # That listener is an ephemeral loopback CI port with no token, which rh-server accepts only with --control-insecure-loopback.
     command = [str(binary), '--bind', '127.0.0.1:' + str(port), '--runtime', 'core', '--database-url', CI_URL,
-               '--instance-id', 'ci-native-readiness', '--max-rooms', '1', '--fill-bots', '0', '--bot-learning', 'off']
+               '--instance-id', 'ci-native-readiness', '--max-rooms', '1', '--fill-bots', '0', '--bot-learning', 'off',
+               '--control', '127.0.0.1:' + str(control_port), '--control-insecure-loopback']
     # Logs stay private in the owned CI temporary directory, never in artifact upload paths.
     with (scratch / 'server-private.log').open('xb') as log:
         with diag.stage('server-start'):
@@ -175,8 +180,11 @@ def probe(binary, psql, env, scratch, diagnostics=None):
                     require(time.monotonic() < deadline, 'bounded native readiness timed out')
                     time.sleep(0.2)
             with diag.stage('http-info'):
-                info = strict_json(get_loopback(port, '/info'))
+                public_info = strict_json(get_loopback(port, '/info'))
+                info = strict_json(get_loopback(control_port, '/control/info'))
                 health = get_loopback(port, '/healthz').decode('ascii')
+                require(public_info == {k: info.get(k) for k in ('protocol', 'contentHash', 'state')},
+                        'public /info must be exactly the control identity and state')
             with diag.stage('database-boundary'):
                 counts = ','.join("'" + table + "',(SELECT count(*) FROM " + table + ')' for table in TABLES)
                 rows = strict_json(sql(psql, 'SELECT json_build_object(' + counts + ')', env))

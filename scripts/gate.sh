@@ -46,7 +46,32 @@ MB="$(git merge-base HEAD "$BASE")"
 BRANCH="$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
 mkdir -p .agent-runs/gate
 LOG=".agent-runs/gate/$(date +%Y%m%dT%H%M%S)-${BRANCH}-${MODE}.log"
-STEP_LOG="$(mktemp)"; trap 'rm -f "$STEP_LOG"' EXIT
+STEP_LOG="$(mktemp)"
+# Clusters started under this gate (by tools/pgtest/start.sh, here or in a child test) carry this run's owner id in
+# <dir>/owner; on exit the gate stops only those, never another session's and never the one DATABASE_URL points at.
+# (With the test hook, scripts/gate.test.sh may preset the id.)
+if [[ -z "${GATE_STOP_AFTER_CHECKS:-}" || -z "${RH_PGTEST_OWNER:-}" ]]; then RH_PGTEST_OWNER="gate-$$-$(date +%s)"; fi
+export RH_PGTEST_OWNER
+PGT_TMP="${TMPDIR:-/tmp}"; PGT_TMP="${PGT_TMP%/}"
+pgtest_dirs() { { ls -d "$PGT_TMP"/rh-pgtest.* /tmp/rh-pgtest.* 2>/dev/null || true; } | sort -u; }
+cleanup() {
+  rm -f "$STEP_LOG"
+  local d port bin="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"
+  while read -r d; do
+    [[ -n "$d" && -f "$d/owner" && -f "$d/data/postmaster.pid" ]] || continue
+    [[ "$(cat "$d/owner" 2>/dev/null || true)" == "$RH_PGTEST_OWNER" ]] || continue
+    port="$(sed -n 4p "$d/data/postmaster.pid" 2>/dev/null || true)"
+    if [[ -n "$port" && "${DATABASE_URL:-}" == *":$port/"* ]]; then continue; fi
+    [[ -x "$bin/pg_ctl" ]] || bin="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+    if "$bin/pg_ctl" -D "$d/data" -m immediate stop >/dev/null 2>&1; then
+      rm -rf "$d"
+      echo "gate: stopped rh-pgtest cluster started under this run: $d" >&2
+    else
+      echo "gate: could not stop rh-pgtest cluster $d (left in place)" >&2
+    fi
+  done <<<"$(pgtest_dirs)"
+}
+trap cleanup EXIT
 exec > >(tee "$LOG") 2>&1
 
 SKIPPED=()
@@ -87,8 +112,15 @@ if [[ -n "$bad" ]]; then
 fi
 if [[ -n "$ORACLE" ]]; then
   git rev-parse --verify -q "$ORACLE^{commit}" >/dev/null || fail "oracle ref '$ORACLE' is not a commit"
-  # Oracle = every file the oracle commits touched, plus captured fixtures and golden vectors.
-  ORACLE_FILES="$(git diff --name-only "$(git merge-base "$ORACLE" "$BASE")" "$ORACLE")"
+  # Oracle = every file touched by the commits in merge-base(<ref>, base)..<ref> whose subject does not start with
+  # "stub:" (stub files are what an implementer replaces), plus captured fixtures and golden vectors below. Merge
+  # commits count as non-stub. A branch with no "stub:" commit has every touched file as an oracle file.
+  ORACLE_FILES="$(
+    git log --format='%H %s' "$(git merge-base "$ORACLE" "$BASE")..$ORACLE" | while read -r sha subject; do
+      if [[ "$subject" == stub:* ]]; then continue; fi
+      git diff-tree -r -m --root --no-commit-id --name-only "$sha"
+    done | sort -u
+  )"
   SINCE="$( { git diff --name-only "$ORACLE"; git ls-files --others --exclude-standard; } | sort -u)"
   bad="$(comm -12 <(sort -u <<<"$ORACLE_FILES") <(sort -u <<<"$SINCE") | grep -v '^$' || true)"
   [[ -z "$bad" ]] || fail "oracle files changed since $ORACLE:"$'\n'"$bad"
@@ -102,6 +134,25 @@ fi
 if git diff "$MB" -- 'crates/*.rs' | grep -qE '^\+.*allow\(clippy::disallowed_(types|methods)\)'; then
   note "WARNING: new allow(clippy::disallowed_*) in the diff. Each needs its reason beside it; the reviewer checks it (ADR 0007)."
 fi
+
+# ---------- environment preflight ------------------------------------------------------------------------------------
+# With DATABASE_URL set the Postgres suites run and one rh-server test needs PGBIN: resolve it as tools/pgtest does, or
+# fail before any build.
+if [[ -n "${DATABASE_URL:-}" ]]; then
+  if [[ -z "${PGBIN:-}" ]]; then
+    for d in /opt/homebrew/opt/postgresql@16/bin "$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"; do
+      if [[ -n "$d" && -x "$d/initdb" ]]; then PGBIN="$d"; break; fi
+    done
+  fi
+  if [[ -z "${PGBIN:-}" || ! -x "$PGBIN/initdb" || ! -x "$PGBIN/pg_ctl" ]]; then
+    fail "DATABASE_URL is set but PGBIN does not resolve to PostgreSQL 16 binaries (initdb, pg_ctl): export PGBIN (e.g. /opt/homebrew/opt/postgresql@16/bin) or unset DATABASE_URL"
+  fi
+  export PGBIN
+  note "PGBIN=$PGBIN"
+fi
+# Test hook for scripts/gate.test.sh (not for normal use): stop after the path and environment checks, before any build,
+# with exit 42 (never 0: a gate that built nothing must not look green).
+if [[ -n "${GATE_STOP_AFTER_CHECKS:-}" ]]; then echo "GATE STOP (test hook)"; exit 42; fi
 
 # ---------- what changed --------------------------------------------------------------------------------------------
 CRATES="$(grep -oE '^crates/[^/]+' <<<"$CHANGED" | cut -d/ -f2 | sort -u || true)"
@@ -123,6 +174,36 @@ jsvectors() {
   run "JS decoder vs golden vectors" node tools/protocol-js/check-vectors.mjs
   run "JS first-playable checks" node tools/protocol-js/check-first-playable.mjs
 }
+unity_editmode() { # exit 3 from editmode.sh = no Editor / project open: a named skip, never a pass
+  local rc=0
+  echo "== Unity EditMode suite"
+  echo "   \$ client-unity/UnityProject/Tools/editmode.sh"
+  bash client-unity/UnityProject/Tools/editmode.sh >"$STEP_LOG" 2>&1 || rc=$?
+  cat "$STEP_LOG" >>"$LOG"
+  if ((rc == 3)); then
+    note "$(tail -n 1 "$STEP_LOG")"
+    SKIPPED+=("Unity EditMode (no Editor / project open)")
+  elif ((rc != 0)); then
+    echo "---- last 40 lines of 'Unity EditMode suite' ----"; tail -n 40 "$STEP_LOG"
+    fail "Unity EditMode suite"
+  else
+    note "$(grep -E '^editmode: total' "$STEP_LOG" | tail -n 1)"
+  fi
+}
+# Unity tool tests that fail on the integration branch today, excluded by name (one list, with the reason).
+UNITY_TOOL_TEST_EXCLUDE=(
+  profile-hub14.test.cjs # pinned to the protocol 14 marker: "P14 probe codec block is unavailable" on the current codec
+)
+unity_tool_tests() {
+  local f x skip files=()
+  for f in client-unity/UnityProject/Tools/*.test.cjs; do
+    [[ -e "$f" ]] || continue
+    skip=0
+    for x in "${UNITY_TOOL_TEST_EXCLUDE[@]}"; do [[ "$(basename "$f")" == "$x" ]] && skip=1; done
+    ((skip)) || files+=("$f")
+  done
+  if ((${#files[@]})); then run "Unity tool tests (node --test)" node --test "${files[@]}"; fi
+}
 sim_tests() { run "rh-sim suite (trusted-status-probes, as CI)" cargo test --locked -p rh-sim --features trusted-status-probes; }
 
 run "rustfmt" cargo fmt --all -- --check
@@ -139,6 +220,8 @@ if [[ "$MODE" == quick ]]; then
   if has '^crates/(rh-sim|rh-parity|rh-policy)/|^parity/'; then run "parity report" cargo run -q --locked -p rh-parity --bin parity-report; fi
   if has '^crates/rh-protocol/|^protocol/fixtures/|^tools/protocol-js/'; then jsvectors; fi
   if has '^client-unity/RoguehallaNet|^protocol/fixtures/'; then csharp; fi
+  if has '^client-unity/UnityProject/Assets/'; then unity_editmode; fi
+  if has '^client-unity/UnityProject/Tools/'; then unity_tool_tests; fi
   if ! ((PG)) && grep -qE '^(rh-server|rh-persist|rh-placement)$' <<<"$CRATES"; then SKIPPED+=("Postgres suites (no DATABASE_URL)"); fi
   [[ -n "$CRATES" ]] || note "no Rust crate changed: only fmt and area checks ran"
   echo; echo "GATE PASS (quick)${SKIPPED:+ — skipped: ${SKIPPED[*]}}"; echo "log: $LOG"
@@ -159,6 +242,8 @@ fi
 run "parity report (Rust vs captured legacy)" cargo run -q --locked -p rh-parity --bin parity-report
 jsvectors
 csharp
+unity_editmode
+unity_tool_tests
 run "headless smoke (seed1, 8 bots)" cargo run -q --release --locked -p rh-headless -- --matches 1 --players 8 \
   --map parity/maps/seed1.map.json --max-ticks 4000
 

@@ -279,7 +279,7 @@ async fn trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery
         assert_eq!(own.offers, quotes.offers);
         assert!(accepted
             .iter()
-            .any(|message| matches!(message, ServerMsg::State { items, .. } if items.len() == 12)));
+            .any(|message| matches!(message, ServerMsg::State { items, .. } if items.len() == 13)));
         room.publish(&[]);
         assert!(!drain(&retry).iter().any(|message| matches!(message,
             ServerMsg::State { items, .. } if items.iter().any(|item| matches!(item, StateItem::Trade(_))))));
@@ -312,7 +312,7 @@ async fn trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery
         );
         assert!(full
             .iter()
-            .any(|message| matches!(message, ServerMsg::State { items, .. } if items.len() == 12)));
+            .any(|message| matches!(message, ServerMsg::State { items, .. } if items.len() == 13)));
         let ack = room.humans[0].ack_input;
         input(&mut room, 1, 1, 999, WireTradeKind::Barter, 0);
         assert_eq!(

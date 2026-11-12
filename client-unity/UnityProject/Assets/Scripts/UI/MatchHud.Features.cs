@@ -22,9 +22,10 @@ namespace Roguehalla.Client
         TMP_Text _phaseStrip, _metrics;
         double _nextMetricsAt;
         float _frameAverage;
-        readonly TMP_Text[] _buildCounts = new TMP_Text[8];
-        readonly byte[] _visibleBoosts = new byte[8];
-        bool _visibleBuild;
+        readonly TMP_Text[] _gainValues = new TMP_Text[9];
+        Roguehalla.Net.Protocol.WireBuildSummary _shownSummary;
+        IReadOnlyList<Roguehalla.Net.Ui.BuildCell> _gainCells = Array.Empty<Roguehalla.Net.Ui.BuildCell>();
+        bool _gainsShown;
         readonly UnityEngine.UI.Image[] _weaponIcons = new UnityEngine.UI.Image[2];
         readonly UnityEngine.UI.Image[] _weaponActiveBars = new UnityEngine.UI.Image[2];
         UnityEngine.UI.Image _potionIcon;
@@ -149,6 +150,26 @@ namespace Roguehalla.Client
             if (_map == null || _uiPrefs == null) return;
             ApplyLegacyViewport(_viewport);
         }
+        // P-UNITY-HUD-STATUS-1: the MatchEnded event's winner (roster id), kept here because Session keeps no copy.
+        bool _matchEnded; uint? _winnerId; string _winnerLabel; uint? _winnerLabelFor;
+        void NoteMatchEnded(Roguehalla.Net.Protocol.ServerMsg.Events batch)
+        {
+            foreach (var e in batch.List)
+                if (e.Kind == Roguehalla.Net.Protocol.EventKind.MatchEnded) { _matchEnded = true; _winnerId = e.Draw ? null : e.Winner; _winnerLabel = null; _winnerLabelFor = null; }
+        }
+        // A new match on a reused Session (rematch without a fresh Bind) must not inherit the previous winner: entering InMatch clears it.
+        void NoteSessionState(SessionState state) { if (state == SessionState.InMatch) ResetMatchEnded(); }
+        void ResetMatchEnded() { _matchEnded = false; _winnerId = null; _winnerLabel = null; _winnerLabelFor = null; }
+        string WinnerLabel()
+        {
+            if (!_winnerId.HasValue) return null;
+            if (_winnerLabel != null && _winnerLabelFor == _winnerId) return _winnerLabel;
+            var roster = _session.Collections.Roster;
+            for (int i = 0; i < roster.Count; i++)
+                if (roster[i].Id == _winnerId.Value && roster[i].Name != null)
+                { _winnerLabel = Roguehalla.Net.Ui.Indicators.DisplayName(roster[i].Name, roster[i].Bot); _winnerLabelFor = _winnerId; return _winnerLabel; }
+            return null;
+        }
         void TickMetrics()
         {
             if (_metrics == null || _phaseStrip == null) return;
@@ -163,15 +184,30 @@ namespace Roguehalla.Client
             if (_uiPrefs.ShowPing && _session != null) metrics += (metrics.Length == 0 ? "" : " · ") + (_session.Sync.HasSample ? _session.Sync.LastRttMs.ToString("0") + " ms" : "— ms");
             _metrics.text = metrics; _metrics.color = tone;
             if (_metricsPill != null) _metricsPill.gameObject.SetActive(metrics.Length > 0);
-            if (_session == null || _session.State != SessionState.InMatch) { _phaseStrip.text = ""; return; }
-            if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
-            if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
+            bool runOver = _session != null && _session.State == SessionState.Ended && _matchEnded;
+            if (_session == null || _session.State != SessionState.InMatch && !runOver) { _phaseStrip.text = ""; return; }
+            if (_client != null && _client.LaunchPending) { ApplyPhaseStrip("VERIFYING DESTINATION", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
+            if (_client != null && _client.ConfirmedPractice) { ApplyPhaseStrip("PRACTICE · NO RUN REWARDS", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
             // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
-            MatchPhase phase = _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
-            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, out var lineTone);
+            MatchPhase phase = runOver ? MatchPhase.Ended : _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
+            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, runOver ? WinnerLabel() : null, out var lineTone);
             if (text == null) { _phaseStrip.text = ""; return; }
-            string hex = lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
-            _phaseStrip.text = hex == null ? text : "<color=" + hex + ">" + text + "</color>";
+            ApplyPhaseStrip(text, lineTone);
+        }
+        /// <summary>Writes the top-centre phase line and its tone (P-UNITY-HUD-VISUAL-FIX-1 test seam: the tone must reach the label's colour, never tags in its text).</summary>
+        public void ApplyPhaseStrip(string text, Roguehalla.Net.Ui.Indicators.ArenaLineTone tone)
+        {
+            // Colour through the label, never tags: HudUi.Label is plain text (richText = false). Legacy --warn and .hud-arena.sudden (style.css:44,320).
+            _phaseStrip.color = tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? (Color)new Color32(0xff, 0x8a, 0x80, 255)
+                : tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? (Color)new Color32(0xff, 0xcc, 0x80, 255) : (Color)UiTheme.Current.TextPrimary;
+            // Legacy's line is as wide as its text (hud.ts updateArena): size the pill to the measured text, only when the text changed.
+            bool changed = _phaseStrip.text != text;
+            _phaseStrip.text = text;
+            if (changed && _phasePill != null)
+            {
+                float w = _phaseStrip.GetPreferredValues(text, 0f, 0f).x;
+                _phasePill.sizeDelta = new Vector2(Mathf.Max(120f, Mathf.Ceil(w) + 24f), _phasePill.sizeDelta.y);
+            }
         }
         void ToggleBuild()
         {
@@ -302,7 +338,7 @@ namespace Roguehalla.Client
             PerfMarks.End(PerfMarks.Sec.HudMap, pm); pm = PerfMarks.Begin();
             RefreshWorldHudVisibility();
             SyncTopCentre();
-            UpdateEdgeThreats();
+            UpdateEdgeThreats(); TickTerrain();
             PerfMarks.End(PerfMarks.Sec.HudEdge, pm); pm = PerfMarks.Begin();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
             PerfMarks.End(PerfMarks.Sec.HudDrawer, pm);
@@ -365,21 +401,39 @@ namespace Roguehalla.Client
             _worldHudFocus = selected != null && selected.transform.IsChildOf(_hud) ? selected : null;
         }
         static int CountCards(CollectionsView view) { int count = 0; foreach (byte card in view.Cards) if (card > 0) count++; return count; }
+        /// <summary>Redraws the GAINED cells and the mob-bonus row from the owner's summary; null (none arrived yet) hides the
+        /// strip and the mob row rather than showing zeros. Runs only when the summary object changes.</summary>
+        void ApplyBuildSummary(Roguehalla.Net.Protocol.WireBuildSummary summary)
+        {
+            _gainCells = Roguehalla.Net.Ui.BuildHudText.Cells(summary);
+            _gainsShown = _gainCells.Count == _gainValues.Length;
+            for (int i = 0; i < _gainValues.Length; i++)
+            {
+                if (_gainValues[i] == null || i >= _gainCells.Count) continue;
+                var cell = _gainCells[i];
+                _gainValues[i].text = cell.Value;
+                // Legacy "dim" cell: a zero value is muted and regular weight.
+                _gainValues[i].color = cell.Dim ? UiTheme.Current.TextSecondary : UiTheme.Current.TextPrimary;
+                _gainValues[i].fontStyle = cell.Dim ? FontStyles.Normal : FontStyles.Bold;
+            }
+            if (_mobText != null)
+            {
+                var lines = Roguehalla.Net.Ui.BuildHudText.MobLines(summary);
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < lines.Count; i++)
+                    sb.Append(i > 0 ? " · " : "").Append(lines[i].Label).Append(lines[i].Total.Length > 0 ? " " + lines[i].Total : "");
+                Set(_mobText, sb.ToString());
+                _mobText.gameObject.SetActive(lines.Count > 0);
+            }
+            SetPlateMode(_plateActive);
+        }
+        /// <summary>Test seam: the text of GAINED cell <paramref name="index"/> as drawn.</summary>
+        public string GainedCellText(int index) => _gainValues[index] != null ? _gainValues[index].text : null;
+        public bool GainedStripVisible => _buildBox != null && _buildBox.gameObject.activeSelf;
+
         void RefreshBuildIcons(CollectionsView view)
         {
-            for (int i = 0; i < _buildCounts.Length; i++) if (_buildCounts[i] != null)
-            {
-                byte count = i < view.Boosts.Count ? view.Boosts[i] : (byte)0;
-                if (!_visibleBuild || count != _visibleBoosts[i])
-                {
-                    _buildCounts[i].text = view.HasBuild ? "×" + count : "—";
-                    // Legacy "dim" cell: a zero value is muted and regular weight.
-                    _buildCounts[i].color = count == 0 ? UiTheme.Current.TextSecondary : UiTheme.Current.TextPrimary;
-                    _buildCounts[i].fontStyle = count == 0 ? FontStyles.Normal : FontStyles.Bold;
-                }
-                _visibleBoosts[i] = count;
-            }
-            _visibleBuild = view.HasBuild;
+            if (!ReferenceEquals(view.Summary, _shownSummary)) { _shownSummary = view.Summary; ApplyBuildSummary(view.Summary); }
             if (view.Inventory.HasValue)
             {
                 var inv = view.Inventory.Value;

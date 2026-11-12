@@ -21,6 +21,7 @@ namespace Roguehalla.Client
         readonly List<Vector2> _chests = new List<Vector2>();
         readonly List<DeliveredPoint> _delivered = new List<DeliveredPoint>();
         readonly List<TMP_Text> _zoneLabels = new List<TMP_Text>();
+        RectTransform _zoneLabelHost;
         struct DeliveredPoint { public Vector2 At; public string Label; public byte Kind; }
         public QuestHandle? TrackedQuest { get; set; }
         /// <summary>True on the Tab map: bigger markers and a name beside each zone icon. The minimap draws small icons only.</summary>
@@ -28,6 +29,34 @@ namespace Roguehalla.Client
         public int MerchantCount { get; private set; }
         public int QuestGiverCount { get; private set; }
         public int QuestObjectiveCount { get; private set; }
+        readonly List<CampGlyphRow> _camps = new List<CampGlyphRow>();
+        int _realIcons;
+        readonly List<TMP_Text> _campClocks = new List<TMP_Text>();
+        readonly List<CampWardRow> _wards = new List<CampWardRow>();
+        readonly List<ChestBadgeRow> _chestRows = new List<ChestBadgeRow>();
+        readonly List<TMP_Text> _chestTexts = new List<TMP_Text>();
+        /// <summary>Chest seconds badges the model produced for the last presentation (the minimap has no sight test here, so all delivered chests).</summary>
+        public int ChestBadgeCount => _chestRows.Count;
+        /// <summary>Respawn clock labels shown after the one-badge rule dropped those of camps whose chest is drawn.</summary>
+        public int CampClocksShown { get; private set; }
+        /// <summary>The chest seconds text of the badge at <paramref name="i"/> in the last presentation.</summary>
+        public string ChestBadgeText(int i) => _chestRows[i].Text;
+        readonly List<ContactMark> _contactMarks = new List<ContactMark>();
+        readonly List<RectTransform> _contactChips = new List<RectTransform>();
+        readonly List<TMP_Text> _contactTexts = new List<TMP_Text>();
+        // planning.css:175-183 .pl-actor-label on an enemy: near-black box, 1px border, text #ffc3c7, border #ff5360 (HUNT and ENEMY alike).
+        static readonly Color32 ChipFill = new Color32(5, 14, 22, 245), ChipBorder = new Color32(0xff, 0x53, 0x60, 255), ChipText = new Color32(0xff, 0xc3, 0xc7, 255);
+        /// <summary>Rival words ("HUNT" / "ENEMY") the model produced for the last Tab-map presentation (none on the minimap).</summary>
+        public int ContactLabelCount => _contactMarks.Count;
+        public string ContactLabelText(int i) => _contactMarks[i].Text;
+        readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
+        readonly List<Image> _badgeIcons = new List<Image>();
+        /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
+        public int RewardBadgeCount => _realIcons;
+        public int WardMarkCount => _wards.Count;
+        /// <summary>Badges, chests and ward marks actually drawn in the last mesh pass (not covered by a contact).</summary>
+        public int BadgesDrawn { get; private set; }
+        public int WardsDrawn { get; private set; }
         MapBlob _map;
         Vector2? _self;
         uint _selfId;
@@ -35,6 +64,24 @@ namespace Roguehalla.Client
         bool[] _zoneFound = new bool[MapZones.Count + 1];
         double[] _zoneX = new double[MapZones.Count + 1], _zoneY = new double[MapZones.Count + 1];
         public int ContactCount => _actors.Count;
+        /// <summary>Camp markers the model produced for the last presentation (map knowledge, drawn regardless of sight).</summary>
+        public int CampMarkerCount => _camps.Count;
+        /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>
+        public int CampMarkersDrawn { get; private set; }
+        // Test-visible counts for P-UNITY-DECLUTTER-1 (reset on each pass that sets them). Mesh pass: CampShapesDrawn, EngagedRingsDrawn,
+        // EliteMarkersDrawn. Presentation pass (Present): CampBuffGlyphsDrawn, CampDimGlyphsDrawn.
+        /// <summary>Zone-shape glyphs drawn for camps in the last mesh pass. Owner rule: always 0.</summary>
+        public int CampShapesDrawn { get; private set; }
+        /// <summary>"Someone has fought here" rings drawn in the last mesh pass. Owner rule: Tab map only.</summary>
+        public int EngagedRingsDrawn { get; private set; }
+        /// <summary>Elite camp markers drawn in the last mesh pass: exactly one per drawn elite camp.</summary>
+        public int EliteMarkersDrawn { get; private set; }
+        /// <summary>Buff glyphs (stat icon, or the neutral dot of a row with no reward) shown for camps after the last Present, none under a contact.</summary>
+        public int CampBuffGlyphsDrawn { get; private set; }
+        /// <summary>Of <see cref="CampBuffGlyphsDrawn"/>, those dimmed because the camp is cleared.</summary>
+        public int CampDimGlyphsDrawn { get; private set; }
+        /// <summary>Legacy minimapMarkers.ts:87-88: a camp mark is dropped where a contact sits this close.</summary>
+        public const float CampDropPx = 8f;
         /// <summary>The zones that have an icon (0 when the map has no region plane).</summary>
         public int ZoneIconCount { get { int n = 0; for (int r = 1; r <= MapZones.Count; r++) if (_zoneFound[r]) n++; return n; } }
         public bool PingActive => _ping.Active && _ping.Progress(NowMs) >= 0d;
@@ -46,7 +93,7 @@ namespace Roguehalla.Client
         {
             _map = map;
             _ping.Active = false;
-            if (map == null) { _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
+            if (map == null) { _actors.Clear(); _contactMarks.Clear(); RefreshContactLabels(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
             else if (map.Regions != null) MapZones.LabelTiles(map.Regions, map.W, map.H, out _zoneFound, out _zoneX, out _zoneY);
             else for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false;
             RefreshZoneLabels();
@@ -73,13 +120,23 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _realIcons = 0; _wards.Clear(); _contactMarks.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
+                if (_map != null)
+                {
+                    bool active = !session.Training;
+                    CampMarks.Glyphs(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, Large ? CampSurface.TabMap : CampSurface.Minimap, _camps);
+                    for (int i = 0; i < _camps.Count; i++) if (_camps[i].IconKey != null) _realIcons++;
+                    CampBadges.Wards(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _wards);
+                }
                 session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
+                if (Large && session.Me != null)
+                    Roguehalla.Net.Ui.WorldMarks.TabMapContacts(_actors, _selfId, session.Me.Faction, session.Me.Status, session.Me.HuntTarget, true, _contactMarks);
                 foreach (var chest in session.Collections.RewardChests) _chests.Add(new Vector2(chest.X, chest.Y));
+                ChestBadges.Rows(_map?.Camps, session.Collections.RewardChests, session.ServerTimeMs, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _chestRows);
                 if (route != null) foreach (var point in route) _route.Add(new Vector2((float)point.X, (float)point.Y));
                 var trade = session.Collections.Trade;
                 if (trade != null && trade.Available) foreach (var row in trade.Merchants)
@@ -104,6 +161,11 @@ namespace Roguehalla.Client
                     }
                 }
             }
+            RefreshCampClocks();
+            RefreshBadgeTexts();
+            RefreshContactLabels();
+            RefreshChestTexts();
+            RefreshBadgeIcons();
             SetVerticesDirty();
         }
 
@@ -117,9 +179,33 @@ namespace Roguehalla.Client
 
         Vector2 ZoneAt(int region) { return At(new Vector2((float)_zoneX[region] * 32f, (float)_zoneY[region] * 32f)); }
 
+        /// <summary>The zone labels live in their own full-size container, a later sibling of this mesh (and of the fog), so nothing the mesh draws covers them.</summary>
+        RectTransform ZoneLabelHost()
+        {
+            if (_zoneLabelHost != null) return _zoneLabelHost;
+            var host = new GameObject("Zone labels", typeof(RectTransform));
+            var parent = transform.parent != null ? transform.parent : transform;
+            host.transform.SetParent(parent, false);
+            _zoneLabelHost = (RectTransform)host.transform;
+            _zoneLabelHost.anchorMin = Vector2.zero; _zoneLabelHost.anchorMax = Vector2.one; _zoneLabelHost.offsetMin = _zoneLabelHost.offsetMax = Vector2.zero;
+            return _zoneLabelHost;
+        }
+
+        protected override void OnDestroy()
+        {
+            // The host may live under the marks' parent: it goes with the marks.
+            if (_zoneLabelHost != null)
+            {
+                if (Application.isPlaying) Destroy(_zoneLabelHost.gameObject); else DestroyImmediate(_zoneLabelHost.gameObject);
+            }
+            _zoneLabelHost = null; _zoneLabels.Clear();
+            base.OnDestroy();
+        }
+
         void RefreshZoneLabels()
         {
             bool show = Large && _map != null;
+            if (show && _zoneLabelHost != null) _zoneLabelHost.SetAsLastSibling();   // later siblings may have been added since it was created
             for (int i = 0; i < MapZones.Count; i++)
             {
                 int region = i + 1;
@@ -127,8 +213,9 @@ namespace Roguehalla.Client
                 if (i >= _zoneLabels.Count)
                 {
                     if (!on) continue;
-                    var label = HudUi.Label(transform, "ZoneLabel" + region, MapZones.Name(region).ToUpperInvariant(), 10f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
+                    var label = HudUi.Label(ZoneLabelHost(), "ZoneLabel" + region, MapZones.Name(region).ToUpperInvariant(), 10f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
                     var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(120f, 18f);
+                    label.fontSharedMaterial = OverheadIndicators.OutlinedMaterial(label.font);   // dark outline: reads over the cream self ring
                     _zoneLabels.Add(label);
                 }
                 var text = _zoneLabels[i];
@@ -136,6 +223,227 @@ namespace Roguehalla.Client
                 if (!on) continue;
                 // Sits just under the zone icon.
                 text.rectTransform.anchoredPosition = ZoneAt(region) + new Vector2(0f, -24f);
+            }
+        }
+
+        bool ContactNear(Vector2 p)
+        {
+            foreach (var actor in _actors)
+                if (actor.Id != _selfId && (At(new Vector2(actor.X, actor.Y)) - p).sqrMagnitude < CampDropPx * CampDropPx) return true;
+            return false;
+        }
+
+        /// <summary>Respawn countdowns of cleared camps: pooled labels, reused across presentations.</summary>
+        void RefreshCampClocks()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _camps.Count; i++)
+                {
+                    var camp = _camps[i];
+                    if (camp.Clock == null) continue;
+                    if (ChestBadges.Replaces(_chestRows, camp.Index)) continue; // one badge per camp: the chest's seconds win while it stands
+                    var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
+                    if (ContactNear(p)) continue;
+                    if (used >= _campClocks.Count)
+                    {
+                        var label = HudUi.Label(transform, "CampClock" + used, "", 9f, new Color32(0xb4, 0xc9, 0xdc, 255), TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(48f, 14f);
+                        label.raycastTarget = false;
+                        _campClocks.Add(label);
+                    }
+                    var text = _campClocks[used++];
+                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+                    if (text.text != camp.Clock) text.text = camp.Clock;
+                    text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -12f);
+                }
+            for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
+            CampClocksShown = used;
+        }
+
+        /// <summary>The word above each rival dot on the Tab map (legacy planning.ts:1117, label at top:-5px): pooled, rewritten only on change.</summary>
+        void RefreshContactLabels()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _contactMarks.Count; i++)
+                {
+                    var mark = _contactMarks[i];
+                    int at = -1;
+                    for (int j = 0; j < _actors.Count; j++) if (_actors[j].Id == mark.Id) { at = j; break; }
+                    if (at < 0) continue;
+                    var actor = _actors[at];
+                    if (used >= _contactTexts.Count)
+                    {
+                        var go = new GameObject("ContactLabel" + used, typeof(RectTransform), typeof(Image));
+                        go.transform.SetParent(transform, false);
+                        var chip = (RectTransform)go.transform; chip.anchorMin = chip.anchorMax = new Vector2(.5f, .5f); chip.pivot = new Vector2(.5f, .5f);
+                        var border = go.GetComponent<Image>(); border.color = ChipBorder; border.raycastTarget = false;
+                        var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image)); fill.transform.SetParent(chip, false);
+                        var fr = (RectTransform)fill.transform; fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = new Vector2(1f, 1f); fr.offsetMax = new Vector2(-1f, -1f);
+                        var fi = fill.GetComponent<Image>(); fi.color = ChipFill; fi.raycastTarget = false;
+                        var label = HudUi.Label(chip, "Text", "", 9f, ChipText, TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+                        label.fontStyle = FontStyles.Bold; label.characterSpacing = 6f; // weight 900, letter-spacing .06em
+                        label.raycastTarget = false;
+                        _contactChips.Add(chip); _contactTexts.Add(label);
+                    }
+                    var text = _contactTexts[used]; var box = _contactChips[used++];
+                    if (!box.gameObject.activeSelf) box.gameObject.SetActive(true);
+                    if (text.text != mark.Text) { text.text = mark.Text; box.sizeDelta = new Vector2(mark.Text.Length * 7f + 10f, 16f); }
+                    // Bottom edge 5px above the dot's top: about 19px from the dot centre to the chip centre.
+                    box.anchoredPosition = At(new Vector2(actor.X, actor.Y)) + new Vector2(0f, 19f);
+                }
+            for (int i = used; i < _contactChips.Count; i++) if (_contactChips[i].gameObject.activeSelf) _contactChips[i].gameObject.SetActive(false);
+        }
+
+        Vector2 ChestTextAt(Vector2 p) { return p + new Vector2(0f, Large ? -15f : -12f); }
+
+        /// <summary>Remaining seconds under each chest blip: pooled labels, rewritten only when the (cached) string changes.</summary>
+        void RefreshChestTexts()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _chestRows.Count; i++)
+                {
+                    var row = _chestRows[i];
+                    if (used >= _chestTexts.Count)
+                    {
+                        var label = HudUi.Label(transform, "ChestSeconds" + used, "", 9f, new Color32(0xff, 0xe0, 0x8a, 255), TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(30f, 14f);
+                        label.raycastTarget = false;
+                        _chestTexts.Add(label);
+                    }
+                    var text = _chestTexts[used++];
+                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+                    if (text.text != row.Text) text.text = row.Text;
+                    text.rectTransform.anchoredPosition = ChestTextAt(At(new Vector2((float)row.WorldX, (float)row.WorldY)));
+                }
+            for (int i = used; i < _chestTexts.Count; i++) if (_chestTexts[i].gameObject.activeSelf) _chestTexts[i].gameObject.SetActive(false);
+        }
+
+        // Layout beside the camp marker: ward mark on the left, reward badge (and elite chest) on the right, the respawn clock below.
+        Vector2 RewardSlot(Vector2 p, int row) { float s = Large ? 1.2f : 1f; return p + new Vector2(11f * s, 2f + row * 12f * s); }
+        Vector2 WardSlot(Vector2 p) { float s = Large ? 1.2f : 1f; return p + new Vector2(-11f * s, 2f); }
+        static readonly Color32 ChestTone = new Color32(0xe8, 0xd9, 0xa8, 255);
+
+        TMP_Text BadgeText(int i)
+        {
+            while (_badgeTexts.Count <= i)
+            {
+                var label = HudUi.Label(transform, "CampBadgeText" + _badgeTexts.Count, "", 9f, new Color32(0xe5, 0xed, 0xf7, 255), TextAlignmentOptions.Left, false, UiFontRole.Display);
+                var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(40f, 14f);
+                label.raycastTarget = false;
+                _badgeTexts.Add(label);
+            }
+            return _badgeTexts[i];
+        }
+
+        void ShowBadgeText(ref int used, Vector2 at, string text, Color32 color, bool leftOfPoint)
+        {
+            var t = BadgeText(used++);
+            if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+            if (t.text != text) t.text = text;
+            t.color = color;
+            t.alignment = leftOfPoint ? TextAlignmentOptions.Right : TextAlignmentOptions.Left;
+            t.rectTransform.pivot = new Vector2(leftOfPoint ? 1f : 0f, .5f);
+            t.rectTransform.anchoredPosition = at;
+        }
+
+        /// <summary>Tab map amount / "Aug" texts and the ward countdowns: pooled, rewritten only when the model's (cached) string changes.</summary>
+        void RefreshBadgeTexts()
+        {
+            int used = 0;
+            if (_map != null)
+            {
+                for (int i = 0; i < _camps.Count; i++)
+                {
+                    var b = _camps[i];
+                    var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
+                    if (ContactNear(p)) continue;
+                    int row = 0;
+                    if (b.AmountText != null) ShowBadgeText(ref used, RewardSlot(p, row++) + new Vector2(8f, 0f), b.AmountText, Rgb(b.IconRgb), false);
+                    if (b.EliteText != null) ShowBadgeText(ref used, RewardSlot(p, row) + new Vector2(8f, 0f), b.EliteText, ChestTone, false);
+                }
+                for (int i = 0; i < _wards.Count; i++)
+                {
+                    var w = _wards[i];
+                    var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
+                    if (ContactNear(p)) continue;
+                    if (!Large) continue; // the minimap keeps the ward mark only, no number
+                    ShowBadgeText(ref used, WardSlot(p) + new Vector2(-8f, 0f), w.Countdown, Rgb(w.TextRgb), true);
+                }
+            }
+            for (int i = used; i < _badgeTexts.Count; i++) if (_badgeTexts[i].gameObject.activeSelf) _badgeTexts[i].gameObject.SetActive(false);
+        }
+
+        /// <summary>The one buff glyph of each camp (the GAINED strip's art, tinted with the row's colour, dimmed when cleared): pooled Image children. A row without a reward is a neutral dot drawn in the mesh pass.</summary>
+        void RefreshBadgeIcons()
+        {
+            int used = 0, glyphs = 0, dim = 0;
+            if (_map != null)
+                for (int i = 0; i < _camps.Count; i++)
+                {
+                    var b = _camps[i];
+                    var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
+                    if (ContactNear(p)) continue;
+                    glyphs++; if (b.Dim) dim++;
+                    if (b.IconKey == null) continue;
+                    if (used >= _badgeIcons.Count)
+                    {
+                        var go = new GameObject("CampBadgeIcon" + used, typeof(RectTransform)); go.transform.SetParent(transform, false);
+                        var image = go.AddComponent<Image>(); image.raycastTarget = false; image.preserveAspect = true;
+                        image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(.5f, .5f);
+                        _badgeIcons.Add(image);
+                    }
+                    var icon = _badgeIcons[used++];
+                    float size = IconSize;
+                    if (!icon.gameObject.activeSelf) icon.gameObject.SetActive(true);
+                    icon.sprite = CampRespawnLabels.Art(b.IconKey);
+                    var c = Rgb(b.IconRgb); if (b.Dim) c.a = 110;
+                    icon.color = c;
+                    icon.rectTransform.sizeDelta = new Vector2(size, size);
+                    icon.rectTransform.anchoredPosition = p;
+                }
+            for (int i = used; i < _badgeIcons.Count; i++) if (_badgeIcons[i].gameObject.activeSelf) _badgeIcons[i].gameObject.SetActive(false);
+            CampBuffGlyphsDrawn = glyphs; CampDimGlyphsDrawn = dim;
+        }
+
+        float IconSize => Large ? 15f : 12f;
+
+        static Color32 Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
+
+        /// <summary>Ward marks as rings in the beacon colour.</summary>
+        void DrawBadges(VertexHelper vh, Color32 ink, float s)
+        {
+            WardsDrawn = 0;
+            foreach (var w in _wards)
+            {
+                var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
+                if (ContactNear(p)) continue;
+                WardsDrawn++;
+                Marker(vh, WardSlot(p), 8f * s, MapGlyph.Ring, Rgb(w.BeaconRgb), ink);
+            }
+        }
+
+        /// <summary>Per camp: a dark plate under the buff icon (or the neutral dot), the Tab-map fought-here ring, one gold elite diamond. No zone shape.</summary>
+        void DrawCamps(VertexHelper vh, UiTheme theme, Color32 ink, float s)
+        {
+            CampMarkersDrawn = CampShapesDrawn = EngagedRingsDrawn = EliteMarkersDrawn = BadgesDrawn = 0;
+            foreach (var camp in _camps)
+            {
+                var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
+                if (ContactNear(p)) continue;
+                CampMarkersDrawn++;
+                float a = camp.Dim ? .45f : 1f;
+                if (camp.IconKey != null) { BadgesDrawn++; Glyph(vh, p, 17f * s, MapGlyph.Disc, Alpha(ink, .9f * a)); }
+                else Marker(vh, p, 6f * s, MapGlyph.Disc, Alpha(Rgb(camp.IconRgb), a), Alpha(ink, a));
+                if (camp.Engaged) { EngagedRingsDrawn++; Glyph(vh, p, 22f * s, MapGlyph.Ring, Alpha(theme.TextSecondary, .55f)); }
+                if (camp.Elite)
+                {
+                    EliteMarkersDrawn++;
+                    Marker(vh, p + new Vector2(0f, IconSize * .5f + 5f * s), 6f * s, MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), ink);
+                }
             }
         }
 
@@ -162,8 +470,14 @@ namespace Roguehalla.Client
                 Glyph(vh, p, size, glyph, Alpha(zone, Large ? 1f : .9f));
                 if (region == MapZones.Holy) Glyph(vh, p, size * .28f, MapGlyph.Disc, Alpha(zone, 1f));
             }
+            DrawCamps(vh, theme, ink, s);
+            DrawBadges(vh, ink, s);
             for (int i = 1; i < _route.Count; i++) LineAA(vh, At(_route[i - 1]), At(_route[i]), 2f, Alpha(theme.Accent, .8f));
             foreach (var point in _route) Marker(vh, At(point), 7f, MapGlyph.Disc, theme.Accent, ink);
+            // The box is drawn only with a map, as its label is (RefreshChestTexts). Chest seconds are not dropped under a
+            // contact dot, unlike camp clocks: legacy draws chest blips above the dots (minimapMarkers.ts:60-65).
+            if (_map != null) foreach (var row in _chestRows)
+                GlyphXY(vh, ChestTextAt(At(new Vector2((float)row.WorldX, (float)row.WorldY))), (row.Text.Length * 6f + 8f) * s, 12f * s, MapGlyph.Square, Alpha(ink, .85f)); // badge box
             foreach (var point in _chests) Marker(vh, At(point), 11f * s, MapGlyph.Plus, theme.Accent, ink);
             foreach (var point in _delivered)
             {

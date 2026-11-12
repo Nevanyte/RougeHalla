@@ -11,8 +11,6 @@ namespace Roguehalla.Client
     {
         SpriteRenderer _mantle;
         SpriteRenderer _factionBack, _factionGlyph;
-        SpriteRenderer _roleBack, _roleGlyph;
-        SpriteRenderer _eliteBack, _eliteGlyph;
         bool _configured;
         int _sortingBase = int.MinValue; float _lift;
         public bool StandaloneFactionBadge { get; set; } = true;
@@ -43,34 +41,22 @@ namespace Roguehalla.Client
                 ShowcaseIdentityAssets.TryGetMobInfo(mobType.Value, out mobInfo) && (int)mobInfo.Faction == faction;
             // A future/unknown mob id must never inherit an enum-parity faction or an unrelated display identity.
             int factionIndex = knownMob ? (int)mobInfo.Faction : kind == ActorKind.Player && faction >= 0 && faction < 5 ? faction : 5;
-            ShowcaseMobRole role = knownMob ? mobInfo.Role : ShowcaseMobRole.Grunt;
-            bool elite = knownMob && mobInfo.Elite;
             bool show = visible;
 
             Sprite mantle = ShowcaseIdentityAssets.GetFactionSilhouette(factionIndex);
             Sprite factionGlyph = ShowcaseIdentityAssets.GetFactionGlyph(factionIndex);
-            Sprite roleGlyph = knownMob ? ShowcaseIdentityAssets.GetRoleGlyph(role) : ShowcaseIdentityAssets.GetNeutralGlyph();
-            Sprite eliteGlyph = elite && mobType.HasValue ? ShowcaseIdentityAssets.GetEliteGlyph(mobType.Value) : ShowcaseIdentityAssets.GetNeutralGlyph();
 
             // The static faction silhouette behind the body is gone: it did not animate with the figure, so it read as a second, fainter model. Faction identity is carried by
             // the footprint, the insignia plate and the body tint (owner feedback; contrast brief).
             Set(_mantle, mantle, show && kind == ActorKind.Player && MantleEnabled, groundSortingOrder - 2);
             Set(_factionBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && StandaloneFactionBadge, groundSortingOrder + 4);
             Set(_factionGlyph, factionGlyph, show && StandaloneFactionBadge, groundSortingOrder + 5);
-            Set(_roleBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && knownMob, groundSortingOrder + 4);
-            Set(_roleGlyph, roleGlyph, show && knownMob, groundSortingOrder + 5);
-            Set(_eliteBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && elite, groundSortingOrder + 4);
-            Set(_eliteGlyph, eliteGlyph, show && elite, groundSortingOrder + 5);
             if (_sortingBase != groundSortingOrder || _lift != lift)
             {
                 _sortingBase = groundSortingOrder; _lift = lift;   // badges ride the look's body height, so a short creature's mark stays on its body, clear of the name plate
                 Place(_mantle, new Vector3(0, .72f, -.005f), new Vector3(.9f, .7f, 1));
                 Place(_factionBack, new Vector3(-.68f, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
                 Place(_factionGlyph, new Vector3(-.68f, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
-                Place(_roleBack, new Vector3(0, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
-                Place(_roleGlyph, new Vector3(0, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
-                Place(_eliteBack, new Vector3(.68f, 1.30f + lift, -.012f), new Vector3(.31f, .31f, 1));
-                Place(_eliteGlyph, new Vector3(.68f, 1.30f + lift, -.013f), new Vector3(.205f, .205f, 1));
             }
         }
 
@@ -89,8 +75,6 @@ namespace Roguehalla.Client
             _mantle.sharedMaterial = ShowcaseSprites.Lit;
             _mantle.color = new Color(.48f,.48f,.48f,.92f);
             _factionBack = CreatePart("Faction badge backplate"); _factionGlyph = CreatePart("Faction badge glyph");
-            _roleBack = CreatePart("Mob role badge backplate"); _roleGlyph = CreatePart("Mob role badge glyph");
-            _eliteBack = CreatePart("Elite emblem backplate"); _eliteGlyph = CreatePart("Elite emblem glyph");
             _configured = true;
         }
 
@@ -121,7 +105,6 @@ namespace Roguehalla.Client
         void HideAll()
         {
             _mantle.enabled = _factionBack.enabled = _factionGlyph.enabled = false;
-            _roleBack.enabled = _roleGlyph.enabled = _eliteBack.enabled = _eliteGlyph.enabled = false;
         }
 
         void OnDisable()

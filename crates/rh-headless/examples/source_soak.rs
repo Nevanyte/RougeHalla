@@ -24,7 +24,7 @@ fn main() {
             walk_hints: Some(true),
             regen: true,
             quests: true,
-            hazards: terrain::Mode::All,
+            hazards: terrain::Mode::Map,
             abilities: abilities::Mode::Full,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
             lifecycle: ArenaMode::Source(Default::default()),
@@ -35,6 +35,7 @@ fn main() {
             lobby_seconds: 5.,
             fill_seconds: 3.,
             hitboxes,
+            regen_in_combat: rh_sim::RegenInCombat::Off,
             ..SimConfig::default()
         };
         let agents = (0..8)

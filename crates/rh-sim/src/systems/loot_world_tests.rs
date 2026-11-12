@@ -142,7 +142,7 @@ fn frame(sim: &Sim, ev: &[Event]) -> Value {
             "hp": p.vitals.hp,
             "maxHp": p.vitals.max_hp,
             "potionSmall": p.potion_small,
-            "potionLarge": 0,
+            "potionLarge": p.potion_large,
             "weapon0": p.weapon.weapon0.map_or("", |w| w.as_str()),
             "weapon1": p.weapon.weapon1.map_or("", |w| w.as_str()),
             "slot": p.weapon.slot,
@@ -235,6 +235,9 @@ fn setup_player(sim: &mut Sim, a: &Value) {
     }
     if let Some(n) = a["potionSmall"].as_u64() {
         p.potion_small = n as u8;
+    }
+    if let Some(n) = a["potionLarge"].as_u64() {
+        p.potion_large = n as u8;
     }
 }
 fn setup_container(sim: &mut Sim, a: &Value) {

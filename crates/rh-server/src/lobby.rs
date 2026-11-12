@@ -488,7 +488,8 @@ async fn presence(State(st): State<St>, req: Request, leave: bool) -> Response {
     } else {
         let check = async {
             let _slot = st.auth_slots.acquire().await.ok()?;
-            Some(st.d.auth.verify(&name, token.as_bytes()).await)
+            // A credential-store failure is "unavailable", never "someone else's profile" (fix/server-security).
+            st.d.auth.verify(&name, token.as_bytes()).await.ok()
         };
         tokio::time::timeout(st.cfg.auth_timeout, check)
             .await

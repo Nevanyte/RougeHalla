@@ -114,6 +114,8 @@ class Group {
       '--map', this.bad ? '/nonexistent/arena.map.json' : map,
       '--poll-interval', '100ms', '--admit-interval', '100ms', '--drain-deadline', '120s',
       '--', '--lobby-seconds', '1', '--min-players', '1', '--fill-seconds', '0', '--instance-id', `${TAG}-${this.id}-${this.build}`,
+      // The bridge binds 0.0.0.0 and the local fleet runs dev auth: rh-server refuses that on a public bind without this opt-in.
+      '--insecure-dev-auth',
     ];
     this.proc = spawn(path.join(binDir, 'glbridge-fake'), args, {
       detached: true,

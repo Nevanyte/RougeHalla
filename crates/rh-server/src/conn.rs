@@ -101,7 +101,19 @@ async fn reject(sock: &mut WebSocket, code: RejectCode, reason: &str) {
     send_bounded(sock, [Message::Binary(frame.into()), Message::Close(None)]).await;
 }
 
-pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
+pub async fn serve(sock: WebSocket, director: Arc<Director>) {
+    serve_guarded(sock, director, None).await
+}
+
+/// [`serve`] for a socket admitted by the public edge guard: the ticket is held for the connection's whole life (its
+/// per-address slot), a fresh Hello first reserves a failed-credential slot for the client address (a client over its limit
+/// is answered `RateLimited` before its ticket reaches the credential check), and the pending slot is given back once the
+/// Hello is answered.
+pub async fn serve_guarded(
+    mut sock: WebSocket,
+    director: Arc<Director>,
+    mut edge: Option<crate::edge::WsTicket>,
+) {
     let first = match tokio::time::timeout(HELLO_TIMEOUT, sock.recv()).await {
         Ok(Some(Ok(Message::Binary(b)))) => b,
         Ok(_) | Err(_) => {
@@ -144,9 +156,33 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
             return;
         }
     };
+    let attempt = match edge
+        .as_ref()
+        .map(|t| t.hello_attempt(hello.resume.is_some()))
+    {
+        None => None,
+        Some(Ok(a)) => Some(a),
+        Some(Err(wait)) => {
+            reject(
+                &mut sock,
+                RejectCode::RateLimited,
+                &format!(
+                    "too many failed sign-ins from this address; retry in {} s",
+                    wait.as_secs().max(1)
+                ),
+            )
+            .await;
+            return;
+        }
+    };
     let outbox = Arc::new(Outbox::default());
     let conn = NEXT_CONN.fetch_add(1, Ordering::Relaxed);
-    let (room, ok) = match director.admit(hello, outbox.clone(), conn).await {
+    let admitted = director.admit(hello, outbox.clone(), conn).await;
+    if let (Some(t), Some(a)) = (edge.as_mut(), attempt) {
+        let refused = matches!(admitted, Err((RejectCode::BadCredentials, _)));
+        t.hello_done(a, refused);
+    }
+    let (room, ok) = match admitted {
         Ok(x) => x,
         Err((code, reason)) => {
             reject(&mut sock, code, &reason).await;

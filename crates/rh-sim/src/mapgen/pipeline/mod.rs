@@ -3,7 +3,7 @@
 use super::{
     attempt, bushes,
     coliseum::{FixedLayout, CX, CY, H, W},
-    landmarks::{recipes, stage},
+    landmarks::{recipes, signature, stage},
     records, repair, spawns, spots, style_runtime, style_zones, tail, terrain_gate, zones,
 };
 use crate::constants::{PLAYER_RADIUS, TILE};
@@ -23,6 +23,11 @@ pub struct Options {
     pub decor: bool,
     pub shape_gates: bool,
     pub bushes: bool,
+    /// Signature landmarks (P-MAPGEN-SIGNATURE-CORE-1, owner rules G1-G8): the Landmarks phase also places each zone's
+    /// signature landmark and the finished map carries the zone anchors. Styled attempts only. Off by default and
+    /// absent from stored options, so every legacy-mode map is byte-identical (G8).
+    #[serde(default)]
+    pub signature: bool,
 }
 impl Default for Options {
     fn default() -> Self {
@@ -30,6 +35,7 @@ impl Default for Options {
             decor: true,
             shape_gates: true,
             bushes: true,
+            signature: false,
         }
     }
 }
@@ -70,6 +76,12 @@ pub enum Refusal {
     Features,
     Shape(String),
     Terrain,
+    /// The signature step found no legal landmark site for a zone, refused in the Landmarks phase before spawns and
+    /// stylers (only with `Options::signature`). A finished map discarded later is `SignatureDiscarded`.
+    Signature,
+    /// A signature map discarded by the end-of-attempt check, after records: a landmark no longer whole, a styler
+    /// feature in an apron, or a strict certifier failure (only with `Options::signature`).
+    SignatureDiscarded,
 }
 #[derive(Debug)]
 pub enum Error {
@@ -98,6 +110,7 @@ pub struct Pipeline<'f> {
     fixed: &'f FixedLayout,
     prefix: attempt::AttemptContext<'f>,
     landmarks: stage::StageContext<'f>,
+    signature: signature::SignatureContext<'f>,
     spawns: spawns::SpawnContext<'f>,
     zones: zones::ZoneContext<'f>,
     recipes: recipes::Recipes<'static>,
@@ -134,6 +147,7 @@ impl<'f> Pipeline<'f> {
                 &shared.camps,
             ),
             landmarks: stage::StageContext::from_definitions(fixed, &shared),
+            signature: signature::SignatureContext::new(fixed),
             spawns: spawns::SpawnContext::from_definitions(
                 fixed,
                 &shared.spawns,
@@ -281,12 +295,25 @@ impl<'f> Pipeline<'f> {
             return Ok(AttemptReport::refused(Refusal::Prefix));
         };
         observe(Phase::Prefix, &frame.rng, &[]);
-        let Some(landmark) = self
+        let Some(mut landmark) = self
             .landmarks
             .apply(&frame, &self.recipes)
             .map_err(Error::Input)?
         else {
             return Ok(AttemptReport::refused(Refusal::Landmarks));
+        };
+        // G1/G2: the signature landmarks join the Landmarks phase before spawns and stylers; own stream only (G6).
+        let placed = if options.signature && styled {
+            match self
+                .signature
+                .apply(&frame, &mut landmark)
+                .map_err(Error::Input)?
+            {
+                Some(p) => Some(p),
+                None => return Ok(AttemptReport::refused(Refusal::Signature)),
+            }
+        } else {
+            None
         };
         observe(Phase::Landmarks, &frame.rng, &[]);
         let prefix = &frame.state;
@@ -304,7 +331,9 @@ impl<'f> Pipeline<'f> {
             .collect();
         let mut state = repair::State {
             tiles: landmark.state.tiles,
-            terrain: vec![0; W * H],
+            terrain: placed
+                .as_ref()
+                .map_or_else(|| vec![0; W * H], |p| p.terrain.clone()),
             zone: prefix.partition.zone.clone(),
             territory_grid: prefix.layout.territory_grid.clone(),
             region_grid: vec![0; W * H],
@@ -563,7 +592,7 @@ impl<'f> Pipeline<'f> {
                 })
             })
             .collect::<Result<_, Error>>()?;
-        let map = records::finalize(
+        let mut map = records::finalize(
             &self.records,
             &self.shared.zones,
             self.fixed,
@@ -589,6 +618,10 @@ impl<'f> Pipeline<'f> {
             &mut state.territory_grid,
         )
         .map_err(|_| Error::Leaf("records admission"))?;
+        let placed_any = placed.is_some();
+        if let Some(p) = placed {
+            self.signature.finish(&mut map, p.anchors);
+        }
         observe(Phase::Records, &frame.rng, &kept);
         if options.shape_gates {
             if let Some(r) =
@@ -612,6 +645,10 @@ impl<'f> Pipeline<'f> {
         {
             return Ok(AttemptReport::refused(Refusal::Terrain));
         }
+        // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
+        if placed_any && (!self.signature.intact(&map) || !certifies(&map)) {
+            return Ok(AttemptReport::refused(Refusal::SignatureDiscarded));
+        }
         observe(Phase::Gates, &frame.rng, &kept);
         Ok(AttemptReport {
             map: Some(map),
@@ -624,6 +661,18 @@ fn world(t: usize) -> WorldPt {
         x: (t % W) as f64 * TILE + TILE / 2.0,
         y: (t / W) as f64 * TILE + TILE / 2.0,
     }
+}
+/// Zero failures under the strictest certification (every zone strict).
+fn certifies(map: &GameMapData) -> bool {
+    super::certify::certify(
+        map,
+        &super::certify::Options {
+            styled: true,
+            zone: true,
+            strict: super::certify::Strict::All,
+        },
+    )
+    .is_ok_and(|c| c.failures.is_empty())
 }
 fn first_attempt<T, E>(
     limit: u64,

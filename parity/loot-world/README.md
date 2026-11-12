@@ -1,7 +1,7 @@
 # Actual legacy loot-world runtime witness
 
-`source.json` (`rh-loot-world-source/1`, 6 cases, 36 frames, 64,511 bytes, SHA256
-`e44463dc1c2186626131a70f2ffe3de9911d5d270d676bbd5980ee504386b9b4`) is parity evidence for the P-COMBAT-4 loot
+`source.json` (`rh-loot-world-source/1`, 7 cases, 46 frames, 78,382 bytes, SHA256
+`f1758aa3760c10d70c2b62eccebfba46b4ce137734458aaad9449ea9a2174e39`; the first six cases are unchanged, the seventh was added by `fix/mechanics-cons`) is parity evidence for the P-COMBAT-4 loot
 world: it executes the unchanged TypeScript source, never Rust. Expected values were produced by that source; the
 fixture records server-private run counters, item uids, container births and RNG stream tails and is never a client
 projection or gameplay training data.
@@ -48,6 +48,8 @@ evidence.
   replaced and its weapon dropped, and the locked swap is refused (hand and cooldown unchanged).
 - A real between-tick departure: the body holds the carried weapons and small potions, the departing player's slots
   clear, the body waits one tick before it is takeable, and it stays as an empty prop once looted.
+- Camp (large) potions in a departing carrier's body (`body-drop-camp-potions`): `dropBody` order is weapons, then every
+  `potionLarge`, then every `potionSmall`; both stocks clear, and each potion is taken back one per pickup.
 - `holdBirth`/`bornThisTick` scheduling: a chest created inside a tick and held is first pickable two ticks on, and
   a between-tick container waits one tick; both then resolve through the ordinary pickup path.
 - An ordinary unlocked swap (hand flips, `SWAP_SECONDS` cooldown).
@@ -68,7 +70,6 @@ cargo test -p rh-sim --all-features --lib systems::loot_world_tests
 ## Remaining producer domains
 
 This witness covers the loot world's crate/ground/bodies/births and the pickup/swap consumers for the admitted line-A
-profile. It does not cover travel cannons and the cannon pickup (`P-CONS-1`), large-potion consumables/body items
-(`P-CONS-1`), reward containers and the camp-chest/kill-augment `holdBirth` producers (`P-CARDS-1/P-CARDS-2`), quest
+profile. It does not cover travel cannons and the cannon pickup (`P-CONS-1`), reward containers and the camp-chest/kill-augment `holdBirth` producers (`P-CARDS-1/P-CARDS-2`), quest
 items (`P-QUEST-1`), the traders' identical slot rule (`P-TRADE-1`), or client-predicted locked swap facts (no
 protocol fact at protocol 7). `P-COMBAT-4` stays INCOMPLETE for those owners.

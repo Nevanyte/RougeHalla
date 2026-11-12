@@ -14,7 +14,7 @@ on:
       - 'hosting/staging-mvp/test_latency_render.py'
       - '.github/workflows/input-latency.yml'
   push:
-    branches: [optimization_port]
+    branches: [optimization_port, feature/unity-rework, "integration/**"]
     paths:
       - 'tools/latency/**'
       - 'docs/evidence/input-latency/**'

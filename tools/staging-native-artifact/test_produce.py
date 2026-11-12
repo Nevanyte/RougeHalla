@@ -115,8 +115,10 @@ class Boundaries(unittest.TestCase):
         events = []
         def request(port, path):
             events.append(('GET', path))
+            public = {k: observed['info'][k] for k in ('protocol', 'contentHash', 'state')}
             return (observed['healthz'].encode() if path == '/healthz' else
-                    c.canonical(observed['readyz'] if path == '/readyz' else observed['info']))
+                    c.canonical(observed['readyz'] if path == '/readyz' else
+                                public if path == '/info' else observed['info']))
         sql_answers = iter([fresh, c.canonical(observed['db_rows']).decode(), '16.9 (SYNTHETIC)',
                             c.canonical(observed['db_rows']).decode()])
         def query(*_args):
@@ -140,7 +142,7 @@ class Boundaries(unittest.TestCase):
         self.assertEqual(starts, 1)
         self.assertEqual(result['info']['contentHash'], 'a' * 16)
         self.assertEqual([event for event in events if event[0] == 'GET'],
-                         [('GET', '/readyz'), ('GET', '/info'), ('GET', '/healthz')])
+                         [('GET', '/readyz'), ('GET', '/info'), ('GET', '/control/info'), ('GET', '/healthz')])
         self.assertLess(events.index(('wait',)), len(events) - 1)
         self.assertEqual(events[-1], ('SQL',))
         self.assertEqual(killed.args, (4242, p.signal.SIGTERM))
