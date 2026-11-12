@@ -182,6 +182,15 @@ namespace Roguehalla.Net.Ui
             }
         }
 
+        /// <summary>
+        /// P-UNITY-HUD-STATUS-1: as the overload above, plus the ended phase. <paramref name="winnerLabel"/> is the winner's display name
+        /// ("[BOT] x" for a bot, see <see cref="DisplayName"/>) or null for a draw or an unknown winner.
+        /// </summary>
+        public static string PhaseLine(MatchPhase phase, double serverMs, ArenaView? arena, int playerCount, int minPlayers, string winnerLabel, out ArenaLineTone tone)
+        {
+            return PhaseLine(phase, serverMs, arena, playerCount, minPlayers, out tone);   // STUB: the ended phase still reads "FORMING MATCH"
+        }
+
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>
         public static char QuestMark(bool accepted) { return accepted ? '?' : '!'; }
     }
