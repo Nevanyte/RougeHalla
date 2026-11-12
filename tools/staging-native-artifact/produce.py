@@ -156,9 +156,10 @@ def probe(binary, psql, env, scratch, diagnostics=None):
         control_listener.bind(('127.0.0.1', 0)); control_port = control_listener.getsockname()[1]
     started = time.monotonic()
     # The room/player/result counters are on the loopback control listener; the public /info carries identity and state only.
+    # That listener is an ephemeral loopback CI port with no token, which rh-server accepts only with --control-insecure-loopback.
     command = [str(binary), '--bind', '127.0.0.1:' + str(port), '--runtime', 'core', '--database-url', CI_URL,
                '--instance-id', 'ci-native-readiness', '--max-rooms', '1', '--fill-bots', '0', '--bot-learning', 'off',
-               '--control', '127.0.0.1:' + str(control_port)]
+               '--control', '127.0.0.1:' + str(control_port), '--control-insecure-loopback']
     # Logs stay private in the owned CI temporary directory, never in artifact upload paths.
     with (scratch / 'server-private.log').open('xb') as log:
         with diag.stage('server-start'):
