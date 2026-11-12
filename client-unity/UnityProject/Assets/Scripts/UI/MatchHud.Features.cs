@@ -22,9 +22,10 @@ namespace Roguehalla.Client
         TMP_Text _phaseStrip, _metrics;
         double _nextMetricsAt;
         float _frameAverage;
-        readonly TMP_Text[] _buildCounts = new TMP_Text[8];
-        readonly byte[] _visibleBoosts = new byte[8];
-        bool _visibleBuild;
+        readonly TMP_Text[] _gainValues = new TMP_Text[9];
+        Roguehalla.Net.Protocol.WireBuildSummary _shownSummary;
+        IReadOnlyList<Roguehalla.Net.Ui.BuildCell> _gainCells = Array.Empty<Roguehalla.Net.Ui.BuildCell>();
+        bool _gainsShown;
         readonly UnityEngine.UI.Image[] _weaponIcons = new UnityEngine.UI.Image[2];
         readonly UnityEngine.UI.Image[] _weaponActiveBars = new UnityEngine.UI.Image[2];
         UnityEngine.UI.Image _potionIcon;
@@ -365,21 +366,39 @@ namespace Roguehalla.Client
             _worldHudFocus = selected != null && selected.transform.IsChildOf(_hud) ? selected : null;
         }
         static int CountCards(CollectionsView view) { int count = 0; foreach (byte card in view.Cards) if (card > 0) count++; return count; }
+        /// <summary>Redraws the GAINED cells and the mob-bonus row from the owner's summary; null (none arrived yet) hides the
+        /// strip and the mob row rather than showing zeros. Runs only when the summary object changes.</summary>
+        void ApplyBuildSummary(Roguehalla.Net.Protocol.WireBuildSummary summary)
+        {
+            _gainCells = Roguehalla.Net.Ui.BuildHudText.Cells(summary);
+            _gainsShown = _gainCells.Count == _gainValues.Length;
+            for (int i = 0; i < _gainValues.Length; i++)
+            {
+                if (_gainValues[i] == null || i >= _gainCells.Count) continue;
+                var cell = _gainCells[i];
+                _gainValues[i].text = cell.Value;
+                // Legacy "dim" cell: a zero value is muted and regular weight.
+                _gainValues[i].color = cell.Dim ? UiTheme.Current.TextSecondary : UiTheme.Current.TextPrimary;
+                _gainValues[i].fontStyle = cell.Dim ? FontStyles.Normal : FontStyles.Bold;
+            }
+            if (_mobText != null)
+            {
+                var lines = Roguehalla.Net.Ui.BuildHudText.MobLines(summary);
+                var sb = new StringBuilder();
+                for (int i = 0; i < lines.Count; i++)
+                    sb.Append(i > 0 ? " · " : "").Append(lines[i].Label).Append(lines[i].Total.Length > 0 ? " " + lines[i].Total : "");
+                Set(_mobText, sb.ToString());
+                _mobText.gameObject.SetActive(lines.Count > 0);
+            }
+            SetPlateMode(_plateActive);
+        }
+        /// <summary>Test seam: the text of GAINED cell <paramref name="index"/> as drawn.</summary>
+        public string GainedCellText(int index) => _gainValues[index] != null ? _gainValues[index].text : null;
+        public bool GainedStripVisible => _buildBox != null && _buildBox.gameObject.activeSelf;
+
         void RefreshBuildIcons(CollectionsView view)
         {
-            for (int i = 0; i < _buildCounts.Length; i++) if (_buildCounts[i] != null)
-            {
-                byte count = i < view.Boosts.Count ? view.Boosts[i] : (byte)0;
-                if (!_visibleBuild || count != _visibleBoosts[i])
-                {
-                    _buildCounts[i].text = view.HasBuild ? "×" + count : "—";
-                    // Legacy "dim" cell: a zero value is muted and regular weight.
-                    _buildCounts[i].color = count == 0 ? UiTheme.Current.TextSecondary : UiTheme.Current.TextPrimary;
-                    _buildCounts[i].fontStyle = count == 0 ? FontStyles.Normal : FontStyles.Bold;
-                }
-                _visibleBoosts[i] = count;
-            }
-            _visibleBuild = view.HasBuild;
+            if (!ReferenceEquals(view.Summary, _shownSummary)) { _shownSummary = view.Summary; ApplyBuildSummary(view.Summary); }
             if (view.Inventory.HasValue)
             {
                 var inv = view.Inventory.Value;

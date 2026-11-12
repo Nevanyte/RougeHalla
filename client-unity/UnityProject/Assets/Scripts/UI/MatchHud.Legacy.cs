@@ -187,11 +187,11 @@ namespace Roguehalla.Client
                 var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
                 name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = theme.SizeTiny;
                 var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 26, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                if (boost >= 0) _buildCounts[boost] = value; else _damageGainText = value;
+                _gainValues[i] = value; if (boost < 0) _damageGainText = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
                 HudUi.ApplyColors(select, Color.white);
-                HudIconHint.Attach(select, _root, CellNames[i] + " · build boost stacks\nOpen B for the full build ledger.");
+                HudIconHint.Attach(select, _root, CellNames[i] + " · gained from boosts, cards and farmed mobs\nOpen B for the full build ledger.");
             }
         }
 
@@ -217,8 +217,7 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++)
                 if (view.Cards[i] > 0) cards.Append(cards.Length > 0 ? " · " : "").Append(CardDisplayCatalog.Title((byte)i)).Append(" ×").Append(view.Cards[i]);
             Set(_cardsText, cards.Length > 0 ? "Cards: " + cards : view.HasBuild ? "Cards: none" : "Cards: awaiting server");
-            // No mob-bonus table is delivered, so the row is left out rather than shown as a placeholder.
-            if (_mobText != null && _mobText.gameObject.activeSelf) _mobText.gameObject.SetActive(false);
+            // The mob-bonus row is drawn from the build summary in ApplyBuildSummary.
         }
 
         void ToggleExtras()
@@ -233,7 +232,7 @@ namespace Roguehalla.Client
         {
             _plateActive = active;
             if (_healthRow == null) return;
-            _healthRow.gameObject.SetActive(active); _buildBox.gameObject.SetActive(active); _extrasToggle.gameObject.SetActive(active);
+            _healthRow.gameObject.SetActive(active); _buildBox.gameObject.SetActive(active && _gainsShown); _extrasToggle.gameObject.SetActive(active);
             _extrasBody.gameObject.SetActive(active && _extrasOpen);
             _plateStatus.gameObject.SetActive(!active); _vitals.gameObject.SetActive(!active); _combatStats.gameObject.SetActive(!active);
             float height = active ? 5 + 18 + BuildTop + 5 * BuildRowStep + 3 + 14 + (_extrasOpen ? 66 : 0) + 8 : 5 + 48 + 6;
