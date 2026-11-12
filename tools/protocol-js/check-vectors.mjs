@@ -468,6 +468,8 @@ for (const v of fx.server) {
     if (m.vision.coliseum) groundMapCoverage.visionColiseum = true;
     // Protocol 16: the weapon table decodes to exactly the Rust rows (doubles compared exactly).
     exactJson(m.weapons, d.weapons, `${n} weapon table`);
+    // P-WIRE17-HUD-2b: the HUD content block decodes to exactly the Rust rows (doubles compared exactly).
+    exactJson(m.hud, d.hud, `${n} HUD content block`);
     for (const w of m.weapons) groundMapCoverage.weaponKinds = (groundMapCoverage.weaponKinds ?? new Set()).add(w.kind);
     if (m.archetypes.length) groundMapCoverage.archetypeTables = (groundMapCoverage.archetypeTables ?? 0) + 1;
     const e = d.map, s = m.map;
@@ -557,6 +559,21 @@ eq(Math.abs(panelSummary.panel[8].value - 250) < 1e-9, true, "roam charge scaled
 for (const name of ["state_camp_reward_stat_10", "state_camp_ward_verdict_3", "state_camp_ward_missing_expiry",
   "state_build_summary_gains_short", "state_build_summary_mob_stat_9", "state_build_summary_panel_code_23",
   "state_build_summary_panel_order", "state_build_summary_panel_count_over"]) {
+  if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
+// P-WIRE17-HUD-2b: the Welcome's HUD content block, after the weapon table: scaling rows {id, ad, ap, bonusHp,
+// bonusDefense, dominant (boolean)} from the legacy weapon table (weapons.ts:96-124), terms {code, value} with the legacy
+// Wish constants (abilities.ts:140-167) by HudTerm code.
+const hudScaling = (id, ad, ap, bonusHp, bonusDefense, dominant) => ({ id, ad, ap, bonusHp, bonusDefense, dominant });
+exactJson(decode(bytes(fx.server.find(v => v.name === "welcome").hex)).hud, {
+  scaling: [hudScaling(0, 1, 1, 0, 0, true), hudScaling(1, 1, 0, 0, 0, false), hudScaling(2, 0.3, 1, 0, 0, false),
+    hudScaling(3, 0, 0.3, 0, 0.4, false), hudScaling(4, 1, 0, 0.02, 0, false), hudScaling(5, 0.6, 0.6, 0, 0, false)],
+  terms: [1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1]
+    .map((value, code) => ({ code, value })),
+}, "welcome HUD content block (legacy weapon scaling and Wish numbers)");
+for (const name of ["welcome_hud_scaling_count", "welcome_hud_scaling_dominant", "welcome_hud_scaling_nan",
+  "welcome_hud_scaling_negative", "welcome_hud_scaling_order", "welcome_hud_term_count", "welcome_hud_term_code",
+  "welcome_hud_term_infinite", "welcome_hud_term_over_max", "welcome_hud_term_order", "welcome_hud_truncated"]) {
   if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
 }
 const emptyTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_empty").hex));
@@ -747,6 +764,12 @@ const reason = {
   state_build_summary_gains_short: /./, state_build_summary_mob_stat_9: /summary stat code/,
   state_build_summary_panel_code_23: /summary panel code/, state_build_summary_panel_order: /summary panel order/,
   state_build_summary_panel_count_over: /too many summary panel values/,
+  // P-WIRE17-HUD-2b: the Welcome's HUD content block.
+  welcome_hud_scaling_count: /bad scaling count/, welcome_hud_scaling_dominant: /bad scaling dominant/,
+  welcome_hud_scaling_nan: /bad scaling$/, welcome_hud_scaling_negative: /bad scaling$/,
+  welcome_hud_scaling_order: /bad scaling order/, welcome_hud_term_count: /bad hud term count/,
+  welcome_hud_term_code: /bad hud term code/, welcome_hud_term_infinite: /bad hud term$/,
+  welcome_hud_term_over_max: /bad hud term$/, welcome_hud_term_order: /bad hud term order/, welcome_hud_truncated: /./,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];
