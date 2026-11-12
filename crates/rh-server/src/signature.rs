@@ -45,6 +45,17 @@ const ICE: u8 = 6;
 pub struct Report {
     pub placed: Vec<&'static str>,
     pub skipped: Vec<(&'static str, String)>,
+    /// One entry per placed church: where its door and grave stones are, read back from the inserted features.
+    pub churches: Vec<Church>,
+}
+
+/// A placed church as the map now holds it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Church {
+    /// The door tiles (tile x, tile y) in the church wall ring facing the map centre, whatever they now are.
+    pub door: Vec<(i32, i32)>,
+    /// Every tile of every grave stone (all stones together, not grouped).
+    pub stones: Vec<(i32, i32)>,
 }
 
 /// Adds the signature landmarks to `map` (a certified styled map). Never fails: a landmark that cannot be placed or that
@@ -76,9 +87,13 @@ pub fn apply(map: &mut GameMapData) -> Report {
                 break;
             }
             let mut candidate = map.clone();
-            insert(&mut candidate, zone, pieces);
+            let count = pieces.len();
+            let at = insert(&mut candidate, zone, pieces);
             match failures(&candidate) {
                 Some(f) if f.iter().all(|x| baseline.contains(x)) => {
+                    if name == "church" {
+                        report.churches.extend(church_site(&candidate, at, count));
+                    }
                     *map = candidate;
                     report.placed.push(name);
                     why.clear();
@@ -638,7 +653,7 @@ fn frozen_cave(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
 
 /// Writes the pieces' cells and inserts their features after the zone's existing non-infill features (the certifier's
 /// order: zone code ascending; landmarks, then the rest, then at most one infill), renumbering the feature grid.
-fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) {
+fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) -> usize {
     let code = zone.code();
     let at = m
         .features
@@ -688,6 +703,48 @@ fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) {
     }
     debug_assert!(m.features.len() <= 250);
     refresh_camps(m);
+    at
+}
+
+/// Reads a just-inserted church back from the map: `at` is where `insert` put its first feature (the wall ring) and
+/// `count` how many features it inserted (the second, if any, is the grave stones).
+fn church_site(m: &GameMapData, at: usize, count: usize) -> Option<Church> {
+    let ring = m.features.get(at)?;
+    let id = (at + 1) as u8;
+    let w = m.w as i32;
+    let cell = |i: usize| ((i as i32) % w, (i as i32) / w);
+    let (tx, ty) = (ring.ax, ring.ay);
+    let r = (0..m.feature_grid.len())
+        .filter(|&i| m.feature_grid[i] == id)
+        .map(|i| {
+            let (x, y) = cell(i);
+            (x - tx).abs().max((y - ty).abs())
+        })
+        .max()?;
+    let side = match ring.p.get(2).copied()? {
+        0 => (1, 0),
+        4 => (0, 1),
+        8 => (-1, 0),
+        _ => (0, -1),
+    };
+    let door = (-1..=1)
+        .map(|d| {
+            if side.0 != 0 {
+                (tx + side.0 * r, ty + d)
+            } else {
+                (tx + d, ty + side.1 * r)
+            }
+        })
+        .collect();
+    let stones = if count > 1 {
+        (0..m.feature_grid.len())
+            .filter(|&i| m.feature_grid[i] == id + 1)
+            .map(cell)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Some(Church { door, stones })
 }
 
 /// Camp area and radius are derived from the territory's floor (the certifier's `camp-area-radius`): the floor tiles of
