@@ -12,6 +12,8 @@
 //! this subsystem (`strategy/`, `tactics.rs`, `modules/`, `memory.rs`, `../humanizer.rs`, `../knowledge.rs`, `../paths.rs`).
 
 mod adapters;
+#[cfg(test)]
+mod brain_input_tests;
 mod compose14;
 #[cfg(test)]
 mod compose14_review_tests;

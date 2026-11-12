@@ -2608,6 +2608,7 @@ pub(crate) fn build_percept(value: &SVal, path: &str) -> R<Percept> {
         )?,
         me_weapons,
         me_draw_started_at: finite_number(self_value, "drawStartedAt", &format!("{path}.self"))?,
+        me_attack_held: attack_target.is_some(),
         me_attack_target: attack_target,
         hud_phase: string_field(hud, "phase", &format!("{path}.hud"))?,
         hud_gates_locked: bool_field(hud, "gatesLocked", &format!("{path}.hud"))?,

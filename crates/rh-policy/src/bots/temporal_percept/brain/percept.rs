@@ -33,6 +33,9 @@ pub(crate) struct Percept {
     pub(crate) me_draw_started_at: f64,
     /// `percept.self.attackTarget` (`null` when no held lock).
     pub(crate) me_attack_target: Option<String>,
+    /// `percept.self.attackTarget !== null` (brain.ts:218 `held`): a held lock counts even when its target is `undefined`
+    /// (redacted, not on the wire). STUB (P-BOT-BRAIN-LIVE-2a): not yet read by `is_engaged`.
+    pub(crate) me_attack_held: bool,
     /// `percept.hud.phase` (active/planning/ended/lobby in the declared source domain).
     pub(crate) hud_phase: String,
     pub(crate) hud_gates_locked: bool,
@@ -83,6 +86,7 @@ impl Default for Percept {
             me_weapons: [None, None],
             me_draw_started_at: 0.,
             me_attack_target: None,
+            me_attack_held: false,
             hud_phase: "ended".to_string(),
             hud_gates_locked: false,
             hud_sudden_death_at: 0.,

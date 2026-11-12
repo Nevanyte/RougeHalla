@@ -85,6 +85,26 @@ pub(crate) struct Setup14 {
     pub(crate) attention_central: f64,
 }
 
+/// The delays a `BrainBot` composes with: the interpolation delay a client renders at (`INTERP_DELAY_MS`,
+/// packages/shared/src/constants.ts:18) and no extra self lag. Legacy live fill bots added the simulated line latency
+/// (`BotManager.ts:351`, 30 ms by default); a seat here has the real transport's latency instead, so it adds none
+/// (`BotClient.ts:321` is the same shape: `selfDelayMs: 0, worldDelayMs: INTERP_DELAY_MS`).
+pub(crate) const BRAIN_WORLD_DELAY_MS: f64 = 100.;
+pub(crate) const BRAIN_SELF_DELAY_MS: f64 = 0.;
+
+impl Setup14 {
+    /// The setup a `BrainBot` seat uses: only the public map, the room's feature verdicts and the tier's attention share,
+    /// with the pinned delays. STUB (P-BOT-BRAIN-LIVE-2a): placeholder values until implemented.
+    pub(crate) fn public(arena: &Arena, features: Features, attention_central: f64) -> Self {
+        Self {
+            arena: Arc::new(arena.clone()),
+            features,
+            world_delay_ms: 0.,
+            attention_central,
+        }
+    }
+}
+
 /// Why a frame cannot become a percept. The composer is atomic: a refusal leaves its ring untouched.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Refusal14 {
@@ -111,6 +131,10 @@ pub(crate) struct Composed14 {
     pub(crate) percept: Percept,
     /// Only the viewer's own wards (`WireWard::yours`); another player's ward is not a vision source for this seat.
     pub(crate) wards: Vec<WardSight14>,
+    /// Source `FrameRing.compose` returns no percept while the oldest retained sample is later than `viewT`
+    /// (frames.ts:131): with a world delay the ring has to fill first. The sample is still pushed; a caller must not
+    /// tick the Brain on an uncovered composition.
+    pub(crate) covered: bool,
 }
 
 /// One retained accepted sample: only what the ring needs (positions of the owner and of the delivered player rows,
@@ -897,6 +921,8 @@ impl Composer14 {
             me_draw_started_at: f64::from(combat.draw_started_at),
             // Typed header: only a visible target is a key. A redacted held lock is `undefined` in the record.
             me_attack_target: attack_target.as_str().map(str::to_owned),
+            // STUB (P-BOT-BRAIN-LIVE-2a): must be `combat.lock` is `Held`, whatever the target.
+            me_attack_held: false,
             hud_phase: phase.to_owned(),
             hud_gates_locked: arena.gates_locked,
             hud_sudden_death_at: arena.sudden_death_at,
@@ -904,7 +930,12 @@ impl Composer14 {
             features: features.clone(),
             raw,
         };
-        Ok(Composed14 { percept, wards })
+        // STUB (P-BOT-BRAIN-LIVE-2a): `covered` must be `ring has a sample at or before viewT` (frames.ts:131).
+        Ok(Composed14 {
+            percept,
+            wards,
+            covered: true,
+        })
     }
 }
 
