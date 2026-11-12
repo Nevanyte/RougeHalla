@@ -411,7 +411,8 @@ fn widen(cells: &mut Vec<usize>, ok: &impl Fn((i32, i32)) -> bool) -> bool {
                         (n, (ox, oy))
                     })
                     .collect();
-                windows.sort_by(|a, b| b.0.cmp(&a.0));
+                // Stable: equally full windows keep the `WINDOWS` order.
+                windows.sort_by_key(|w| std::cmp::Reverse(w.0));
                 for (_, (ox, oy)) in windows {
                     fills.extend(
                         WINDOW
