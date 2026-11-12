@@ -507,6 +507,9 @@ pub(crate) fn drop_deferred(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hook
 pub mod runtime;
 
 #[cfg(test)]
+mod on_hit_salvage_tests;
+
+#[cfg(test)]
 mod wishful_tests {
     use super::{wishful_thinking, Trim};
     use crate::abilities::Stocks;
