@@ -40,6 +40,11 @@ namespace Roguehalla.Client
         public int CampClocksShown { get; private set; }
         /// <summary>The chest seconds text of the badge at <paramref name="i"/> in the last presentation.</summary>
         public string ChestBadgeText(int i) => _chestRows[i].Text;
+        readonly List<ContactMark> _contactMarks = new List<ContactMark>();
+        readonly List<TMP_Text> _contactTexts = new List<TMP_Text>();
+        /// <summary>Rival words ("HUNT" / "ENEMY") the model produced for the last Tab-map presentation (none on the minimap).</summary>
+        public int ContactLabelCount => _contactMarks.Count;
+        public string ContactLabelText(int i) => _contactMarks[i].Text;
         readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
         readonly List<Image> _badgeIcons = new List<Image>();
         /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
@@ -72,7 +77,7 @@ namespace Roguehalla.Client
         {
             _map = map;
             _ping.Active = false;
-            if (map == null) { _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
+            if (map == null) { _actors.Clear(); _contactMarks.Clear(); RefreshContactLabels(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
             else if (map.Regions != null) MapZones.LabelTiles(map.Regions, map.W, map.H, out _zoneFound, out _zoneX, out _zoneY);
             else for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false;
             RefreshZoneLabels();
@@ -99,7 +104,7 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _contactMarks.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
                 if (_map != null)
@@ -112,6 +117,8 @@ namespace Roguehalla.Client
                 session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
+                if (Large && session.Me != null)
+                    WorldMarks.TabMapContacts(_actors, _selfId, session.Me.Faction, session.Me.Status, session.Me.HuntTarget, true, _contactMarks);
                 foreach (var chest in session.Collections.RewardChests) _chests.Add(new Vector2(chest.X, chest.Y));
                 ChestBadges.Rows(_map?.Camps, session.Collections.RewardChests, session.ServerTimeMs, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _chestRows);
                 if (route != null) foreach (var point in route) _route.Add(new Vector2((float)point.X, (float)point.Y));
@@ -140,6 +147,7 @@ namespace Roguehalla.Client
             }
             RefreshCampClocks();
             RefreshBadgeTexts();
+            RefreshContactLabels();
             RefreshChestTexts();
             RefreshBadgeIcons();
             SetVerticesDirty();
@@ -210,6 +218,32 @@ namespace Roguehalla.Client
                 }
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
             CampClocksShown = used;
+        }
+
+        /// <summary>The word above each rival dot on the Tab map (legacy planning.ts:1117, label at top:-5px): pooled, rewritten only on change.</summary>
+        void RefreshContactLabels()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _contactMarks.Count; i++)
+                {
+                    var mark = _contactMarks[i];
+                    InterpActor actor = null;
+                    for (int j = 0; j < _actors.Count; j++) if (_actors[j].Id == mark.Id) { actor = _actors[j]; break; }
+                    if (actor == null) continue;
+                    if (used >= _contactTexts.Count)
+                    {
+                        var label = HudUi.Label(transform, "ContactLabel" + used, "", 9f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(48f, 14f);
+                        label.raycastTarget = false;
+                        _contactTexts.Add(label);
+                    }
+                    var text = _contactTexts[used++];
+                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+                    if (text.text != mark.Text) text.text = mark.Text;
+                    text.rectTransform.anchoredPosition = At(new Vector2(actor.X, actor.Y)) + new Vector2(0f, 14f);
+                }
+            for (int i = used; i < _contactTexts.Count; i++) if (_contactTexts[i].gameObject.activeSelf) _contactTexts[i].gameObject.SetActive(false);
         }
 
         Vector2 ChestTextAt(Vector2 p) { return p + new Vector2(0f, Large ? -15f : -12f); }

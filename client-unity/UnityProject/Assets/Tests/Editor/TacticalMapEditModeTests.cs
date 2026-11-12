@@ -235,6 +235,23 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void TheTabMapLabelsTheHuntedRivalHuntAndOtherRivalsEnemyButTheMinimapNone()
+        {
+            var map = new MapBlob(4, 4, new byte[16]);
+            var large = _root.AddComponent<TacticalMapMarks>(); large.Large = true; large.SetMap(map);
+            var small = new GameObject("Mini", typeof(RectTransform)).AddComponent<TacticalMapMarks>(); small.transform.SetParent(_root.transform, false); small.SetMap(map);
+            _transport.Deliver(new ServerMsg.Snapshot { Tick = 1, Phase = 1,
+                Me = new WireSelf { Id = 1, Faction = (byte)FactionId.Sentenced, Status = 1, HuntTarget = 2, Hp = 10, MaxHp = 10, X = 16, Y = 16 },
+                Actors = new[] { new WireActor { Id = 1, X = 16, Y = 16, HpPct = 100, Status = 1 }, new WireActor { Id = 2, X = 48, Y = 48, HpPct = 100, Status = 1 },
+                    new WireActor { Id = 3, X = 64, Y = 64, HpPct = 100, Status = 1 } } });
+            large.Present(_session, null); small.Present(_session, null);
+            Assert.AreEqual(2, large.ContactLabelCount);
+            Assert.AreEqual("HUNT", large.ContactLabelText(0));
+            Assert.AreEqual("ENEMY", large.ContactLabelText(1));
+            Assert.AreEqual(0, small.ContactLabelCount);
+        }
+
+        [Test]
         public void DisconnectClearsMapContactsAndCannotRetainAHiddenGhost()
         {
             var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(_session.Map);
