@@ -303,7 +303,7 @@ namespace Roguehalla.Client
             PerfMarks.End(PerfMarks.Sec.HudMap, pm); pm = PerfMarks.Begin();
             RefreshWorldHudVisibility();
             SyncTopCentre();
-            UpdateEdgeThreats();
+            UpdateEdgeThreats(); TickTerrain();
             PerfMarks.End(PerfMarks.Sec.HudEdge, pm); pm = PerfMarks.Begin();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
             PerfMarks.End(PerfMarks.Sec.HudDrawer, pm);
