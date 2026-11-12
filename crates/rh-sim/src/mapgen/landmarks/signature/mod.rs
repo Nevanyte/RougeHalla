@@ -13,6 +13,7 @@
 //! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church).
 mod bog_tree;
 mod church;
+mod volcano;
 
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{

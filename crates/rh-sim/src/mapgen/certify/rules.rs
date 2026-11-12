@@ -163,7 +163,12 @@ pub const KINDS: [Kind; 13] = [
 /// The signature landmarks' kinds (P-MAPGEN-SIGNATURE-CORE-1; no legacy counterpart), kept apart from the legacy
 /// table above so that table, and `content_hash`, stay the source's own: only maps generated with
 /// `pipeline::Options::signature` (default off) carry these kinds. No params; the map's anchor carries their geometry.
-pub const SIGNATURE_KINDS: [Kind; 3] = [
+///
+/// Fire (P-MAPGEN-SIG-FIRE-1): `Volcano` may hold wall (the cone) and LOW tiles, which must be lava (a lava crater);
+/// `LavaStream` and `LavaPool` hold only LOW lava (never wall), like the legacy `LavaRiver` row they replace in
+/// signature mode, and own their ember edge as floor (the certifier's `feature-hazards` rule fails unowned hazard
+/// floor). Every wall or LOW piece needs `piece_min` solid tiles (`feature-size`).
+pub const SIGNATURE_KINDS: [Kind; 6] = [
     Kind {
         kind: K::BogTree,
         params_min: 0,
@@ -187,6 +192,30 @@ pub const SIGNATURE_KINDS: [Kind; 3] = [
         low: false,
         terrain: 0,
         jobs: &[J::Cover],
+    },
+    Kind {
+        kind: K::Volcano,
+        params_min: 0,
+        wall: true,
+        low: true,
+        terrain: 1,
+        jobs: &[J::Landmark],
+    },
+    Kind {
+        kind: K::LavaStream,
+        params_min: 0,
+        wall: false,
+        low: true,
+        terrain: 1,
+        jobs: &[J::Crossing],
+    },
+    Kind {
+        kind: K::LavaPool,
+        params_min: 0,
+        wall: false,
+        low: true,
+        terrain: 1,
+        jobs: &[J::Crossing],
     },
 ];
 /// The certifier's row for a feature kind: the legacy table, then the signature table.

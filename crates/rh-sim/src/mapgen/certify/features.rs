@@ -340,7 +340,9 @@ pub(super) fn check(m: &GameMapData, out: &mut Certificate) {
                         .is_some_and(|c| c.zone == f.zone && c.elite_spot >= 0)
             }
             K::Gallows | K::Spire | K::Causeway | K::Infill => p.len() == kind.params_min,
-            K::BogTree | K::Church | K::Graveyard => p.len() == kind.params_min,
+            K::BogTree | K::Church | K::Graveyard | K::Volcano | K::LavaStream | K::LavaPool => {
+                p.len() == kind.params_min
+            }
         };
         out.check("feature-params", format!("p{k}"), valid);
     }

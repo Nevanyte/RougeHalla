@@ -190,6 +190,14 @@ pub enum FeatureKind {
     Church,
     /// Signature landmark: the church's graveyard, headstones beyond the door (wall).
     Graveyard,
+    /// Signature landmark (P-MAPGEN-SIG-FIRE-1, no legacy counterpart): the Fire volcano, a cone of wall on the zone's
+    /// back edge; its crater may hold lava (LOW, terrain lava). Fire's anchor.
+    Volcano,
+    /// Signature landmark: one lava stream from the volcano toward the front (LOW, terrain lava), its ember edge owned as
+    /// floor.
+    LavaStream,
+    /// Signature landmark: the lava pool a stream ends in (LOW, terrain lava), its ember edge owned as floor.
+    LavaPool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -234,7 +242,7 @@ pub struct MapProp {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ZoneAnchor {
     pub zone: Zone,
-    /// The landmark's feature kind (`BogTree`, `Church`, `Hall`).
+    /// The landmark's feature kind (`Volcano`, `BogTree`, `Church`, `Hall`).
     pub kind: FeatureKind,
     /// The landmark's centre tile.
     pub centre: TilePt,

@@ -185,6 +185,9 @@ impl<'a> Callbacks<'a> {
         let mut r4s: Vec<_> = (0..mine.len())
             .map(|q| forge::radius4(&self.forge, q, &mine) as i32)
             .collect();
+        // P-MAPGEN-SIG-FIRE-1 seam: `signature_anchor(c.base())` is `Some` only in signature mode (the volcano is in the
+        // zone's features). STUB: the styler ignores it; the implementer skips the river and arranges the craters by
+        // band there, and leaves this path (option off) drawing and placing exactly what it does today (G8).
         self.place_craters(c, &mine, &mut r4s, &nodes, &edges, &mut plan)?;
         self.place_river(c, &mine, &r4s, &nodes, &edges, &mut plan)?;
         Ok(plan)
@@ -350,6 +353,22 @@ impl<'a> Callbacks<'a> {
         }
         Ok(())
     }
+}
+/// Fire's anchor (G3) as the styler sees it: the zone's `Volcano` feature, placed by the signature step in the Landmarks
+/// phase (`landmarks::signature`), so present only with `pipeline::Options::signature`. Centre: the feature's anchor
+/// point; footprint: its box; front: toward the coliseum (`signature::front`), exactly as the finished map's anchor.
+/// Option off there is no such feature and this is `None`: no new styler input, and nothing for legacy mode to read.
+#[allow(dead_code)] // STUB (P-MAPGEN-SIG-FIRE-1): read by `shape` once the signature-mode arrangement exists.
+pub(crate) fn signature_anchor(b: BaseContext<'_>) -> Option<crate::mapdata::ZoneAnchor> {
+    let f = b.zone_features().find(|f| f.kind == FeatureKind::Volcano)?;
+    Some(crate::mapdata::ZoneAnchor {
+        zone: f.zone,
+        kind: FeatureKind::Volcano,
+        centre: crate::mapdata::TilePt { x: f.ax, y: f.ay },
+        footprint: f.bbox,
+        front: crate::mapgen::landmarks::signature::front(f.ax, f.ay),
+        entrance: Vec::new(),
+    })
 }
 fn feature(
     kind: FeatureKind,

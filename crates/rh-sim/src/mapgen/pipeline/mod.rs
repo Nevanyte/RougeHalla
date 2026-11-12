@@ -78,6 +78,10 @@ pub enum Refusal {
     Terrain,
     /// The signature step found no legal landmark for a zone (only with `Options::signature`).
     Signature,
+    /// A signature map discarded by the end-of-attempt check: a landmark no longer whole, a styler feature in an
+    /// apron, or a strict certifier failure (only with `Options::signature`; P-MAPGEN-SIG-FIRE-1). STUB: not yet
+    /// returned; the end-of-attempt check still reports `Signature`.
+    SignatureDiscarded,
 }
 #[derive(Debug)]
 pub enum Error {
