@@ -52,7 +52,45 @@ whose fact is not delivered (the room's minimum players until the wire carries i
 - One EditMode case: a cooling ability slot shows the model's text.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-HUD-STATUS-1`
+- `client-unity/RoguehallaNet.Tests/HudStatusTextTests.cs` (top line, new `PhaseLine` overload)
+- `client-unity/RoguehallaNet.Tests/SlotTextTests.cs` (`SlotText`)
+- Stubs (the implementer replaces): `Net/Ui/SlotText.cs` (new, all bodies empty), the 7-argument `Indicators.PhaseLine` overload
+  (delegates to the old one), synced copies and `SlotText.cs.meta`. `PhaseLineTests.cs` / `IndicatorFactsTests.cs` are unchanged and
+  still pass: the 6-argument `PhaseLine` keeps today's behaviour; no existing case is replaced.
+
+## Legacy rules as verified
+- Top line, `hud.ts:41-56` statusLine: lobby `Waiting for players {n}/{min} — run starts in {m:ss}` (:44); planning `Planning {m:ss}`
+  or bare `Planning` without `planEndsAt` (:46-48); active `Alive a/b · Run GV n` (:50-52); ended `Run over — {winner} is victorious`
+  or bare `Run over` (:55). fmtSeconds is ceil, `m:ss` (hud.ts:15-18; `Indicators.FmtSeconds` already does it).
+- **The active status line is never visible in legacy**: `this.status.hidden = active` (`hud.ts:199`), the Coliseum line
+  (`:258-285`) is what shows during a run. So the oracle pins the active line as the Coliseum line only and does NOT ask for
+  "Alive a/b · Run GV n". GV already shows in Unity's combat stats line (`MatchHud.cs:317`).
+- Winner label: `winnerLabel` (`render/displayName.ts:42-47`): a bot winner reads "[BOT] name" (= `Indicators.DisplayName(name, true)`).
+- Cooldown, `abilitySlot.ts:129-133`: `max(0, ceil(s))`; under 60 plain seconds ("9", "59"), from 60 `m:ss` ("1:00", "2:05").
+  NOT zero-padded minutes:seconds below a minute, contrary to the brief's "m:ss" shorthand. `Ready in {cooldown}` at `:149`; the
+  seconds text shows only while `secondsLeft > 0` (`:276`); the charge badge is `charges` only when `maxCharges > 1`, class
+  `empty` at 0 (`:286-290`).
+- Consumables, `weaponBar.ts:145-148`: `{large} large · {small} small`; `Healing[ xN] {ceil s}s` only while `healingUntil > now`
+  (x shown when count > 1); `+50% speed` / `Walk over emblems`; `Active {ceil s}s` while `speedBoostUntil > now`.
+
+## Not on the wire
+- Room minimum players (`state.minPlayers`): pass 0, the text drops "/min" (pinned by `PhaseLineTests` and the lobby case here).
+- Alive count and `startedWith` as a standing count: roster rows carry id/name/bot only; snapshot actors are interest-filtered
+  (C-OBS), so "Alive a" cannot be computed. Moot for legacy parity (line hidden when active).
+- Healing end time (`healingUntil`) and wind-emblem end (`speedBoostUntil`): only `InventoryView.PotionsHealing` is delivered;
+  `EventKind.WindEmblem` carries no time. Call sites use `HealingStatus(count, null, now)` (count-only, today's text) and show
+  no wind emblem timer. Do not estimate.
+- Winner: delivered in the `MatchEnded` event (`WireEvent.Winner`, roster id; `Draw`), but `Session` keeps no copy: the HUD must
+  remember it from the event (`Session.cs:529`) and resolve the name with `Collections.RosterName(id)`; bot flag from `RosterEntry.Bot`.
+- Charged-ability timing (`abilitySlot.ts:99-117`, the Wish lock vs next charge) is not pinned here: the call site feeds
+  `SlotText.Cooldown` the `ReadyAt` / `NextChargeAt` remaining time Unity already holds in `WishView`.
+
+## Unity call sites the implementer changes
+- `UI/MatchHud.Features.cs:171`: call the 7-argument `PhaseLine` with the winner label (null while not ended); phase `Ended` must
+  reach it (the method returns early unless `SessionState.InMatch`, around :166; allow `Ended`).
+- `UI/MatchHud.cs:357` (`FormatWishCard`): use `SlotText.Cooldown` / `ReadyIn` and `ChargeBadge` for the timer text; keep the
+  card's other lines.
+- `UI/MatchHud.IconPresentation.cs:77-80`: `_healText` from `SlotText.PotionCounts`, `_healStatus` from `SlotText.HealingStatus(count, null, now)`.
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`,
