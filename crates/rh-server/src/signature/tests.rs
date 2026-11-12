@@ -22,18 +22,17 @@ fn count(m: &GameMapData, zone: Zone, tile: u8, terrain: u8) -> usize {
         .count()
 }
 
-/// The loose proof (owner rule 9; no legacy oracle): over eight generated maps every landmark is placed at least once,
+/// The loose proof (owner rule 9; no legacy oracle): over eight generated maps the frozen cave is placed at least once,
 /// every placed landmark leaves the strict certifier with no new failure and the map still admits as a playable arena,
-/// and a placed volcano, tree and cave carry their terrain in their own zone.
+/// and a placed tree or cave carries its terrain in its own zone. (The volcano is the generator's from
+/// P-MAPGEN-SIG-FIRE-1: see `the_generator_owns_the_volcano`.)
 #[test]
 fn signature_landmarks_land_on_real_maps_and_keep_them_certified() {
     let mut placed = std::collections::BTreeMap::<&str, usize>::new();
     for seed in 1..=8 {
         let mut m = styled(seed);
         let before = failures(&m).unwrap();
-        let (lava, ember, bog, ice) = (
-            count(&m, Zone::Fire, T_LOW, LAVA),
-            count(&m, Zone::Fire, T_FLOOR, EMBER),
+        let (bog, ice) = (
             count(&m, Zone::Plague, T_FLOOR, BOG),
             count(&m, Zone::Frost, T_FLOOR, ICE),
         );
@@ -45,10 +44,6 @@ fn signature_landmarks_land_on_real_maps_and_keep_them_certified() {
         );
         for name in &report.placed {
             *placed.entry(name).or_default() += 1;
-        }
-        if report.placed.contains(&"volcano") {
-            assert!(count(&m, Zone::Fire, T_LOW, LAVA) > lava, "seed {seed}");
-            assert!(count(&m, Zone::Fire, T_FLOOR, EMBER) > ember, "seed {seed}");
         }
         if report.placed.contains(&"bog tree") {
             assert!(
@@ -95,13 +90,12 @@ fn signature_landmarks_land_on_real_maps_and_keep_them_certified() {
             report.placed, report.skipped
         );
     }
-    // The church and the bog tree are the generator's (P-MAPGEN-SIGNATURE-CORE-1); the pass keeps Fire and Frost.
-    for name in ["volcano", "frozen cave"] {
-        assert!(
-            placed.get(name).copied().unwrap_or(0) >= 1,
-            "{name} never placed: {placed:?}"
-        );
-    }
+    // The church and the bog tree (P-MAPGEN-SIGNATURE-CORE-1) and the volcano (P-MAPGEN-SIG-FIRE-1) are the
+    // generator's; the pass keeps Frost.
+    assert!(
+        placed.get("frozen cave").copied().unwrap_or(0) >= 1,
+        "frozen cave never placed: {placed:?}"
+    );
 }
 
 /// The pass is a pure function of the map: the same map gives the same result.
@@ -256,5 +250,62 @@ fn the_generator_owns_the_church_and_the_bog_tree() {
             !generated.anchors.is_empty() && after.anchors == generated.anchors,
             "seed {seed}: the pass lost the generator's anchors"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// P-MAPGEN-SIG-FIRE-1: the generator places the volcano; the pass places none.
+// ---------------------------------------------------------------------------------------------------------------
+
+/// On the maps the pool's maker generates with `--signature-landmarks` (seeds 1-3), which carry the generator's
+/// volcano, the pass neither places nor tries a volcano and leaves the Fire zone exactly as the generator made it
+/// (features, tiles and terrain); the served map holds the generator's one volcano.
+#[test]
+fn the_generator_owns_the_volcano() {
+    use crate::map_pool::{MapMaker, StyledMaker};
+    let maker = StyledMaker { signature: true };
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    for seed in 1..=3u32 {
+        let generated = generator
+            .certified_styled(i64::from(seed), maker.options())
+            .unwrap()
+            .expect("certified");
+        let mut after = generated.clone();
+        let report = apply(&mut after);
+        assert!(
+            !report.placed.contains(&"volcano")
+                && !report.skipped.iter().any(|(n, _)| *n == "volcano"),
+            "seed {seed}: the pass still runs the volcano: {report:?}"
+        );
+        let fire = |m: &GameMapData| -> Vec<MapFeature> {
+            m.features
+                .iter()
+                .filter(|f| f.zone == Zone::Fire)
+                .cloned()
+                .collect()
+        };
+        assert_eq!(
+            fire(&after),
+            fire(&generated),
+            "seed {seed}: the pass changed Fire features"
+        );
+        for i in 0..generated.tiles.len() {
+            if generated.region_grid[i] == Zone::Fire.code() {
+                assert!(
+                    after.tiles[i] == generated.tiles[i]
+                        && after.terrain[i] == generated.terrain[i],
+                    "seed {seed}: the pass changed Fire tile {i}"
+                );
+            }
+        }
+        let arena = maker.make(seed).unwrap().expect("a served map");
+        let data = arena.map.layers().expect("map layers").data();
+        let n = data
+            .features
+            .iter()
+            .filter(|f| f.kind == FeatureKind::Volcano && f.zone == Zone::Fire)
+            .count();
+        assert_eq!(n, 1, "seed {seed}: the served map has {n} volcanoes");
     }
 }

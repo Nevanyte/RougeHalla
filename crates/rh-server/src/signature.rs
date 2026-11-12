@@ -1,15 +1,14 @@
 //! Signature landmarks (owner decision 6, 2026-11-10; P-SIGNATURE-1): a server-side pass over a generated map that adds
 //! one landmark per zone made of real terrain. New design with no legacy oracle (owner rule 9: loose proof):
 //!
-//! * **Fire**: a volcano cone (wall) with two or three lava streams (impassable LOW lava) ending in pools, edged with
-//!   ember floor (burns).
-//! * **Sentenced** (the church and graveyard) and **Plague** (the giant bog tree) are placed by the generator itself
-//!   (`rh_sim::mapgen::landmarks::signature`, `pipeline::Options::signature`, P-MAPGEN-SIGNATURE-CORE-1), before spawns
-//!   and stylers; this pass no longer builds them.
+//! * **Fire** (the volcano with its lava streams and pools), **Sentenced** (the church and graveyard) and **Plague**
+//!   (the giant bog tree) are placed by the generator itself (`rh_sim::mapgen::landmarks::signature`,
+//!   `pipeline::Options::signature`, P-MAPGEN-SIGNATURE-CORE-1 and P-MAPGEN-SIG-FIRE-1), before spawns and stylers;
+//!   this pass no longer builds them.
 //! * **Frost**: a frozen cave of rock arched around the zone's far elite camp, open towards the centre, with an ice floor.
 //! * **Holy** keeps its temple (the client draws it from the existing sanctum hall).
 //!
-//! This pass stays for Fire and Frost until their generator packets land; then the file is deleted.
+//! This pass stays for Frost until its generator packet lands; then the file is deleted.
 //!
 //! The pass edits only zone floor that is free (no wall, LOW, terrain or feature, outside camp, spawn, loot and chest
 //! clearances), records every change as a map feature of a kind the certifier knows, and keeps a landmark only if the
@@ -30,14 +29,11 @@ const SPOT_CLEAR: i32 = 2;
 /// The certifier's smallest wall piece (`certify::rules` `piece_min`), as a 2x3 block.
 const STONE: (i32, i32) = (2, 3);
 const DIRECTIONS: i32 = 16;
-/// Sites (or camp and size choices) each landmark tries before it is skipped.
+/// Camp and size choices the cave tries before it is skipped.
 const ATTEMPTS: usize = 5;
 
 const T_FLOOR: u8 = 0;
 const T_WALL: u8 = 1;
-const T_LOW: u8 = 2;
-const LAVA: u8 = 1;
-const EMBER: u8 = 4;
 /// The bog tree is the generator's now; the tests still count Plague bog.
 #[cfg(test)]
 const BOG: u8 = 5;
@@ -73,10 +69,7 @@ pub fn apply(map: &mut GameMapData) -> Report {
         }
         Some(_) => {}
     }
-    let builders: [(&'static str, Zone, Builder); 2] = [
-        ("volcano", Zone::Fire, volcano),
-        ("frozen cave", Zone::Frost, frozen_cave),
-    ];
+    let builders: [(&'static str, Zone, Builder); 1] = [("frozen cave", Zone::Frost, frozen_cave)];
     for (name, zone, build) in builders {
         let grid = Grid::new(map, zone);
         let mut why = String::from("no room");
@@ -225,82 +218,12 @@ impl Grid {
     fn free(&self, x: i32, y: i32) -> bool {
         self.at(x, y).is_some_and(|i| self.free[i])
     }
-
-    /// Distance (in tiles, 8-neighbour steps) from each free cell to the nearest cell that is not free.
-    fn clearance(&self) -> Vec<i32> {
-        let n = (self.w * self.h) as usize;
-        let mut d = vec![i32::MAX; n];
-        let mut queue = std::collections::VecDeque::new();
-        for (i, (di, &free)) in d.iter_mut().zip(&self.free).enumerate() {
-            if !free {
-                *di = 0;
-                queue.push_back(i);
-            }
-        }
-        while let Some(i) = queue.pop_front() {
-            let (x, y) = ((i as i32) % self.w, (i as i32) / self.w);
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    if let Some(j) = self.at(x + dx, y + dy) {
-                        if d[j] == i32::MAX {
-                            d[j] = d[i] + 1;
-                            queue.push_back(j);
-                        }
-                    }
-                }
-            }
-        }
-        d
-    }
-
-    /// The `k`-th roomiest free cell of this zone (farthest from anything not free; sites at least 12 tiles apart, row
-    /// order on a tie), if its clearance is at least `need`.
-    fn roomiest(&self, need: i32, k: usize) -> Option<(i32, i32)> {
-        let d = self.clearance();
-        let mut cells: Vec<usize> = (0..d.len())
-            .filter(|&i| self.free[i] && d[i] >= need)
-            .collect();
-        cells.sort_by(|&a, &b| d[b].cmp(&d[a]).then(a.cmp(&b)));
-        let mut sites: Vec<(i32, i32)> = Vec::new();
-        for i in cells {
-            let p = ((i as i32) % self.w, (i as i32) / self.w);
-            if sites
-                .iter()
-                .all(|s| (s.0 - p.0).abs().max((s.1 - p.1).abs()) >= 12)
-            {
-                sites.push(p);
-                if sites.len() > k {
-                    return Some(p);
-                }
-            }
-        }
-        None
-    }
 }
 
 /// The 16-direction index of the vector (dx, dy) (0 = +x, counter-clockwise in screen terms as y grows down).
 fn direction(dx: f64, dy: f64) -> i32 {
     let a = dy.atan2(dx).rem_euclid(std::f64::consts::TAU);
     ((a / std::f64::consts::TAU * f64::from(DIRECTIONS)).round() as i32) % DIRECTIONS
-}
-
-/// A small deterministic stream from the map seed and a zone salt (map authoring only; never a match secret).
-struct Stream(u64);
-impl Stream {
-    fn new(seed: i64, salt: u64) -> Self {
-        Self((seed as u64) ^ salt.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1)
-    }
-    fn next(&mut self) -> u64 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.0 = x;
-        x
-    }
-    fn below(&mut self, n: u64) -> u64 {
-        self.next() % n
-    }
 }
 
 /// The zone's elite camps, farthest from the map centre first: (tile x, tile y, clearing radius in tiles).
@@ -363,90 +286,6 @@ fn disk(cx: f64, cy: f64, r: f64) -> impl Iterator<Item = (i32, i32)> {
             (dx * dx + dy * dy <= r * r).then_some((x, y))
         })
     })
-}
-
-/// Fire: a cone at the roomiest spot, two or three lava streams with pools, ember along their edges.
-fn volcano(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
-    let (vx, vy) = g.roomiest(4, k)?;
-    let (cx, cy) = (f64::from(vx) + 0.5, f64::from(vy) + 0.5);
-    let cone: Vec<(i32, i32)> = disk(cx, cy, 2.5).collect();
-    if !cone.iter().all(|&(x, y)| g.free(x, y)) {
-        return None;
-    }
-    let mut rng = Stream::new(m.seed, 1 + k as u64);
-    let streams = 2 + rng.below(2) as usize;
-    let start = rng.below(DIRECTIONS as u64) as i32;
-    let mut lava: Vec<(i32, i32)> = Vec::new();
-    for s in 0..streams {
-        let dir = (start + s as i32 * DIRECTIONS / streams as i32) % DIRECTIONS;
-        let a = f64::from(dir) / f64::from(DIRECTIONS) * std::f64::consts::TAU;
-        let (ux, uy) = (a.cos(), a.sin());
-        let len = 3 + rng.below(3) as i32;
-        let mut cells = Vec::new();
-        let mut ok = true;
-        for k in 3..=(3 + len) {
-            let (x, y) = (
-                (cx + ux * f64::from(k)).floor() as i32,
-                (cy + uy * f64::from(k)).floor() as i32,
-            );
-            if !g.free(x, y) {
-                ok = false;
-                break;
-            }
-            if !cells.contains(&(x, y)) {
-                cells.push((x, y));
-            }
-        }
-        let end = (cx + ux * f64::from(4 + len), cy + uy * f64::from(4 + len));
-        let pool: Vec<(i32, i32)> = disk(end.0, end.1, 1.0).collect();
-        if !ok || !pool.iter().all(|&(x, y)| g.free(x, y)) {
-            continue;
-        }
-        for c in cells.into_iter().chain(pool) {
-            if !lava.contains(&c) && !cone.contains(&c) {
-                lava.push(c);
-            }
-        }
-    }
-    if lava.len() < 6 {
-        return None;
-    }
-    let mut ember = Vec::new();
-    for &(x, y) in cone.iter().chain(&lava) {
-        for dy in -1..=1 {
-            for dx in -1..=1 {
-                let c = (x + dx, y + dy);
-                if g.free(c.0, c.1)
-                    && !cone.contains(&c)
-                    && !lava.contains(&c)
-                    && !ember.contains(&c)
-                {
-                    ember.push(c);
-                }
-            }
-        }
-    }
-    let idx = |&(x, y): &(i32, i32)| g.at(x, y).unwrap();
-    Some(vec![
-        Piece {
-            kind: FeatureKind::Spire,
-            jobs: vec![FeatureJob::Landmark],
-            p: vec![],
-            anchor: (vx, vy),
-            cells: cone.iter().map(|c| (idx(c), T_WALL, 0)).collect(),
-        },
-        Piece {
-            kind: FeatureKind::LavaRiver,
-            jobs: vec![FeatureJob::Crossing],
-            p: vec![1, 0],
-            anchor: (vx, vy),
-            cells: lava
-                .iter()
-                .map(|c| (idx(c), T_LOW, LAVA))
-                .chain(ember.iter().map(|c| (idx(c), T_FLOOR, EMBER)))
-                .collect(),
-        },
-    ])
 }
 
 /// Frost: a two-tile-thick rock arch around the far elite camp on the side away from the centre, with ice inside, kept

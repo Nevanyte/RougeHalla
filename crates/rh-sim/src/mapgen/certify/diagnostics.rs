@@ -33,6 +33,9 @@ fn kind(k: FeatureKind) -> &'static str {
         FeatureKind::BogTree => "bogTree",
         FeatureKind::Church => "church",
         FeatureKind::Graveyard => "graveyard",
+        FeatureKind::Volcano => "volcano",
+        FeatureKind::LavaStream => "lavaStream",
+        FeatureKind::LavaPool => "lavaPool",
     }
 }
 fn job(j: FeatureJob) -> &'static str {

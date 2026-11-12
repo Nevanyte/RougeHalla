@@ -3,14 +3,15 @@ mod craters;
 mod raster;
 mod river;
 mod rules;
-use crate::map::{TILE_FLOOR, TILE_WALL};
-use crate::mapdata::{FeatureJob, FeatureKind, MapFeature};
+use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
+use crate::mapdata::{FeatureJob, FeatureKind, MapFeature, ZoneAnchor};
 use crate::mapgen::{
     coliseum::{FixedDefinition, FixedLayout},
     landmarks::{
         recipe_support::{self, js_round, CampNodeInputs, RecipeSupportDefinition},
         recipes::search_family::scorch as forge,
         runtime::CampInfo,
+        signature::{self, Band},
         templates::{parse_template, stamp_template, ParsedTemplate},
     },
     style_features as kit,
@@ -185,8 +186,22 @@ impl<'a> Callbacks<'a> {
         let mut r4s: Vec<_> = (0..mine.len())
             .map(|q| forge::radius4(&self.forge, q, &mine) as i32)
             .collect();
-        self.place_craters(c, &mine, &mut r4s, &nodes, &edges, &mut plan)?;
-        self.place_river(c, &mine, &r4s, &nodes, &edges, &mut plan)?;
+        // Signature mode (P-MAPGEN-SIG-FIRE-1): `signature_anchor` is `Some` only when the Landmarks phase placed the
+        // volcano in this zone. Its streams replace the lava river, and the craters are arranged by band round it.
+        // Option off this is `None` and the styler draws and places exactly what it did before (G8).
+        let anchor = signature_anchor(c.base());
+        self.place_craters(
+            c,
+            &mine,
+            &mut r4s,
+            &nodes,
+            &edges,
+            anchor.as_ref(),
+            &mut plan,
+        )?;
+        if anchor.is_none() {
+            self.place_river(c, &mine, &r4s, &nodes, &edges, &mut plan)?;
+        }
         Ok(plan)
     }
     pub(crate) fn admit_inputs<'input>(
@@ -350,6 +365,21 @@ impl<'a> Callbacks<'a> {
         }
         Ok(())
     }
+}
+/// Fire's anchor (G3) as the styler sees it: the zone's `Volcano` feature, placed by the signature step in the Landmarks
+/// phase (`landmarks::signature`), so present only with `pipeline::Options::signature`. Centre: the feature's anchor
+/// point; footprint: its box; front: toward the coliseum (`signature::front`), exactly as the finished map's anchor.
+/// Option off there is no such feature and this is `None`: no new styler input, and nothing for legacy mode to read.
+pub(crate) fn signature_anchor(b: BaseContext<'_>) -> Option<ZoneAnchor> {
+    let f = b.zone_features().find(|f| f.kind == FeatureKind::Volcano)?;
+    Some(ZoneAnchor {
+        zone: f.zone,
+        kind: FeatureKind::Volcano,
+        centre: crate::mapdata::TilePt { x: f.ax, y: f.ay },
+        footprint: f.bbox,
+        front: signature::front(f.ax, f.ay),
+        entrance: Vec::new(),
+    })
 }
 fn feature(
     kind: FeatureKind,

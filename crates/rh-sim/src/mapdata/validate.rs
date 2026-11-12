@@ -468,7 +468,12 @@ fn feature_params(d: &LayerData, f: &MapFeature, path: &str) -> Result<(), MapDa
         FeatureKind::Gallows | FeatureKind::Spire | FeatureKind::Causeway | FeatureKind::Infill => {
             p.is_empty()
         }
-        FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard => p.is_empty(),
+        FeatureKind::BogTree
+        | FeatureKind::Church
+        | FeatureKind::Graveyard
+        | FeatureKind::Volcano
+        | FeatureKind::LavaStream
+        | FeatureKind::LavaPool => p.is_empty(),
     };
     require(
         ok,
