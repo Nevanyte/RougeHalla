@@ -37,7 +37,7 @@
       "signature": {
         "feature": "crater",
         "rings": [
-          { "name": "fire-ring-core", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "fire.spire", "density": 2.0 }] },
+          { "name": "fire-ring-core", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "fire.spire", "density": 10.0 }] },
           { "name": "fire-ring-rim", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "fire.crystal", "density": 2.5 }] }
         ]
       },
@@ -55,7 +55,7 @@
       "signature": {
         "feature": "gallows",
         "rings": [
-          { "name": "sent-ring-yard", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "sent.tomb", "density": 3.0 }] },
+          { "name": "sent-ring-yard", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "sent.tomb", "density": 10.0 }] },
           { "name": "sent-ring-fringe", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "sent.cross", "density": 2.0 }] }
         ]
       },
@@ -73,7 +73,7 @@
       "signature": {
         "feature": "barrow",
         "rings": [
-          { "name": "plague-ring-court", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "plague.column", "density": 2.0 }] },
+          { "name": "plague-ring-court", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "plague.column", "density": 10.0 }] },
           { "name": "plague-ring-ruins", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "plague.rubble", "density": 2.5 }] }
         ]
       },
@@ -91,7 +91,7 @@
       "signature": {
         "feature": "mere",
         "rings": [
-          { "name": "frost-ring-shore", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "frost.rock2", "density": 2.0 }], "on": ["floor", "ice"] },
+          { "name": "frost-ring-shore", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "frost.rock2", "density": 10.0 }], "on": ["floor", "ice"] },
           { "name": "frost-ring-field", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "frost.shards", "density": 2.0 }] }
         ]
       },
@@ -109,7 +109,7 @@
       "signature": {
         "feature": "hall",
         "rings": [
-          { "name": "holy-ring-sanctum", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "holy.pillar", "density": 2.0 }] },
+          { "name": "holy-ring-sanctum", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "holy.pillar", "density": 10.0 }] },
           { "name": "holy-ring-garden", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "holy.rock", "density": 2.0 }] }
         ]
       },
