@@ -21,12 +21,6 @@ use crate::rng::Mulberry32;
 
 use super::super::recipe_support::DIR16;
 
-const ONE: i32 = 1024;
-
-/// Cell marks while one site is built.
-const CONE: u8 = 1;
-const LAVA: u8 = 2;
-
 /// The volcano with its streams and pools for the Fire zone, or `None` when the zone has no legal site (the attempt is
 /// refused, G5).
 pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
@@ -103,9 +97,10 @@ fn build(
     rng: &mut Mulberry32,
 ) -> Option<Built> {
     let d = &s.ctx.rules;
+    // Cell marks while the site is built: 1 the cone, 2 lava.
     let mut mark = vec![0u8; W * H];
     for &(dx, dy) in cone {
-        mark[at(x + dx, y + dy)?] = CONE;
+        mark[at(x + dx, y + dy)?] = 1;
     }
     let count = d.streams.0 + pick(rng, d.streams.1 - d.streams.0 + 1);
     let spreads = d.spreads[count - d.streams.0];
@@ -119,7 +114,7 @@ fn build(
             continue;
         };
         for &i in body.0.iter().chain(&body.1) {
-            mark[i] = LAVA;
+            mark[i] = 2;
         }
         bodies.push(body);
     }
@@ -165,8 +160,8 @@ fn build(
                 cells.iter().map(|&i| (i, TILE_LOW, d.lava)).collect();
             for &i in &cells {
                 let (cx, cy) = ((i % W) as i32, (i / W) as i32);
-                for (dx, dy) in RING8 {
-                    let Some(j) = at(cx + dx, cy + dy) else {
+                for (dx, dy) in (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy))) {
+                    let Some(j) = at(cx + dx, cy + dy).filter(|_| (dx, dy) != (0, 0)) else {
                         continue;
                     };
                     if mark[j] == 0 && !ember[j] && free(s, cx + dx, cy + dy) {
@@ -195,17 +190,6 @@ fn build(
         pieces,
     })
 }
-
-const RING8: [(i32, i32); 8] = [
-    (-1, -1),
-    (0, -1),
-    (1, -1),
-    (-1, 0),
-    (1, 0),
-    (-1, 1),
-    (0, 1),
-    (1, 1),
-];
 
 /// Ground a lava or ember tile may take: this zone's free floor outside the legacy protection, the camp halos and every
 /// apron marked so far.
@@ -241,12 +225,14 @@ fn stream(
     len: i32,
 ) -> Option<(Vec<usize>, Vec<usize>, (i32, i32))> {
     let d = &s.ctx.rules;
-    let tile = |p: (i32, i32)| (p.0.div_euclid(ONE), p.1.div_euclid(ONE));
+    // DIR16 vectors have length 1024: positions are fixed point, 1/1024 tile.
+    let one = 1024;
+    let tile = |p: (i32, i32)| (p.0.div_euclid(one), p.1.div_euclid(one));
     let step = |p: (i32, i32), h: i32| {
         let v = DIR16[h.rem_euclid(16) as usize];
         (p.0 + v[0], p.1 + v[1])
     };
-    let (ox, oy) = (c.0 * ONE + ONE / 2, c.1 * ONE + ONE / 2);
+    let (ox, oy) = (c.0 * one + one / 2, c.1 * one + one / 2);
     // A lava tile: free ground off the cone, and `stream_gap` from every other body (except beside the cone).
     let lava_ok = |t: (i32, i32)| -> bool {
         let Some(i) = at(t.0, t.1) else {
@@ -260,7 +246,7 @@ fn stream(
             return true;
         }
         let g = d.stream_gap;
-        (-g..=g).all(|ny| (-g..=g).all(|nx| at(t.0 + nx, t.1 + ny).is_none_or(|j| mark[j] != LAVA)))
+        (-g..=g).all(|ny| (-g..=g).all(|nx| at(t.0 + nx, t.1 + ny).is_none_or(|j| mark[j] != 2)))
     };
     let wide = |t: (i32, i32), sd: (i32, i32)| lava_ok(t) && lava_ok((t.0 + sd.0, t.1 + sd.1));
     let sd = side(h0);
