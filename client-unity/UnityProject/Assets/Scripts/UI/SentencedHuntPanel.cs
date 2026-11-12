@@ -100,7 +100,7 @@ namespace Roguehalla.Client
             if (tracking)
             {
                 string who = haveTarget ? Rival(targetActor) : "rival";
-                _status.text = "Tracking " + who + " · +5% speed";
+                _status.text = "Tracking " + who + "\n+5% speed toward them";
             }
             else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight" : "Choose a rival · +5% speed toward them";
             int rows = tracking ? 0 : Mathf.Min(_rivals.Count, (int)MaxRows);
