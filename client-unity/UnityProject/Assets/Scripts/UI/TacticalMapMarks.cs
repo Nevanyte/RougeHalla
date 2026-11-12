@@ -21,6 +21,7 @@ namespace Roguehalla.Client
         readonly List<Vector2> _chests = new List<Vector2>();
         readonly List<DeliveredPoint> _delivered = new List<DeliveredPoint>();
         readonly List<TMP_Text> _zoneLabels = new List<TMP_Text>();
+        RectTransform _zoneLabelHost;
         struct DeliveredPoint { public Vector2 At; public string Label; public byte Kind; }
         public QuestHandle? TrackedQuest { get; set; }
         /// <summary>True on the Tab map: bigger markers and a name beside each zone icon. The minimap draws small icons only.</summary>
@@ -178,6 +179,19 @@ namespace Roguehalla.Client
 
         Vector2 ZoneAt(int region) { return At(new Vector2((float)_zoneX[region] * 32f, (float)_zoneY[region] * 32f)); }
 
+        /// <summary>The zone labels live in their own full-size container, a later sibling of this mesh (and of the fog), so nothing the mesh draws covers them.</summary>
+        RectTransform ZoneLabelHost()
+        {
+            if (_zoneLabelHost != null) return _zoneLabelHost;
+            var host = new GameObject("Zone labels", typeof(RectTransform));
+            var parent = transform.parent != null ? transform.parent : transform;
+            host.transform.SetParent(parent, false);
+            _zoneLabelHost = (RectTransform)host.transform;
+            _zoneLabelHost.anchorMin = Vector2.zero; _zoneLabelHost.anchorMax = Vector2.one; _zoneLabelHost.offsetMin = _zoneLabelHost.offsetMax = Vector2.zero;
+            _zoneLabelHost.SetAsLastSibling();
+            return _zoneLabelHost;
+        }
+
         void RefreshZoneLabels()
         {
             bool show = Large && _map != null;
@@ -188,8 +202,9 @@ namespace Roguehalla.Client
                 if (i >= _zoneLabels.Count)
                 {
                     if (!on) continue;
-                    var label = HudUi.Label(transform, "ZoneLabel" + region, MapZones.Name(region).ToUpperInvariant(), 10f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
+                    var label = HudUi.Label(ZoneLabelHost(), "ZoneLabel" + region, MapZones.Name(region).ToUpperInvariant(), 10f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
                     var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(120f, 18f);
+                    label.fontSharedMaterial = OverheadIndicators.OutlinedMaterial(label.font);   // dark outline: reads over the cream self ring
                     _zoneLabels.Add(label);
                 }
                 var text = _zoneLabels[i];
