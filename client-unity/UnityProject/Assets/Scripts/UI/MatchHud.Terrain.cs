@@ -13,7 +13,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed partial class MatchHud
     {
-        const float TerrainTile = 32f, TerrainWidth = 256f;
+        const float TerrainTile = 32f, TerrainWidth = 294f;
         const float TerrainLine = 18f;
         RectTransform _terrainRow;
         TMP_Text _terrainNoteText;

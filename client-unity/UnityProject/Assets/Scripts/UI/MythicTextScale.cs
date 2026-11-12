@@ -55,8 +55,9 @@ namespace Roguehalla.Client
             if (_text == null) return;
             string now = _text.text;
             if (string.Equals(now, _fitted)) return;
-            // A text that changes every frame (a countdown) keeps its length and box: keep the fitted size, no scan and bisect.
-            if (_fitted != null && now != null && now.Length == _fitted.Length && _text.rectTransform.rect.size == _fittedBox) { _fitted = now; return; }
+            // A text that changes every frame (a countdown) keeps its length and box: one measurement at the current size, and the size stays when the text still fits (no scan and bisect).
+            if (_fitted != null && now != null && now.Length == _fitted.Length && _text.rectTransform.rect.size == _fittedBox
+                && Fits(_text, now, _text.fontSize, _text.rectTransform.rect)) { _fitted = now; return; }
             Refit();
         }
 

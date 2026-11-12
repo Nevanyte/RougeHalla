@@ -170,7 +170,7 @@ namespace Roguehalla.Client.Tests
             Layout(window);
             var plate = Measure(_stage, Child(_stage, "PlayerHUD/VitalsPanel"));
             Assert.That(plate.Left, Is.EqualTo(12f).Within(.01f)); Assert.That(plate.Top, Is.EqualTo(10f).Within(.01f));
-            Assert.That(plate.Width, Is.EqualTo(292f).Within(.01f));
+            Assert.That(plate.Width, Is.EqualTo(294f).Within(.01f));
             var champion = Measure(_stage, Child(_stage, "PlayerHUD/ChampionCombatHud"));
             Assert.That(champion.Left, Is.EqualTo(12f).Within(.01f)); Assert.That(champion.Bottom, Is.EqualTo(48f).Within(.01f));
             Assert.That(champion.Width, Is.EqualTo(250f).Within(.01f));
@@ -181,15 +181,15 @@ namespace Roguehalla.Client.Tests
         }
 
         [TestCaseSource(nameof(Windows))]
-        public void BuildHudHasNineCellsInsideTheTwoHundredTwentyFourPixelPlateBody(Vector2 window)
+        public void BuildHudHasNineCellsInsideThePlateBody(Vector2 window)
         {
             Layout(window);
             var cells = (RectTransform[])Get("_buildCells");
             Assert.That(cells.Length, Is.EqualTo(9));
             var body = Child(_stage, "PlayerHUD/VitalsPanel/PlateBody");
-            Assert.That(Measure(_stage, body).Width, Is.EqualTo(224f).Within(.01f), "plate content width");
+            Assert.That(Measure(_stage, body).Width, Is.EqualTo(278f).Within(.01f), "plate content width");
             var strip = Child(_stage, "PlayerHUD/VitalsPanel/PlateBody/BuildStrip");
-            Assert.That(Measure(_stage, strip).Width, Is.EqualTo(224f).Within(.01f), "Gained box is effectively 224 wide");
+            Assert.That(Measure(_stage, strip).Width, Is.EqualTo(278f).Within(.01f), "Gained box is effectively 278 wide");
             string[] expected = { "Offense", "SO", "Damage gained", "Attack speed", "Life steal", "Health gained", "Defense", "Soul Defense", "Move speed" };
             for (int i = 0; i < 9; i++)
             {
@@ -302,7 +302,7 @@ namespace Roguehalla.Client.Tests
             var plate = ScreenRect(Child(_stage, "PlayerHUD/VitalsPanel"), device);
             Assert.That(plate.xMin, Is.EqualTo(12f * unit).Within(tolerance));
             Assert.That(device.y - plate.yMax, Is.EqualTo(10f * unit).Within(tolerance));
-            Assert.That(plate.width, Is.EqualTo(292f * unit).Within(tolerance));
+            Assert.That(plate.width, Is.EqualTo(294f * unit).Within(tolerance));
 
             foreach (string name in new[] { "Help", "Settings", "Fullscreen" })
             {
