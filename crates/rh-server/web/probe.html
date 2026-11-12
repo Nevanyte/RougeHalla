@@ -816,7 +816,7 @@ function readRoster(r) {
 // P-WIRE17-HUD-1: every HUD number is an integer count of HUD_QUANTUM (1e-4); stat codes 0 Offense, 1 Soul Offense,
 // 2 Damage, 3 Attack speed, 4 Life steal, 5 Health, 6 Defense, 7 Soul Defense, 8 Move speed. Each quantized integer is
 // kept, with `value` its scaled double (no recomputation).
-const HUD_QUANTUM = 1e-4, HUD_STAT_COUNT = 9, MAX_SUMMARY_MOB_ROWS = 20;
+const HUD_QUANTUM = 1e-4, HUD_STAT_COUNT = 9, MAX_SUMMARY_MOB_ROWS = 20, PANEL_CODE_COUNT = 23, MAX_PANEL_VALUES = 23;
 // A camp row's HUD tail: reward u8 (0 none / 1 + stat code) [+ amount u16 > 0], then ward u8 (0 none / 1 yours /
 // 2 another player's) [+ expiresAt f64, finite, >= 0]. A ward is a verdict for this viewer, never an owner id.
 function readCampHud(r, c) {
@@ -844,7 +844,16 @@ function readBuildSummary(r) {
       const total = r.u32() | 0;
       mobRows.push({ mobType, stat, stacks, total, value: total * HUD_QUANTUM });
     }
-    return { gains, values: gains.map(g => g * HUD_QUANTUM), mobRows };
+    // P-WIRE17-HUD-2: the owner's champion panel; the count is refused before any row is read.
+    const m = r.u8(); if (m > MAX_PANEL_VALUES) throw new Error("too many summary panel values");
+    const panel = []; let lastCode = -1;
+    for (let i = 0; i < m; i++) {
+      const code = r.u8(); if (code >= PANEL_CODE_COUNT) throw new Error("bad summary panel code");
+      if (code <= lastCode) throw new Error("bad summary panel order"); lastCode = code;
+      const quanta = r.u32() | 0;
+      panel.push({ code, quanta, value: quanta * HUD_QUANTUM });
+    }
+    return { gains, values: gains.map(g => g * HUD_QUANTUM), mobRows, panel };
   });
 }
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
