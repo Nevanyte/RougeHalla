@@ -33,6 +33,7 @@ namespace Roguehalla.Client
         readonly List<CampBadgeRow> _rewards = new List<CampBadgeRow>();
         readonly List<CampWardRow> _wards = new List<CampWardRow>();
         readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
+        readonly List<Image> _badgeIcons = new List<Image>();
         /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
         public int RewardBadgeCount => _rewards.Count;
         public int WardMarkCount => _wards.Count;
@@ -130,6 +131,7 @@ namespace Roguehalla.Client
             }
             RefreshCampClocks();
             RefreshBadgeTexts();
+            RefreshBadgeIcons();
             SetVerticesDirty();
         }
 
@@ -246,15 +248,45 @@ namespace Roguehalla.Client
                     var w = _wards[i];
                     var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
                     if (ContactNear(p)) continue;
+                    if (!Large) continue; // the minimap keeps the ward mark only, no number
                     ShowBadgeText(ref used, WardSlot(p) + new Vector2(-8f, 0f), w.Countdown, Rgb(w.TextRgb), true);
                 }
             }
             for (int i = used; i < _badgeTexts.Count; i++) if (_badgeTexts[i].gameObject.activeSelf) _badgeTexts[i].gameObject.SetActive(false);
         }
 
+        /// <summary>The stat glyph (the GAINED strip's art, tinted with the model's icon colour) of each reward badge: pooled Image children.</summary>
+        void RefreshBadgeIcons()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _rewards.Count; i++)
+                {
+                    var b = _rewards[i];
+                    if (b.IconKey == null) continue;
+                    var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
+                    if (ContactNear(p)) continue;
+                    if (used >= _badgeIcons.Count)
+                    {
+                        var go = new GameObject("CampBadgeIcon" + used, typeof(RectTransform)); go.transform.SetParent(transform, false);
+                        var image = go.AddComponent<Image>(); image.raycastTarget = false; image.preserveAspect = true;
+                        image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(.5f, .5f);
+                        _badgeIcons.Add(image);
+                    }
+                    var icon = _badgeIcons[used++];
+                    float size = (Large ? 15f : 12f);
+                    if (!icon.gameObject.activeSelf) icon.gameObject.SetActive(true);
+                    icon.sprite = CampRespawnLabels.Art(b.IconKey);
+                    icon.color = Rgb(b.IconRgb);
+                    icon.rectTransform.sizeDelta = new Vector2(size, size);
+                    icon.rectTransform.anchoredPosition = RewardSlot(p, 0);
+                }
+            for (int i = used; i < _badgeIcons.Count; i++) if (_badgeIcons[i].gameObject.activeSelf) _badgeIcons[i].gameObject.SetActive(false);
+        }
+
         static Color32 Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
 
-        /// <summary>Reward badges as coloured discs (the stat icon colour), chests as squares, ward marks as rings in the beacon colour.</summary>
+        /// <summary>Reward badges as a dark plate under the stat glyph Image, chests as squares, ward marks as rings in the beacon colour.</summary>
         void DrawBadges(VertexHelper vh, Color32 ink, float s)
         {
             BadgesDrawn = WardsDrawn = 0;
@@ -264,7 +296,7 @@ namespace Roguehalla.Client
                 if (ContactNear(p)) continue;
                 BadgesDrawn++;
                 int row = 0;
-                if (b.IconKey != null) Marker(vh, RewardSlot(p, row++), 7f * s, MapGlyph.Disc, Rgb(b.IconRgb), ink);
+                if (b.IconKey != null) { Glyph(vh, RewardSlot(p, row++), 17f * s, MapGlyph.Disc, Alpha(ink, .9f)); } // dark plate under the glyph Image
                 if (b.EliteIconKey != null) Marker(vh, RewardSlot(p, row), 7f * s, MapGlyph.Square, ChestTone, ink);
             }
             foreach (var w in _wards)
