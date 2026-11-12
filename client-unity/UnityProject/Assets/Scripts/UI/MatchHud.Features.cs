@@ -186,8 +186,8 @@ namespace Roguehalla.Client
             if (_metricsPill != null) _metricsPill.gameObject.SetActive(metrics.Length > 0);
             bool runOver = _session != null && _session.State == SessionState.Ended && _matchEnded;
             if (_session == null || _session.State != SessionState.InMatch && !runOver) { _phaseStrip.text = ""; return; }
-            if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
-            if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
+            if (_client != null && _client.LaunchPending) { ApplyPhaseStrip("VERIFYING DESTINATION", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
+            if (_client != null && _client.ConfirmedPractice) { ApplyPhaseStrip("PRACTICE · NO RUN REWARDS", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
             // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
             MatchPhase phase = runOver ? MatchPhase.Ended : _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
             var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, runOver ? WinnerLabel() : null, out var lineTone);
@@ -200,9 +200,10 @@ namespace Roguehalla.Client
             // Colour through the label, never tags: HudUi.Label is plain text (richText = false). Legacy --warn and .hud-arena.sudden (style.css:44,320).
             _phaseStrip.color = tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? (Color)new Color32(0xff, 0x8a, 0x80, 255)
                 : tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? (Color)new Color32(0xff, 0xcc, 0x80, 255) : (Color)UiTheme.Current.TextPrimary;
+            // Legacy's line is as wide as its text (hud.ts updateArena): size the pill to the measured text, only when the text changed.
+            bool changed = _phaseStrip.text != text;
             _phaseStrip.text = text;
-            // Legacy's line is as wide as its text (hud.ts updateArena): size the pill to the measured text.
-            if (_phasePill != null)
+            if (changed && _phasePill != null)
             {
                 float w = _phaseStrip.GetPreferredValues(text, 0f, 0f).x;
                 _phasePill.sizeDelta = new Vector2(Mathf.Max(120f, Mathf.Ceil(w) + 24f), _phasePill.sizeDelta.y);
