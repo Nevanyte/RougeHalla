@@ -61,8 +61,10 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    After records, a signature map is also refused unless every signature tile is still as placed, no styler feature
    owns a tile of an apron (styler floor claims do not read `no_block`), and the strict certifier (every zone) finds zero
    failures.
-7. **Anchors (G3).** `GameMapData.anchors` / `LayerData.anchors`, zone-code order, omitted from JSON when empty:
-   Sentenced the church (centre the camp tile, the door as entrance), Plague the tree, Holy the largest `Hall` (written
+7. **Anchors (G3).** `GameMapData.anchors` only, zone-code order, omitted from JSON when empty. They are not on the
+   sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
+   every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
+   decoration bake reads them from the generator's map at pool-build time. Sentenced the church (centre the camp tile, the door as entrance), Plague the tree, Holy the largest `Hall` (written
    when the map is finished: the hall is placed by the Holy styler in step 3). Not in the map hash (they restate hashed
    features). `rh-map/2` does not move: older readers refuse a document with anchors, which exists only inside an
    option-on server.
