@@ -86,6 +86,10 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
     None
 }
 
+/// One stream with its pool: the stream's lava tiles (first the path's first tile), the pool's lava tiles, and the
+/// pool's centre tile.
+type Body = (Vec<usize>, Vec<usize>, (i32, i32));
+
 /// One site: the cone at (x, y) and its streams, or `None` when fewer than two streams fit, the lava leaves the budget
 /// or the zone's floor would split.
 fn build(
@@ -107,7 +111,7 @@ fn build(
     let spread = spreads[pick(rng, spreads.len())];
     let (lo, hi) = d.stream_len[count - d.streams.0];
     let f = i32::from(front(x, y));
-    let mut bodies: Vec<(Vec<usize>, Vec<usize>, (i32, i32))> = Vec::new();
+    let mut bodies: Vec<Body> = Vec::new();
     for &o in spread {
         let len = lo + pick(rng, (hi - lo + 1) as usize) as i32;
         let Some(body) = stream(s, &mark, cone, (x, y), f, (f + o).rem_euclid(16), len) else {
@@ -223,7 +227,7 @@ fn stream(
     f: i32,
     h0: i32,
     len: i32,
-) -> Option<(Vec<usize>, Vec<usize>, (i32, i32))> {
+) -> Option<Body> {
     let d = &s.ctx.rules;
     // DIR16 vectors have length 1024: positions are fixed point, 1/1024 tile.
     let one = 1024;
