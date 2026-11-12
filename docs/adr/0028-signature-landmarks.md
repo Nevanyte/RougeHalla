@@ -138,8 +138,11 @@ tiles, so no lake fits within reach of the mouth by the styler's clearance rules
   out of the Holy styler (`style_sanctum`) into this step, publishing it to the styler (which then builds round it
   instead of placing it), and re-pinning the option-on Holy layouts: a styler packet.
 - The Fire and Frost stylers arrange round their anchors; the others wait for `P-MAPGEN-SIG-STYLE-1`.
-- On a seed whose far Frost camp has no room for a lake within reach of the mouth (seeds 17 and 18 of 1-32), the mere
-  grows where today's styler puts it; the attempt is not refused for it.
+- On a seed whose far Frost camp sits in a narrow strip of the zone (seeds 17 and 18 of 1-32) there is no room for a
+  lake within reach of the mouth, so the mere is not at the mouth: it grows where today's styler puts it and the attempt
+  is not refused for it, pending P-MAPGEN-SIG-FROST-2.
+- The Frost spires and headlands are not arranged to flank the approach in the near band: only the core band is
+  enforced (the lake's `allow` and the apron discard); spires follow the mere and headlands its shore.
 - The Fire craters stay camp pens: by band they only shrink or drop (none reaches the core band). That the near-band
   craters average larger than the mid and far ones is measured, not arranged.
 - Elite bushes read the stylers' `protect` and stay out of every apron. Repair's walls (the safety net's connectivity
