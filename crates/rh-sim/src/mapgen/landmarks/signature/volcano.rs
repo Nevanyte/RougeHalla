@@ -252,12 +252,16 @@ fn stream(
         let g = d.stream_gap;
         (-g..=g).all(|ny| (-g..=g).all(|nx| at(t.0 + nx, t.1 + ny).is_none_or(|j| mark[j] != 2)))
     };
-    let wide = |t: (i32, i32), sd: (i32, i32)| lava_ok(t) && lava_ok((t.0 + sd.0, t.1 + sd.1));
-    let sd = side(h0);
+    // A path tile and its side cell, which is across the heading the path entered that tile with.
+    let pair = |t: (i32, i32), h: i32| {
+        let sd = side(h);
+        [t, (t.0 + sd.0, t.1 + sd.1)]
+    };
+    let wide = |t: (i32, i32), h: i32| pair(t, h).iter().all(|&q| lava_ok(q));
     let v = DIR16[h0 as usize];
     let mut pos = (ox + d.stream_start * v[0], oy + d.stream_start * v[1]);
     let first = tile(pos);
-    if !wide(first, sd) {
+    if !wide(first, h0) {
         return None;
     }
     // (position, heading, tile) per path tile.
@@ -281,13 +285,10 @@ fn stream(
                 pos = next;
                 continue 'grow;
             }
-            if path
-                .iter()
-                .any(|p| p.2 == t || (p.2 .0 + sd.0, p.2 .1 + sd.1) == t)
-            {
+            if path.iter().any(|p| pair(p.2, p.1).contains(&t)) {
                 continue;
             }
-            if wide(t, sd) {
+            if wide(t, hn) {
                 pos = next;
                 h = hn;
                 path.push((pos, h, t));
@@ -299,8 +300,8 @@ fn stream(
     while path.len() >= d.stream_min {
         let &(p, hp, _) = path.last().unwrap();
         let mut cells: Vec<usize> = Vec::new();
-        for &(_, _, t) in &path {
-            for q in [t, (t.0 + sd.0, t.1 + sd.1)] {
+        for &(_, ht, t) in &path {
+            for q in pair(t, ht) {
                 let i = at(q.0, q.1).unwrap();
                 if !cells.contains(&i) {
                     cells.push(i);
