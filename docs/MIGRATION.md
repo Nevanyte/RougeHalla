@@ -4,6 +4,42 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat): show each zone's landmark, close and wide, after visual review
+
+"Once they are developed and approved by visual sub agents please show me the final product of each zones unique
+structure a zoom in of the unique structure and zoom out of the faction at large." For each of the five zones (Fire
+volcano, Sentenced church and graveyard, Plague bog tree and marsh, Frost cave and lake, Holy hall) the owner
+receives two pictures of the Unity client's rendering: one close on the landmark, one of the whole zone. Order:
+the landmark's generator packet, its decoration rules and its art land; a visual review sub-agent looks at both
+pictures against rules G1 to G8 and the owner's description of that landmark, and its defects are fixed and
+re-shot until it approves; only then are the pictures sent. This is the screenshot sheet the plan's per-zone
+packets already called for, with the review step made a condition. Tile-only previews before the art exists are not
+"the final product" and are not sent as such.
+
+## Beta follow-up integrations 4 to 8 (2026-11-12): current checkpoint
+
+Integration branch `feature/unity-rework` @ `1aff1d31`, pushed (owner approval 4: push after every green gate).
+Identities: protocol 17, observation 26, policy contract 20, checkpoint 31, replay 25, content hash
+`b35f23ed00df75b3`. Last full gate with Postgres: PASS 15:03 to 15:33 on integration 8; the Unity-only merge after it
+passed the quick gate (EditMode 720 of 720). Every attempt is in `.agent-runs/log.csv`.
+
+| # | Gate | Landed |
+|---|---|---|
+| 4 | full PASS 00:51 | P-MAP-3-fix (pool serving: `take_served`, abandoned-map cap), P-SIGNATURE-1-fix, P-DRESS-ENGINE-1 (new crate `rh-mapdress`: keep-clear, clusters, edges, rules JSON) |
+| 5 | full FAIL then PASS 09:12 | P-REGEN-COMBAT-1-fix (hasher tag for `regen_in_combat`), P-WIRE17-HUD-2 (owner champion panel, key 13 codes 0 to 22; observation 26, policy 20). The first run failed on the content registry (four panel constants unregistered: the implementer's quick gate had stopped at an earlier red step); fixed by the coordinator. Quick: P-UNITY-HUD-BUILD-2, P-UNITY-HUD-VISUAL-FIX-1, P-UNITY-DECLUTTER-1 |
+| 6 | full PASS 11:10 | `integration/backend-salvage` (branch triage below), P-MAPGEN-SIGNATURE-CORE-1 (generator option `signature`, rules G1 to G8, bog tree and church placed in the Landmarks phase). Quick: live terrain `Mode::Map`, P-UNITY-HUD-VISUAL-FIX-2 |
+| 7 | full PASS 12:58 | P-MAPGEN-SIG-FIRE-1 (volcano on the back edge, lava streams ending in pools). Quick: P-UNITY-HUD-TEXTSCALE-1 (GAINED plate 294, values at 10, text scale re-fit) |
+| 8 | full PASS 15:03 | P-MECHANICS-SALVAGE-1 (card on-hit rules group 1; parity all MATCH). Quick: P-UNITY-NAME-GROUP-1 (one name per pack of same-name mobs; DEV-024) |
+
+In flight at this checkpoint: P-MAPGEN-SIG-FROST-1 and P-MAPGEN-SIG-FIRE-2 (Opus implementers), the oracle for
+P-WIRE17-HUD-2b, a fourth screenshot round of the Web client. Not started: Plague and Sentenced obstacle bands and the
+Holy hall in the Landmarks phase, decoration anchored on landmarks and baked into served maps, Frost Wall, zone-themed
+camp buffs, card rule groups 2 and 3, the remaining HUD wire packets, the bot Brain live, learner and tuner, the
+hosting flags, the final combined review, the protocol 18 build and the beta redeploy.
+
+Not established: no map with `signature` on has been played by bots or people; the screenshot rounds have not yet
+shown a kill, a cleared camp, the inspector card, the terrain chips or the wand lock ring in the running client.
+
 ## Owner decision 2026-11-12 (chat): faction home-ground benefits stay
 
 "Please keep faction region benefits. Holy also gets extra healing from heal zones." The live server therefore uses the

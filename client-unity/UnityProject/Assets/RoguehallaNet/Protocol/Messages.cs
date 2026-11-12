@@ -1075,7 +1075,7 @@ namespace Roguehalla.Net.Protocol
                     {
                         Protocol = r.U16(), ContentHash = r.U64(), MatchId = r.Array16(), PlayerId = r.U32(), Session = r.Array16(),
                         TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Archetypes = WireArchetype.ReadTable(ref r), Vision = WireVision.Read(ref r),
-                        Weapons = WireWeapon.ReadTable(ref r), Map = MapBlob.Read(ref r),
+                        Weapons = WireWeapon.ReadTable(ref r), Hud = WireHudContent.Read(ref r), Map = MapBlob.Read(ref r),
                     };
                     if (!welcome.Vision.Fits(welcome.Map.W, welcome.Map.H)) throw new DecodeException(DecodeError.BadField, "vision");
                     msg = welcome;
@@ -1234,6 +1234,9 @@ namespace Roguehalla.Net.Protocol
             /// <summary>The weapon table (protocol 16): each weapon's hit shape from the server's Rust content, after the vision
             /// block, before the map. Rows by ascending id.</summary>
             public WireWeapon[] Weapons = Array.Empty<WireWeapon>();
+            /// <summary>The HUD content block (protocol 17, P-WIRE17-HUD-2b): weapon scaling rows and public HUD constants,
+            /// after the weapon table, before the map.</summary>
+            public WireHudContent Hud = new WireHudContent();
             public MapBlob Map;
 
             public override byte[] Encode()
@@ -1241,12 +1244,14 @@ namespace Roguehalla.Net.Protocol
                 var table = Archetypes ?? Array.Empty<WireArchetype>();
                 var vision = Vision ?? new WireVision();
                 var weapons = Weapons ?? Array.Empty<WireWeapon>();
-                var w = new Writer(60 + WireArchetype.TableLength(table) + vision.Length() + WireWeapon.TableLength(weapons) + Map.EncodedLength);
+                var hud = Hud ?? new WireHudContent();
+                var w = new Writer(60 + WireArchetype.TableLength(table) + vision.Length() + WireWeapon.TableLength(weapons) + hud.Length() + Map.EncodedLength);
                 w.U8(TWelcome); w.U16(Protocol); w.U64(ContentHash); w.Bytes(MatchId); w.U32(PlayerId); w.Bytes(Session);
                 w.U8(TickRate); w.U32(Tick); w.F64(ServerMs);
                 WireArchetype.WriteTable(w, table);
                 vision.Write(w);
                 WireWeapon.WriteTable(w, weapons);
+                hud.Write(w);
                 Map.Write(w);
                 return w.Finish();
             }

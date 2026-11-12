@@ -319,6 +319,16 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "welcome_weapon_projectile_speed_zero"
             | "welcome_weapon_projectile_half_arc"
             | "welcome_weapon_none_values" => BadField("weapon"),
+            // P-WIRE17-HUD-2b: the Welcome's HUD content block (weapon scaling rows, public HUD terms).
+            "welcome_hud_scaling_count" => BadField("scaling count"),
+            "welcome_hud_scaling_dominant" => BadField("scaling dominant"),
+            "welcome_hud_scaling_nan" | "welcome_hud_scaling_negative" => BadField("scaling"),
+            "welcome_hud_scaling_order" => BadField("scaling order"),
+            "welcome_hud_term_count" => BadField("hud term count"),
+            "welcome_hud_term_code" => BadField("hud term code"),
+            "welcome_hud_term_infinite" | "welcome_hud_term_over_max" => BadField("hud term"),
+            "welcome_hud_term_order" => BadField("hud term order"),
+            "welcome_hud_truncated" => Truncated,
             other => panic!("no expectation for {other}"),
         }
     };

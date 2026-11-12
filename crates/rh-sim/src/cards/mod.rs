@@ -382,7 +382,8 @@ pub(crate) fn grant(
     true
 }
 
-/// Actual cardHooks.onBlocked subset. Quiet status application is immediate outside the ledger.
+/// Source `cardHooks.onBlocked`: Tank Engine, the `block` status triggers (Pocket Sand) and Best Offense's on-hit effects.
+/// Quiet status application is immediate outside the ledger.
 pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
     let crate::hooks::HookArgs::Blocked {
         holder,
@@ -475,6 +476,19 @@ pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArg
             _ => {}
         }
     }
+    // Source Best Offense (`cardHooks.ts:206-214`): `if (hasFlag(holder.s, "blockHits") && standing(holder))` and a weapon
+    // in hand, the block is a hit: the on-hit effects apply to the blocked attacker now. (The streak / Wishful Thinking
+    // note of the block is P-MECHANICS-SALVAGE-2.)
+    let weapon = {
+        let p = &hx.w.players[holder_ix];
+        let w = &p.core.weapon;
+        let in_hand = if w.slot == 0 { w.weapon0 } else { w.weapon1 };
+        in_hand
+            .filter(|_| p.build.has_flag(crate::stat_fold::EffectFlag::BlockHits) && p.standing())
+    };
+    if let Some(weapon) = weapon {
+        on_hit::block_hit(hx, holder, attacker, weapon);
+    }
 }
 
 /// Source \`cardHooks.resetFight\`: a teleport starts a fresh fight — no streak and no running boost survive it, and the
@@ -505,6 +519,9 @@ pub(crate) fn drop_deferred(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hook
 }
 
 pub mod runtime;
+
+#[cfg(test)]
+mod on_hit_salvage_tests;
 
 #[cfg(test)]
 mod wishful_tests {

@@ -9,7 +9,7 @@
 //! source's own-key order.
 //!
 //! **Degraded leaves.** A fact the accepted frame does not publish is an own `undefined` member, never a plausible
-//! number and never read from hidden state (docs/DEVIATIONS.md DEV-025; the typed readers in `adapters.rs` give each one
+//! number and never read from hidden state (docs/DEVIATIONS.md DEV-026; the typed readers in `adapters.rs` give each one
 //! the source's `undefined` behaviour):
 //!
 //! | Leaf | Why |
@@ -750,7 +750,7 @@ impl Composer14 {
                             )
                         }),
                     WireFx::Teleport => Some(ev("teleport", None, Vec::new())),
-                    // No current Brain consumer reads the Wish cast cues as events (DEV-025).
+                    // No current Brain consumer reads the Wish cast cues as events (DEV-026).
                     WireFx::WishStarted { .. }
                     | WireFx::WishLanded { .. }
                     | WireFx::WishEnded { .. } => None,
@@ -788,7 +788,7 @@ impl Composer14 {
                 match event {
                     WireEvent::Death { id, by } => {
                         let mob = *id >= NPC_BASE;
-                        // The owner's own credited regional-mob kills, as this seat saw them (DEV-025).
+                        // The owner's own credited regional-mob kills, as this seat saw them (DEV-026).
                         if mob
                             && *by == Some(me.id)
                             && frame.actors.iter().any(|a| a.id == *id && a.kind == 1)

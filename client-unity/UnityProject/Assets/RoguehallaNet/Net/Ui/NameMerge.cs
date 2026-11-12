@@ -8,6 +8,8 @@ namespace Roguehalla.Net.Ui
         public float X, Y;     // where the name is anchored
         public float Width;    // how wide the drawn text is, in the same unit as X and Y
         public bool Elite;     // an elite's name is never merged away
+        public bool Always;    // a mob that is engaged or locked: its own name is always shown (DecidePacks only; Decide and PackNames ignore it)
+        public byte Single;    // PackNames only: 0 nothing, 1 the local attack lock, 2 the mob under the cursor (hover wins over lock)
     }
 
     /// <summary>
@@ -16,6 +18,13 @@ namespace Roguehalla.Net.Ui
     /// </summary>
     public static class NameMerge
     {
+        /// <summary>
+        /// How close two same-named mobs must stand to belong to one pack (DecidePacks), in legacy pixels: 4 tiles of 32. A TUNING value
+        /// (P-UNITY-NAME-GROUP-1; owner direction 2026-11-12, less clutter), not a legacy number. A caller working in world units passes
+        /// <c>PackDistancePx * ArenaView.Scale</c> (4 units), because the same unit must be used for X, Y and the distance.
+        /// </summary>
+        public const float PackDistancePx = 128f;
+
         /// <summary>
         /// Writes <c>shown[i]</c> for each of the first <paramref name="count"/> items and returns how many are shown. Rules: items are taken in
         /// ascending Id order (the order of <paramref name="items"/> does not matter); a non-elite item is hidden when a non-elite item of the
@@ -56,6 +65,122 @@ namespace Roguehalla.Net.Ui
                 if (show) shownCount++;
             }
             return shownCount;
+        }
+
+        /// <summary>
+        /// The pack rule (P-UNITY-NAME-GROUP-1). Writes <c>shown[i]</c> for each of the first <paramref name="count"/> items and returns how many
+        /// are shown. Stub: the implementer fills the body. Rules: only a non-elite, non-<see cref="NameMergeItem.Always"/> item with a
+        /// non-empty Text takes part in packs; every other item is shown and neither joins, links nor suppresses a pack. Two taking-part items of
+        /// the same Text whose anchors are strictly closer than <paramref name="packDistance"/> (Euclidean, same unit as X and Y; Width is
+        /// ignored) are in one pack, and packs chain (A near B and B near C is one pack even when A and C are far apart). Exactly one item of a
+        /// pack is shown, the one with the lowest Id, wherever it sits in <paramref name="items"/>; the rest are hidden. Allocation-free: all
+        /// three arrays are the caller's, <paramref name="shown"/> and <paramref name="scratch"/> at least <paramref name="count"/> long
+        /// (<paramref name="scratch"/> is free working space for a union-find, its contents on return are unspecified).
+        /// </summary>
+        public static int DecidePacks(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch)
+        {
+            for (int i = 0; i < count; i++) scratch[i] = i;
+            float d2 = packDistance * packDistance;
+            for (int i = 0; i < count; i++)
+            {
+                if (!InPacks(items[i])) continue;
+                for (int j = i + 1; j < count; j++)
+                {
+                    if (!InPacks(items[j]) || items[i].Text != items[j].Text) continue;
+                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                    if (dx * dx + dy * dy >= d2) continue;
+                    int ri = Root(scratch, i), rj = Root(scratch, j);
+                    if (ri == rj) continue;
+                    // The root of a pack is its lowest id.
+                    if (items[ri].Id < items[rj].Id) scratch[rj] = ri; else scratch[ri] = rj;
+                }
+            }
+            int shownCount = 0;
+            for (int i = 0; i < count; i++)
+            {
+                bool show = !InPacks(items[i]) || Root(scratch, i) == i;
+                shown[i] = show;
+                if (show) shownCount++;
+            }
+            return shownCount;
+        }
+
+        /// <summary>
+        /// The pack rule of P-UNITY-NAME-GROUP-2 (replaces <see cref="DecidePacks"/> in the presenter; DecidePacks and its tests stay). Writes
+        /// <c>shown[i]</c>, <c>anchorX[i]</c> and <c>anchorY[i]</c> for each of the first <paramref name="count"/> items and returns how many are
+        /// shown. Y is up (Unity world units). Packs are built exactly as DecidePacks builds them (same-name non-elite mobs with a non-empty
+        /// Text, chained, strictly closer than <paramref name="packDistance"/>), except that <see cref="NameMergeItem.Always"/> is ignored: an
+        /// engaged mob stays in its pack and a pack never splits. A pack shows EXACTLY ONE name. The carrier is the member with
+        /// <c>Single == 2</c> (hovered; lowest Id if several), else the member with <c>Single == 1</c> (locked; lowest Id), else the member
+        /// with the lowest Id. A singled carrier's anchor is its own (X, Y). An unsingled pack's anchor is the horizontal centre of the pack's
+        /// extent, (min X + max X) / 2 over its members (NOT the mean), and the largest Y of its members (the highest one). Every item outside a
+        /// pack (an elite, an empty or null Text) is shown at its own anchor. Anchors of hidden items are unspecified. Order of
+        /// <paramref name="items"/> does not matter. Allocation-free; the caller owns all four buffers (each at least <paramref name="count"/> long).
+        /// On return <paramref name="scratch"/>[i] is the index of the representative of item i's pack (i itself outside a pack), so a caller can count members.
+        /// </summary>
+        public static int PackNames(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch, float[] anchorX, float[] anchorY)
+        {
+            for (int i = 0; i < count; i++) scratch[i] = i;
+            float d2 = packDistance * packDistance;
+            for (int i = 0; i < count; i++)
+            {
+                if (!Packs(items[i])) continue;
+                for (int j = i + 1; j < count; j++)
+                {
+                    if (!Packs(items[j]) || items[i].Text != items[j].Text) continue;
+                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                    if (dx * dx + dy * dy >= d2) continue;
+                    int ri = Root(scratch, i), rj = Root(scratch, j);
+                    if (ri != rj) scratch[rj] = ri;
+                }
+            }
+            int shownCount = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (!Packs(items[i])) { shown[i] = true; anchorX[i] = items[i].X; anchorY[i] = items[i].Y; shownCount++; continue; }
+                int root = Root(scratch, i);
+                // The carrier: hovered (lowest id), else locked (lowest id), else lowest id.
+                int carrier = -1;
+                float minX = 0, maxX = 0, maxY = 0; bool any = false;
+                for (int j = 0; j < count; j++)
+                {
+                    if (!Packs(items[j]) || Root(scratch, j) != root) continue;
+                    if (!any) { minX = maxX = items[j].X; maxY = items[j].Y; any = true; }
+                    else
+                    {
+                        if (items[j].X < minX) minX = items[j].X;
+                        if (items[j].X > maxX) maxX = items[j].X;
+                        if (items[j].Y > maxY) maxY = items[j].Y;
+                    }
+                    if (carrier < 0 || Better(items[j], items[carrier])) carrier = j;
+                }
+                bool show = carrier == i;
+                shown[i] = show;
+                if (!show) continue;
+                shownCount++;
+                if (items[i].Single != 0) { anchorX[i] = items[i].X; anchorY[i] = items[i].Y; }
+                else { anchorX[i] = (minX + maxX) * 0.5f; anchorY[i] = maxY; }
+            }
+            for (int i = 0; i < count; i++) scratch[i] = Packs(items[i]) ? Root(scratch, i) : i;
+            return shownCount;
+        }
+
+        static bool Packs(NameMergeItem it) { return !it.Elite && !string.IsNullOrEmpty(it.Text); }
+
+        // a is a better carrier than b: hovered beats locked beats nothing, then the lower id.
+        static bool Better(NameMergeItem a, NameMergeItem b)
+        {
+            int ra = a.Single == 2 ? 2 : a.Single == 1 ? 1 : 0, rb = b.Single == 2 ? 2 : b.Single == 1 ? 1 : 0;
+            if (ra != rb) return ra > rb;
+            return a.Id < b.Id;
+        }
+
+        static bool InPacks(NameMergeItem it) { return !it.Elite && !it.Always && !string.IsNullOrEmpty(it.Text); }
+
+        static int Root(int[] parent, int i)
+        {
+            while (parent[i] != i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+            return i;
         }
     }
 }

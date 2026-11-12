@@ -158,7 +158,7 @@ namespace Roguehalla.Client
             return a.Attack;
         }
         public void Begin() { _stamp++; }
-        NameMergeItem[] _mergeItems = new NameMergeItem[32]; bool[] _mergeShown = new bool[32]; uint[] _mergeIds = new uint[32];
+        NameMergeItem[] _mergeItems = new NameMergeItem[32]; bool[] _mergeShown = new bool[32]; uint[] _mergeIds = new uint[32]; int[] _mergeScratch = new int[32];
         public void End()
         {
             MergeMobNames();
@@ -168,29 +168,87 @@ namespace Roguehalla.Client
                 Evict(id);
             }
         }
-        /// <summary>Mobs of one camp that stand together show one name (the lowest id). Runs after every actor's indicators were presented. Players are never merged.</summary>
+        NameStackItem[] _stackItems = new NameStackItem[16]; float[] _lift = new float[16]; uint[] _stackIds = new uint[16];
+        float[] _anchorX = new float[32], _anchorY = new float[32]; int[] _packSize = new int[32];
+        readonly List<Rect> _nameRects = new List<Rect>();
+        /// <summary>World rects of the fighter names drawn this frame (after stacking), for the camp labels to keep clear of.</summary>
+        public void FighterNameRects(List<Rect> into) { into.AddRange(_nameRects); }
+
+        /// <summary>
+        /// Mobs of one camp that stand together show exactly one name (P-UNITY-NAME-GROUP-2): over the pack, or over the hovered or locked member.
+        /// Then the fighters' names are stacked so none overlaps another. Runs after every actor's indicators were presented. Players are never merged.
+        /// </summary>
         void MergeMobNames()
         {
-            int n = 0;
+            _nameRects.Clear();
+            int n = 0, fighters = 0;
             foreach (var pair in _active)
             {
                 var art = pair.Value;
                 if (pair.Value.Stamp != _stamp || art.Dead || art.Ind == null) continue;
                 var f = art.IndFacts;
-                if (!f.Mob || f.Dummy || f.Dead || !art.Ind.NameActive) continue;
+                if (f.Dead || !art.Ind.NameActive) continue;
+                if (!f.Mob) { fighters++; continue; }
+                if (f.Dummy) continue;
                 if (n == _mergeItems.Length)
                 {
-                    System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2);
+                    System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2); System.Array.Resize(ref _mergeScratch, n * 2);
+                    System.Array.Resize(ref _anchorX, n * 2); System.Array.Resize(ref _anchorY, n * 2); System.Array.Resize(ref _packSize, n * 2);
                 }
                 var at = art.Ind.NameWorldPosition;
-                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite };
+                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Single = (byte)(f.Hovered ? 2 : f.Locked ? 1 : 0) };
                 _mergeIds[n] = pair.Key; n++;
             }
-            if (n < 2) return;
-            // Dictionary order is not id order and Decide wants any order: ids decide. Sort-free because Decide takes ids from the items.
-            NameMerge.Decide(_mergeItems, n, _mergeShown);
-            for (int i = 0; i < n; i++)
-                if (!_mergeShown[i] && _active.TryGetValue(_mergeIds[i], out var hidden)) hidden.Ind.HideName();
+            if (n > 0)
+            {
+                NameMerge.PackNames(_mergeItems, n, NameMerge.PackDistancePx * ArenaView.Scale, _mergeShown, _mergeScratch, _anchorX, _anchorY);
+                for (int i = 0; i < n; i++) _packSize[i] = 0;
+                for (int i = 0; i < n; i++) _packSize[_mergeScratch[i]]++;
+                for (int i = 0; i < n; i++)
+                {
+                    if (!_active.TryGetValue(_mergeIds[i], out var art)) continue;
+                    if (!_mergeShown[i]) { art.Ind.HideName(); continue; }
+                    if (_packSize[_mergeScratch[i]] > 1 || _mergeItems[i].Single != 0) art.Ind.NameFullAlpha();
+                    if (_anchorX[i] != _mergeItems[i].X || _anchorY[i] != _mergeItems[i].Y) art.Ind.MoveName(_anchorX[i], _anchorY[i]);
+                }
+            }
+            StackFighterNames(fighters);
+        }
+
+        // Fighters whose names would overlap are stacked, the one nearest the local fighter lowest. Names are never merged.
+        void StackFighterNames(int fighters)
+        {
+            if (fighters == 0) return;
+            if (_stackItems.Length < fighters)
+            {
+                int size = fighters * 2;
+                System.Array.Resize(ref _stackItems, size); System.Array.Resize(ref _lift, size); System.Array.Resize(ref _stackIds, size);
+            }
+            bool haveLocal = false; Vector3 local = default;
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (pair.Value.Stamp != _stamp || art.Dead || art.Ind == null || !art.IndFacts.Local || art.IndFacts.Mob || !art.Ind.NameActive) continue;
+                local = art.Ind.NameWorldPosition; haveLocal = true; break;
+            }
+            int k = 0;
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (pair.Value.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                var f = art.IndFacts;
+                if (f.Dead || f.Mob || !art.Ind.NameActive) continue;
+                var nb = art.Ind.NameDrawnBounds; var at = nb.center; float w = nb.size.x + .06f, h = nb.size.y;   // the drawn mesh, a couple of pixels of gap
+                _stackItems[k] = new NameStackItem { Id = pair.Key, X = at.x, Y = nb.min.y, W = w, H = h, Dist = haveLocal ? Mathf.Sqrt((at.x - local.x) * (at.x - local.x) + (at.y - local.y) * (at.y - local.y)) : 0f };
+                _stackIds[k] = pair.Key; k++;
+            }
+            NameStack.Separate(_stackItems, k, .02f, _lift);
+            for (int i = 0; i < k; i++)
+            {
+                var item = _stackItems[i];
+                if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.LiftName(_lift[i]);
+                _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
+            }
         }
 
         public void Retain(HashSet<uint> membership)

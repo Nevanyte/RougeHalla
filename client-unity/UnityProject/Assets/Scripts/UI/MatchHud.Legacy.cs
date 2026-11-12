@@ -14,7 +14,7 @@ namespace Roguehalla.Client
     {
         // Legacy numbers (LEGACY_LAYOUT.md). Kept as constants so tests and layout share one source.
         internal const float ChromeButton = 30f, ChromeGap = 6f, ChromeTop = 10f, ChromeRight = 12f, ChromePerfGap = 8f;
-        internal const float PlateLeft = 12f, PlateTop = 10f, PlateInner = 224f;
+        internal const float PlateLeft = 12f, PlateTop = 10f, PlateInner = 278f;
         internal const float BarBottom = 14f, SlotWidth = 104f, SlotHeight = 76f, SwapWidth = 28f, WishSize = 64f, BarGap = 6f, ConsumablesHeight = 28f;
         internal const float ChampionLeft = 12f, ChampionBottom = 48f, ChampionHeight = 126f;
         internal const float QuestLauncherLeft = 12f, QuestLauncherBottom = 12f;
@@ -129,12 +129,12 @@ namespace Roguehalla.Client
         static readonly string[] CellNames = { "Offense", "SO", "Damage gained", "Attack speed", "Life steal", "Health gained", "Defense", "Soul Defense", "Move speed" };
         static readonly int[] CellBoost = { 0, 1, -1, 5, 7, 4, 2, 3, 6 };
         static readonly MythicGlyph[] CellGlyph = { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Axe, MythicGlyph.Bow, MythicGlyph.Potion, MythicGlyph.Health, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Speed };
-        const float BuildCellWidth = 111f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 113f, BuildTop = 15f;
+        const float BuildCellWidth = 138f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 140f, BuildTop = 15f;
 
         void CreatePlate()
         {
             var theme = UiTheme.Current;
-            _vitalsPanel = HudUi.Box(_hud, "VitalsPanel", HudAnchor.TopLeft, PlateLeft, PlateTop, 240f, 60f);
+            _vitalsPanel = HudUi.Box(_hud, "VitalsPanel", HudAnchor.TopLeft, PlateLeft, PlateTop, HudLayout.PlateWidth(1920f), 60f);
             HudUi.Surface(_vitalsPanel, Tone(theme.Surface, .94f), theme.CornerRadius, theme.Border, false, true);
             _plateBody = HudUi.Inset(_vitalsPanel, "PlateBody", 8, 5, 8, 6);
 
@@ -183,28 +183,19 @@ namespace Roguehalla.Client
                 rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 var icon = MythicUi.Icon(cell, "StatIcon", CellGlyph[i], 13f);
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
-                icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
+                icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(4, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
-                // The run-time text-scale re-apply (MatchHud.ApplyTextScale) would overwrite these sizes, so these labels leave it: they keep
-                // an auto-size range with a floor, no ellipsis, and a box that holds the widest text at the floor with room to spare.
-                KeepFit(name, 7f, 8f);
-                name.overflowMode = TextOverflowModes.Overflow;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 79, 0, 30, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                KeepFit(value, 6f, 10f); value.overflowMode = TextOverflowModes.Overflow;
+                var name = HudUi.Label(HudUi.At(cell, "Name", 17, 0, 73, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                // The names keep a floor of 7 under the text-size fit; the values 6.
+                name.GetComponent<MythicTextScale>().MinSize = 7f;
+                var value = HudUi.Label(HudUi.At(cell, "Value", 90, 0, 48, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                value.GetComponent<MythicTextScale>().MinSize = 6f;
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
                 HudUi.ApplyColors(select, Color.white);
                 HudIconHint.Attach(select, _root, CellNames[i] + " · gained from boosts, cards and farmed mobs\nOpen B for the full build ledger.");
             }
-        }
-
-        /// <summary>Auto-size between a floor and a ceiling and drop the label out of the run-time text-scale re-apply, so the fit survives it.</summary>
-        static void KeepFit(TMP_Text label, float floor, float ceiling)
-        {
-            var scale = label.GetComponent<MythicTextScale>(); if (scale != null) UnityEngine.Object.DestroyImmediate(scale);
-            label.enableAutoSizing = true; label.fontSizeMin = floor; label.fontSizeMax = ceiling; label.fontSize = ceiling;
         }
 
         void CreateExtras(UiTheme theme)
@@ -272,9 +263,9 @@ namespace Roguehalla.Client
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 _championRow[i] = row;
                 _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 72, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
-                KeepFit(_championLabel[i], 8f, theme.SizeTiny); _championLabel[i].overflowMode = TextOverflowModes.Overflow;
+                _championLabel[i].GetComponent<MythicTextScale>().MinSize = 8f;
                 _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 80, 1, 152, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
-                KeepFit(_championValue[i], 10f, 12f);
+                _championValue[i].GetComponent<MythicTextScale>().MinSize = 10f;
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
             }
             _damageHit = _championValue[0]; _damageRate = _championScaling[0];
@@ -572,9 +563,23 @@ namespace Roguehalla.Client
 
         // ------------------------------------------------------------------ viewport-dependent sizes
 
+        /// <summary>
+        /// The phase pill is centred at the top; in a narrow window the (now 294 wide) plate would sit under its left end, so the pill moves right
+        /// to keep a small gap from the plate's right edge, as far as the window's right edge allows. Wider windows are untouched.
+        /// </summary>
+        void PlacePhasePill()
+        {
+            if (_phasePill == null || _viewport.UiWidth <= 0f) return;
+            float width = _phasePill.sizeDelta.x, uiWidth = _viewport.UiWidth;
+            float left = uiWidth * .5f - width * .5f, minLeft = PlateLeft + HudLayout.PlateWidth(uiWidth) + 8f;
+            float shift = Mathf.Clamp(minLeft - left, 0f, Mathf.Max(0f, uiWidth * .5f - width * .5f - 8f));
+            HudUi.Place(_phasePill, HudAnchor.TopCenter, shift, BannerTop, width, _phasePill.sizeDelta.y);
+        }
+
         void ApplyLegacyViewport(HudViewport viewport)
         {
             _viewport = viewport;
+            PlacePhasePill();
             if (_vitalsPanel != null) _vitalsPanel.sizeDelta = new Vector2(HudLayout.PlateWidth(viewport.UiWidth), _vitalsPanel.sizeDelta.y);
             if (_championHud != null)
                 _championHud.sizeDelta = new Vector2(HudLayout.ChampionWidth(viewport.UiWidth, viewport.Narrow), _championHud.sizeDelta.y);
@@ -584,6 +589,7 @@ namespace Roguehalla.Client
             _modernSettings?.ApplyViewport(viewport);
             _helpGuide?.ApplyViewport(viewport);
             _hubCosmetics?.ApplyViewport(viewport); _hubProgress?.ApplyViewport(viewport); _hubGuide?.ApplyViewport(viewport);
+            _hubLobby?.ApplyViewport(viewport);
         }
 
         void ApplyRewardsAnchor()

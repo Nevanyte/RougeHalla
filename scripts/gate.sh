@@ -204,7 +204,13 @@ unity_tool_tests() {
   done
   if ((${#files[@]})); then run "Unity tool tests (node --test)" node --test "${files[@]}"; fi
 }
-sim_tests() { run "rh-sim suite (trusted-status-probes, as CI)" cargo test --locked -p rh-sim --features trusted-status-probes; }
+sim_tests() {
+  # The content registry runs first as its own step: the suite stops at its first red test binary, and a red pin in the
+  # lib tests (the hash tape the coordinator regenerates) otherwise hides an unregistered constant until the full gate
+  # on the merge (integration 5, 2026-11-12).
+  run "rh-sim content registry" cargo test --locked -p rh-sim --features trusted-status-probes --test content
+  run "rh-sim suite (trusted-status-probes, as CI)" cargo test --locked -p rh-sim --features trusted-status-probes
+}
 
 run "rustfmt" cargo fmt --all -- --check
 
