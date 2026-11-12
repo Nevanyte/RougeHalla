@@ -43,7 +43,7 @@ pub fn live_config((hitboxes, spacing): (HitboxMode, MobSpacing)) -> SimConfig {
         // As the live profile (runtime.rs `Settings::sim`, P-REGEN-COMBAT-1): passive regeneration out of combat only.
         regen_in_combat: rh_sim::RegenInCombat::Off,
         quests: true,
-        hazards: terrain::Mode::All,
+        hazards: terrain::Mode::Map,
         abilities: abilities::Mode::Full,
         faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
         lifecycle: ArenaMode::Source(Default::default()),
