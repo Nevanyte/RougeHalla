@@ -23,7 +23,7 @@ namespace Roguehalla.Client
         HudViewport _viewport;
         // Plate.
         RectTransform _plateBody, _healthRow, _buildBox, _extrasBody;
-        TMP_Text _plateStatus, _hpValue, _extrasLabel, _cardsText, _mobText, _damageGainText;
+        TMP_Text _plateStatus, _hpValue, _extrasLabel, _cardsText, _mobText;
         UnityEngine.UI.Image _hpTrough;
         UnityEngine.UI.Button _extrasToggle;
         readonly RectTransform[] _buildCells = new RectTransform[9];
@@ -187,7 +187,7 @@ namespace Roguehalla.Client
                 var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
                 name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = theme.SizeTiny;
                 var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 26, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                _gainValues[i] = value; if (boost < 0) _damageGainText = value;
+                _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
                 HudUi.ApplyColors(select, Color.white);
@@ -207,6 +207,7 @@ namespace Roguehalla.Client
             _extrasBody = HudUi.At(_plateBody, "ExtrasBody", 0, y + 16, PlateInner, 62);
             _cardsText = HudUi.Label(HudUi.At(_extrasBody, "Cards", 0, 0, PlateInner, 40), "Label", "Cards: none", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.TopLeft, wrap: true);
             _mobText = HudUi.Label(HudUi.At(_extrasBody, "MobBonuses", 0, 42, PlateInner, 18), "Label", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, wrap: true);
+            _mobText.gameObject.SetActive(false); // hidden until a summary arrives
             _extrasBody.gameObject.SetActive(false);
         }
 

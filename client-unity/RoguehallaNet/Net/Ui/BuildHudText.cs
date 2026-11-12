@@ -81,7 +81,8 @@ namespace Roguehalla.Net.Ui
             foreach (var row in summary.MobRows)
             {
                 string name = row.MobType < MobNames.Length ? MobNames[row.MobType] : "Mob " + row.MobType;
-                int stat = row.Stat < 9 ? row.Stat : 0;
+                if (row.Stat >= 9) continue; // a newer server's stat code: no legacy text for it
+                int stat = row.Stat;
                 string amount = MobIsPercent[stat]
                     ? Scaled(row.Total, 100, 2, true) + "%"
                     : Scaled(row.Total, 10000, 4, false);
