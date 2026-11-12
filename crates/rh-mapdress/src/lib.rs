@@ -291,15 +291,15 @@ fn is_against(map: &GameMapData, tx: i64, ty: i64, against: &[Against]) -> bool 
     }
     let i = (ty * w + tx) as usize;
     against.iter().any(|a| match a {
-        Against::Wall => map.tiles[i] == 1,
-        Against::Low => map.tiles[i] == 2,
+        Against::Wall => map.tiles.get(i) == Some(&1),
+        Against::Low => map.tiles.get(i) == Some(&2),
         Against::Border => [(1, 0), (-1, 0), (0, 1), (0, -1)].iter().any(|(dx, dy)| {
             let (nx, ny) = (tx + dx, ty + dy);
             nx >= 0
                 && ny >= 0
                 && nx < w
                 && ny < h
-                && map.region_grid[(ny * w + nx) as usize] != map.region_grid[i]
+                && map.region_grid.get((ny * w + nx) as usize) != map.region_grid.get(i)
         }),
     })
 }
@@ -488,5 +488,28 @@ pub fn dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing {
     Dressing {
         props,
         ground_variants: ground,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rh_sim::mapgen::{coliseum, pipeline};
+
+    #[test]
+    fn a_short_region_grid_cannot_panic_the_border_test() {
+        let fixed = coliseum::fixed_layout();
+        let mut map = pipeline::Pipeline::new(&fixed)
+            .certified_styled(1, pipeline::Options::default())
+            .expect("generator runs")
+            .expect("seed 1 certifies");
+        map.region_grid.truncate(3);
+        map.tiles.truncate(3);
+        let all = [Against::Wall, Against::Low, Against::Border];
+        for ty in 0..i64::from(map.h) {
+            for tx in 0..i64::from(map.w) {
+                let _ = is_against(&map, tx, ty, &all);
+            }
+        }
     }
 }
