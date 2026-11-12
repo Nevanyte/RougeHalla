@@ -170,7 +170,7 @@ namespace Roguehalla.Client.Tests
             Layout(window);
             var plate = Measure(_stage, Child(_stage, "PlayerHUD/VitalsPanel"));
             Assert.That(plate.Left, Is.EqualTo(12f).Within(.01f)); Assert.That(plate.Top, Is.EqualTo(10f).Within(.01f));
-            Assert.That(plate.Width, Is.EqualTo(240f).Within(.01f));
+            Assert.That(plate.Width, Is.EqualTo(292f).Within(.01f));
             var champion = Measure(_stage, Child(_stage, "PlayerHUD/ChampionCombatHud"));
             Assert.That(champion.Left, Is.EqualTo(12f).Within(.01f)); Assert.That(champion.Bottom, Is.EqualTo(48f).Within(.01f));
             Assert.That(champion.Width, Is.EqualTo(250f).Within(.01f));
@@ -302,7 +302,7 @@ namespace Roguehalla.Client.Tests
             var plate = ScreenRect(Child(_stage, "PlayerHUD/VitalsPanel"), device);
             Assert.That(plate.xMin, Is.EqualTo(12f * unit).Within(tolerance));
             Assert.That(device.y - plate.yMax, Is.EqualTo(10f * unit).Within(tolerance));
-            Assert.That(plate.width, Is.EqualTo(240f * unit).Within(tolerance));
+            Assert.That(plate.width, Is.EqualTo(292f * unit).Within(tolerance));
 
             foreach (string name in new[] { "Help", "Settings", "Fullscreen" })
             {

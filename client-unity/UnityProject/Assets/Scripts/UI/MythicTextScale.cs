@@ -21,6 +21,7 @@ namespace Roguehalla.Client
         float _scale = 1f;
         TMP_Text _text;
         string _fitted;
+        Vector2 _fittedBox;
 
         public void Apply(float scale)
         {
@@ -39,6 +40,7 @@ namespace Roguehalla.Client
             text.fontSize = text.fontSizeMax = text.fontSizeMin = size;
             text.overflowMode = TextOverflowModes.Overflow;
             _fitted = text.text;
+            _fittedBox = text.rectTransform.rect.size;
         }
 
         /// <summary>Recompute the fit for the label's current text at the last applied scale.</summary>
@@ -51,7 +53,11 @@ namespace Roguehalla.Client
             if (!FitBox) return;
             if (_text == null) _text = GetComponent<TMP_Text>();
             if (_text == null) return;
-            if (!string.Equals(_text.text, _fitted)) Refit();
+            string now = _text.text;
+            if (string.Equals(now, _fitted)) return;
+            // A text that changes every frame (a countdown) keeps its length and box: keep the fitted size, no scan and bisect.
+            if (_fitted != null && now != null && now.Length == _fitted.Length && _text.rectTransform.rect.size == _fittedBox) { _fitted = now; return; }
+            Refit();
         }
 
         static bool Fits(TMP_Text label, string text, float size, Rect box)

@@ -14,7 +14,7 @@ namespace Roguehalla.Client
     {
         // Legacy numbers (LEGACY_LAYOUT.md). Kept as constants so tests and layout share one source.
         internal const float ChromeButton = 30f, ChromeGap = 6f, ChromeTop = 10f, ChromeRight = 12f, ChromePerfGap = 8f;
-        internal const float PlateLeft = 12f, PlateTop = 10f, PlateInner = 224f;
+        internal const float PlateLeft = 12f, PlateTop = 10f, PlateInner = 276f;
         internal const float BarBottom = 14f, SlotWidth = 104f, SlotHeight = 76f, SwapWidth = 28f, WishSize = 64f, BarGap = 6f, ConsumablesHeight = 28f;
         internal const float ChampionLeft = 12f, ChampionBottom = 48f, ChampionHeight = 126f;
         internal const float QuestLauncherLeft = 12f, QuestLauncherBottom = 12f;
@@ -129,12 +129,12 @@ namespace Roguehalla.Client
         static readonly string[] CellNames = { "Offense", "SO", "Damage gained", "Attack speed", "Life steal", "Health gained", "Defense", "Soul Defense", "Move speed" };
         static readonly int[] CellBoost = { 0, 1, -1, 5, 7, 4, 2, 3, 6 };
         static readonly MythicGlyph[] CellGlyph = { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Axe, MythicGlyph.Bow, MythicGlyph.Potion, MythicGlyph.Health, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Speed };
-        const float BuildCellWidth = 111f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 113f, BuildTop = 15f;
+        const float BuildCellWidth = 137f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 139f, BuildTop = 15f;
 
         void CreatePlate()
         {
             var theme = UiTheme.Current;
-            _vitalsPanel = HudUi.Box(_hud, "VitalsPanel", HudAnchor.TopLeft, PlateLeft, PlateTop, 240f, 60f);
+            _vitalsPanel = HudUi.Box(_hud, "VitalsPanel", HudAnchor.TopLeft, PlateLeft, PlateTop, HudLayout.PlateWidth(1920f), 60f);
             HudUi.Surface(_vitalsPanel, Tone(theme.Surface, .94f), theme.CornerRadius, theme.Border, false, true);
             _plateBody = HudUi.Inset(_vitalsPanel, "PlateBody", 8, 5, 8, 6);
 
@@ -185,11 +185,11 @@ namespace Roguehalla.Client
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
                 icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(4, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 17, 0, 65, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
-                // The names keep a floor of 7 under the text-size fit; the values the default floor of 6.
+                var name = HudUi.Label(HudUi.At(cell, "Name", 17, 0, 70, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                // The names keep a floor of 7 under the text-size fit; the values 6.
                 name.GetComponent<MythicTextScale>().MinSize = 7f;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 82, 0, 29, BuildCellHeight), "Count", "—", 6f, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                
+                var value = HudUi.Label(HudUi.At(cell, "Value", 87, 0, 50, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                value.GetComponent<MythicTextScale>().MinSize = 6f;
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
@@ -197,7 +197,6 @@ namespace Roguehalla.Client
                 HudIconHint.Attach(select, _root, CellNames[i] + " · gained from boosts, cards and farmed mobs\nOpen B for the full build ledger.");
             }
         }
-
 
         void CreateExtras(UiTheme theme)
         {
