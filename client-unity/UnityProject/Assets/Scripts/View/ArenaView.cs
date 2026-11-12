@@ -42,7 +42,7 @@ namespace Roguehalla.Client
         WeaponRangePresenter _weaponRange;
         /// <summary>Set by the caller while the Tab map, a minimap peek, a pending teleport or a pending death is up: legacy hides the weapon range guide then (RaidScene.ts:1637-1638).</summary>
         public bool WeaponRangeSuppressed;
-        WorldMarks _worldMarks; CampRespawnLabels _campLabels;
+        WorldMarks _worldMarks; CampRespawnLabels _campLabels; System.Func<float, float, bool> _markVisible;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
         public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
@@ -550,7 +550,8 @@ namespace Roguehalla.Client
                 _sparks.Observe(collections.Tick, collections.Projectiles, _camCenter, _camHalf.x, _camHalf.y, ref _sparkRng);
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
-            _worldMarks.Update(collections, MarkVisible); _campLabels.Update(_visionSession);
+            _markVisible = _markVisible ?? MarkVisible;
+            _worldMarks.Update(collections, _markVisible); _campLabels.Update(_visionSession, _markVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
             PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
         }

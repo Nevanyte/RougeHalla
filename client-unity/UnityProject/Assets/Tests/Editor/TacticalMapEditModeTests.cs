@@ -198,6 +198,22 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void CampRewardBadgesAndWardBeaconsAreDrawnForRowsThatHaveThem()
+        {
+            var map = new MapBlob(4, 4, new byte[16]).WithPublic(new[] { new MapCamp(96, 96, 8, 1), new MapCamp(32, 32, 8, 3) }, null, null, null, null);
+            var marks = _root.AddComponent<TacticalMapMarks>(); marks.Large = true; marks.SetMap(map);
+            _transport.Deliver(new ServerMsg.State { Tick = 3, Items = new StateItem[] { new CampsState { Rows = new[] {
+                new WireCamp { MobType = 0, Elite = 0, Alive = 3, State = 0, Reward = new WireCampReward { Stat = 2, Amount = 100 } },
+                new WireCamp { MobType = 0, Elite = 0, Alive = 3, State = 0, Ward = new WireWard { Yours = true, ExpiresAt = 1e12 } } } } } });
+            marks.Present(_session, null);
+            Canvas.ForceUpdateCanvases();
+            Assert.AreEqual(1, marks.RewardBadgeCount, "only the camp with a reward row has a badge");
+            Assert.AreEqual(1, marks.WardMarkCount, "only the camp with a ward has a beacon");
+            Assert.AreEqual(1, marks.BadgesDrawn);
+            Assert.AreEqual(1, marks.WardsDrawn);
+        }
+
+        [Test]
         public void DisconnectClearsMapContactsAndCannotRetainAHiddenGhost()
         {
             var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(_session.Map);
