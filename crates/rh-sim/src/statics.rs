@@ -361,3 +361,77 @@ impl Arena {
         )
     }
 }
+
+#[cfg(test)]
+mod regen_in_combat_encoding_tests {
+    use super::{RegenInCombat, REGEN_IN_COMBAT_OFF_TAG};
+    use crate::archetype::MobSpacing;
+    use serde::de::{Deserialize, Deserializer, Visitor};
+    use serde_json::{json, Value};
+
+    /// A JSON value read as a format that is not human-readable (none ships today; this checks the other branch).
+    struct Compact(Value);
+
+    impl<'de> Deserializer<'de> for Compact {
+        type Error = serde_json::Error;
+        fn deserialize_any<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+            self.0.deserialize_any(v)
+        }
+        fn deserialize_option<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+            match self.0 {
+                Value::Null => v.visit_none(),
+                other => v.visit_some(Compact(other)),
+            }
+        }
+        fn is_human_readable(&self) -> bool {
+            false
+        }
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string bytes byte_buf unit
+            unit_struct newtype_struct seq tuple tuple_struct map struct enum identifier ignored_any
+        }
+    }
+
+    #[test]
+    fn json_keeps_off_and_null_and_refuses_the_hash_tag() {
+        assert_eq!(
+            serde_json::to_value(RegenInCombat::Off).unwrap(),
+            json!("off")
+        );
+        assert_eq!(
+            serde_json::to_value(RegenInCombat::Legacy).unwrap(),
+            Value::Null
+        );
+        let read = |v: Value| serde_json::from_value::<RegenInCombat>(v);
+        assert_eq!(read(json!("off")).unwrap(), RegenInCombat::Off);
+        assert_eq!(read(Value::Null).unwrap(), RegenInCombat::Legacy);
+        assert!(read(json!(REGEN_IN_COMBAT_OFF_TAG)).is_err());
+        assert!(read(json!("Off")).is_err());
+    }
+
+    #[test]
+    fn a_compact_format_reads_the_tag_and_refuses_off() {
+        let read = |v: Value| RegenInCombat::deserialize(Compact(v));
+        assert_eq!(
+            read(json!(REGEN_IN_COMBAT_OFF_TAG)).unwrap(),
+            RegenInCombat::Off
+        );
+        assert_eq!(read(Value::Null).unwrap(), RegenInCombat::Legacy);
+        assert!(read(json!("off")).is_err());
+    }
+
+    #[test]
+    fn the_hasher_folds_the_tag_not_mob_spacings_off() {
+        use crate::hash::hash_of;
+        assert_eq!(
+            hash_of(0, &RegenInCombat::Off),
+            hash_of(0, REGEN_IN_COMBAT_OFF_TAG)
+        );
+        assert_ne!(
+            hash_of(0, &RegenInCombat::Off),
+            hash_of(0, &MobSpacing::Off)
+        );
+        assert_eq!(hash_of(0, &MobSpacing::Off), hash_of(0, "off"));
+        assert_eq!(hash_of(0, &RegenInCombat::Legacy), hash_of(0, &()));
+    }
+}
