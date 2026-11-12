@@ -192,7 +192,12 @@ namespace Roguehalla.Client
             MatchPhase phase = runOver ? MatchPhase.Ended : _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
             var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, runOver ? WinnerLabel() : null, out var lineTone);
             if (text == null) { _phaseStrip.text = ""; return; }
-            string hex = lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : lineTone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
+            ApplyPhaseStrip(text, lineTone);
+        }
+        /// <summary>Writes the top-centre phase line and its tone (P-UNITY-HUD-VISUAL-FIX-1 test seam: the tone must reach the label's colour, never tags in its text).</summary>
+        public void ApplyPhaseStrip(string text, Roguehalla.Net.Ui.Indicators.ArenaLineTone tone)
+        {
+            string hex = tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
             _phaseStrip.text = hex == null ? text : "<color=" + hex + ">" + text + "</color>";
         }
         void ToggleBuild()
