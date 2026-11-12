@@ -50,7 +50,7 @@ namespace Roguehalla.Net.Ui
     /// <summary>Pure camp model: map camp list + camp state rows + server time to marker and world-label rows. Presentation only.</summary>
     public static class CampMarks
     {
-        /// <summary>Clears <paramref name="into"/> and fills one marker per camp. No markers when the row count differs from the map's camp count.</summary>
+        /// <summary>The map layer uses <see cref="Glyphs"/> since P-UNITY-DECLUTTER-1; this stays for its own tests. Clears <paramref name="into"/> and fills one marker per camp. No markers when the row count differs from the map's camp count.</summary>
         public static void Markers(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, List<CampMarkRow> into)
         {
             into.Clear();
