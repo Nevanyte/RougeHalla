@@ -346,6 +346,7 @@ pub fn finalize(
         ground_spots: i.ground_spots.to_vec(),
         features,
         feature_grid,
+        anchors: Vec::new(),
     })
 }
 #[cfg(test)]

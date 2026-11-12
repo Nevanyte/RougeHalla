@@ -183,6 +183,13 @@ pub enum FeatureKind {
     Hall,
     Infill,
     Bush,
+    /// Signature landmark (P-MAPGEN-SIGNATURE-CORE-1, no legacy counterpart): the Plague giant bog tree, its trunk (wall)
+    /// and the bog bands round it (floor, terrain bog). Appended: earlier kinds keep their names and discriminants.
+    BogTree,
+    /// Signature landmark: the Sentenced church, its wall ring round the far elite camp (wall).
+    Church,
+    /// Signature landmark: the church's graveyard, headstones beyond the door (wall).
+    Graveyard,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -221,6 +228,23 @@ pub struct MapProp {
     pub y: f64,
     pub v: u8,
 }
+/// One zone's signature anchor (owner rule G3): the landmark that every later step arranges the zone around. Written
+/// by the generator only with `pipeline::Options::signature`; a map without anchors serializes exactly as before.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ZoneAnchor {
+    pub zone: Zone,
+    /// The landmark's feature kind (`BogTree`, `Church`, `Hall`).
+    pub kind: FeatureKind,
+    /// The landmark's centre tile.
+    pub centre: TilePt,
+    /// Bounding rectangle of the landmark feature's owned tiles (its `bbox`); bands are measured from it.
+    pub footprint: TileRect,
+    /// DIR16 index (0 = +x, 4 = +y, `landmarks::recipe_support::DIR16`) from the centre toward the coliseum centre.
+    pub front: u8,
+    /// The way in (the church door), on the footprint's edge facing `front`; empty for a landmark without one.
+    pub entrance: Vec<TilePt>,
+}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GameMapData {
@@ -243,6 +267,9 @@ pub struct GameMapData {
     pub ground_spots: Vec<WorldPt>,
     pub features: Vec<MapFeature>,
     pub feature_grid: Vec<u8>,
+    /// Signature anchors in zone-code order; omitted from JSON when empty (every legacy-mode map).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub anchors: Vec<ZoneAnchor>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -265,6 +292,9 @@ pub struct LayerData {
     pub ground_spots: Vec<WorldPt>,
     pub features: Vec<MapFeature>,
     pub feature_grid: Vec<u8>,
+    /// Signature anchors in zone-code order; omitted from JSON when empty (every legacy-mode map).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub anchors: Vec<ZoneAnchor>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -296,6 +326,7 @@ impl GameMapData {
             ground_spots,
             features,
             feature_grid,
+            anchors,
         } = self;
         (
             tiles,
@@ -318,6 +349,7 @@ impl GameMapData {
                 ground_spots,
                 features,
                 feature_grid,
+                anchors,
             },
         )
     }
@@ -341,6 +373,7 @@ impl GameMapData {
             ground_spots,
             features,
             feature_grid,
+            anchors,
         } = data;
         Self {
             tiles,
@@ -362,6 +395,7 @@ impl GameMapData {
             ground_spots,
             features,
             feature_grid,
+            anchors,
         }
     }
 }

@@ -171,6 +171,7 @@ pub(crate) fn source_terrain_fixture(w: u32, h: u32, terrain: Vec<u8>) -> MapLay
             ground_spots: vec![],
             features: vec![],
             feature_grid: vec![0; n],
+            anchors: vec![],
         },
     }
 }

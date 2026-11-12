@@ -226,7 +226,7 @@ pub(super) fn check(m: &GameMapData, out: &mut Certificate) {
             continue;
         }
         let f = &fs[v - 1];
-        let kind = rules::KINDS.iter().find(|r| r.kind == f.kind).unwrap();
+        let kind = rules::kind(f.kind);
         if t == 1 && matches!(f.kind, K::Gallows | K::Hall) {
             walls[v].push(i);
         }
@@ -249,7 +249,7 @@ pub(super) fn check(m: &GameMapData, out: &mut Certificate) {
         if !out.strict_zones.contains(&f.zone.code()) {
             continue;
         }
-        let kind = rules::KINDS.iter().find(|r| r.kind == f.kind).unwrap();
+        let kind = rules::kind(f.kind);
         out.check(
             "feature-size",
             format!("s{k}"),
@@ -340,6 +340,7 @@ pub(super) fn check(m: &GameMapData, out: &mut Certificate) {
                         .is_some_and(|c| c.zone == f.zone && c.elite_spot >= 0)
             }
             K::Gallows | K::Spire | K::Causeway | K::Infill => p.len() == kind.params_min,
+            K::BogTree | K::Church | K::Graveyard => p.len() == kind.params_min,
         };
         out.check("feature-params", format!("p{k}"), valid);
     }

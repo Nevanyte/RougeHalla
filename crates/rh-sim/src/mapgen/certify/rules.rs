@@ -160,6 +160,43 @@ pub const KINDS: [Kind; 13] = [
         jobs: &[J::Cover],
     },
 ];
+/// The signature landmarks' kinds (P-MAPGEN-SIGNATURE-CORE-1; no legacy counterpart), kept apart from the legacy
+/// table above so that table, and `content_hash`, stay the source's own: only maps generated with
+/// `pipeline::Options::signature` (default off) carry these kinds. No params; the map's anchor carries their geometry.
+pub const SIGNATURE_KINDS: [Kind; 3] = [
+    Kind {
+        kind: K::BogTree,
+        params_min: 0,
+        wall: true,
+        low: false,
+        terrain: 0,
+        jobs: &[J::Landmark],
+    },
+    Kind {
+        kind: K::Church,
+        params_min: 0,
+        wall: true,
+        low: false,
+        terrain: 0,
+        jobs: &[J::Landmark],
+    },
+    Kind {
+        kind: K::Graveyard,
+        params_min: 0,
+        wall: true,
+        low: false,
+        terrain: 0,
+        jobs: &[J::Cover],
+    },
+];
+/// The certifier's row for a feature kind: the legacy table, then the signature table.
+pub fn kind(k: K) -> &'static Kind {
+    KINDS
+        .iter()
+        .chain(&SIGNATURE_KINDS)
+        .find(|r| r.kind == k)
+        .expect("every feature kind has a certifier row")
+}
 
 pub const PATH_HAZARDS: [u8; 3] = [4, 5, R.ice];
 

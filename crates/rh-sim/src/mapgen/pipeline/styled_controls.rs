@@ -174,6 +174,7 @@ fn inventory(f: &Controls) -> Result<(), &'static str> {
                     decor,
                     shape_gates,
                     bushes,
+                    signature: false,
                 })
             || !c.complete_final_output_equality
             || c.map.is_none() != (index == 6)
