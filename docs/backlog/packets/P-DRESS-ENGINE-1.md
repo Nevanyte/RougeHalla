@@ -78,8 +78,58 @@ Property tests over generated maps (seeds 1-8 through `Pipeline::certified_style
 - `scripts/gate.sh --oracle packet/P-DRESS-ENGINE-1 --coordinator` passes.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-DRESS-ENGINE-1` (the test files; the stub commit creates the crate with the
-  public signatures: `dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing`, `Rules::from_json`)
+- `crates/rh-mapdress/tests/properties.rs` (the section 8 property tests over seeds 1-8)
+- `crates/rh-mapdress/tests/rules_file.rs` (starter-file shape, tall flags, malformed files refused)
+- `crates/rh-mapdress/tests/common/mod.rs` (the eight maps generated once per binary; independent geometry helpers)
+- this brief
+- Stub commit (the implementer's to replace or edit): `crates/rh-mapdress/Cargo.toml`, `clippy.toml`, `src/lib.rs`,
+  `src/rules.rs`, `rules/zones.json`. `src/rules.rs` (parse, validate, accessors) is already complete: the malformed-rule
+  and starter-shape tests in `rules_file.rs` pass against the stub. Every `properties.rs` test fails on an assertion
+  (the stub dresses nothing). The implementer writes the engine (`dress`, `keep_clear`, `tall_corridor`,
+  `cluster_sites`) and may tune `zones.json` values (not the schema, the kind names or the "one rule owns its kinds"
+  property); it may not change a test.
+- Generating the eight maps takes about 3 s in a debug build (about 0.3-0.45 s each, not 60 ms); each binary runs in 3 s.
+
+### Public API as stubbed
+```rust
+pub const MAX_PROPS: usize = 8192;  pub const FLAG_TALL: u8 = 1;  pub const FLAG_LEGACY: u8 = 2;
+pub struct DressProp { pub kind: u8, pub x: u16, pub y: u16, pub variant: u8, pub flags: u8 }
+pub struct Dressing { pub props: Vec<DressProp>, pub ground_variants: Vec<u8> }   // plane: exactly w*h bytes
+pub struct ClusterSite { pub zone: Zone, pub rule: usize, pub x: u16, pub y: u16 }
+pub fn dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing;
+pub fn keep_clear(map: &GameMapData, rules: &Rules) -> Vec<bool>;     // no prop at all (one flag per tile)
+pub fn tall_corridor(map: &GameMapData, rules: &Rules) -> Vec<bool>;  // second mask: no TALL prop
+pub fn cluster_sites(map: &GameMapData, map_hash: u64, rules: &Rules) -> Vec<ClusterSite>; // what dress uses
+// rules module: Rules::{from_json, starter, kind_code, kind_name, is_tall, zone, allowed_classes}; pub fields on
+// Rules, KindDef, KeepClearRules, ZoneRules, RingRule, ClusterRule, EdgeRule, FillerRule; TileClass, Against.
+```
+
+### Position unit
+World units as `u16` (1 tile = 32 u, the unit of `MapCamp.x/y/r`), clamped to `u16::MAX`. A prop belongs to the tile
+`floor(x/32), floor(y/32)`; every rule is judged on that tile. Legacy props (`GameMapData.props`, already world units at
+tile centres) become `kind = min(kind, 255)`, `x`/`y` = round-half-away-from-zero clamped, `variant = v`,
+`flags = FLAG_LEGACY`, listed first in the output in their original order. Rule-placed props carry `FLAG_TALL` iff their
+kind is tall and no other flag. When the total passes `MAX_PROPS` the list is cut to that length (later stages lose).
+
+### Rule file schema (`rules/zones.json`; distances in tiles, densities per 100 candidate tiles)
+- `version`; `kinds { name: { code: u8 >= 1 unique, tall?: bool } }`; `keepClear { campMargin, coliseumMargin, corridorWidth }`.
+- `zones { fire|sentenced|plague|frost|holy: { signature { feature: FeatureKind camelCase, rings[] }, clusters[], edges[], filler[] } }`.
+- ring: `{ name, inner, outer, groundVariant, props[{ kind, density }], on? }` band `[inner, outer)` of the tile-centre distance to the anchor.
+- cluster: `{ name, kinds[], radius, minSpacing, clearing (0..1), sites (max per zone), members (max per site), on? }`.
+- edge: `{ name, kinds[], against[wall|low|border], distance (Chebyshev, >= 1), density, on? }`; filler: `{ name, kinds[], density, on? }`.
+- `on` is a list of tile classes `floor|ember|bog|ice|light|low|wall` (default `["floor"]`): wall = collision 1, low = 2, else the floor terrain (4 ember, 5 bog, 6 ice, 7 light, else floor). "Hazard" tiles are ember and bog.
+- Every rule has a unique `name`; every refusal message names the rule (or kind, zone) it is about. In the starter file one rule owns each kind (the property tests attribute props to rules by kind) and filler kinds are not tall.
+- Anchor of a zone's rings: the bbox centre `((2x+w)*16, (2y+h)*16)` world units of the largest feature (by `tiles`, first on a tie) of the zone with the signature kind; with none, the integer-division mean of the zone's tile centres.
+- Keep-clear (`keep_clear`): tiles whose centre is within `camp.r + campMargin*32` of a camp centre; the tile of each spawn, crate spot and ground spot; the coliseum rectangle and each gate tile, grown by `coliseumMargin` tiles; every tile whose `feature_grid` value is `1 + i` with `features[i].kind == Bush`. Corridor (`tall_corridor`): the segment from each camp centre to the nearest gate centre (`GateDef.x/y`), `corridorWidth` tiles wide.
+- Cluster property: every member is within `radius` (world distance) of a site of its rule in the same zone; sites of one rule and zone are at least `minSpacing` apart; the share of the zone's free floor (collision 0, not keep-clear) whose tile centre is farther than `radius` from every site of the rule is at least `clearing`.
+
+### Things in the brief that do not fit the map data (resolved in the oracle)
+- Legacy `MapProp.kind` is `u16` (a prop-table index) but the wire row has `u8`: clamped to 255, flagged `FLAG_LEGACY`, so its code never collides with rule kinds.
+- "Gate lanes" have no data beyond the gate tiles; the mask covers gate tiles plus margin, and the tall corridors cover the approach.
+- The 8192 cap applies to legacy props too (an injected map with more is cut, legacy first).
+- Starter kinds added beyond Unity's art names: `fire.ash` (filler: flat; `fire.stump` is tall). Starter signature features: crater (fire), gallows (sentenced), barrow (plague), mere (frost), hall (holy); features are present on all of seeds 1-8.
+- Densities are `f64` in the file; placement must stay reproducible (hash noise and integer or exactly reproducible arithmetic).
+- Rings are asserted non-empty on at least 6 of 8 seeds (as are the other stages), not on every seed.
 
 ## 9. Validation commands
 - `cargo test -p rh-mapdress`, `cargo clippy -p rh-mapdress --all-targets -- -D warnings`, `scripts/gate.sh --quick`
