@@ -393,7 +393,11 @@ fn widen(cells: &mut Vec<usize>, ok: &impl Fn((i32, i32)) -> bool) -> bool {
                 } else {
                     [1, -1]
                 };
-                fills.extend(sides.iter().map(|&s| (c.0 + across(s).0, c.1 + across(s).1)));
+                fills.extend(
+                    sides
+                        .iter()
+                        .map(|&s| (c.0 + across(s).0, c.1 + across(s).1)),
+                );
             }
             // No window with three: the missing tiles of the fullest windows first.
             None => {
