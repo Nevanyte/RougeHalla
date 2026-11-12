@@ -21,7 +21,13 @@ only half of the maps (seeds 1-8: bog tree 8, volcano 7, church 6, cave 4). When
 - **Plague:** the giant bog tree stands in the outer third of the zone (toward the map edge), on ground that is not bog.
   The marsh stays bog bands (owner 2026-11-11: only bog slows; water is presentation and belongs to the dressing
   packets, not to terrain).
-- **Sentenced:** unchanged except what P-SIGNATURE-1-fix corrected.
+- **Sentenced:** the church keeps its form; three reviewer notes on P-SIGNATURE-1-fix (2026-11-12) are closed here:
+  (1) REAL: the graveyard must exist, not merely be gap-free: before the fix only seeds 1 and 5 of 1-8 had headstones,
+  the wider pitch needs a 19-tile field, and the gap test passes vacuously when a church has no stones. At least half
+  of the placed churches on seeds 1-16 have a graveyard of 4 or more stones (try both sides of the door and a shorter
+  row before giving up), and the stones sit the same distance from the wall on every door side and centred on the
+  door axis. (2) MINOR: in `apply`, a church whose `church_site` is `None` is a skipped attempt, never a kept,
+  unreported church. (3) MINOR: ADR 0028 states what the code does (stream counts, the graveyard rate as measured).
 - **Rates:** on seeds 1-16 each landmark places on at least 14 maps, by trying more sites before giving up, never by
   weakening the certifier check.
 
@@ -58,6 +64,8 @@ only half of the maps (seeds 1-8: bog tree 8, volcano 7, church 6, cave 4). When
   the mouth to an ice cell of the zone's largest ice body.
 - Oracle: every placed bog tree is in the outer third of its zone's radial extent and stands on non-bog floor.
 - Oracle: placement counts over seeds 1-16 are at least 14 for each of the four landmarks.
+- Oracle: on seeds 1-16 at least half of the placed churches report 4 or more headstones; stones on left/top doors
+  and right/bottom doors sit the same number of tiles from the church wall.
 - `scripts/gate.sh --oracle packet/P-SIGNATURE-2` passes.
 
 ## Oracle files (read-only for implementers)
