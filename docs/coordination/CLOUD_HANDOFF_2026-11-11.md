@@ -110,3 +110,24 @@ suite pass; parity report: 109 slice scenarios + 13 capture-only and 300 pathfin
 agrees with `v17.json`; C# 1,444/1,444 and the Unity copy is current; headless smoke (seed1, 8 bots, 4,000 ticks) runs.
 Not run here: Unity EditMode and Web build (no Editor), capture `--check` tools, perfproof, cross-architecture
 determinism, browser proof. CI on the pushed branch is the final word.
+
+## Second round (owner request 2026-11-11: measurement, Brain, signature terrain)
+
+Owner answers recorded in chat on 2026-11-11: degraded fair Brain approved; the learner runs on the beta too; the Plague
+marsh slows with bog only (water is presentation); live faction terrain exemptions stay as they are.
+
+- **Full-map cost** ([evidence](../evidence/full-map-cost/README.md), commit b3cfa848): on this 4-vCPU host a pooled
+  160x160 map costs 5-12x the beta map per tick (mean 0.93 ms vs 0.15 ms, p99 up to 5.3 ms, one 33 ms spike), about
+  7-8 MiB per room and 56 ms to generate. Not measured: wire/socket cost, human clients, Unity.
+- **Learner on the beta** (commit 81ded797): `hosting/technical-demo/bootstrap.py` runs Source with
+  `--bot-learning single-writer`; Training keeps `off` (rh-server refuses learning in training). Owner-approved protected
+  edit; R-ML's amendment is still unsigned, so record the approval when it is signed. Nothing deployed.
+- **P-SIGNATURE-1** (commit 6181bc9e): `--map-pool --signature-landmarks` adds a volcano, church, bog tree and frozen
+  cave as real terrain on pooled maps; each landmark is kept only if the strict certifier finds no new failure. Seeds 1-8:
+  bog tree 8, volcano 7, church 6, cave 4. No content-hash, protocol or parity change. Not viewed in Unity.
+- **P-BOT-BRAIN-LIVE-1**: scoped and written as a ready packet with the composer design
+  (`docs/backlog/packets/P-BOT-BRAIN-LIVE-1.md`); not implemented here. It is about 1,500-2,500 lines across rh-policy,
+  rh-server and rh-headless and is best done as one focused Opus packet with an Opus review.
+
+Proposed shared-record edits for the coordinator: MIGRATION entries for P-SIGNATURE-1, the measurement and the learner
+switch; backlog rows for P-SIGNATURE-1 (implemented behind flags) and P-BOT-BRAIN-LIVE-1 (ready packet).
