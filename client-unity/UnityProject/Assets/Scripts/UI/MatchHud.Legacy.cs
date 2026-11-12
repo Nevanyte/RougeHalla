@@ -129,7 +129,7 @@ namespace Roguehalla.Client
         static readonly string[] CellNames = { "Offense", "SO", "Damage gained", "Attack speed", "Life steal", "Health gained", "Defense", "Soul Defense", "Move speed" };
         static readonly int[] CellBoost = { 0, 1, -1, 5, 7, 4, 2, 3, 6 };
         static readonly MythicGlyph[] CellGlyph = { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Axe, MythicGlyph.Bow, MythicGlyph.Potion, MythicGlyph.Health, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Speed };
-        const float BuildCellWidth = 109f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 115f, BuildTop = 15f;
+        const float BuildCellWidth = 111f, BuildCellHeight = 14f, BuildRowStep = 17f, BuildColumnStep = 113f, BuildTop = 15f;
 
         void CreatePlate()
         {
@@ -185,16 +185,26 @@ namespace Roguehalla.Client
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
                 icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
-                name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = 8f; name.fontSize = 8f;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 81, 0, 28, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
-                value.enableAutoSizing = true; value.fontSizeMin = 6f; value.fontSizeMax = 10f; value.overflowMode = TextOverflowModes.Overflow;
+                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 59, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                // The run-time text-scale re-apply (MatchHud.ApplyTextScale) would overwrite these sizes, so these labels leave it: they keep
+                // an auto-size range with a floor, no ellipsis, and a box that holds the widest text at the floor with room to spare.
+                KeepFit(name, 7f, 8f);
+                name.overflowMode = TextOverflowModes.Overflow;
+                var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 31, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                KeepFit(value, 6f, 10f); value.overflowMode = TextOverflowModes.Overflow;
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
                 HudUi.ApplyColors(select, Color.white);
                 HudIconHint.Attach(select, _root, CellNames[i] + " · gained from boosts, cards and farmed mobs\nOpen B for the full build ledger.");
             }
+        }
+
+        /// <summary>Auto-size between a floor and a ceiling and drop the label out of the run-time text-scale re-apply, so the fit survives it.</summary>
+        static void KeepFit(TMP_Text label, float floor, float ceiling)
+        {
+            var scale = label.GetComponent<MythicTextScale>(); if (scale != null) Object.DestroyImmediate(scale);
+            label.enableAutoSizing = true; label.fontSizeMin = floor; label.fontSizeMax = ceiling; label.fontSize = ceiling;
         }
 
         void CreateExtras(UiTheme theme)
@@ -261,8 +271,9 @@ namespace Roguehalla.Client
                 var rule = HudUi.Box(row, "Rule", HudAnchor.TopLeft, 0, 0, 2, 30);
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 _championRow[i] = row;
-                _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 100, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
-                _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 108, 1, 124, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
+                _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 72, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
+                _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 80, 1, 152, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
+                KeepFit(_championValue[i], 10f, 12f);
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
             }
             _damageHit = _championValue[0]; _damageRate = _championScaling[0];
