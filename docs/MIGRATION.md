@@ -4,6 +4,18 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat): show each zone's landmark, close and wide, after visual review
+
+"Once they are developed and approved by visual sub agents please show me the final product of each zones unique
+structure a zoom in of the unique structure and zoom out of the faction at large." For each of the five zones (Fire
+volcano, Sentenced church and graveyard, Plague bog tree and marsh, Frost cave and lake, Holy hall) the owner
+receives two pictures of the Unity client's rendering: one close on the landmark, one of the whole zone. Order:
+the landmark's generator packet, its decoration rules and its art land; a visual review sub-agent looks at both
+pictures against rules G1 to G8 and the owner's description of that landmark, and its defects are fixed and
+re-shot until it approves; only then are the pictures sent. This is the screenshot sheet the plan's per-zone
+packets already called for, with the review step made a condition. Tile-only previews before the art exists are not
+"the final product" and are not sent as such.
+
 ## Beta follow-up integrations 4 to 8 (2026-11-12): current checkpoint
 
 Integration branch `feature/unity-rework` @ `1aff1d31`, pushed (owner approval 4: push after every green gate).
