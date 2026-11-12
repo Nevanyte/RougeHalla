@@ -267,6 +267,14 @@ namespace Roguehalla.Client
                     if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
                     if (text.text != camp.Clock) text.text = camp.Clock;
                     text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -12f);
+                    // Standing on the camp puts the own ring over the clock: move the clock under the ring instead.
+                    var ring = SelfMarkerRect;
+                    if (ring.HasValue)
+                    {
+                        var size = text.rectTransform.sizeDelta; var at = text.rectTransform.anchoredPosition;
+                        var box = new Rect(at - size * .5f, size);
+                        if (box.Overlaps(ring.Value)) text.rectTransform.anchoredPosition = new Vector2(at.x, ring.Value.yMin - 2f - size.y * .5f);
+                    }
                 }
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
             CampClocksShown = used;

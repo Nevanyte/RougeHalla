@@ -514,11 +514,13 @@ namespace Roguehalla.Client
                     }
                     else if (p.Kind == PropAppearance.Cannon)
                     {
-                        // Reuse the neutral bar, stone and ring shapes for a compact cannon silhouette.
-                        Prop("stone", position + new Vector3(-.02f, .04f), new Vector2(.62f, .34f), ShowcasePalette.MutedText, order);
-                        Prop("bar", position + new Vector3(.25f, .15f), new Vector2(.48f, .12f), ShowcasePalette.Text, order + 1);
-                        Prop("ring", position + new Vector3(-.2f, -.14f), new Vector2(.2f, .2f), ShowcasePalette.PanelStroke, order + 2);
-                        Prop("ring", position + new Vector3(.2f, -.14f), new Vector2(.2f, .2f), ShowcasePalette.PanelStroke, order + 2);
+                        // Neutral bar, stone and ring shapes as a side-on cannon: a small stone carriage base, a barrel raised 25 degrees
+                        // and two equal wheels at the foot.
+                        Prop("stone", position + new Vector3(-.03f, .05f), new Vector2(.34f, .16f), ShowcasePalette.MutedText, order);
+                        var barrel = Prop("bar", position + new Vector3(.2f, .17f), new Vector2(.7f, .14f), ShowcasePalette.Text, order + 1);
+                        barrel.transform.rotation = Quaternion.Euler(0f, 0f, 25f);
+                        Prop("ring", position + new Vector3(-.22f, -.1f), new Vector2(.3f, .3f), ShowcasePalette.PanelStroke, order + 2);
+                        Prop("ring", position + new Vector3(.22f, -.1f), new Vector2(.3f, .3f), ShowcasePalette.PanelStroke, order + 2);
                     }
                     else
                     {

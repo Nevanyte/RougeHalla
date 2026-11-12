@@ -15,7 +15,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class SentencedHuntPanel : MonoBehaviour
     {
-        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5;
+        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 46f, RowsTop = 72f;
         RectTransform _root;
         TMP_Text _title, _status;
         readonly List<Button> _rows = new List<Button>();
@@ -36,7 +36,7 @@ namespace Roguehalla.Client
             _root = HudUi.Box(parent, "SentencedHunt", HudAnchor.TopLeft, Left, Top, Width, 60f);
             HudUi.Surface(_root, UiTheme.With(theme.Surface, .93f), 7f, theme.FactionColor(1), true, false);
             _title = HudUi.Label(HudUi.At(_root, "Title", 8f, 5f, Width - 16f, 15f), "Title", "Hunt", 11f, theme.FactionColor(1), bold: true);
-            _status = HudUi.Label(HudUi.At(_root, "Status", 8f, 21f, Width - 16f, 28f), "Status", "", 10f, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _status = HudUi.Label(HudUi.At(_root, "Status", 8f, 21f, Width - 16f, StatusH), "Status", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
             for (int i = 0; i < (int)MaxRows; i++) Row(i).gameObject.SetActive(false); // all rows exist from the start: no UI is built inside the frame loop
             _root.gameObject.SetActive(false);
         }
@@ -47,7 +47,7 @@ namespace Roguehalla.Client
             {
                 int n = _rows.Count; var theme = UiTheme.Current;
                 // A non-empty label so the button owns a label child (HudUi.Button adds none for ""): WebGL builds trap, not throw, on a null deref.
-                var button = HudUi.Button(_root, "Rival" + n, " ", HudAnchor.TopLeft, 7f, 50f + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
+                var button = HudUi.Button(_root, "Rival" + n, " ", HudAnchor.TopLeft, 7f, RowsTop + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
                 var label = button.GetComponentInChildren<TMP_Text>(); label.alignment = TextAlignmentOptions.MidlineLeft; label.rectTransform.offsetMin = new Vector2(30f, label.rectTransform.offsetMin.y);
                 var icon = LaunchUi.FactionShape(button.transform, "FactionIcon", 0, 8f, 5f, 14f, theme.TextPrimary);
                 _rows.Add(button); _rowText.Add(label); _rowIcon.Add(icon);
@@ -100,9 +100,9 @@ namespace Roguehalla.Client
             if (tracking)
             {
                 string who = haveTarget ? Rival(targetActor) : "rival";
-                _status.text = "Tracking " + who + ". +5% speed toward them; choose again when they fall.";
+                _status.text = "Tracking " + who + " · +5% speed toward them";
             }
-            else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight. They appear here when the server shows one." : "Choose a living rival · +5% speed while moving toward them";
+            else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight" : "Choose a rival · +5% speed toward them";
             int rows = tracking ? 0 : Mathf.Min(_rivals.Count, (int)MaxRows);
             for (int i = 0; i < _rows.Count; i++)
             {
@@ -115,7 +115,7 @@ namespace Roguehalla.Client
                 _rowIcon[i].sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp(f, 0, 4)].Shape); _rowIcon[i].color = UiTheme.Current.FactionColor(f);
                 button.interactable = _pending == 0;
             }
-            _root.sizeDelta = new Vector2(Width, 50f + (rows > 0 ? rows * (RowH + 3f) : 0f) + 4f);
+            _root.sizeDelta = new Vector2(Width, RowsTop + (rows > 0 ? rows * (RowH + 3f) : 0f) + 4f);
         }
 
         /// <summary>Legacy rule: only a living Sentenced in an active run, never in Training.</summary>

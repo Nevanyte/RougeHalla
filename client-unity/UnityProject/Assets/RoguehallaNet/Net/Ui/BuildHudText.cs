@@ -71,7 +71,13 @@ namespace Roguehalla.Net.Ui
         /// types only; the packet makes N the card types held plus the farmed mob types in <paramref name="summary"/>.</summary>
         public static string ExtrasHeader(int cardTypes, WireBuildSummary summary)
         {
-            return "Cards & mob bonuses \u00b7 " + cardTypes.ToString(CultureInfo.InvariantCulture);
+            int mobs = 0;
+            if (summary != null && summary.MobRows != null)
+            {
+                var seen = new HashSet<byte>();
+                foreach (var row in summary.MobRows) if (seen.Add(row.MobType)) mobs++;
+            }
+            return "Cards & mob bonuses \u00b7 " + (cardTypes + mobs).ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>One line per farmed mob type in arrival order; the single <see cref="NoMobBonuses"/> line for an empty

@@ -57,7 +57,7 @@ namespace Roguehalla.Client
                 int n = _terrainChips.Count;
                 var rect = HudUi.At(_terrainRow, "Chip" + n, 0, n * TerrainLine, TerrainWidth, TerrainLine);
                 var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
-                image.color = new Color(0f, 0f, 0f, 0f);
+                image.color = new Color(10f / 255f, 12f / 255f, 16f / 255f, .8f);
                 var label = HudUi.Label(rect, "Label", "", theme.SizeSmall, theme.Warning, TextAlignmentOptions.TopLeft, bold: true);
                 var button = rect.gameObject.AddComponent<UnityEngine.UI.Button>();
                 button.targetGraphic = image;
@@ -117,7 +117,9 @@ namespace Roguehalla.Client
                 if (key == 0 || _hud == null) return;
                 var theme = UiTheme.Current;
                 _terrainRow = HudUi.Box(_hud, "TerrainChips", HudAnchor.TopLeft, PlateLeft, PlateTop, TerrainWidth, TerrainLine);
-                _terrainNoteText = HudUi.Label(HudUi.At(_terrainRow, "Note", 0, 0, TerrainWidth, TerrainLine), "Label", "", theme.SizeSmall, theme.Success, TextAlignmentOptions.TopLeft, wrap: true);
+                var noteBack = HudUi.At(_terrainRow, "Note", 0, 0, TerrainWidth, TerrainLine);
+                noteBack.gameObject.AddComponent<UnityEngine.UI.Image>().color = new Color(10f / 255f, 12f / 255f, 16f / 255f, .8f);
+                _terrainNoteText = HudUi.Label(noteBack, "Label", "", theme.SizeSmall, theme.Success, TextAlignmentOptions.TopLeft, wrap: true);
                 _terrainRow.gameObject.SetActive(false);
             }
             if (visible && _vitalsPanel != null)
@@ -142,6 +144,7 @@ namespace Roguehalla.Client
             _terrainNote = note;
             _terrainNoteText.text = note ?? "";
             _terrainNoteText.gameObject.SetActive(note != null);
+            _terrainNoteText.transform.parent.GetComponent<UnityEngine.UI.Image>().enabled = note != null;
             LayoutTerrainNote();
             _terrainRow.gameObject.SetActive(count > 0 || note != null);
         }
