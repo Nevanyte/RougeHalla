@@ -312,24 +312,39 @@ impl<'a> Callbacks<'a> {
 }
 /// Frost's anchor (G3) as the styler sees it: the zone's `Cave` feature, placed by the signature step in the Landmarks
 /// phase (`landmarks::signature`), so present only with `pipeline::Options::signature`. Centre: the feature's anchor
-/// point; footprint: its box; front: toward the coliseum (`signature::front`), exactly as the finished map's anchor.
-/// Option off there is no such feature and this is `None`: no new styler input, and nothing for legacy mode to read
-/// (G8). The pattern is `style_scorch::signature_anchor`.
-///
-/// STUB (P-MAPGEN-SIG-FROST-1): `entrance` is left empty and nothing reads this yet. The implementer fills the mouth
-/// (the same tiles as the finished map's anchor, e.g. derived from the cave's owned tiles on its box edge) and branches
-/// on it inside `shape::run`: with `Some`, the signature-mode arrangement (the largest lake in front of the mouth, no
-/// spire or headland in the core band); with `None`, today's code, draw for draw.
-#[allow(dead_code)] // STUB (P-MAPGEN-SIG-FROST-1): read by `shape::run` once the implementer branches on it.
+/// point; footprint: its box; front: toward the coliseum (`signature::front`); entrance: the mouth, the floor tiles on
+/// the box's edge with floor just outside the box (a side leaning on the map border has the border wall outside), in
+/// row order: the same tiles as the finished map's anchor. Option off there is no such feature and this is `None`: no
+/// new styler input, and nothing for legacy mode to read (G8). The pattern is `style_scorch::signature_anchor`.
 pub(crate) fn signature_anchor(b: BaseContext<'_>) -> Option<ZoneAnchor> {
     let f = b.zone_features().find(|f| f.kind == FeatureKind::Cave)?;
+    let r = f.bbox;
+    let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1);
+    let floor = |x: i32, y: i32| {
+        let i = b.at(x, y);
+        i >= 0 && b.tiles[i as usize] == TILE_FLOOR
+    };
+    let mut entrance = Vec::new();
+    for y in y0..=y1 {
+        for x in x0..=x1 {
+            let out = [
+                (x == x0, -1, 0),
+                (x == x1, 1, 0),
+                (y == y0, 0, -1),
+                (y == y1, 0, 1),
+            ];
+            if floor(x, y) && out.iter().any(|&(e, dx, dy)| e && floor(x + dx, y + dy)) {
+                entrance.push(crate::mapdata::TilePt { x, y });
+            }
+        }
+    }
     Some(ZoneAnchor {
         zone: f.zone,
         kind: FeatureKind::Cave,
         centre: crate::mapdata::TilePt { x: f.ax, y: f.ay },
         footprint: f.bbox,
         front: crate::mapgen::landmarks::signature::front(f.ax, f.ay),
-        entrance: Vec::new(),
+        entrance,
     })
 }
 fn field_input<'a>(b: &'a BaseContext<'_>, fixed: &'a FixedLayout) -> rime::FieldInput<'a> {

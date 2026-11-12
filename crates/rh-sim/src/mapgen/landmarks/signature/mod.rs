@@ -94,12 +94,21 @@ pub struct Definition {
     pub lava_budget: (usize, usize),
     /// Cave: the distance from the camp tile of each wall line (inclusive range; a side may lean on the border as the
     /// church's), the mouth's half-width (tiles each side of its axis), the free Frost floor beyond the mouth (tiles),
-    /// the fewest ice tiles inside, and the terrain code of that ice (`terrain_gate` kind `ice`, home Frost).
+    /// the fewest ice tiles inside, and the terrain code of that ice (`terrain_gate` kind `ice`, home Frost). A mouth is
+    /// first sought with a forecourt: the square of Frost `2 * forecourt + 1` tiles wide just beyond it.
     pub cave_side: (i32, i32),
     pub mouth: i32,
     pub doorway: i32,
+    pub forecourt: i32,
     pub cave_ice_min: usize,
     pub ice: u8,
+    /// Frost styler in signature mode: the mere's seed is an allowed tile at most `lake_reach` floor steps from the
+    /// cave's mouth; the first of `lake_tries` candidates that grows a lake is kept. It is regrown off the spawn routes
+    /// at most `lake_rounds` times. The second lake grows to at most `second_share` percent of the mere's area.
+    pub lake_reach: usize,
+    pub lake_tries: usize,
+    pub lake_rounds: usize,
+    pub second_share: usize,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -148,8 +157,13 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     cave_side: (4, 7),
     mouth: 1,
     doorway: 2,
+    forecourt: 4,
     cave_ice_min: 8,
     ice: 6,
+    lake_reach: 8,
+    lake_tries: 8,
+    lake_rounds: 3,
+    second_share: 75,
 };
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.

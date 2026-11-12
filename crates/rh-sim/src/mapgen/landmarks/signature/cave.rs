@@ -14,6 +14,7 @@ use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
 use crate::mapgen::certify::rules::R;
 use crate::mapgen::coliseum::{CX, CY, H, W};
+use crate::mapgen::spawns;
 use crate::mapgen::zones::camps::CampSite;
 use crate::rng::Mulberry32;
 
@@ -30,9 +31,9 @@ struct Rect {
 }
 
 /// The cave round the Frost zone's far elite camp, or `None` when the zone has no legal site (the attempt is refused,
-/// G5).
+/// G5). The mouth's side: the dominant axis of the front, then the other axis toward the coliseum; first with a
+/// forecourt (the `2 * forecourt + 1` square of Frost just beyond the mouth, room for the styler's lake), then without.
 pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
-    let d = &s.ctx.rules;
     let mut far = None;
     let mut best = -1i64;
     for c in camps.iter().filter(|c| c.zone == s.slot && c.elite) {
@@ -43,14 +44,40 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
             far = Some(((x as i32), (y as i32)));
         }
     }
-    let (tx, ty) = far?;
-    let f = front(tx, ty);
+    let camp = far?;
+    let f = front(camp.0, camp.1);
     let v = DIR16[usize::from(f)];
-    let u = if v[0].abs() >= v[1].abs() {
-        (v[0].signum(), 0)
+    let (major, minor) = ((v[0].signum(), 0), (0, v[1].signum()));
+    let mut axes = if v[0].abs() >= v[1].abs() {
+        vec![major, minor]
     } else {
-        (0, v[1].signum())
+        vec![minor, major]
     };
+    axes.retain(|u| *u != (0, 0));
+    let before = s.floor_pieces(&[]);
+    for forecourt in [true, false] {
+        for &u in &axes {
+            if let Some(built) = side(s, camps, rng, camp, f, u, forecourt, before) {
+                return Some(built);
+            }
+        }
+    }
+    None
+}
+
+/// The cave with its mouth on side `u` (a unit axis vector) of the camp tile, or `None`.
+#[allow(clippy::too_many_arguments)]
+fn side(
+    s: &Site<'_>,
+    camps: &[CampSite],
+    rng: &mut Mulberry32,
+    (tx, ty): (i32, i32),
+    f: u8,
+    u: (i32, i32),
+    forecourt: bool,
+    before: usize,
+) -> Option<Built> {
+    let d = &s.ctx.rules;
     let p = (u.1.abs(), u.0.abs());
     let tile = |a: i32, c: i32| (tx + a * u.0 + c * p.0, ty + a * u.1 + c * p.1);
     let to_border = |e: (i32, i32)| match e {
@@ -107,14 +134,17 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
         }
         true
     };
-    // The cave's ice: interior tiles whose eight neighbours are interior floor, off every camp halo.
+    // The cave's ice: interior tiles whose eight neighbours are interior floor, off every camp halo and off the map
+    // corners the spawn rules keep open (the styler contract keeps both free of terrain).
+    let co = spawns::DEFAULT_DEFINITION.corner_open as i32;
+    let corner = |x: i32, y: i32| x.min(W as i32 - 1 - x) <= co && y.min(H as i32 - 1 - y) <= co;
     let ice = |r: &Rect| -> Vec<usize> {
         let mut out = Vec::new();
         for a in -r.back.0 + 2..=r.df - 2 {
             for c in -r.left.0 + 2..=r.right.0 - 2 {
                 let (x, y) = tile(a, c);
                 let i = at(x, y).unwrap();
-                if s.halo[i] == 0 {
+                if s.halo[i] == 0 && !corner(x, y) {
                     out.push(i);
                 }
             }
@@ -124,7 +154,6 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
     };
     let col = (2 * CX + 1, 2 * CY + 1);
     let d2 = |x2: i32, y2: i32| i64::from(x2 - col.0).pow(2) + i64::from(y2 - col.1).pow(2);
-    let before = s.floor_pieces(&[]);
     for k in 0..=2 * d.door_shift {
         let ax = if k % 2 == 0 { k / 2 } else { -(k + 1) / 2 };
         let mut legal = Vec::new();
@@ -140,7 +169,15 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
                     s.floor(x, y)
                 })
             });
-            if !doorway {
+            let fc = d.forecourt;
+            let room = !forecourt
+                || (df + 1..=df + 1 + 2 * fc).all(|a| {
+                    (ax - fc..=ax + fc).all(|c| {
+                        let (x, y) = tile(a, c);
+                        at(x, y).is_some_and(|i| s.zone[i] == s.slot)
+                    })
+                });
+            if !doorway || !room {
                 continue;
             }
             for &back in &backs {
