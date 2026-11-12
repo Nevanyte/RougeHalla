@@ -85,7 +85,7 @@ namespace Roguehalla.Client.Tests
             {
                 Panel = new[]
                 {
-                    new WirePanelValue { Code = 0, Value = 20000 }, new WirePanelValue { Code = 1, Value = 0 },
+                    new WirePanelValue { Code = 0, Value = 200000 }, new WirePanelValue { Code = 1, Value = 0 },
                     new WirePanelValue { Code = 2, Value = 0 }, new WirePanelValue { Code = 3, Value = 5000 },
                     new WirePanelValue { Code = 20, Value = 700 }, new WirePanelValue { Code = 21, Value = 0 },
                     new WirePanelValue { Code = 22, Value = 0 },
