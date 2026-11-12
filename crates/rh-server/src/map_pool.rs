@@ -60,11 +60,12 @@ pub struct StyledMaker {
 }
 
 impl StyledMaker {
-    /// The generator options this maker runs with. STUB (P-MAPGEN-SIGNATURE-CORE-1): `signature` is not passed yet; the
-    /// implementer sets `pipeline::Options::signature` from `self.signature`.
+    /// The generator options this maker runs with: no decor, and with `signature` the generator places the church and
+    /// the bog tree itself (P-MAPGEN-SIGNATURE-CORE-1).
     pub fn options(&self) -> rh_sim::mapgen::pipeline::Options {
         rh_sim::mapgen::pipeline::Options {
             decor: false,
+            signature: self.signature,
             ..rh_sim::mapgen::pipeline::Options::default()
         }
     }

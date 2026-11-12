@@ -3,12 +3,13 @@
 //!
 //! * **Fire**: a volcano cone (wall) with two or three lava streams (impassable LOW lava) ending in pools, edged with
 //!   ember floor (burns).
-//! * **Sentenced**: a walled church around the zone's far elite camp, its door facing the map centre, and a graveyard of
-//!   grave stones beyond the door.
-//! * **Plague**: a giant bog tree (wall) ringed by two bands of bog (the slow; water is presentation only, owner
-//!   2026-11-11).
+//! * **Sentenced** (the church and graveyard) and **Plague** (the giant bog tree) are placed by the generator itself
+//!   (`rh_sim::mapgen::landmarks::signature`, `pipeline::Options::signature`, P-MAPGEN-SIGNATURE-CORE-1), before spawns
+//!   and stylers; this pass no longer builds them.
 //! * **Frost**: a frozen cave of rock arched around the zone's far elite camp, open towards the centre, with an ice floor.
 //! * **Holy** keeps its temple (the client draws it from the existing sanctum hall).
+//!
+//! This pass stays for Fire and Frost until their generator packets land; then the file is deleted.
 //!
 //! The pass edits only zone floor that is free (no wall, LOW, terrain or feature, outside camp, spawn, loot and chest
 //! clearances), records every change as a map feature of a kind the certifier knows, and keeps a landmark only if the
@@ -26,7 +27,7 @@ const TILE: f64 = 32.0;
 /// Tiles kept clear around camps (beyond their radius), spawns, loot spots and chests.
 const CAMP_CLEAR: f64 = 3.0;
 const SPOT_CLEAR: i32 = 2;
-/// The certifier's smallest wall piece (`certify::rules` `piece_min`); grave stones are 2x3.
+/// The certifier's smallest wall piece (`certify::rules` `piece_min`), as a 2x3 block.
 const STONE: (i32, i32) = (2, 3);
 const DIRECTIONS: i32 = 16;
 /// Sites (or camp and size choices) each landmark tries before it is skipped.
@@ -45,17 +46,6 @@ const ICE: u8 = 6;
 pub struct Report {
     pub placed: Vec<&'static str>,
     pub skipped: Vec<(&'static str, String)>,
-    /// One entry per placed church: where its door and grave stones are, read back from the inserted features.
-    pub churches: Vec<Church>,
-}
-
-/// A placed church as the map now holds it.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Church {
-    /// The door tiles (tile x, tile y) in the church wall ring facing the map centre, whatever they now are.
-    pub door: Vec<(i32, i32)>,
-    /// Every tile of every grave stone (all stones together, not grouped).
-    pub stones: Vec<(i32, i32)>,
 }
 
 /// Adds the signature landmarks to `map` (a certified styled map). Never fails: a landmark that cannot be placed or that
@@ -81,10 +71,8 @@ pub fn apply(map: &mut GameMapData) -> Report {
         }
         Some(_) => {}
     }
-    let builders: [(&'static str, Zone, Builder); 4] = [
+    let builders: [(&'static str, Zone, Builder); 2] = [
         ("volcano", Zone::Fire, volcano),
-        ("church", Zone::Sentenced, church),
-        ("bog tree", Zone::Plague, bog_tree),
         ("frozen cave", Zone::Frost, frozen_cave),
     ];
     for (name, zone, build) in builders {
@@ -100,20 +88,9 @@ pub fn apply(map: &mut GameMapData) -> Report {
                 break;
             }
             let mut candidate = map.clone();
-            let count = pieces.len();
-            let at = insert(&mut candidate, zone, pieces);
+            insert(&mut candidate, zone, pieces);
             match failures(&candidate) {
                 Some(f) if f.is_empty() => {
-                    if name == "church" {
-                        let site = church_site(&candidate, at, count);
-                        if let Some(c) = &site {
-                            if !door_open(&candidate, c) {
-                                why = "church door sealed".into();
-                                continue;
-                            }
-                        }
-                        report.churches.extend(site);
-                    }
                     *map = candidate;
                     report.placed.push(name);
                     why.clear();
@@ -130,37 +107,6 @@ pub fn apply(map: &mut GameMapData) -> Report {
         }
     }
     report
-}
-
-/// True when at least one door tile of `church` is floor and joined (4-connected floor) to the first spawn's region.
-/// Door tiles are never edited by the pass; a door with only some tiles open is kept (a narrower door).
-fn door_open(m: &GameMapData, church: &Church) -> bool {
-    let (w, h) = (m.w as i32, m.h as i32);
-    let Some(sp) = m.spawns.first() else {
-        return false;
-    };
-    let start = ((sp.x / TILE).floor() as i32, (sp.y / TILE).floor() as i32);
-    let at = |x: i32, y: i32| (x >= 0 && y >= 0 && x < w && y < h).then(|| (y * w + x) as usize);
-    let mut seen = vec![false; (w * h) as usize];
-    let mut stack = Vec::new();
-    if let Some(i) = at(start.0, start.1).filter(|&i| m.tiles[i] == T_FLOOR) {
-        seen[i] = true;
-        stack.push(start);
-    }
-    while let Some((x, y)) = stack.pop() {
-        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            if let Some(i) = at(x + dx, y + dy) {
-                if !seen[i] && m.tiles[i] == T_FLOOR {
-                    seen[i] = true;
-                    stack.push((x + dx, y + dy));
-                }
-            }
-        }
-    }
-    church
-        .door
-        .iter()
-        .any(|&(x, y)| at(x, y).is_some_and(|i| seen[i] && m.tiles[i] == T_FLOOR))
 }
 
 /// Failures under the strictest certification (every zone strict), as `rule/subject` keys; None if refused outright.
@@ -501,140 +447,6 @@ fn volcano(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
     ])
 }
 
-/// Sentenced: a walled church around the far elite camp with a three-tile door towards the centre, and grave stones
-/// beyond the door.
-fn church(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
-    // Attempts alternate between the far and the near elite camp, growing the church each time round.
-    let (ex, ey, er) = *elites(m, Zone::Sentenced).get(k % 2)?;
-    let (mx, my) = (f64::from(m.w) / 2., f64::from(m.h) / 2.);
-    let (tx, ty) = (ex.floor() as i32, ey.floor() as i32);
-    let (dx, dy) = (mx - ex, my - ey);
-    // The door's side: the dominant axis towards the centre.
-    let side = if dx.abs() >= dy.abs() {
-        (dx.signum() as i32, 0)
-    } else {
-        (0, dy.signum() as i32)
-    };
-    let min_r = (er + CAMP_CLEAR).ceil() as i32 + 1;
-    for r in [min_r + (k / 2) as i32] {
-        let mut ring = Vec::new();
-        let mut door = Vec::new();
-        let mut blocked = 0;
-        let mut total = 0;
-        for y in (ty - r)..=(ty + r) {
-            for x in (tx - r)..=(tx + r) {
-                if (x - tx).abs().max((y - ty).abs()) != r {
-                    continue;
-                }
-                total += 1;
-                let on_door_side = (side.0 != 0 && x - tx == side.0 * r && (y - ty).abs() <= 1)
-                    || (side.1 != 0 && y - ty == side.1 * r && (x - tx).abs() <= 1);
-                if on_door_side {
-                    door.push((x, y));
-                    continue;
-                }
-                if g.free(x, y) {
-                    ring.push((x, y));
-                } else {
-                    blocked += 1;
-                }
-            }
-        }
-        // Mostly whole walls: a church with more than two fifths of its wall missing is a ruin, not a church.
-        if ring.len() < 16 || blocked * 5 > total * 2 {
-            continue;
-        }
-        let mut stones: Vec<(i32, i32)> = Vec::new();
-        for row in 0..2 {
-            for col in -2..=2 {
-                let (along, across) = (r + 3 + row * 4, col * 4);
-                let (sx, sy) = if side.0 != 0 {
-                    (tx + side.0 * along, ty + across)
-                } else {
-                    (tx + across, ty + side.1 * along)
-                };
-                let (sw, sh) = if side.0 != 0 {
-                    (STONE.0, STONE.1)
-                } else {
-                    (STONE.1, STONE.0)
-                };
-                let cells: Vec<(i32, i32)> = (0..sh)
-                    .flat_map(|yy| (0..sw).map(move |xx| (sx + xx, sy + yy)))
-                    .collect();
-                let clear =
-                    (sy - 1..sy + sh + 1).all(|yy| (sx - 1..sx + sw + 1).all(|xx| g.free(xx, yy)));
-                if clear {
-                    stones.extend(cells);
-                }
-            }
-        }
-        // A gap in the ring can leave a stub shorter than the certifier's smallest wall piece: drop it.
-        let ring = whole_pieces(ring);
-        if ring.len() < 16 {
-            continue;
-        }
-        let idx = |&(x, y): &(i32, i32)| g.at(x, y).unwrap();
-        let door_dir = direction(f64::from(side.0), f64::from(side.1));
-        let mut pieces = vec![Piece {
-            kind: FeatureKind::Barrow,
-            jobs: vec![FeatureJob::Fork],
-            p: vec![1, 0, door_dir, 1],
-            anchor: (tx, ty),
-            cells: ring.iter().map(|c| (idx(c), T_WALL, 0)).collect(),
-        }];
-        if stones.len() >= (STONE.0 * STONE.1 * 2) as usize {
-            pieces.push(Piece {
-                kind: FeatureKind::Headland,
-                jobs: vec![FeatureJob::Lee],
-                p: vec![door_dir],
-                anchor: (tx + side.0 * (r + 3), ty + side.1 * (r + 3)),
-                cells: stones.iter().map(|c| (idx(c), T_WALL, 0)).collect(),
-            });
-        }
-        return Some(pieces);
-    }
-    None
-}
-
-/// Plague: a giant tree at the roomiest spot, ringed by two bands of bog.
-fn bog_tree(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
-    let (vx, vy) = g.roomiest(4, k)?;
-    let (cx, cy) = (f64::from(vx) + 0.5, f64::from(vy) + 0.5);
-    let trunk: Vec<(i32, i32)> = disk(cx, cy, 2.2).collect();
-    if !trunk.iter().all(|&(x, y)| g.free(x, y)) {
-        return None;
-    }
-    let _ = m;
-    let mut bog = Vec::new();
-    for (x, y) in disk(cx, cy, 7.5) {
-        let d = (f64::from(x) + 0.5 - cx).hypot(f64::from(y) + 0.5 - cy);
-        let band = (3.5..=4.6).contains(&d) || (6.0..=7.5).contains(&d);
-        if band && g.free(x, y) {
-            bog.push((x, y));
-        }
-    }
-    if bog.len() < 12 {
-        return None;
-    }
-    let idx = |&(x, y): &(i32, i32)| g.at(x, y).unwrap();
-    Some(vec![
-        Piece {
-            kind: FeatureKind::Spire,
-            jobs: vec![FeatureJob::Landmark],
-            p: vec![],
-            anchor: (vx, vy),
-            cells: trunk.iter().map(|c| (idx(c), T_WALL, 0)).collect(),
-        },
-        Piece {
-            kind: FeatureKind::Mere,
-            jobs: vec![FeatureJob::Crossing],
-            p: vec![0, 0],
-            anchor: (vx, vy),
-            cells: bog.iter().map(|c| (idx(c), T_FLOOR, BOG)).collect(),
-        },
-    ])
-}
-
 /// Frost: a two-tile-thick rock arch around the far elite camp on the side away from the centre, with ice inside, kept
 /// two tiles off the rock and off the camp.
 fn frozen_cave(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
@@ -703,7 +515,7 @@ fn frozen_cave(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
 
 /// Writes the pieces' cells and inserts their features after the zone's existing non-infill features (the certifier's
 /// order: zone code ascending; landmarks, then the rest, then at most one infill), renumbering the feature grid.
-fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) -> usize {
+fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) {
     let code = zone.code();
     let at = m
         .features
@@ -753,48 +565,6 @@ fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) -> usize {
     }
     debug_assert!(m.features.len() <= 250);
     refresh_camps(m);
-    at
-}
-
-/// Reads a just-inserted church back from the map: `at` is where `insert` put its first feature (the wall ring) and
-/// `count` how many features it inserted (the second, if any, is the grave stones).
-fn church_site(m: &GameMapData, at: usize, count: usize) -> Option<Church> {
-    let ring = m.features.get(at)?;
-    let id = (at + 1) as u8;
-    let w = m.w as i32;
-    let cell = |i: usize| ((i as i32) % w, (i as i32) / w);
-    let (tx, ty) = (ring.ax, ring.ay);
-    let r = (0..m.feature_grid.len())
-        .filter(|&i| m.feature_grid[i] == id)
-        .map(|i| {
-            let (x, y) = cell(i);
-            (x - tx).abs().max((y - ty).abs())
-        })
-        .max()?;
-    let side = match ring.p.get(2).copied()? {
-        0 => (1, 0),
-        4 => (0, 1),
-        8 => (-1, 0),
-        _ => (0, -1),
-    };
-    let door = (-1..=1)
-        .map(|d| {
-            if side.0 != 0 {
-                (tx + side.0 * r, ty + d)
-            } else {
-                (tx + d, ty + side.1 * r)
-            }
-        })
-        .collect();
-    let stones = if count > 1 {
-        (0..m.feature_grid.len())
-            .filter(|&i| m.feature_grid[i] == id + 1)
-            .map(cell)
-            .collect()
-    } else {
-        Vec::new()
-    };
-    Some(Church { door, stones })
 }
 
 /// Camp area and radius are derived from the territory's floor (the certifier's `camp-area-radius`): the floor tiles of
