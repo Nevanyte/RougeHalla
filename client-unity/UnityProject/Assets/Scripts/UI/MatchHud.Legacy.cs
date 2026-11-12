@@ -43,7 +43,8 @@ namespace Roguehalla.Client
         RectTransform _championHud;
         TMP_Text _championName;
         UnityEngine.UI.Image _championIcon;
-        readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3];
+        readonly TMP_Text[] _championValue = new TMP_Text[3], _championScaling = new TMP_Text[3], _championLabel = new TMP_Text[3];
+        readonly RectTransform[] _championRow = new RectTransform[3];
         bool _championWanted, _barWanted;
         // Death line, glows, chrome, top-centre and toast pills.
         TMP_Text _deathLine;
@@ -258,7 +259,8 @@ namespace Roguehalla.Client
                 row.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 var rule = HudUi.Box(row, "Rule", HudAnchor.TopLeft, 0, 0, 2, 30);
                 rule.gameObject.AddComponent<UnityEngine.UI.Image>().color = theme.AccentDim; rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
-                HudUi.Label(HudUi.At(row, "Name", 6, 2, 100, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
+                _championRow[i] = row;
+                _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 100, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
                 _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 108, 1, 124, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
             }
@@ -269,7 +271,7 @@ namespace Roguehalla.Client
             _damageHint = HudIconHint.Attach(focus, _root, DamageUnavailable);
         }
 
-        const string DamageUnavailable = "Combat overview\nAttack speed, windup and move speed as the server applies them.\nRaw values are before target mitigation; this is not measured DPS.";
+        const string DamageUnavailable = "Combat overview\nRaw values are before target mitigation; this is not measured DPS.";
 
         // ------------------------------------------------------------------ weapon bar (section 4)
 
@@ -439,7 +441,7 @@ namespace Roguehalla.Client
             bool active = alive && _session != null && _session.Phase == MatchPhase.Active && !practice;
             if (active != _plateActive) SetPlateMode(active);
             _barWanted = alive;
-            _championWanted = alive && _session != null && (_session.Phase == MatchPhase.Active || practice);
+            _championWanted = _session != null && Roguehalla.Net.Ui.ChampionPanelText.Visible(alive, _session.Phase == MatchPhase.Active, practice);
             if (_deathLine != null)
             {
                 bool dead = me != null && me.Status == ActorStatus.Dead && _session != null && !_results.gameObject.activeSelf && !practice;
