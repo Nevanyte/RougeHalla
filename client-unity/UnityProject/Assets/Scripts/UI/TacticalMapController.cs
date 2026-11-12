@@ -207,11 +207,10 @@ namespace Roguehalla.Client
             {
                 var rect = HudUi.At(rb, "Icon", 14f, 2f, 14f, 14f);
                 var img = rect.gameObject.AddComponent<Image>();
-                uint rgb = CampBadges.IconRgb(2);
-                img.sprite = CampRespawnLabels.Art(CampBadges.IconKey(2)); img.color = new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
+                img.sprite = CampRespawnLabels.Art(CampBadges.IconKey(2)); img.color = theme.TextPrimary;   // the map tints it per stat
                 img.preserveAspect = true; img.raycastTarget = false;
             }
-            var re = row("Elite camp"); GlyphImage(re, "Icon", MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), 12f, 14f, 3f);
+            var re = row("Elite camp"); GlyphImage(re, "Icon", MapGlyph.Diamond, theme.Accent, 12f, 14f, 3f);   // the gold of the map's elite diamond
             var r3 = row("Quest giver"); GlyphImage(r3, "Icon", MapGlyph.Diamond, theme.TextPrimary, 12f, 14f, 3f);
             var r4 = row("Trader"); GlyphImage(r4, "Icon", MapGlyph.Ring, theme.TextPrimary, 12f, 14f, 3f);
             var r5 = row("Quest objective"); GlyphImage(r5, "Icon", MapGlyph.Cross, theme.TextPrimary, 12f, 14f, 3f);
