@@ -4,6 +4,35 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Cloud session branch noted (2026-11-11 19:40 CST): `origin/claude/youthful-cerf-qur7nu` @ `6181bc9e`
+
+Another Claude session, running in the cloud while the laptop was closed, pushed 13 commits on a branch based on the
+last pushed integration head `e43e8cf6`. **Nothing from it is merged here.** What follows is read from that branch
+(its hand-off `docs/coordination/CLOUD_HANDOFF_2026-11-11.md`, packet briefs and commit messages); it is that session's
+account, not verified by this coordinator, and none of its packets had an independent review.
+
+| Packet | What it does | Maps to the approved plan | State on the branch |
+|---|---|---|---|
+| P-REGEN-COMBAT-1 (`3a028a40`) | No passive regeneration in combat, as a `SimConfig::regen_in_combat` switch (default `Legacy`; the live `source-arena` and `training` profiles opt in). `packages/` untouched. Proposes DEV-017. | Replaces the planned legacy port of `f8cd956e`; chosen because editing `packages/shared/src/constants.ts` would invalidate the pinned hash in 218 captures | implemented, `stub:`/`oracle:` commits, unreviewed |
+| P-MAP-3 (`891af976`) | Certified-map pool for source-arena rooms behind `--map-pool` (`crates/rh-server/src/map_pool.rs`), off by default | The plan's map pool (P-POOL-TOOL-1 / P-POOL-SERVER-1) | implemented, unreviewed |
+| P-LEECH-GROUPING-1 (`0a0da282`) | Sums the leech score in legacy order (`kill_augments.rs`) | Closes the integration-1 reviewer finding | implemented, unreviewed |
+| P-SIGNATURE-1 (`6181bc9e`) | With `--map-pool --signature-landmarks`, a server-side pass adds per zone: Fire volcano with lava streams, pools and ember; Sentenced walled church around an elite camp with graves; Plague bog tree ringed by bog; Frost rock arch around an elite camp with an ice floor; a landmark is kept only if the strict certifier finds no new failure (seeds 1-8: bog tree 8, volcano 7, church 6, cave 4) | The plan's signature terrain, done in `rh-server` (`signature.rs`), not as mapgen stylers; rule half only, no Unity art | implemented after the hand-off's recorded gate; **no gate result recorded for it** |
+| hosting (`81ded797`) | `hosting/technical-demo/bootstrap.py`: `--bot-learning single-writer` on the Source unit | The plan's "legacy learner on" | edits a protected path, citing an owner approval given in that session |
+| evidence (`b3cfa848`) | Room cost on generated maps: mean tick 0.8 to 1.8 ms against 0.15 ms on the beta map; 28 to 65 rooms per core against 326 (one run per map, 4-vCPU container) | Needed before the pool goes live | measurement only |
+
+- **Its gate** (full, with Postgres, on code as of `0a0da282`): pass, except one `rh-server` recovery test that cannot run
+  as root in its container; the remaining steps were run by hand and passed. Unity EditMode, the Web build and the
+  capture checks were not run there.
+- **Owner statements recorded only on that branch**, to be confirmed here before they are relied on: the Plague marsh
+  slows through bog only and water is presentation (this coordinator's record, decision 6, says mud and water are graded
+  slows); the legacy bot learner may run on the beta's Source unit.
+- **Not done there, with its reasons:** training practice camps counting as camp clears (needs checkpoint state);
+  zone-themed camp buffs (after P-WIRE17-HUD-1); Frost Wall (collides with P-WIRE17-HUD-1's wire files).
+- **Before merging it:** land this checkout's unpushed commits and `agent/opus/P-WIRE17-HUD-1` first (the order that
+  branch proposes); expect conflicts or compile errors where both sides touch `SimConfig { .. }` literals and
+  `crates/rh-server/src/{director,main,runtime}.rs`; run each packet's reviewer (`reviewer-opus` for the sim, pool and
+  landmark changes); then the full gate and Unity EditMode on the merge.
+
 ## Pause point 3 (2026-11-11): retrospective items 1 to 4 applied; where to resume
 
 Head `feature/unity-rework` carries this note. Pushed to origin: `e43e8cf6` (integration 2). Everything after it is local.
