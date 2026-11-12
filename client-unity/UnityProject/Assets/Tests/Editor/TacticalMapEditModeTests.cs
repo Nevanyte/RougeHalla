@@ -214,6 +214,27 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void TheMinimapDrawsAChestsSecondsAndDropsThatCampsRespawnClock()
+        {
+            var map = new MapBlob(4, 4, new byte[16]).WithPublic(new[] { new MapCamp(96, 96, 8, 1), new MapCamp(32, 32, 8, 3) }, null, null, null, null);
+            var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(map);
+            var cleared = new WireCamp { MobType = 0, Elite = 0, Alive = 0, State = 2, ClearedAt = 1000, RespawnAt = 181000 };
+            _transport.Deliver(new ServerMsg.State { Tick = 3, Items = new StateItem[] { new CampsState { Rows = new[] { cleared, cleared } } } });
+            marks.Present(_session, null);
+            Assert.AreEqual(2, marks.CampClocksShown, "both cleared camps show their clocks");
+            _transport.Deliver(new ServerMsg.State { Tick = 4, Items = new StateItem[] { new RewardChestsState { Rows = new[] {
+                new WireRewardChest { Handle = new RewardChestHandle(5), X = 768, Y = 768, ExpiresAt = 12300, CanChoose = true, Options = new WireRewardOption[0] } } } } });
+            marks.Present(_session, null);
+            Assert.AreEqual(1, marks.ChestBadgeCount);
+            Assert.AreEqual("13", marks.ChestBadgeText(0));
+            Assert.AreEqual(1, marks.CampClocksShown, "the camp whose chest stands keeps one badge");
+            _transport.Deliver(new ServerMsg.State { Tick = 5, Items = new StateItem[] { new RewardChestsState { Rows = new WireRewardChest[0] } } });
+            marks.Present(_session, null);
+            Assert.AreEqual(0, marks.ChestBadgeCount);
+            Assert.AreEqual(2, marks.CampClocksShown, "the clock returns when the chest is gone");
+        }
+
+        [Test]
         public void DisconnectClearsMapContactsAndCannotRetainAHiddenGhost()
         {
             var marks = _root.AddComponent<TacticalMapMarks>(); marks.SetMap(_session.Map);
