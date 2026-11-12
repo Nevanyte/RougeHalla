@@ -203,7 +203,7 @@ namespace Roguehalla.Client
         /// <summary>Auto-size between a floor and a ceiling and drop the label out of the run-time text-scale re-apply, so the fit survives it.</summary>
         static void KeepFit(TMP_Text label, float floor, float ceiling)
         {
-            var scale = label.GetComponent<MythicTextScale>(); if (scale != null) Object.DestroyImmediate(scale);
+            var scale = label.GetComponent<MythicTextScale>(); if (scale != null) UnityEngine.Object.DestroyImmediate(scale);
             label.enableAutoSizing = true; label.fontSizeMin = floor; label.fontSizeMax = ceiling; label.fontSize = ceiling;
         }
 
