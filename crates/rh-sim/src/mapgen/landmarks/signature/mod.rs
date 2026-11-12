@@ -256,9 +256,8 @@ impl<'f> SignatureContext<'f> {
 
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
     /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order, each keeping
-    /// out of the aprons
-    /// marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is never
-    /// built without it; the pipeline tries the next attempt).
+    /// out of the aprons marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
+    /// never built without it; the pipeline tries the next attempt).
     pub fn apply(
         &self,
         frame: &AttemptFrame,
