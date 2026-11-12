@@ -1,4 +1,5 @@
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
 
@@ -59,7 +60,8 @@ namespace Roguehalla.Client
         {
             if (!wish.HasValue) return "—";
             var w = wish.Value;
-            return w.Charges + "/" + w.MaxCharges + " · " + FormatSeconds(w.ReadyAt - serverTimeMs);
+            var cool = SlotText.Cooldown(w.ReadyAt - serverTimeMs);
+            return w.Charges + "/" + w.MaxCharges + (cool.Length > 0 ? " · " + cool : "");
         }
 
         void UpdateInventoryHints(InventoryView? inventory)
@@ -74,8 +76,9 @@ namespace Roguehalla.Client
             }
             if (_healText != null)
             {
-                Set(_healText, inventory.HasValue ? inventory.Value.PotionLarge + " large · " + inventory.Value.PotionSmall + " small" : "— large · — small");
-                Set(_healStatus, inventory.HasValue && inventory.Value.PotionsHealing > 0 ? "Healing" + (inventory.Value.PotionsHealing > 1 ? " x" + inventory.Value.PotionsHealing : "") : "");
+                // Healing end time is not on the wire: count-only status (SlotText.HealingStatus with a null end).
+                Set(_healText, SlotText.PotionCounts(inventory.HasValue ? inventory.Value.PotionLarge : 0, inventory.HasValue ? inventory.Value.PotionSmall : 0, inventory.HasValue));
+                Set(_healStatus, SlotText.HealingStatus(inventory.HasValue ? inventory.Value.PotionsHealing : 0, null, 0d));
             }
             if (_potionHint != null) _potionHint.Text = inventory.HasValue ? "E · Drink potion\n" + inventory.Value.PotionSmall + " small / " + inventory.Value.PotionLarge + " camp / " + inventory.Value.PotionsHealing + " healing" : "E · Drink potion\nAwaiting inventory";
         }

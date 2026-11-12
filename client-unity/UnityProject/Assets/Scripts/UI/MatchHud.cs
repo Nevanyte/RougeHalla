@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
@@ -143,7 +144,7 @@ namespace Roguehalla.Client
         public void Bind(Session session)
         {
             CloseResumeChooser();
-            Unbind(); _session = session;
+            Unbind(); _session = session; ResetMatchEnded();
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
             session.CollectionsChanged += Collections;
             session.TimelineReset += ResetPlayerFlowTimeline;
@@ -232,6 +233,7 @@ namespace Roguehalla.Client
                 if (_playerFlowEpoch != _session.TimelineEpoch) ResetPlayerFlowTimeline();
                 _orderedNotices?.Append(events);
             }
+            if (_session != null) NoteMatchEnded(events);
             _dirty = true;
         }
         void LateUpdate()
@@ -354,10 +356,12 @@ namespace Roguehalla.Client
             if (!wish.HasValue) return "R · WISH\nNone delivered";
             var w = wish.Value;
             var text = new StringBuilder("R · ").Append(w.Ability).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
-            text.Append(" charges\nWish timer: ").Append(FormatSeconds(w.ReadyAt - serverTimeMs));
+            // P-UNITY-HUD-STATUS-1: legacy abilitySlot.ts texts ("Ready in 9", "2:05"); a line whose time has run out reads nothing.
+            var readyIn = SlotText.ReadyIn(w.ReadyAt - serverTimeMs);
+            text.Append(" charges\n").Append(readyIn.Length > 0 ? readyIn : "Ready");
             text.Append("\nRecharge ").Append(FormatSeconds(w.RechargeMs));
-            if (w.NextChargeAt.HasValue) text.Append("\nNext charge in ").Append(FormatSeconds(w.NextChargeAt.Value - serverTimeMs));
-            if (w.FullAt.HasValue) text.Append("\nFull charges in ").Append(FormatSeconds(w.FullAt.Value - serverTimeMs));
+            if (w.NextChargeAt.HasValue) { var next = SlotText.Cooldown(w.NextChargeAt.Value - serverTimeMs); if (next.Length > 0) text.Append("\nNext charge in ").Append(next); }
+            if (w.FullAt.HasValue) { var full = SlotText.Cooldown(w.FullAt.Value - serverTimeMs); if (full.Length > 0) text.Append("\nFull charges in ").Append(full); }
             if (w.Cast.HasValue)
             {
                 var cast = w.Cast.Value;

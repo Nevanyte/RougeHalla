@@ -92,9 +92,9 @@ namespace Roguehalla.Client.Tests
             };
             Invoke("RefreshOwnerPresentation", me, 5000d);
 
-            Assert.That(summary.text, Is.EqualTo("1/2 · 0.5s"));
+            Assert.That(summary.text, Is.EqualTo("1/2 · 1"));
             StringAssert.Contains("Blaze", hint.Text);
-            StringAssert.Contains("Next charge in 2.0s", hint.Text);
+            StringAssert.Contains("Next charge in 2", hint.Text);
             StringAssert.Contains("Casting Blaze · 1.5s", hint.Text);
             Assert.That(details.gameObject.activeSelf, Is.False);
 
