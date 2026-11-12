@@ -14,6 +14,8 @@
 mod adapters;
 mod compose14;
 #[cfg(test)]
+mod compose14_review_tests;
+#[cfg(test)]
 mod compose14_tests;
 mod config;
 #[cfg(test)]

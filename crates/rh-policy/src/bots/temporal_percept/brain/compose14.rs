@@ -11,10 +11,11 @@
 //! - always `undefined`: `self.mobKills`, `self.immuneUntil`, `hud.alive`, `hud.minPlayers`, `hud.winner`, `minimap.t`,
 //!   `fighters[].drawStartedAt`, `mobs[].drawStartedAt`, `projectiles[].{id,vx,vy,x0,y0,t0,range}`;
 //! - `undefined` when its own condition holds: `self.attackTarget` (a held lock whose target is redacted), `self.name`
-//!   and `fighters[].{name,bot}` (no roster row), `mobs[].type` (no type code), `mobs[].name` (a quest giver: its name is
-//!   not on the wire), `containers[].weapon` (contents unknown, the source's own `undefined`), `events[].weapon` of a hit
-//!   whose attacker is not drawn and `events[].name` of a player with no roster row;
-//! - absent: minimap dots (`[]`), windup/launch/projectile-end events, Wish cast events, the owner notices
+//!   and `fighters[].{name,bot}` (no roster row), `mobs[].type` (no type code), `mobs[].name` (a quest giver or a
+//!   zombie: the name or the zombie's owner is not on the wire), `containers[].weapon` (contents unknown, the source's own
+//!   `undefined`), `events[].weapon` of every hit (the dealing weapon is not on the wire), `events[].name` of a player
+//!   with no roster row or of a zombie;
+//! - absent: minimap dots (`[]`), projectile launch/end events, Wish cast events, the owner notices
 //!   (potion/cannon/pickup/chest refusals, wind emblem, camp cleared), `extras.wish` (the source ability `def` record has
 //!   no producer yet) and `extras.skills` (source-only).
 //!
@@ -422,7 +423,9 @@ impl Composer14 {
             let def = mob_def(a);
             let faction = faction_of(a.faction);
             let (kind, name) = match a.kind {
-                1 | 2 => (
+                // plagueZombies.ts:61: kind "zombie", named "<owner>'s Zombie"; the owner is not on the wire.
+                2 => ("zombie", None),
+                1 => (
                     if def.is_some_and(|d| d.elite) {
                         "elite"
                     } else {
@@ -547,8 +550,16 @@ impl Composer14 {
                         None => (false, BVal::Null),
                     },
                     WirePropKind::Body { .. } => {
+                        // perception.ts:729: reach is range plus a movement-mask line (a hand does not go
+                        // through a fence); a body out of reach reads unknown, never empty.
                         let reach = hypot(at.x - me_at.x, at.y - me_at.y)
-                            <= rh_sim::constants::INTERACT_RANGE;
+                            <= rh_sim::constants::INTERACT_RANGE
+                            && rh_sim::geometry::has_line_of_sight(
+                                sight,
+                                me_at,
+                                at,
+                                rh_sim::map::MASK_MOVE,
+                            );
                         if me_alive && reach && focus.is_none() {
                             (false, BVal::Null)
                         } else {
@@ -632,9 +643,16 @@ impl Composer14 {
                 .map(|c| {
                     let at = Vec2::new(f64::from(c.x) / 8., f64::from(c.y) / 8.);
                     let key = format!("r{}_{}_{}", c.x, c.y, c.expires_at.to_bits());
+                    // perception.ts:790: the panel opens within range AND in sight of the chest.
                     let open = me_alive
                         && c.can_choose
-                        && hypot(at.x - me_at.x, at.y - me_at.y) <= CHEST_PANEL_RANGE;
+                        && hypot(at.x - me_at.x, at.y - me_at.y) <= CHEST_PANEL_RANGE
+                        && rh_sim::geometry::has_line_of_sight(
+                            sight,
+                            me_at,
+                            at,
+                            rh_sim::map::MASK_SIGHT,
+                        );
                     let options = if open {
                         BVal::arr(
                             c.options
@@ -1018,9 +1036,25 @@ fn sample_events(
                     None,
                     vec![("kind", BVal::text("teleport"))],
                 ),
-                // Windup, launch/end and Wish cast cues are not composed in this profile: absent.
-                WireFx::Windup { .. }
-                | WireFx::WishStarted { .. }
+                // perception.ts:457-460: a windup shows where its attacker is drawn (protocol 16 carries it).
+                WireFx::Windup { by, weapon, a, ms } => {
+                    if let Some(s) = find(by) {
+                        push(
+                            Some(s.at),
+                            Lane::Plain,
+                            None,
+                            vec![
+                                ("kind", BVal::text("windup")),
+                                ("by", BVal::text(s.key.clone())),
+                                ("weapon", weapon_name(weapon)),
+                                ("a", BVal::num(f64::from(a))),
+                                ("ms", BVal::num(f64::from(ms))),
+                            ],
+                        );
+                    }
+                }
+                // Projectile launch/end and Wish cast cues are not composed in this profile: absent.
+                WireFx::WishStarted { .. }
                 | WireFx::WishLanded { .. }
                 | WireFx::WishEnded { .. } => {}
             }
@@ -1042,6 +1076,21 @@ fn sample_events(
                                 ("name", name_of(*id)),
                                 ("by", if row.is_some() { by_key } else { BVal::Null }),
                                 ("mob", BVal::flag(false)),
+                            ],
+                        );
+                    } else if frame.actors.iter().any(|a| a.id == *id && a.kind == 2) {
+                        // perception.ts:496-503 (deliver frames.ts:435): a zombie is not a regional mob, so its death
+                        // takes the announced lane; where and by whom only while it is drawn.
+                        push(
+                            row.map(|s| s.at),
+                            Lane::PlayerDeath,
+                            Some(key.clone()),
+                            vec![
+                                ("kind", BVal::text("death")),
+                                ("id", BVal::text(key)),
+                                ("name", BVal::Undefined),
+                                ("by", if row.is_some() { by_key } else { BVal::Null }),
+                                ("mob", BVal::flag(true)),
                             ],
                         );
                     } else if let Some(s) = row.filter(|s| s.npc) {
@@ -1140,10 +1189,9 @@ fn hit<'s>(
     } else {
         js_round(amount)
     };
-    // The attacker's weapon is not in the hit record: it is the weapon the drawn attacker holds, else unknown.
-    let weapon = find(by)
-        .and_then(|a| a.weapon)
-        .map_or(BVal::Undefined, |w| BVal::text(w.as_str()));
+    // The weapon that dealt a hit is not on the wire (an arrow outlives a swap, card hooks and damage over time have
+    // none): unknown, never inferred from what the attacker holds now.
+    let weapon = BVal::Undefined;
     push(
         Some(s.at),
         Lane::Masked,
