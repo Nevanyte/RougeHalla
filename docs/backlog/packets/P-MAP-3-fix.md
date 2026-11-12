@@ -49,7 +49,39 @@ none (P-MAP-3 is merged)
 - `scripts/gate.sh --oracle packet/P-MAP-3-fix` passes.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-MAP-3-fix`
+- `crates/rh-server/src/map_pool/tests.rs`: the four new cases at the end of the file (marked "P-MAP-3-fix"); the
+  existing cases are untouched.
+
+## Confirmed findings (legacy-free; code cited at the P-MAP-3 merge)
+1. `take` (`map_pool.rs:264`) pops the queue and, when empty, calls `fallback` (`:277`), which runs `maker.make` in a loop
+   of up to `MAP_FALLBACK_SEEDS` on the calling thread. `director.rs:893-894` calls it with the director lock held.
+2. `supervise` (`:356`) calls `fail(.., Failure::Hang)` after `opts.hang`; `fail` sets `*worker = None` (the thread is
+   abandoned) and the loop spawns a new one via `spawn_worker` (`:324`) once the backoff (max 60 s) passes. Nothing counts
+   or bounds abandoned threads. Observed: 12 hangs in about 1.5 s with a 50 ms hang limit.
+3. Nothing logs the served map: `fallback` logs only fallback successes; queued maps and the configured map are silent,
+   and `director.rs:894` discards the identity.
+No finding is wrong.
+
+## Stub signatures (commit `stub:`; the implementer replaces the bodies)
+- `pub const MAP_ABANDONED_CAP: usize = 2;` (value final; not yet enforced)
+- `MapPoolStats` gains `abandoned: u64` (abandoned threads whose generator call has not returned) and `degraded: bool`.
+- `pub struct Served { seed: Option<u32>, hash: Option<u32>, configured: bool }` (Default, Eq) with `Display`: pooled is
+  `pooled seed <decimal> hash <8 lowercase hex>`, configured contains `configured`. Hash is
+  `arena.map.layers().map(|l| l.legacy_map_hash_u32())`. The queue must carry the seed with each map.
+- `MapPool::take_served(&self) -> (MapAssets, Served)`; `take` stays. The director calls `take_served` and logs
+  `Served` once per match start (`director.rs:893`).
+
+## What the oracle pins, and what it leaves open
+- Test 1 uses `target` 2 (a worker exists, blocked in the generator): `take` returns the configured map in under 30 ms,
+  the generator never runs on the caller thread, `fallbacks == 1`. A pool with `target` 0 has no worker and the existing
+  cases (`an_empty_queue_certifies_on_the_caller`, `every_fallback_seed_failing_...`, `a_panicking_fallback_seed_...`)
+  require it to keep certifying on the caller. Keep that test-only mode; production (`MapPool::start`) never uses it.
+  If the implementer wants to remove it, those cases change and the owner must approve.
+- Test 2: after the cap the pool reports `degraded`, `abandoned == MAP_ABANDONED_CAP`, never more than cap + 1
+  generator calls alive, no further worker starts, `take` returns the configured map at once.
+- Tests 3 and 4: `take_served` identity for a pooled map (seed from the seed source, hash from the layers) and for the
+  configured one. The pooled case runs the real generator once (seed 1), a second or so in a debug build.
+- Not pinned: the exact log wording beyond the `Display` contract, and recovery of `abandoned` after a release.
 
 ## 9. Validation commands
 - `cargo test -p rh-server map_pool`, `scripts/gate.sh --quick`
