@@ -891,7 +891,11 @@ impl Director {
         };
         // A training room never draws from the pool (runtime.rs refuses the combination; this keeps library configs safe).
         let map = match &self.cfg.map_pool {
-            Some(pool) if !sim.training => pool.take(),
+            Some(pool) if !sim.training => {
+                let (map, served) = pool.take_served();
+                eprintln!("[maps] match start: {served}");
+                map
+            }
             _ => self.map.clone(),
         };
         let rc = RoomConfig {
