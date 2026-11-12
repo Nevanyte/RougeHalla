@@ -68,7 +68,75 @@ the icon key and when each shows.
 - One EditMode case: the tactical map draws a reward badge and a ward beacon for a row that has them.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-HUD-CAMPS-2` (test file; the stub commit fixes the signatures)
+- `client-unity/RoguehallaNet.Tests/CampBadgesTests.cs` (11 cases)
+- The stub commit fixes the model, a new sibling of `CampMarks.cs` (existing `CampMarks`, `CampMarkRow`, `CampWorldLabel` and
+  `CampMarksTests.cs` are untouched): `client-unity/RoguehallaNet/Net/Ui/CampBadges.cs`, its synced copy and `.meta` under
+  `UnityProject/Assets/RoguehallaNet/Net/Ui/`. Implementers fill in the bodies only; types, fields and signatures stay:
+  - `enum CampSurface { Minimap, TabMap, World }`
+  - `struct CampBadgeRow { Index, WorldX, WorldY, IconKey, IconRgb, AmountText, EliteIconKey, EliteIconRgb, EliteText }`
+  - `struct CampWardRow { Index, WorldX, WorldY, Look (WardVerdict), BeaconRgb, TextRgb, WorldText, Countdown }`
+  - `CampBadges.IconKey(byte stat)`, `IconRgb(byte stat)`, `AmountText(WireCampReward)`, `const KillStacks = 3`
+  - `CampBadges.Rewards(MapCamp[] camps, IReadOnlyList<CampView> rows, bool active, CampSurface surface, Func<double,double,bool> canSee, List<CampBadgeRow> into)`
+  - `CampBadges.Wards(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, List<CampWardRow> into)`
+  - Both fill methods clear `into` and fill it (caller-owned; a row-count mismatch gives an empty list, no exception).
+- Not an oracle file (implementer work): the Unity presenters and the EditMode case in section 8.
+
+## Stat order (the table the wire uses)
+The camp reward's stat byte is the `HudStat` index, declared in `crates/rh-sim/src/observe.rs:325-337` (also
+`crates/rh-protocol/src/state.rs:930-932`, C# `Protocol/State.cs` `Hud`): 0 Offense, 1 Soul Offense, 2 Damage, 3 Attack speed,
+4 Life steal, 5 Health, 6 Defense, 7 Soul Defense, 8 Move speed. It is the legacy GAINED strip order; the model maps it to
+legacy icon keys in that order, not through a new list.
+
+## Legacy rules as verified (pinned by the oracle)
+- Icon keys: wire 0..8 -> `ad, ap, damage, attackSpeed, leech, health, armor, mr, speed` (`CampBuffs.ts:90-104`
+  `mobRewardIcon`; same table `planning.ts:161-174`); any other code -> `damage` (the `default` arm, `CampBuffs.ts:101`).
+- Icon colours (`combatIcons.ts:23-26` `STAT_ICON_COLORS`): ad `ffb074`, ap `c4a0ff`, damage `ffd36a` (the world badge forces
+  the same for damage, `CampBuffs.ts:79`), health `62d889`, attackSpeed `ffdc78`, armor `d5e0e8`, mr `75cfff`, speed `80d6ff`,
+  leech `f05260`.
+- Amount text: Tab-map badge shows `/^\+([^ ]+)/` of the reward's per-KILL text (`planning.ts:183`), i.e. `+3%`, `+1.5%`,
+  `+0.75%`, `+3`, `+3.75`, `+4.5` (`mobStats.ts:90-96`: stat rows `perKill*100` with at most two decimals and `%`, flat rows
+  the plain number; `perKill = value x MOB_KILL_STACKS`, `mobStats.ts:11`). The wire carries the per-STACK value (`observe.rs:413-418`
+  `amount: r.value`, farm table `farm.rs:37-59`), so the model multiplies by `KillStacks = 3`. See Legacy doubts.
+- World badge (`CampBuffs.ts`): drawn only while `active` (`:30-31`); one per camp group with a living mob the viewer can see
+  (`:24-29`), never for state 2 or no living mob or no reward row (`:38`); idle and engaged both show; ICON ONLY, the text is just
+  the marker's accessible name (`:83-84`), so `AmountText` is null in the world.
+- Elite, world: a living elite adds a second icon `ap` (colour `c4a0ff`) with no amount, beside the stat icon
+  (`CampBuffs.ts:44-46`; the elite has no stat reward). An elite camp whose row has no stat reward shows the `ap` icon alone.
+- Tab map (`planning.ts:688-691`, `:594`): badge built from the camp's type for EVERY camp whatever its state, visible or not,
+  hidden only by the map mode (not by `active`, not by sight); an elite camp adds `eliteChestBadge` (`:189-193`): chest glyph
+  with the text `Aug`; the chest is not tinted by `STAT_ICON_COLORS`.
+- Ward beacon (`CampWards.ts:38-57`): only while `active` (`:15`, `:38`); for every camp with an owner and `now < wardExpiresAt`
+  (strict: expiry == now gives none, `:40`), whatever the camp's state or the viewer's sight. Text `YOUR WARD ${s}s` /
+  `WARD ${s}s` with `s = ceil((wardExpiresAt - now) / 1000)` (`:55-56`; 91001 vs 1000 -> 91, 91000 -> 90, 1 ms left -> 1).
+  Yours: ring/pole/arrow `66e4ef`, text `66e4ef`; another player's: `9aa9bd`, text `b9c6d7` (`:45`, `:51`). The wire verdict
+  replaces the owner compare (`wardOwner === localId`).
+- Respawn label and beacon share the file but are independent: a cleared camp can show "RESPAWN Ns" and a ward at once.
+
+## Owner direction, not legacy (pinned by the oracle, flag for review)
+- Minimap reward badge: legacy minimap draws no reward glyph (`minimapMarkers.ts` has none). Owner direction asks for it: the model
+  gives an icon-only badge (no amount) for camps that are not cleared, only while `active`, because legacy lets a camp have ONE
+  badge and the respawn clock replaces it for a cleared camp (`minimapMarkers.ts:69-70`). Ward on the maps: legacy draws no ward
+  mark on the minimap or Tab map (only ward-fed vision, `RaidVision.ts:46-55`); the model supplies `Countdown` (bare whole seconds,
+  same rounding as the beacon) and the look so the maps can draw a ward mark beside the camp marker; it is not a second
+  respawn clock, and it does not replace the one-badge rule (the ward mark sits beside the badge or clock).
+
+## Not on the wire
+- Ward sight radius: legacy ward-fed vision reveals `VISION_RADIUS = 900` (`packages/shared/src/constants.ts:69`,
+  `RaidVision.ts:53`) around the camp, for the viewer's OWN ward only. Neither the radius nor any vision rule is on the wire or in
+  Unity content, so the ward sight circle is not drawn and not in the oracle (draw the beacon without it, per section 6).
+- Per-mob visibility: legacy hides the world badge unless a living mob of the camp is visible and places it over the group centre
+  (`CampBuffs.ts:25, 58-61`). The row has only the camp position and an alive count, so the model tests `canSee` at the camp's map
+  position. This is an approximation; position is the presenter's choice.
+- Elite augment drop detail: the chest itself (loot, timer) is not in the camp row; only the row's `Elite` flag is. The model shows
+  legacy's static second badge from that flag.
+- Whether the elite or the normal mobs are the ones still alive: `Alive` is a count, so an elite camp shows its second badge while
+  any mob lives.
+
+## Legacy doubts
+- Per-kill vs per-stack: the wire amount is the per-STACK value (`observe.rs:413`, 1% for Damage) while legacy's badge text is per
+  kill (+3%, `MOB_KILL_STACKS = 3`, `mobStats.ts:11`, `farm.rs:37`). The brief said "drawn as sent"; the oracle pins legacy
+  (x3 inside `CampBadges.AmountText`). If the owner wants the raw per-stack amount, change `KillStacks` and the nine cases of
+  `AmountTextIsThePerKillAmount`, or have the server send the per-kill value (wire change, out of scope).
 
 ## 9. Validation commands
 - `dotnet test client-unity/RoguehallaNet.Tests`, `bash client-unity/sync-net.sh --check`
