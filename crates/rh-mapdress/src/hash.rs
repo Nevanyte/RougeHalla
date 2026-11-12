@@ -25,7 +25,8 @@ pub fn stage_seed(map_hash: u64, name: &str) -> u64 {
 
 /// A hash of `seed` and up to three integers.
 pub fn at(seed: u64, a: u64, b: u64, c: u64) -> u64 {
-    mix(seed ^ mix(a.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ mix(b ^ mix(c.wrapping_add(0x1234_5678)))))
+    mix(seed
+        ^ mix(a.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ mix(b ^ mix(c.wrapping_add(0x1234_5678)))))
 }
 
 /// A probability threshold out of 10000 from a density (props per 100 candidates).

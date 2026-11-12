@@ -95,7 +95,10 @@ pub fn tall_corridor(map: &GameMapData, rules: &Rules) -> Vec<bool> {
         let y1 = (((camp.y.max(gy) + pad) / TILE).floor() as i64).min(mh - 1);
         for ty in y0..=y1 {
             for tx in x0..=x1 {
-                let (px, py) = (tx as f64 * TILE + 16.0 - camp.x, ty as f64 * TILE + 16.0 - camp.y);
+                let (px, py) = (
+                    tx as f64 * TILE + 16.0 - camp.x,
+                    ty as f64 * TILE + 16.0 - camp.y,
+                );
                 let t = if len2 > 0.0 {
                     ((px * ex + py * ey) / len2).clamp(0.0, 1.0)
                 } else {

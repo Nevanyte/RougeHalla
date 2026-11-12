@@ -336,13 +336,13 @@ fn rings(
         sq(cx - ax) + sq(cy - ay)
     };
     let in_band = |d2: f64, inner: f64, outer: f64| d2 >= sq(inner * TILE) && d2 < sq(outer * TILE);
-    for i in 0..g.w * g.h {
+    for (i, slot) in ground.iter_mut().enumerate() {
         if g.zone_of(i) != zone.code() || g.map.tiles[i] != 0 {
             continue;
         }
         let d2 = d2_of(i);
         if let Some(r) = z.rings.iter().find(|r| in_band(d2, r.inner, r.outer)) {
-            ground[i] = r.ground_variant;
+            *slot = r.ground_variant;
         }
     }
     for ring in &z.rings {
@@ -373,7 +373,9 @@ fn clusters(
     out: &mut Vec<DressProp>,
 ) {
     for s in sites {
-        let Some(z) = rules.zone(s.zone) else { continue };
+        let Some(z) = rules.zone(s.zone) else {
+            continue;
+        };
         let rule = &z.clusters[s.rule];
         let seed = hash::stage_seed(map_hash, &rule.name);
         let reach2 = sq(rule.radius * TILE);
