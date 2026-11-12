@@ -53,6 +53,8 @@ namespace Roguehalla.Client
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; SpriteOutline.ConfigureFromUrl(Application.absoluteURL); /* CONTRAST */ }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
         public int ActiveCount { get { return _active.Count; } }
+        /// <summary>True when the actor's overhead name label is drawn this frame (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
+        public bool NameShown(uint id) { return _active.TryGetValue(id, out var art) && art.Ind.NameActive; }
         public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
         public bool TrySoundContext(uint id, out WeaponId weapon, out FactionId faction, out ActorKind kind, out MobTypeId? type)
         {

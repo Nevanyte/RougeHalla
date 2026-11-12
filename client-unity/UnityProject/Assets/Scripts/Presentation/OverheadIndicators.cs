@@ -119,6 +119,9 @@ namespace Roguehalla.Client
             return t;
         }
 
+        /// <summary>True while the name label is drawn (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
+        public bool NameActive { get { return _name.gameObject.activeSelf; } }
+
         public void HideAll()
         {
             _hover.enabled = _hunt.enabled = _wishIcon.enabled = _crown.enabled = _badgeBack.enabled = _badgeEdge.enabled = _badgeIcon.enabled = _lockOuter.enabled = _lockInner.enabled = _root.enabled = _zone.enabled = false;
