@@ -53,11 +53,14 @@ pub struct Definition {
     pub border_gap: i32,
     /// Graveyard layouts, most preferred first: each stone of one half as (across from the door axis, along from the
     /// door line), first..=last inclusive; the other half is its mirror. Every stone starts `grave_gap` past the door line.
-    pub graveyards: [&'static [((i32, i32), (i32, i32))]; 3],
+    pub graveyards: [&'static [Stone]; 3],
     pub grave_gap: i32,
     /// Church: how far (tiles) the door axis may move off the camp's axis, nearest first.
     pub door_shift: i32,
 }
+
+/// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
+pub type Stone = ((i32, i32), (i32, i32));
 
 pub const DEFAULT_DEFINITION: Definition = Definition {
     stream: 5,
