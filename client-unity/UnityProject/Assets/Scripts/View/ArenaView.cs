@@ -136,6 +136,7 @@ namespace Roguehalla.Client
             _hitZones.Position = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
             _weaponRange = new WeaponRangePresenter(Child("Weapon range guide"));
             _worldMarks = new WorldMarks(Child("World markers"), _catalog); _campLabels = new CampRespawnLabels(Child("Camp respawn labels"));
+            _campLabels.NameRectSource = into => { if (_actors != null) _actors.FighterNameRects(into); };
             _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);

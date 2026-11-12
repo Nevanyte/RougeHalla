@@ -117,19 +117,94 @@ namespace Roguehalla.Client
                 CampBadges.Rewards(session.Map.Camps, session.Collections.Camps, active, CampSurface.World, _canSee, _badges);
                 CampBadges.Wards(session.Map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _wards);
             }
+            FetchNames();
             DrawBadges(); DrawBeacons();
 
             _rows.Clear();
             if (session != null && session.Map != null && session.State == SessionState.InMatch)
                 CampMarks.WorldLabels(session.Map.Camps, session.Collections.Camps, session.ServerTimeMs, !session.Training, _rows);
+            DrawRows();
+        }
+
+        /// <summary>
+        /// P-UNITY-NAME-GROUP-2 seam: world-space rects of the fighter names drawn this frame (Unity world units, y up). The respawn and ward
+        /// labels must not intersect any of them. ArenaView sets it to the presenter's name rects (one line there, owned by another packet).
+        /// </summary>
+        public System.Action<List<Rect>> NameRectSource;
+
+        /// <summary>
+        /// P-UNITY-NAME-GROUP-2 seam for tests: draws the respawn labels and the ward beacons with their labels from ready rows, without a
+        /// Session. <see cref="Update(Session, Func{float, float, bool})"/> does the same from the session's rows.
+        /// </summary>
+        public void Draw(List<CampWorldLabel> rows, List<CampWardRow> wards)
+        {
+            _rows.Clear(); _rows.AddRange(rows);
+            _wards.Clear(); _wards.AddRange(wards);
+            FetchNames();
+            DrawBeacons(); DrawRows();
+        }
+
+        readonly List<Rect> _names = new List<Rect>();
+        readonly Dictionary<TextMeshPro, SpriteRenderer> _plates = new Dictionary<TextMeshPro, SpriteRenderer>();
+        void FetchNames() { _names.Clear(); if (NameRectSource != null) NameRectSource(_names); }
+
+        static Sprite _plate;
+        static Sprite PlateSprite()
+        {
+            if (_plate != null) return _plate;
+            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false) { name = "Camp label plate", filterMode = FilterMode.Point };
+            var px = new Color32[16]; for (int i = 0; i < 16; i++) px[i] = new Color32(255, 255, 255, 255);
+            tex.SetPixels32(px); tex.Apply(false, true);
+            return _plate = Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(.5f, .5f), 4f);
+        }
+
+        // The label's dark backing plate, a child of the label so it moves with it; sized to the text when the text changes.
+        static void FitPlate(TextMeshPro label, Dictionary<TextMeshPro, SpriteRenderer> plates)
+        {
+            label.ForceMeshUpdate();
+            plates.TryGetValue(label, out var plate);
+            if (plate == null)
+            {
+                var go = new GameObject("Plate"); go.transform.SetParent(label.transform, false);
+                plate = go.AddComponent<SpriteRenderer>(); plate.sprite = PlateSprite();
+                plate.color = new Color(0x10 / 255f, 0x18 / 255f, 0x20 / 255f, .88f);
+                plate.sortingOrder = Order - 1;
+                plates[label] = plate;
+            }
+            var b = label.textBounds;
+            plate.transform.localPosition = b.center;
+            plate.transform.localScale = new Vector3(b.size.x + .3f, b.size.y + .16f, 1f);
+        }
+
+        // Shifts the label up, one line at a time, until its plate clears every fighter name.
+        void Clear(TextMeshPro label)
+        {
+            _plates.TryGetValue(label, out var plate);
+            if (plate == null || _names.Count == 0) return;
+            for (int pass = 0; pass < 8; pass++)
+            {
+                var pb = plate.bounds; var rect = new Rect(pb.min.x, pb.min.y, pb.size.x, pb.size.y);
+                float lift = 0f;
+                for (int i = 0; i < _names.Count; i++)
+                    if (rect.Overlaps(_names[i])) lift = Mathf.Max(lift, _names[i].yMax - rect.yMin + .04f);
+                if (lift <= 0f) return;
+                label.transform.position += new Vector3(0f, lift, 0f);
+            }
+        }
+
+        void DrawRows()
+        {
             Used = _rows.Count;
             for (int i = 0; i < Used; i++)
             {
                 var label = Get(i);
                 var row = _rows[i];
-                if (label.text != row.Text) label.text = row.Text;
+                bool changed = label.text != row.Text;
+                if (changed) label.text = row.Text;
                 label.transform.position = ArenaView.WorldPoint((float)row.WorldX, (float)row.WorldY + OffsetUnits);
                 if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
+                if (changed || !_plates.ContainsKey(label)) FitPlate(label, _plates);
+                Clear(label);
             }
             for (int i = Used; i < _labels.Count; i++) if (_labels[i].gameObject.activeSelf) _labels[i].gameObject.SetActive(false);
         }
@@ -186,10 +261,13 @@ namespace Roguehalla.Client
                 var w = _wards[i];
                 Place(Icon(_beacons, i, "Camp ward beacon", Order - 1), Beacon(), Rgb(w.BeaconRgb), ArenaView.WorldPoint((float)w.WorldX, (float)w.WorldY), 1f);
                 var label = TextAt(_beaconTexts, i);
-                if (label.text != w.WorldText) label.text = w.WorldText;
+                bool changed = label.text != w.WorldText;
+                if (changed) label.text = w.WorldText;
                 label.color = Rgb(w.TextRgb);
                 label.transform.position = ArenaView.WorldPoint((float)w.WorldX, (float)w.WorldY + BeaconTextOffsetUnits);
                 if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
+                if (changed || !_plates.ContainsKey(label)) FitPlate(label, _plates);
+                Clear(label);
             }
             for (int i = BeaconsUsed; i < _beacons.Count; i++) if (_beacons[i].gameObject.activeSelf) _beacons[i].gameObject.SetActive(false);
             for (int i = BeaconsUsed; i < _beaconTexts.Count; i++) if (_beaconTexts[i].gameObject.activeSelf) _beaconTexts[i].gameObject.SetActive(false);
