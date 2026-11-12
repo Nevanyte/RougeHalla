@@ -4,6 +4,31 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Branch triage 2026-11-12 (owner request: "merge all backend unmerged branches and cut those that are not applicable")
+
+An Opus agent triaged the 147 local branches not merged into `feature/unity-rework`: 4 merged onto
+`integration/backend-salvage` @ `5c0f6754` (two partially), 90 cut (66 already in by content, 7 superseded, 17 not
+applicable), 53 kept. Cut and merged branches are bundled in `.agent-runs/archive/` (`cut-branches-2026-11-12.bundle`,
+`merged-branches-2026-11-12.bundle`; restore with `git fetch <bundle> <branch>:<branch>`); the per-branch ledger is
+`.agent-runs/archive/branch-ledger-2026-11-12.tsv`. 52 clean worktrees were removed. Nothing was pushed.
+
+- **Finding: `integration/launch-fixes` never reached this branch.** Its seven `fix/*` branches were gated on
+  2026-11-10 for the public beta and are not mentioned in this record; the beta ran without its server hardening.
+  A half-finished merge of it sits uncommitted in `RogueHalla-worktrees/rework-launchfix` (left alone).
+- **On the salvage branch, in `reviewer-opus` review before any merge:** `fix/server-security` (edge hardening:
+  origin allow-list, per-address limits, timeouts, dev auth refused on a public bind, a narrow `/info`),
+  `fix/server-resilience` (database retry, panic-surviving director lock, crash record, required control token, drain
+  limit), `fix/bot-loot` (fill bots pick up weapons and choose chest rewards), part of `fix/ci-launch` (CI on this
+  branch; a client-versus-server identity check), part of `fix/mechanics-cons` (a dead player's body drops its camp
+  potions). Operators: `--control` then needs a token file; a server behind `--client-ip-header` counts as public.
+- **Kept for a packet:** `fix/mechanics-sim` (bruiser camp clears, armWishes, Best Offense block hits, returned
+  on-hit, axe shred, riposte, backlash: legacy combat rules not on this branch; it moves the content hash and
+  duplicates the Holy camp lifesteal): P-MECHANICS-SALVAGE-1.
+- **Kept for the owner:** the rest of `fix/mechanics-cons` switches live terrain from `Mode::All` to `Mode::Map`
+  (faction home exemptions, as legacy), which may contradict the owner's 2026-11-11 statement that live faction
+  terrain exemptions stay as they are; seven branches that only change `packages/`; sixteen Unity branches (the Codex
+  hub, account and cosmetics UI lane and others); four worktrees with uncommitted work.
+
 ## Owner direction 2026-11-12 (chat): less clutter on the maps and on mobs
 
 After the first real screenshots: no zone type icon on camps (the map's zone tint already shows it); the only mark
