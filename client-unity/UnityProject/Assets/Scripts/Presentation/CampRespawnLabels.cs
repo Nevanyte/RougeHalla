@@ -145,6 +145,7 @@ namespace Roguehalla.Client
         }
 
         readonly List<Rect> _names = new List<Rect>();
+        readonly Dictionary<TextMeshPro, SpriteRenderer> _plates = new Dictionary<TextMeshPro, SpriteRenderer>();
         void FetchNames() { _names.Clear(); if (NameRectSource != null) NameRectSource(_names); }
 
         static Sprite _plate;
@@ -158,16 +159,17 @@ namespace Roguehalla.Client
         }
 
         // The label's dark backing plate, a child of the label so it moves with it; sized to the text when the text changes.
-        static void FitPlate(TextMeshPro label)
+        static void FitPlate(TextMeshPro label, Dictionary<TextMeshPro, SpriteRenderer> plates)
         {
             label.ForceMeshUpdate();
-            var plate = label.GetComponentInChildren<SpriteRenderer>(true);
+            plates.TryGetValue(label, out var plate);
             if (plate == null)
             {
                 var go = new GameObject("Plate"); go.transform.SetParent(label.transform, false);
                 plate = go.AddComponent<SpriteRenderer>(); plate.sprite = PlateSprite();
                 plate.color = new Color(0x10 / 255f, 0x18 / 255f, 0x20 / 255f, .88f);
                 plate.sortingOrder = Order - 1;
+                plates[label] = plate;
             }
             var b = label.textBounds;
             plate.transform.localPosition = b.center;
@@ -177,7 +179,7 @@ namespace Roguehalla.Client
         // Shifts the label up, one line at a time, until its plate clears every fighter name.
         void Clear(TextMeshPro label)
         {
-            var plate = label.GetComponentInChildren<SpriteRenderer>(true);
+            _plates.TryGetValue(label, out var plate);
             if (plate == null || _names.Count == 0) return;
             for (int pass = 0; pass < 8; pass++)
             {
@@ -201,7 +203,7 @@ namespace Roguehalla.Client
                 if (changed) label.text = row.Text;
                 label.transform.position = ArenaView.WorldPoint((float)row.WorldX, (float)row.WorldY + OffsetUnits);
                 if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
-                if (changed || label.GetComponentInChildren<SpriteRenderer>(true) == null) FitPlate(label);
+                if (changed || !_plates.ContainsKey(label)) FitPlate(label, _plates);
                 Clear(label);
             }
             for (int i = Used; i < _labels.Count; i++) if (_labels[i].gameObject.activeSelf) _labels[i].gameObject.SetActive(false);
@@ -264,7 +266,7 @@ namespace Roguehalla.Client
                 label.color = Rgb(w.TextRgb);
                 label.transform.position = ArenaView.WorldPoint((float)w.WorldX, (float)w.WorldY + BeaconTextOffsetUnits);
                 if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
-                if (changed || label.GetComponentInChildren<SpriteRenderer>(true) == null) FitPlate(label);
+                if (changed || !_plates.ContainsKey(label)) FitPlate(label, _plates);
                 Clear(label);
             }
             for (int i = BeaconsUsed; i < _beacons.Count; i++) if (_beacons[i].gameObject.activeSelf) _beacons[i].gameObject.SetActive(false);

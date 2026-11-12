@@ -15,6 +15,9 @@ namespace Roguehalla.Net.Ui
     /// </summary>
     public static class NameStack
     {
+        /// <summary>The most lines a label is raised above its own position; beyond that it stays at the cap and may overlap.</summary>
+        public const int MaxLines = 3;
+
         /// <summary>
         /// Writes <c>lift[i]</c> (>= 0, in Y units) for each of the first <paramref name="count"/> items: the amount label i is raised so that
         /// no two labels intersect. Labels are placed in ascending (Dist, Id) order; the first never moves. Two labels intersect when their
@@ -51,6 +54,8 @@ namespace Roguehalla.Net.Ui
                     }
                 }
                 lift[k] = y - items[k].Y;
+                float cap = MaxLines * (items[k].H + gap);   // a fourth and later overlapping name stays at the cap
+                if (lift[k] > cap) lift[k] = cap;
                 if (lift[k] < 0f) lift[k] = 0f;
             }
         }

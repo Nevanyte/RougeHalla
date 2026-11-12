@@ -238,15 +238,15 @@ namespace Roguehalla.Client
                 if (pair.Value.Stamp != _stamp || art.Dead || art.Ind == null) continue;
                 var f = art.IndFacts;
                 if (f.Dead || f.Mob || !art.Ind.NameActive) continue;
-                var at = art.Ind.NameWorldPosition; float w = art.Ind.NameWorldWidth + 1.4f, h = art.Ind.NameWorldHeight;   // a margin so names a hair apart still read as separate
-                _stackItems[k] = new NameStackItem { Id = pair.Key, X = at.x, Y = at.y - h * .5f, W = w, H = h, Dist = haveLocal ? Mathf.Sqrt((at.x - local.x) * (at.x - local.x) + (at.y - local.y) * (at.y - local.y)) : 0f };
+                var nb = art.Ind.NameDrawnBounds; var at = nb.center; float w = nb.size.x + .06f, h = nb.size.y;   // the drawn mesh, a couple of pixels of gap
+                _stackItems[k] = new NameStackItem { Id = pair.Key, X = at.x, Y = nb.min.y, W = w, H = h, Dist = haveLocal ? Mathf.Sqrt((at.x - local.x) * (at.x - local.x) + (at.y - local.y) * (at.y - local.y)) : 0f };
                 _stackIds[k] = pair.Key; k++;
             }
             NameStack.Separate(_stackItems, k, .02f, _lift);
             for (int i = 0; i < k; i++)
             {
                 var item = _stackItems[i];
-                if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.MoveName(item.X, item.Y + item.H * .5f + _lift[i]);
+                if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.LiftName(_lift[i]);
                 _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
             }
         }
