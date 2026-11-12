@@ -369,12 +369,18 @@ pub fn document() -> serde_json::Value {
     serde_json::json!({"format":"rh-scene-candidate14-experiment/1","profile":"SYNTHETIC-small47-not-product-capacity","base":"986f44dfd9a61eb769700adc476fc8b9e9aa8011","protocol":14,"limits":{"bodyBytes":limits.body_bytes,"retainedBodyBytes":limits.retained_body_bytes,"partBytes":limits.part_bytes,"parts":limits.parts,"frames":limits.frames,"frameBytes":limits.frame_bytes},"cases":cases})
 }
 
-/// The experiment's committed scenes predate State key 12 (the ADR0026 roster): its State frame keeps keys 1..=11 so the
-/// committed scene-candidate fixtures and their C# reader stay byte-stable.
+/// The experiment's committed scenes predate State key 12 (the ADR0026 roster) and key 13 (P-WIRE17-HUD-1 build
+/// summary): its State frame keeps keys 1..=11 so the committed scene-candidate fixtures and their C# reader stay
+/// byte-stable.
 fn experiment_state(frame: &[u8]) -> Vec<u8> {
     let ServerMsg::State { tick, mut items } = ServerMsg::decode(frame).unwrap() else {
         panic!("state")
     };
-    items.retain(|item| !matches!(item, rh_protocol::StateItem::Roster(_)));
+    items.retain(|item| {
+        !matches!(
+            item,
+            rh_protocol::StateItem::Roster(_) | rh_protocol::StateItem::BuildSummary(_)
+        )
+    });
     ServerMsg::State { tick, items }.try_encode().unwrap()
 }

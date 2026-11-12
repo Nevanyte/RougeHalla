@@ -518,13 +518,24 @@ fn frame14_requires_all_eleven_keys_including_explicit_trade_unavailable() {
             items: vec![StateItem::Roster(c.roster.clone())],
         })
         .unwrap();
+    // P-WIRE17-HUD-1: key 13, the owner's build summary, is required too.
+    assert!(
+        !state.complete(),
+        "keys 1..12 cannot imply receipt of key 13"
+    );
+    state
+        .apply(&ServerMsg::State {
+            tick: 2,
+            items: vec![StateItem::BuildSummary(c.summary.clone())],
+        })
+        .unwrap();
     assert!(state.complete());
     let f = Frame14::from_reconstructed(context(1, 1), snapshot(&original), state, vec![], vec![])
         .unwrap();
     assert!(matches!(f.trade(), Fact::Delivered(None)));
     assert!(
-        ServerMsg::decode(&[0x88, 0x01, 0x01, 13, 0]).is_err(),
-        "State 13 is still unknown"
+        ServerMsg::decode(&[0x88, 0x01, 0x01, 14, 0]).is_err(),
+        "State 14 is still unknown"
     );
 }
 

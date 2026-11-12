@@ -11,10 +11,16 @@ const commands=[{k:'useConsumable'},{k:'target',actorRef:0xffffffff},{k:'attackM
 ok(()=>assert.deepEqual(decodeClient(input(7,commands).buffer).cmds,commands));
 for(const actorRef of [0,-1,1.5,0x100000000,NaN])ok(()=>assert.throws(()=>input(1,[{k:'target',actorRef}])));
 ok(()=>assert.throws(()=>decodeClient(Uint8Array.from([2,0,0,0,0,1,0,10,0,0,0,0]).buffer)));
-const camp=(patch={})=>Object.assign({mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000},patch);
-function state(c,key=6){const w=new W();w.u8(0x88);v(w,1);v(w,1);v(w,key);v(w,1);w.u8(c.mobType);w.u8(c.elite);v(w,c.alive);w.u8(c.state);w.f64(c.clearedAt);w.f64(c.respawnAt);return buf(w);}
+const camp=(patch={})=>Object.assign({mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000,reward:null,ward:null},patch);
+// P-WIRE17-HUD-1: the camp row's reward and ward tail.
+function hudTail(w,c){if(c.reward){w.u8(1+c.reward.stat);w.u16(c.reward.amount);}else w.u8(0);if(c.ward){w.u8(c.ward.verdict);w.f64(c.ward.expiresAt);}else w.u8(0);}
+function state(c,key=6){const w=new W();w.u8(0x88);v(w,1);v(w,1);v(w,key);v(w,1);w.u8(c.mobType);w.u8(c.elite);v(w,c.alive);w.u8(c.state);w.f64(c.clearedAt);w.f64(c.respawnAt);hudTail(w,c);return buf(w);}
 ok(()=>assert.deepEqual(decode(state(camp())).items,[{key:6,value:[camp()]}]));
 for(const patch of [{mobType:30},{elite:31},{alive:513},{state:3},{clearedAt:-1},{respawnAt:999},{respawnAt:NaN},{clearedAt:Infinity}])ok(()=>assert.throws(()=>decode(state(camp(patch)))));
+const hud=camp({reward:{stat:6,amount:12500,value:12500*1e-4},ward:{verdict:2,yours:false,expiresAt:61000}});
+ok(()=>assert.deepEqual(decode(state(hud)).items,[{key:6,value:[hud]}]));
+for(const patch of [{reward:{stat:9,amount:1}},{reward:{stat:0,amount:0}},{ward:{verdict:3,expiresAt:0}},{ward:{verdict:1,expiresAt:-1}},{ward:{verdict:2,expiresAt:NaN}}])ok(()=>assert.throws(()=>decode(state(camp(patch)))));
+{const b=new Uint8Array(state(hud));for(let i=0;i<b.length;i++)ok(()=>assert.throws(()=>decode(b.slice(0,i).buffer)));}
 const bytes=new Uint8Array(state(camp()));for(let i=0;i<bytes.length;i++)ok(()=>assert.throws(()=>decode(bytes.slice(0,i).buffer)));
 ok(()=>assert.throws(()=>decode(state(camp(),8))));ok(()=>assert.throws(()=>decode(Uint8Array.from([0x88,0,8]).buffer)));
 const tracker=new Tracker();tracker.decode(state(camp()));tracker.decode(Uint8Array.from([0x88,1,1,1,0]).buffer);

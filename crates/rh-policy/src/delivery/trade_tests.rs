@@ -107,7 +107,7 @@ fn trade_baseline_is_bitwise_transactional_and_unavailable_is_not_empty() {
     let initial = publisher.prepare(&obs, true, true, false).unwrap();
     drop(initial);
     let retry = publisher.prepare(&obs, true, true, false).unwrap();
-    assert_eq!(retry.items.len(), 12);
+    assert_eq!(retry.items.len(), 13);
     retry.commit(&mut publisher);
     assert!(publisher
         .prepare(&obs, false, false, false)
@@ -203,7 +203,7 @@ fn unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state()
             .is_none());
     }
     let forced = publisher.prepare(&obs, false, false, true).unwrap();
-    assert_eq!(forced.items.len(), 12);
+    assert_eq!(forced.items.len(), 13);
     assert!(forced.commit(&mut publisher));
     assert!(!publisher.resync_due(obs.tick, true));
     publisher.reconnect();
@@ -213,6 +213,6 @@ fn unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state()
             .unwrap()
             .items
             .len(),
-        12
+        13
     );
 }

@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 24;
+pub const OBSERVATION_VERSION: u16 = 25;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -310,10 +310,157 @@ pub struct Observation {
     pub fields: Vec<crate::status_runtime::FieldView>,
     pub visible: Vec<ActorView>,
     pub camps: Vec<crate::mob_runtime::CampRoster>,
+    /// P-WIRE17-HUD-1: one row per `camps` row, same order and length: the camp's reward and its ward as this viewer
+    /// sees it. Observation-side only (never checkpoint state).
+    pub camp_hud: Vec<CampHudView>,
+    /// P-WIRE17-HUD-1: the viewer's own GAINED strip ([`crate::build_summary::build_summary`] of the viewer); None
+    /// when the viewer is not seated. Never another seat's (C-OBS).
+    pub summary: Option<SummaryView>,
     pub events: Vec<SeenEvent>,
     /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
     /// carries no position, faction, health or sight fact.
     pub roster: Vec<RosterRow>,
+}
+
+/// The nine GAINED stats in the legacy strip order (`buildModel.ts` `buildGains`); also the stat a camp reward grants.
+/// The wire code is the variant index (0..=8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HudStat {
+    Offense,
+    SoulOffense,
+    Damage,
+    AttackSpeed,
+    LifeSteal,
+    Health,
+    Defense,
+    SoulDefense,
+    MoveSpeed,
+}
+
+/// A camp ward as one viewer sees it (C-OBS: a verdict, never the owner's id).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WardVerdict {
+    #[default]
+    None,
+    Yours,
+    Other,
+}
+
+/// A camp's per-kill reward (public content): the stat and the farm table's per-stack value (a fraction for a
+/// percent stat, points for a flat one).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CampReward {
+    pub stat: HudStat,
+    pub amount: f64,
+}
+
+/// P-WIRE17-HUD-1: the HUD facts of one camp for one viewer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CampHudView {
+    pub reward: Option<CampReward>,
+    pub ward: WardVerdict,
+    /// The ward's expiry (server ms) when `ward` is not None; 0 otherwise.
+    pub ward_expires_at: f64,
+}
+
+/// One "Mob bonuses" row of the viewer's summary (catalog order).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SummaryMobRow {
+    pub mob: crate::mob_catalog::MobTypeId,
+    pub stacks: u64,
+    pub stat: HudStat,
+    pub total: f64,
+}
+
+/// P-WIRE17-HUD-1: the viewer's GAINED strip: `gains` indexed by [`HudStat`] (unrounded, units as
+/// [`crate::build_summary::BuildSummary`]), owned mob rows in catalog order.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SummaryView {
+    pub gains: [f64; 9],
+    pub mob_rows: Vec<SummaryMobRow>,
+}
+
+/// The HUD stat a farm reward stat is shown as (legacy `rewardIconFor`, `packages/client/src/ui/planning.ts:161-174`);
+/// `None` for a stat no farm row uses.
+fn hud_stat(stat: crate::modifiers::farm::RewardStat) -> Option<HudStat> {
+    use crate::modifiers::farm::RewardStat::{Flat, Stat};
+    use crate::stat_fold::{EffectStat as S, FlatStat as F};
+    Some(match stat {
+        Flat(F::Ad) => HudStat::Offense,
+        Flat(F::Ap) => HudStat::SoulOffense,
+        Stat(S::Damage) => HudStat::Damage,
+        Stat(S::AttackSpeed) => HudStat::AttackSpeed,
+        Stat(S::Lifesteal) => HudStat::LifeSteal,
+        Stat(S::MaxHp) => HudStat::Health,
+        Flat(F::Armor) => HudStat::Defense,
+        Flat(F::Shield) => HudStat::SoulDefense,
+        Stat(S::MoveSpeed) => HudStat::MoveSpeed,
+        _ => return None,
+    })
+}
+
+/// Refreshes `out` to one HUD row per camp roster row (same order): the camp's normal-mob reward (public content,
+/// legacy `planning.ts:176-187`) and its ward as a verdict for `viewer` (legacy `CampWards.ts:39-54`: live only while
+/// an owner exists and `now < wardExpiresAt`; never the owner's id, C-OBS). Reuses `out`'s capacity.
+fn camp_hud_into(sim: &Sim, viewer: PlayerId, now: f64, out: &mut Vec<CampHudView>) {
+    out.clear();
+    let life = sim
+        .w
+        .mob_runtime
+        .as_ref()
+        .map_or(&[][..], |rt| &rt.life[..]);
+    for (i, camp) in sim.camp_rosters().iter().enumerate() {
+        let reward = crate::modifiers::farm::Farm::reward_of(camp.mob_type).and_then(|r| {
+            hud_stat(r.stat).map(|stat| CampReward {
+                stat,
+                amount: r.value,
+            })
+        });
+        let (ward, ward_expires_at) = match life.get(i) {
+            Some(l) if now < l.ward_expires_at => match l.ward_owner {
+                Some(owner) if owner == viewer => (WardVerdict::Yours, l.ward_expires_at),
+                Some(_) => (WardVerdict::Other, l.ward_expires_at),
+                None => (WardVerdict::None, 0.),
+            },
+            _ => (WardVerdict::None, 0.),
+        };
+        out.push(CampHudView {
+            reward,
+            ward,
+            ward_expires_at,
+        });
+    }
+}
+
+/// Refreshes `out` to the viewer's own GAINED strip ([`crate::build_summary::build_summary`] of `viewer` only, C-OBS),
+/// reusing the previous mob-row buffer; `None` when the viewer is not seated.
+fn summary_into(sim: &Sim, viewer: PlayerId, out: &mut Option<SummaryView>) {
+    let Some(s) = crate::build_summary::build_summary(sim, viewer) else {
+        *out = None;
+        return;
+    };
+    let view = out.get_or_insert_with(SummaryView::default);
+    view.gains = [
+        s.offense,
+        s.soul_offense,
+        s.damage,
+        s.attack_speed,
+        s.life_steal,
+        s.health,
+        s.defense,
+        s.soul_defense,
+        s.move_speed,
+    ];
+    view.mob_rows.clear();
+    view.mob_rows
+        .extend(s.mob_rows.iter().flatten().filter_map(|r| {
+            hud_stat(r.stat).map(|stat| SummaryMobRow {
+                mob: r.mob,
+                stacks: r.stacks,
+                stat,
+                total: r.total,
+            })
+        }));
 }
 
 /// One seated player of the match roster (ADR0026).
@@ -564,6 +711,8 @@ impl Default for Observation {
             fields: Vec::new(),
             visible: Vec::new(),
             camps: Vec::new(),
+            camp_hud: Vec::new(),
+            summary: None,
             events: Vec::new(),
             roster: Vec::new(),
         }
@@ -875,6 +1024,8 @@ pub(crate) fn observe_with_tiles(
     };
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());
+    camp_hud_into(sim, viewer, now, &mut out.camp_hud);
+    summary_into(sim, viewer, &mut out.summary);
     roster_into(sim, &mut out.roster);
     out.visible.clear();
     if let Some(m) = me {
@@ -1413,3 +1564,7 @@ mod quest_gv_tests;
 #[cfg(test)]
 #[path = "observe/indicator_tests.rs"]
 mod indicator_tests;
+
+#[cfg(test)]
+#[path = "observe/hud_tests.rs"]
+mod hud_tests;

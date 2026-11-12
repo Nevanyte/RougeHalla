@@ -813,9 +813,43 @@ function readRoster(r) {
   }
   return rows;
 }
+// P-WIRE17-HUD-1: every HUD number is an integer count of HUD_QUANTUM (1e-4); stat codes 0 Offense, 1 Soul Offense,
+// 2 Damage, 3 Attack speed, 4 Life steal, 5 Health, 6 Defense, 7 Soul Defense, 8 Move speed. Each quantized integer is
+// kept, with `value` its scaled double (no recomputation).
+const HUD_QUANTUM = 1e-4, HUD_STAT_COUNT = 9, MAX_SUMMARY_MOB_ROWS = 20;
+// A camp row's HUD tail: reward u8 (0 none / 1 + stat code) [+ amount u16 > 0], then ward u8 (0 none / 1 yours /
+// 2 another player's) [+ expiresAt f64, finite, >= 0]. A ward is a verdict for this viewer, never an owner id.
+function readCampHud(r, c) {
+  const reward = r.code(HUD_STAT_COUNT, "camp reward");
+  c.reward = null;
+  if (reward) { const amount = r.u16(); if (!amount) throw new Error("bad camp"); c.reward = { stat: reward - 1, amount, value: amount * HUD_QUANTUM }; }
+  const ward = r.code(2, "camp ward");
+  c.ward = null;
+  if (ward) { const expiresAt = r.f64(); if (!Number.isFinite(expiresAt) || expiresAt < 0) throw new Error("bad camp"); c.ward = { verdict: ward, yours: ward === 1, expiresAt }; }
+  return c;
+}
+// State key 13 (P-WIRE17-HUD-1), the owner's own build summary: present u8 (0/1); when 1: 9 x i32 gains, count u8
+// (at most 20), rows of mob u8 (< 30, strictly ascending), stat u8 (< 9), stacks varint (>= 1), total i32.
+function readBuildSummary(r) {
+  return r.opt(() => {
+    const gains = [];
+    for (let i = 0; i < 9; i++) gains.push(r.u32() | 0);
+    const n = r.u8(); if (n > MAX_SUMMARY_MOB_ROWS) throw new Error("too many summary mob rows");
+    const mobRows = []; let last = -1;
+    for (let i = 0; i < n; i++) {
+      const mobType = r.u8(); if (mobType >= 30) throw new Error("bad summary mob code");
+      if (mobType <= last) throw new Error("bad summary mob order"); last = mobType;
+      const stat = r.u8(); if (stat >= HUD_STAT_COUNT) throw new Error("bad summary stat code");
+      const stacks = r.varint(); if (!stacks) throw new Error("bad summary stacks");
+      const total = r.u32() | 0;
+      mobRows.push({ mobType, stat, stacks, total, value: total * HUD_QUANTUM });
+    }
+    return { gains, values: gains.map(g => g * HUD_QUANTUM), mobRows };
+  });
+}
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 12) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 13) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const strictBool = (what) => { const v = r.u8(); if (v > 1) throw new Error("bad " + what); return v === 1; };
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
@@ -825,7 +859,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 12) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 13) throw new Error("bad state key"); previous = key;
     let value;
     if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
@@ -880,7 +914,7 @@ function readState(r) {
     } else if(key===7) {
       value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor(),height:r.u8()});
     } else if(key===6) {
-      value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(c);}
+      value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(readCampHud(r,c));}
     } else if (key === 8) {
       const zone = () => { const z = r.u8(); if (z < 1 || z > 5) throw new Error("bad zone"); return z; };
       const opt = () => r.opt(() => {
@@ -917,6 +951,7 @@ function readState(r) {
     } else if (key === 10) value = readQuests(r, strictBool, finite, handle);
     else if (key === 11) value = readTrade(r, strictBool);
     else if (key === 12) value = readRoster(r);
+    else if (key === 13) value = readBuildSummary(r);
     else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
