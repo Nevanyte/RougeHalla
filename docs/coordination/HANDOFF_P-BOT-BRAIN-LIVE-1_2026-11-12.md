@@ -9,7 +9,7 @@ against the stub on assertions), `e3e1334e` implementation.
 PACKET:          P-BOT-BRAIN-LIVE-1 — serves not in the plan: owner beta-follow-up decision 7 (MIGRATION 2026-11-10);
                  degraded fair profile approved by the owner 2026-11-11 (chat)
 BRANCH:          claude/festive-babbage-dkwvrm @ e3e1334e (stub 567c105d, oracle 807c898a)
-GATE:            see "Gate" below
+GATE:            PASS (full) [skipped: Postgres suites (no DATABASE_URL), dotnet (no .NET 8 SDK)]
 CHANGED:         new: crates/rh-policy/src/bots/brain_bot.rs (+ brain_bot/tests.rs),
                  crates/rh-policy/src/bots/temporal_percept/brain/{compose14.rs, compose14/tests.rs, room_paths.rs},
                  crates/rh-headless/tests/brain_bots.rs
@@ -84,6 +84,10 @@ RISKS:           Brain seats are passive in the measured runs (one death per 6,0
 
 ## Gate
 
-See the final message of the session for the result of `scripts/gate.sh --base origin/claude/youthful-cerf-qur7nu`
-(full, no Postgres; run with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` because the container's disk allowance
-filled with debuginfo on the first attempt).
+`scripts/gate.sh --base origin/claude/youthful-cerf-qur7nu` (full) on `7e3810e6`: **GATE PASS** — path checks, rustfmt,
+clippy (all features and default), workspace tests except rh-sim, the rh-sim suite (trusted-status-probes), the parity
+report, the JS decoder and first-playable checks, the headless smoke. Skipped: the Postgres suites (no `DATABASE_URL`) and
+dotnet (no .NET 8 SDK in the container). Run with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` (debuginfo only;
+the first attempt filled the container's disk allowance with debug builds). `--base` is the packet base because the
+default integration-branch comparison would count the base branch's own `hosting/` commit as this packet's change. The
+release-only acceptance test is not part of the gate; its run is under Measurements. CI is the final word.
