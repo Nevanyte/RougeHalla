@@ -6,9 +6,10 @@
 //! queue is short: an idle server generates nothing. Every map is admitted again on arrival ([`admit`]: it fits the wire,
 //! seats every player and encodes as a Welcome), and what the pool serves is that admitted [`MapAssets`].
 //!
-//! An empty queue (a burst, a worker that is down or still warming) falls back to one certification on the calling
-//! thread, logged. If `MAP_FALLBACK_SEEDS` fresh seeds all fail there, the room gets the server's configured map instead
-//! of an error (legacy throws; a room that cannot open is worse than a repeated map). A worker that panics, reports a
+//! An empty queue (a burst, a worker that is down or still warming) serves the configured map at once when a worker
+//! exists, logged; the calling thread never certifies. `target` 0 (no worker) is the inline mode, for tests only: it
+//! certifies on the calling thread, and if `MAP_FALLBACK_SEEDS` fresh seeds all fail there the room gets the configured
+//! map instead of an error (legacy throws; a room that cannot open is worse than a repeated map). A worker that panics, reports a
 //! generator error, keeps sending maps that fail admission, or answers nothing for `MAP_WORKER_HANG` while it owes a reply
 //! is replaced, with a restart delay that doubles per failure in a row (1 s up to 60 s). A hung thread cannot be killed:
 //! it is abandoned (its replies go nowhere) and keeps its core until the generator returns.
@@ -18,6 +19,7 @@
 use crate::room::MapAssets;
 use rh_sim::Arena;
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
@@ -36,6 +38,9 @@ pub const MAP_WORKER_RESTART: Duration = Duration::from_secs(1);
 pub const MAP_WORKER_RESTART_MAX: Duration = Duration::from_secs(60);
 /// A worker that sends nothing for this long while it owes a reply is hung and replaced.
 pub const MAP_WORKER_HANG: Duration = Duration::from_secs(5);
+/// Most abandoned (hung, still running) worker threads at once; at the cap the pool stops restarting and serves the
+/// configured map (P-MAP-3-fix).
+pub const MAP_ABANDONED_CAP: usize = 2;
 /// How often the supervisor looks at the worker while a reply is owed.
 const SUPERVISOR_TICK: Duration = Duration::from_millis(100);
 
@@ -118,9 +123,11 @@ pub fn fresh_seed() -> u32 {
 pub struct MapPoolStats {
     /// Maps served from the queue.
     pub served: u64,
-    /// Maps certified on the calling thread because the queue was empty.
+    /// Rooms served without a queued map because the queue was empty: the configured map at once (a pool with a
+    /// worker), or a map certified on the calling thread (`target` 0, tests only).
     pub fallbacks: u64,
-    /// Rooms given the configured map because every fallback seed failed.
+    /// Rooms given the configured map because every fallback seed failed. Operators read `fallbacks + configured` for
+    /// "rooms that got the configured map".
     pub configured: u64,
     /// Seeds that certified in no attempt or failed (worker and fallback).
     pub discards: u64,
@@ -130,6 +137,52 @@ pub struct MapPoolStats {
     pub hangs: u64,
     /// Worker maps that failed admission (never served).
     pub rejected: u64,
+    /// Abandoned worker threads whose generator call has not returned yet (a thread that returns later is uncounted).
+    pub abandoned: u64,
+    /// The pool has stopped restarting workers (the abandoned cap is reached); recovers when a hung thread returns.
+    pub degraded: bool,
+}
+
+/// Which map a room was given, for the one log line per match start.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Served {
+    /// The seed of a pooled map; `None` for the configured map.
+    pub seed: Option<u32>,
+    /// The certified map hash (`MapLayers::legacy_map_hash_u32`); `None` when the map carries no layers.
+    pub hash: Option<u32>,
+    /// The room got the configured map (empty pool, failed fallback, degraded pool).
+    pub configured: bool,
+}
+
+impl Served {
+    fn configured() -> Self {
+        Self {
+            seed: None,
+            hash: None,
+            configured: true,
+        }
+    }
+}
+
+fn map_hash(map: &MapAssets) -> Option<u32> {
+    map.arena.map.layers().map(|l| l.legacy_map_hash_u32())
+}
+
+impl std::fmt::Display for Served {
+    /// Pooled: `pooled seed <decimal> hash <8 lowercase hex digits>`; configured: `configured map`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.configured {
+            return write!(f, "configured map");
+        }
+        write!(f, "pooled")?;
+        if let Some(seed) = self.seed {
+            write!(f, " seed {seed}")?;
+        }
+        if let Some(hash) = self.hash {
+            write!(f, " hash {hash:08x}")?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -154,7 +207,7 @@ impl Default for MapPoolOptions {
 }
 
 enum Reply {
-    Map(Arena),
+    Map(u32, Arena),
     Discard,
     Error(String),
 }
@@ -166,10 +219,23 @@ struct Worker {
     in_flight: usize,
     /// The later of the oldest unanswered request and the last reply: the hang clock.
     owed_since: Option<Instant>,
+    /// True while the worker thread runs (cleared when it ends); an abandoned worker counts until then.
+    alive: Arc<AtomicBool>,
+}
+
+/// Clears the flag when the worker thread ends, by return or by panic.
+struct AliveGuard(Arc<AtomicBool>);
+
+impl Drop for AliveGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 struct State {
-    queue: VecDeque<MapAssets>,
+    queue: VecDeque<(MapAssets, u32)>,
+    /// Hung workers dropped by the supervisor; each counts until its thread ends.
+    abandoned: Vec<Arc<AtomicBool>>,
     stats: MapPoolStats,
     stopped: bool,
     /// Worker maps in a row that failed admission.
@@ -191,6 +257,12 @@ struct Shared {
 }
 
 impl Shared {
+    /// Abandoned workers still running; forgets the ones that have ended.
+    fn live_abandoned(st: &mut State) -> usize {
+        st.abandoned.retain(|a| a.load(Ordering::SeqCst));
+        st.abandoned.len()
+    }
+
     fn lock(&self) -> MutexGuard<'_, State> {
         // Poison-tolerant (rh-server AGENTS.md): the state is plain counters and a queue, valid after any panic.
         self.state.lock().unwrap_or_else(|p| p.into_inner())
@@ -228,6 +300,7 @@ impl MapPool {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 queue: VecDeque::with_capacity(opts.target),
+                abandoned: Vec::new(),
                 stats: MapPoolStats::default(),
                 stopped: false,
                 reject_streak: 0,
@@ -256,12 +329,23 @@ impl MapPool {
     }
 
     pub fn stats(&self) -> MapPoolStats {
-        self.shared.lock().stats
+        let mut st = self.shared.lock();
+        let live = Shared::live_abandoned(&mut st);
+        MapPoolStats {
+            abandoned: live as u64,
+            degraded: live >= MAP_ABANDONED_CAP,
+            ..st.stats
+        }
     }
 
-    /// A map for a new room, without waiting for the worker: the oldest in the queue, else one certified here and now
-    /// (logged), else the configured map. Never fails.
+    /// A map for a new room, without waiting for the worker: the oldest in the queue, else the configured map at once
+    /// (counted as a fallback). Never generates on the caller, except in the test-only `target` 0 mode. Never fails.
     pub fn take(&self) -> MapAssets {
+        self.take_served().0
+    }
+
+    /// `take` plus the identity of what was served (what the director logs).
+    pub fn take_served(&self) -> (MapAssets, Served) {
         let queued = {
             let mut st = self.shared.lock();
             let map = st.queue.pop_front();
@@ -271,10 +355,25 @@ impl MapPool {
             map
         };
         self.shared.wake.notify_all();
-        queued.unwrap_or_else(|| self.fallback())
+        match queued {
+            Some((map, seed)) => {
+                let served = Served {
+                    seed: Some(seed),
+                    hash: map_hash(&map),
+                    configured: false,
+                };
+                (map, served)
+            }
+            None if self.shared.opts.target > 0 => {
+                self.shared.lock().stats.fallbacks += 1;
+                (self.shared.configured.clone(), Served::configured())
+            }
+            None => self.fallback(),
+        }
     }
 
-    fn fallback(&self) -> MapAssets {
+    /// Test-only inline mode (`target` 0, no worker): certify on the caller.
+    fn fallback(&self) -> (MapAssets, Served) {
         let t0 = Instant::now();
         let mut discards = 0;
         for _ in 0..MAP_FALLBACK_SEEDS {
@@ -292,7 +391,13 @@ impl MapPool {
                         "[maps] pool empty: certified seed {seed} on the caller in {} ms",
                         t0.elapsed().as_millis()
                     );
-                    return map;
+                    drop(st);
+                    let served = Served {
+                        seed: Some(seed),
+                        hash: map_hash(&map),
+                        configured: false,
+                    };
+                    return (map, served);
                 }
                 Ok(None) => discards += 1,
                 Err(e) => {
@@ -307,7 +412,8 @@ impl MapPool {
         eprintln!(
             "[maps] {MAP_FALLBACK_SEEDS} fallback seeds failed; this room plays the configured map"
         );
-        self.shared.configured.clone()
+        drop(st);
+        (self.shared.configured.clone(), Served::configured())
     }
 }
 
@@ -324,13 +430,16 @@ impl Drop for MapPool {
 fn spawn_worker(maker: Arc<dyn MapMaker>) -> std::io::Result<Worker> {
     let (req_tx, req_rx) = mpsc::channel::<u32>();
     let (rep_tx, rep_rx) = mpsc::channel::<Reply>();
+    let alive = Arc::new(AtomicBool::new(true));
+    let guard = AliveGuard(alive.clone());
     thread::Builder::new()
         .name("map-worker".into())
         .spawn(move || {
+            let _guard = guard;
             // Ends when the pool drops its request sender (stop or replacement) or a reply has nowhere to go.
             while let Ok(seed) = req_rx.recv() {
                 let reply = match maker.make(seed) {
-                    Ok(Some(arena)) => Reply::Map(arena),
+                    Ok(Some(arena)) => Reply::Map(seed, arena),
                     Ok(None) => Reply::Discard,
                     Err(e) => Reply::Error(e),
                 };
@@ -344,6 +453,7 @@ fn spawn_worker(maker: Arc<dyn MapMaker>) -> std::io::Result<Worker> {
         replies: rep_rx,
         in_flight: 0,
         owed_since: None,
+        alive,
     })
 }
 
@@ -363,7 +473,8 @@ fn supervise(s: &Shared) {
                 return;
             }
             let now = Instant::now();
-            if worker.is_none() && st.restart_at.is_none_or(|t| now >= t) {
+            let capped = Shared::live_abandoned(&mut st) >= MAP_ABANDONED_CAP;
+            if worker.is_none() && !capped && st.restart_at.is_none_or(|t| now >= t) {
                 match spawn_worker(s.maker.clone()) {
                     Ok(w) => {
                         st.restart_at = None;
@@ -391,9 +502,10 @@ fn supervise(s: &Shared) {
             }
             if worker.as_ref().is_none_or(|w| w.in_flight == 0) {
                 // Nothing owed: sleep until a take, a stop or the restart time.
-                let wait = st
-                    .restart_at
-                    .map_or(SUPERVISOR_TICK * 10, |t| t.saturating_duration_since(now));
+                let wait = match st.restart_at {
+                    Some(t) if !capped => t.saturating_duration_since(now),
+                    _ => SUPERVISOR_TICK * 10,
+                };
                 let _ = s.wake.wait_timeout(st, wait.max(Duration::from_millis(1)));
                 continue;
             }
@@ -423,13 +535,13 @@ fn supervise(s: &Shared) {
 
 fn arrive(s: &Shared, worker: &mut Option<Worker>, reply: Reply) {
     match reply {
-        Reply::Map(arena) => match admit(arena) {
+        Reply::Map(seed, arena) => match admit(arena) {
             Ok(map) => {
                 let mut st = s.lock();
                 st.reject_streak = 0;
                 st.crash_streak = 0;
                 if st.queue.len() < s.opts.target {
-                    st.queue.push_back(map);
+                    st.queue.push_back((map, seed));
                 }
             }
             Err(e) => {
@@ -456,10 +568,20 @@ fn arrive(s: &Shared, worker: &mut Option<Worker>, reply: Reply) {
 
 /// Drops the worker (a hung thread is abandoned: its replies go nowhere) and schedules its replacement with backoff.
 fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
-    *worker = None;
+    let old = worker.take();
     let mut st = s.lock();
+    // Both messages are built under the lock and written after it is released: the director may be waiting on the pool.
     st.reject_streak = 0;
     st.stats.crashes += 1;
+    // Every failure kind keeps the old thread's flag: after an error or the reject-limit crash it can still run one
+    // more `make` from its queued request. A flag whose thread has ended is pruned, so a clean exit costs nothing.
+    if let Some(w) = old {
+        st.abandoned.push(w.alive);
+    }
+    let live = Shared::live_abandoned(&mut st);
+    let cap_msg = (live >= MAP_ABANDONED_CAP).then(|| {
+        format!("[maps] {live} abandoned workers still running: the pool serves the configured map")
+    });
     let reason = match why {
         Failure::Hang => {
             st.stats.hangs += 1;
@@ -475,10 +597,15 @@ fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
         .saturating_mul(1u32 << exp)
         .min(s.opts.restart_max);
     st.restart_at = Some(Instant::now() + delay);
-    eprintln!(
+    let msg = format!(
         "[maps] map worker replaced ({reason}); restart in {} ms",
         delay.as_millis()
     );
+    drop(st);
+    if let Some(m) = cap_msg {
+        eprintln!("{m}");
+    }
+    eprintln!("{msg}");
 }
 
 #[cfg(test)]
