@@ -153,9 +153,23 @@ namespace Roguehalla.Client
             for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
                 new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
             _atmos.Bind(this, _ambient, _volume, ApplyHaze);
+            _inspector = CreateInspector();
             _surfaceFx = SurfaceFx.Create(this); _actors.Fx = _surfaceFx; // SURFACE-FX HOOK 2/3
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
+        }
+        InspectorCardView _inspector;
+        /// <summary>The enemy inspector card (legacy opponent inspector): a fixed top-right panel on its own overlay canvas, display only.</summary>
+        public InspectorCardView Inspector { get { return _inspector; } }
+        InspectorCardView CreateInspector()
+        {
+            var go = new GameObject("InspectorCardCanvas", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler));
+            go.transform.SetParent(transform, false);
+            var canvas = go.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = -1;   // below MatchUI and its modals, above the hurt vignette (-10)
+            var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
+            return new InspectorCardView(go.transform);
         }
         static bool? _indicatorDemo;
         /// <summary>DIAGNOSTICS ONLY (<c>?indicators.demo=1</c>, never on by default): drives the local actor's overhead cluster with TEST values (a bounty, cycling status bits, the lock ring) so every glyph can be captured without staging a fight.</summary>
@@ -260,6 +274,12 @@ namespace Roguehalla.Client
             uint shownLock = LockDisplay.Shown(lockTarget ?? 0u, Time.realtimeSinceStartupAsDouble * 1000.0);
             lockTarget = shownLock == 0 ? (uint?)null : shownLock; _lockForNpc = lockTarget;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
+            if (_inspector != null)
+            {
+                uint inspected = _hoverId != 0 ? _hoverId : shownLock;
+                if (_hasMembership && !_membership.Contains(inspected)) _inspector.Hide();   // C-OBS: left vision in the newest snapshot
+                else _inspector.Show(remote, _hoverId, shownLock, mine, me == null || me.Status == ActorStatus.Alive);
+            }
             foreach (var a in remote)
             {
                 if (a.Id == mine) continue;
