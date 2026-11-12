@@ -64,6 +64,11 @@ Read with `git show a7b5c4ce:<path>` (the commit is not in this branch's `packag
   stacks, not the mob type's.
 - Oracle: `Legacy` and `Themed` give different statics digests; `Themed` round-trips through checkpoint and replay; a
   default-config state hash is unchanged.
+- Carries a reviewer note on P-REGEN-COMBAT-1-fix (2026-11-12, MINOR, same file and tier): a `hash_coverage` case that
+  restores a `regen_in_combat = Off` checkpoint whose `statics` precedes the format tag (the path that decodes through
+  the checkpoint's `Buf` deserializer, which reads `"off"` only because serde's default `is_human_readable()` is true),
+  and the same case for this packet's switch. The new switch's non-default value must get its own hasher tag, as
+  `regen_in_combat` now has (`statics.rs`: human-readable form in JSON, a distinct tag for the hasher).
 - `cargo run -p rh-parity --bin parity-report` all MATCH; `scripts/gate.sh --oracle packet/P-CAMP-BUFF-THEMES-1` passes.
 
 ## Oracle files (read-only for implementers)
