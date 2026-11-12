@@ -188,7 +188,12 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static string PhaseLine(MatchPhase phase, double serverMs, ArenaView? arena, int playerCount, int minPlayers, string winnerLabel, out ArenaLineTone tone)
         {
-            return PhaseLine(phase, serverMs, arena, playerCount, minPlayers, out tone);   // STUB: the ended phase still reads "FORMING MATCH"
+            if (phase == MatchPhase.Ended)
+            {
+                tone = ArenaLineTone.Normal;
+                return string.IsNullOrEmpty(winnerLabel) ? "Run over" : "Run over \u2014 " + winnerLabel + " is victorious";
+            }
+            return PhaseLine(phase, serverMs, arena, playerCount, minPlayers, out tone);
         }
 
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>
