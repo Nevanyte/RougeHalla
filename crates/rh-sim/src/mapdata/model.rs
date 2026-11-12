@@ -292,9 +292,6 @@ pub struct LayerData {
     pub ground_spots: Vec<WorldPt>,
     pub features: Vec<MapFeature>,
     pub feature_grid: Vec<u8>,
-    /// Signature anchors in zone-code order; omitted from JSON when empty (every legacy-mode map).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchors: Vec<ZoneAnchor>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -305,7 +302,9 @@ pub struct MapExport {
 }
 
 impl GameMapData {
-    pub(super) fn split(self) -> (Vec<u8>, LayerData) {
+    /// The collision tiles, the sim's layers and the generator's anchors. The anchors stay off `LayerData`: it is
+    /// checkpointed sim state, and the decoration bake reads them from the generator's map at pool-build time.
+    pub(super) fn split(self) -> (Vec<u8>, LayerData, Vec<ZoneAnchor>) {
         let Self {
             tiles,
             seed,
@@ -349,11 +348,11 @@ impl GameMapData {
                 ground_spots,
                 features,
                 feature_grid,
-                anchors,
             },
+            anchors,
         )
     }
-    pub(super) fn join(tiles: Vec<u8>, data: LayerData) -> Self {
+    pub(super) fn join(tiles: Vec<u8>, data: LayerData, anchors: Vec<ZoneAnchor>) -> Self {
         let LayerData {
             seed,
             w,
@@ -373,7 +372,6 @@ impl GameMapData {
             ground_spots,
             features,
             feature_grid,
-            anchors,
         } = data;
         Self {
             tiles,
