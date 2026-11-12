@@ -223,7 +223,7 @@ namespace Roguehalla.Client.Tests
             marks.Present(_session, null);
             Assert.AreEqual(2, marks.CampClocksShown, "both cleared camps show their clocks");
             _transport.Deliver(new ServerMsg.State { Tick = 4, Items = new StateItem[] { new RewardChestsState { Rows = new[] {
-                new WireRewardChest { Handle = new RewardChestHandle(5), X = 96, Y = 96, ExpiresAt = 12300, CanChoose = true, Options = new WireRewardOption[0] } } } } });
+                new WireRewardChest { Handle = new RewardChestHandle(5), X = 768, Y = 768, ExpiresAt = 12300, CanChoose = true, Options = new WireRewardOption[0] } } } } });
             marks.Present(_session, null);
             Assert.AreEqual(1, marks.ChestBadgeCount);
             Assert.AreEqual("13", marks.ChestBadgeText(0));
