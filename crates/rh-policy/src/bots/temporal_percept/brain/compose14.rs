@@ -138,13 +138,16 @@ enum Lane {
     Plain,
 }
 
+/// A source record under construction, own-key order preserved.
+type Record = Vec<(&'static str, BVal)>;
+
 #[derive(Clone, Debug)]
 struct Queued {
     time: f64,
     at: Option<Vec2>,
     lane: Lane,
     /// The source event record in its own key order (`kind`, `t`, `at`, ...).
-    record: Vec<(&'static str, BVal)>,
+    record: Record,
     /// The victim of a death (pending deaths keep a body drawn).
     death_of: Option<String>,
 }
@@ -620,7 +623,7 @@ impl Composer14 {
         events.extend(immediate);
 
         // ---- extras, in the declared key order (wish, skills, chests, camps, effects, fields).
-        let mut extras: Vec<(&'static str, BVal)> = Vec::new();
+        let mut extras: Record = Vec::new();
         if features.chests {
             let mut chests: Vec<(String, BVal)> = frame
                 .collections
@@ -900,12 +903,9 @@ fn sample_events(
     let find = |id: u32| seen.iter().find(|s| s.id == id);
     let seen_key = |id: u32| find(id).map_or(BVal::Null, |s| BVal::text(s.key.clone()));
     let name_of = |id: u32| roster_name(id).map_or(BVal::Undefined, BVal::text);
-    let mut push = |at: Option<Vec2>,
-                    lane: Lane,
-                    death_of: Option<String>,
-                    rest: Vec<(&'static str, BVal)>| {
+    let mut push = |at: Option<Vec2>, lane: Lane, death_of: Option<String>, rest: Record| {
         let mut rest = rest.into_iter();
-        let mut record: Vec<(&'static str, BVal)> = rest.next().into_iter().collect();
+        let mut record: Record = rest.next().into_iter().collect();
         record.push(("t", BVal::num(t)));
         record.push(("at", at.map_or(BVal::Null, point)));
         record.extend(rest);
@@ -1030,7 +1030,7 @@ fn sample_events(
                 WireEvent::Death { id, by } => {
                     let key = key_of(*id);
                     let row = find(*id);
-                    let by_key = by.map_or(BVal::Null, |b| seen_key(b));
+                    let by_key = by.map_or(BVal::Null, &seen_key);
                     if *id < NPC_BASE {
                         push(
                             row.map(|s| s.at),
@@ -1129,7 +1129,7 @@ fn hit<'s>(
     find: &dyn Fn(u32) -> Option<&'s Seen>,
     seen_key: &dyn Fn(u32) -> BVal,
     (victim, by, amount, sig): (u32, u32, f64, Option<&'static str>),
-    push: &mut dyn FnMut(Option<Vec2>, Lane, Option<String>, Vec<(&'static str, BVal)>),
+    push: &mut dyn FnMut(Option<Vec2>, Lane, Option<String>, Record),
 ) {
     let Some(s) = find(victim) else {
         return;
@@ -1381,7 +1381,7 @@ fn set(record: &mut [(&'static str, BVal)], key: &str, value: BVal) {
     }
 }
 
-fn own(record: Vec<(&'static str, BVal)>) -> Vec<(String, BVal)> {
+fn own(record: Record) -> Vec<(String, BVal)> {
     record.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()
 }
 
