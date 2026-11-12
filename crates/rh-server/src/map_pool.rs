@@ -568,6 +568,7 @@ fn arrive(s: &Shared, worker: &mut Option<Worker>, reply: Reply) {
 fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
     let old = worker.take();
     let mut st = s.lock();
+    // Both messages are built under the lock and written after it is released: the director may be waiting on the pool.
     st.reject_streak = 0;
     st.stats.crashes += 1;
     // Every failure kind keeps the old thread's flag: after an error or the reject-limit crash it can still run one
@@ -576,9 +577,8 @@ fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
         st.abandoned.push(w.alive);
     }
     let live = Shared::live_abandoned(&mut st);
-    if live >= MAP_ABANDONED_CAP {
-        eprintln!("[maps] {live} abandoned workers still running: the pool serves the configured map");
-    }
+    let cap_msg = (live >= MAP_ABANDONED_CAP)
+        .then(|| format!("[maps] {live} abandoned workers still running: the pool serves the configured map"));
     let reason = match why {
         Failure::Hang => {
             st.stats.hangs += 1;
@@ -594,10 +594,15 @@ fn fail(s: &Shared, worker: &mut Option<Worker>, why: Failure) {
         .saturating_mul(1u32 << exp)
         .min(s.opts.restart_max);
     st.restart_at = Some(Instant::now() + delay);
-    eprintln!(
+    let msg = format!(
         "[maps] map worker replaced ({reason}); restart in {} ms",
         delay.as_millis()
     );
+    drop(st);
+    if let Some(m) = cap_msg {
+        eprintln!("{m}");
+    }
+    eprintln!("{msg}");
 }
 
 #[cfg(test)]
