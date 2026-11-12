@@ -32,6 +32,14 @@ namespace Roguehalla.Client
         readonly List<TMP_Text> _campClocks = new List<TMP_Text>();
         readonly List<CampBadgeRow> _rewards = new List<CampBadgeRow>();
         readonly List<CampWardRow> _wards = new List<CampWardRow>();
+        readonly List<ChestBadgeRow> _chestRows = new List<ChestBadgeRow>();
+        readonly List<TMP_Text> _chestTexts = new List<TMP_Text>();
+        /// <summary>Chest seconds badges the model produced for the last presentation (the minimap has no sight test here, so all delivered chests).</summary>
+        public int ChestBadgeCount => _chestRows.Count;
+        /// <summary>Respawn clock labels shown after the one-badge rule dropped those of camps whose chest is drawn.</summary>
+        public int CampClocksShown { get; private set; }
+        /// <summary>The chest seconds text of the badge at <paramref name="i"/> in the last presentation.</summary>
+        public string ChestBadgeText(int i) => _chestRows[i].Text;
         readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
         readonly List<Image> _badgeIcons = new List<Image>();
         /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
@@ -91,7 +99,7 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
                 if (_map != null)
@@ -105,6 +113,7 @@ namespace Roguehalla.Client
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
                 foreach (var chest in session.Collections.RewardChests) _chests.Add(new Vector2(chest.X, chest.Y));
+                ChestBadges.Rows(_map?.Camps, session.Collections.RewardChests, session.ServerTimeMs, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _chestRows);
                 if (route != null) foreach (var point in route) _route.Add(new Vector2((float)point.X, (float)point.Y));
                 var trade = session.Collections.Trade;
                 if (trade != null && trade.Available) foreach (var row in trade.Merchants)
@@ -131,6 +140,7 @@ namespace Roguehalla.Client
             }
             RefreshCampClocks();
             RefreshBadgeTexts();
+            RefreshChestTexts();
             RefreshBadgeIcons();
             SetVerticesDirty();
         }
@@ -183,6 +193,7 @@ namespace Roguehalla.Client
                 {
                     var camp = _camps[i];
                     if (camp.Countdown == null) continue;
+                    if (ChestBadges.Replaces(_chestRows, camp.Index)) continue; // one badge per camp: the chest's seconds win while it stands
                     var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
                     if (ContactNear(p)) continue;
                     if (used >= _campClocks.Count)
@@ -198,6 +209,32 @@ namespace Roguehalla.Client
                     text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -10f);
                 }
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
+            CampClocksShown = used;
+        }
+
+        Vector2 ChestTextAt(Vector2 p) { return p + new Vector2(0f, Large ? -15f : -12f); }
+
+        /// <summary>Remaining seconds under each chest blip: pooled labels, rewritten only when the (cached) string changes.</summary>
+        void RefreshChestTexts()
+        {
+            int used = 0;
+            if (_map != null)
+                for (int i = 0; i < _chestRows.Count; i++)
+                {
+                    var row = _chestRows[i];
+                    if (used >= _chestTexts.Count)
+                    {
+                        var label = HudUi.Label(transform, "ChestSeconds" + used, "", 9f, new Color32(0xff, 0xe0, 0x8a, 255), TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(30f, 14f);
+                        label.raycastTarget = false;
+                        _chestTexts.Add(label);
+                    }
+                    var text = _chestTexts[used++];
+                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+                    if (text.text != row.Text) text.text = row.Text;
+                    text.rectTransform.anchoredPosition = ChestTextAt(At(new Vector2((float)row.WorldX, (float)row.WorldY)));
+                }
+            for (int i = used; i < _chestTexts.Count; i++) if (_chestTexts[i].gameObject.activeSelf) _chestTexts[i].gameObject.SetActive(false);
         }
 
         // Layout beside the camp marker: ward mark on the left, reward badge (and elite chest) on the right, the respawn clock below.
@@ -360,6 +397,8 @@ namespace Roguehalla.Client
             DrawBadges(vh, ink, s);
             for (int i = 1; i < _route.Count; i++) LineAA(vh, At(_route[i - 1]), At(_route[i]), 2f, Alpha(theme.Accent, .8f));
             foreach (var point in _route) Marker(vh, At(point), 7f, MapGlyph.Disc, theme.Accent, ink);
+            foreach (var row in _chestRows)
+                GlyphXY(vh, ChestTextAt(At(new Vector2((float)row.WorldX, (float)row.WorldY))), (row.Text.Length * 6f + 8f) * s, 12f * s, MapGlyph.Square, Alpha(ink, .85f)); // badge box
             foreach (var point in _chests) Marker(vh, At(point), 11f * s, MapGlyph.Plus, theme.Accent, ink);
             foreach (var point in _delivered)
             {
