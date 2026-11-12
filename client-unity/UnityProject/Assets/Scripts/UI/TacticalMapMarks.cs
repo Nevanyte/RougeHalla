@@ -41,7 +41,10 @@ namespace Roguehalla.Client
         /// <summary>The chest seconds text of the badge at <paramref name="i"/> in the last presentation.</summary>
         public string ChestBadgeText(int i) => _chestRows[i].Text;
         readonly List<ContactMark> _contactMarks = new List<ContactMark>();
+        readonly List<RectTransform> _contactChips = new List<RectTransform>();
         readonly List<TMP_Text> _contactTexts = new List<TMP_Text>();
+        // planning.css:175-183 .pl-actor-label on an enemy: near-black box, 1px border, text #ffc3c7, border #ff5360 (HUNT and ENEMY alike).
+        static readonly Color32 ChipFill = new Color32(5, 14, 22, 245), ChipBorder = new Color32(0xff, 0x53, 0x60, 255), ChipText = new Color32(0xff, 0xc3, 0xc7, 255);
         /// <summary>Rival words ("HUNT" / "ENEMY") the model produced for the last Tab-map presentation (none on the minimap).</summary>
         public int ContactLabelCount => _contactMarks.Count;
         public string ContactLabelText(int i) => _contactMarks[i].Text;
@@ -234,17 +237,26 @@ namespace Roguehalla.Client
                     var actor = _actors[at];
                     if (used >= _contactTexts.Count)
                     {
-                        var label = HudUi.Label(transform, "ContactLabel" + used, "", 9f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
-                        var rect = label.rectTransform; rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.pivot = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(48f, 14f);
+                        var go = new GameObject("ContactLabel" + used, typeof(RectTransform), typeof(Image));
+                        go.transform.SetParent(transform, false);
+                        var chip = (RectTransform)go.transform; chip.anchorMin = chip.anchorMax = new Vector2(.5f, .5f); chip.pivot = new Vector2(.5f, .5f);
+                        var border = go.GetComponent<Image>(); border.color = ChipBorder; border.raycastTarget = false;
+                        var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image)); fill.transform.SetParent(chip, false);
+                        var fr = (RectTransform)fill.transform; fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = new Vector2(1f, 1f); fr.offsetMax = new Vector2(-1f, -1f);
+                        var fi = fill.GetComponent<Image>(); fi.color = ChipFill; fi.raycastTarget = false;
+                        var label = HudUi.Label(chip, "Text", "", 9f, ChipText, TextAlignmentOptions.Center, false, UiFontRole.Display);
+                        var rect = label.rectTransform; rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+                        label.fontStyle = FontStyles.Bold; label.characterSpacing = 6f; // weight 900, letter-spacing .06em
                         label.raycastTarget = false;
-                        _contactTexts.Add(label);
+                        _contactChips.Add(chip); _contactTexts.Add(label);
                     }
-                    var text = _contactTexts[used++];
-                    if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
-                    if (text.text != mark.Text) text.text = mark.Text;
-                    text.rectTransform.anchoredPosition = At(new Vector2(actor.X, actor.Y)) + new Vector2(0f, 14f);
+                    var text = _contactTexts[used]; var box = _contactChips[used++];
+                    if (!box.gameObject.activeSelf) box.gameObject.SetActive(true);
+                    if (text.text != mark.Text) { text.text = mark.Text; box.sizeDelta = new Vector2(mark.Text.Length * 7f + 10f, 16f); }
+                    // Bottom edge 5px above the dot's top: about 19px from the dot centre to the chip centre.
+                    box.anchoredPosition = At(new Vector2(actor.X, actor.Y)) + new Vector2(0f, 19f);
                 }
-            for (int i = used; i < _contactTexts.Count; i++) if (_contactTexts[i].gameObject.activeSelf) _contactTexts[i].gameObject.SetActive(false);
+            for (int i = used; i < _contactChips.Count; i++) if (_contactChips[i].gameObject.activeSelf) _contactChips[i].gameObject.SetActive(false);
         }
 
         Vector2 ChestTextAt(Vector2 p) { return p + new Vector2(0f, Large ? -15f : -12f); }
