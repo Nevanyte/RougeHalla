@@ -64,6 +64,17 @@ namespace Roguehalla.Client
         bool[] _zoneFound = new bool[MapZones.Count + 1];
         double[] _zoneX = new double[MapZones.Count + 1], _zoneY = new double[MapZones.Count + 1];
         public int ContactCount => _actors.Count;
+        /// <summary>The own-position ring as drawn, in this graphic's local space (what a label must stay clear of); null without a position.
+        /// STUB (P-UNITY-HUD-VISUAL-FIX-3): same geometry as the mesh pass (26 x scale across).</summary>
+        public Rect? SelfMarkerRect
+        {
+            get
+            {
+                if (!_self.HasValue || _map == null) return null;
+                float size = 26f * (Large ? 1.2f : 1f); var p = At(_self.Value);
+                return new Rect(p.x - size * .5f, p.y - size * .5f, size, size);
+            }
+        }
         /// <summary>Camp markers the model produced for the last presentation (map knowledge, drawn regardless of sight).</summary>
         public int CampMarkerCount => _camps.Count;
         /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>

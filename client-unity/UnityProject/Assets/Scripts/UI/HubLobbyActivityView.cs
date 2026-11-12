@@ -38,6 +38,10 @@ namespace Roguehalla.Client
             _panel.gameObject.SetActive(false);
         }
 
+        /// <summary>Places the card for the stage <paramref name="viewport"/> (HUD units) clear of the hub room's tiles. STUB
+        /// (P-UNITY-HUD-VISUAL-FIX-3): not implemented; the card keeps its canvas-fraction anchors.</summary>
+        public void ApplyViewport(HudViewport viewport) { }
+
         /// <summary>Called every frame by the hub: <paramref name="inHub"/> while the join menu is up, <paramref name="shown"/> when no other hub panel covers the card.</summary>
         public void SetHub(bool inHub, bool shown)
         {
