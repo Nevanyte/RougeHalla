@@ -118,7 +118,7 @@ namespace Roguehalla.Client
                 _selfId = session.PlayerId;
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
                 if (Large && session.Me != null)
-                    WorldMarks.TabMapContacts(_actors, _selfId, session.Me.Faction, session.Me.Status, session.Me.HuntTarget, true, _contactMarks);
+                    Roguehalla.Net.Ui.WorldMarks.TabMapContacts(_actors, _selfId, session.Me.Faction, session.Me.Status, session.Me.HuntTarget, true, _contactMarks);
                 foreach (var chest in session.Collections.RewardChests) _chests.Add(new Vector2(chest.X, chest.Y));
                 ChestBadges.Rows(_map?.Camps, session.Collections.RewardChests, session.ServerTimeMs, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _chestRows);
                 if (route != null) foreach (var point in route) _route.Add(new Vector2((float)point.X, (float)point.Y));
@@ -228,9 +228,10 @@ namespace Roguehalla.Client
                 for (int i = 0; i < _contactMarks.Count; i++)
                 {
                     var mark = _contactMarks[i];
-                    InterpActor actor = null;
-                    for (int j = 0; j < _actors.Count; j++) if (_actors[j].Id == mark.Id) { actor = _actors[j]; break; }
-                    if (actor == null) continue;
+                    int at = -1;
+                    for (int j = 0; j < _actors.Count; j++) if (_actors[j].Id == mark.Id) { at = j; break; }
+                    if (at < 0) continue;
+                    var actor = _actors[at];
                     if (used >= _contactTexts.Count)
                     {
                         var label = HudUi.Label(transform, "ContactLabel" + used, "", 9f, UiTheme.Current.TextPrimary, TextAlignmentOptions.Center, false, UiFontRole.Display);
