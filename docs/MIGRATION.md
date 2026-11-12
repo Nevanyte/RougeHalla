@@ -4,6 +4,60 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integration 3 (2026-11-11 21:10 CST): HUD data, the cloud branch, three Unity HUD packets
+
+Integration branch `feature/unity-rework`, pushed head `980229ed`. Owner direction of this stretch (2026-11-11, chat):
+"Please bring the build EXACTLY up to the original spec we discussed along with UI enhancements and bug fixes": the
+whole approved plan (below, "Beta follow-up direction") is the scope; work continues packet by packet.
+
+**Merged, in order.**
+| Merge | What | Review |
+|---|---|---|
+| `e018b7fe` | P-WIRE17-HUD-1 (Opus): camp row reward, ward verdict and expiry; owner-only build summary (state key 13: nine GAINED values, mob-bonus rows) | reviewer-opus LAND WITH NOTES (negative vectors for the new fields: folded into P-WIRE17-HUD-2) |
+| `88265fb2` | Cloud session branch `origin/claude/youthful-cerf-qur7nu` @ `60117c0d`: P-REGEN-COMBAT-1, P-MAP-3, P-LEECH-GROUPING-1, P-SIGNATURE-1, full-map cost evidence, `--bot-learning single-writer` in `hosting/technical-demo/bootstrap.py`, the P-BOT-BRAIN-LIVE-1 brief | reviewer-opus per packet: LEECH LAND; REGEN, MAP-3, SIGNATURE LAND WITH NOTES (fix packets below) |
+| `980229ed` and the two before it | P-UNITY-HUD-BUILD-1 (GAINED strip, mob-bonus row), P-UNITY-HUD-CAMPS-2 (camp reward badges with stat icons, ward beacons), P-UNITY-INSPECTOR-1 (enemy inspector card) | reviewer (Sonnet): LAND / LAND WITH NOTES, notes applied before merge |
+
+**Identities now:** protocol 17, observation 25, checkpoint 31, replay 25, policy contract 19, content hash unchanged.
+
+**Gates.** `GATE PASS (full)` on the tree of `88265fb2` (+ docs), 2026-11-11 20:27 to 21:01 CST, with Postgres, parity
+report, JS, C#, Unity EditMode 610 of 610, Unity tool tests and headless smoke; run with `--coordinator
+--allow-protected --regen-fixtures` (the cloud branch's `hosting/` edit and HUD-1's regenerated `v17.json`). Then
+`GATE PASS (quick)` on the three Unity merges: C# tests, sync check, Unity EditMode 615 of 615 (no Rust changed).
+
+**Owner statements taken from the cloud session's record** (`docs/coordination/CLOUD_HANDOFF_2026-11-11.md`; the owner
+pasted that session's summary into this chat and told this coordinator to continue; flagged back to the owner in chat):
+the legacy bot learner runs on the beta's Source unit (the `hosting/` edit above; nothing deployed); the Plague marsh
+slows through bog only and water is presentation (replaces decision 6's graded slow: P-TERRAIN-MARSH-1 is dropped and
+the marsh look moves to the decoration packets); live faction terrain exemptions stay as they are.
+
+**No longer to do** (done by the cloud session, now merged): no regen in combat, the map pool, the landmark pass, the
+leech grouping fix.
+
+**Open review notes, each a packet:** P-MAP-3-fix (no generation under the director lock, capped abandoned workers, log
+the served map), P-REGEN-COMBAT-1-fix (`Off` shares the string encoding of `mob_spacing`'s `Off` in the statics digest),
+P-SIGNATURE-1-fix (graveyard walls, church door tiles, certifier check on a clean base only, ADR 0028 and a DEVIATIONS
+row). Oracles are being written.
+
+**Remaining plan, briefed** (`docs/backlog/packets/`): P-UNITY-HUD-TERRAIN-1 and P-UNITY-HUD-STATUS-1 (implemented, in
+review notes), P-UNITY-HUD-CAMPS-3 (chest seconds; in implementation), P-WIRE17-HUD-2 (champion panel values, weapon
+scaling), P-WIRE17-HUD-3 (room minimum, healing and emblem end times), P-SIGNATURE-2 (landmarks to the owner's
+wording), P-CAMP-BUFF-THEMES-1, P-FROST-WALL-1, P-DRESS-ENGINE-1. **Not yet briefed:** the Unity champion panel
+(P-UNITY-HUD-BUILD-2), Frost Wall on the wire and in Unity, the decoration bake and its Unity drawing, per-zone
+decoration rules and art, the pool on the beta host (`hosting/`, owner approval), the Brain (P-BOT-BRAIN-LIVE-1: the
+cloud session asked that it be started in one place only; not started here), learner runs and the tuner (R-ML
+amendment), the final combined review, Web build and browser proof.
+
+**Balance (decision 1).** The camp-clear bench (P-BALANCE-2) put Archetype hitboxes within single digits of
+`LegacyCircle` (inside the plan's 10% band), so no combat number was retuned; the duel matrix (P-BALANCE-1) stays
+parked under the loose-proof direction.
+
+**Not established.** None of the new Unity HUD work has been seen in a running client (EditMode checks structure and
+text only). The beta host expired 2026-11-11 07:26 CST and is not redeployed: `aws cloudformation` stack commands are
+denied by `.claude/settings.json`, which only the owner can lift.
+
+**Housekeeping.** The main checkout's `target/` (83 GiB) was cleared with `cargo clean` for disk; Rust agents and the
+coordinator's gate now build with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`. Merged agent branches deleted.
+
 ## Cloud session branch noted (2026-11-11 19:40 CST): `origin/claude/youthful-cerf-qur7nu` @ `6181bc9e`
 
 Another Claude session, running in the cloud while the laptop was closed, pushed 13 commits on a branch based on the
