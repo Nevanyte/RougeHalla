@@ -59,20 +59,25 @@ namespace Roguehalla.Client
             bool wraps = label.textWrappingMode != TextWrappingModes.NoWrap;
             float keep = label.fontSize; bool auto = label.enableAutoSizing;
             label.enableAutoSizing = false; label.fontSize = size;
-            var need = label.GetPreferredValues(text, wraps ? box.width * WidthShare : 0f, 0f);
+            var need = label.GetPreferredValues(text, wraps ? box.width : 0f, 0f);
             label.fontSize = keep; label.enableAutoSizing = auto;
-            return need.x <= box.width * WidthShare + .001f && need.y <= box.height + .01f;
+            return need.x <= box.width * WidthShare - .005f && need.y <= box.height + .01f;
         }
 
-        /// <summary>The wanted size when the box holds the text at it, else the largest size (down to the floor) that does.</summary>
+        /// <summary>
+        /// The wanted size when the box holds the text at it, else the largest size (down to the floor) that does.
+        /// </summary>
         static float Fit(TMP_Text label, float wanted, float floor)
         {
             string text = label.text ?? "";
             var box = label.rectTransform.rect;
             if (wanted <= floor || Fits(label, text, wanted, box)) return Mathf.Max(wanted, floor);
-            if (!Fits(label, text, floor, box)) return floor;
-            float lo = floor, hi = wanted;
-            while (hi - lo > .05f)
+            // Scan down from the wanted size in quarter steps (a wrapping label can fit at a larger size and not at a smaller one, so the
+            // first fit from above is what keeps the size from falling as the scale rises), then bisect inside the step.
+            float hi = wanted, lo = wanted - .25f;
+            while (lo > floor && !Fits(label, text, lo, box)) { hi = lo; lo -= .25f; }
+            if (lo <= floor) { lo = floor; if (!Fits(label, text, lo, box)) return floor; }
+            while (hi - lo > .004f)
             {
                 float mid = (lo + hi) * .5f;
                 if (Fits(label, text, mid, box)) lo = mid; else hi = mid;

@@ -183,12 +183,12 @@ namespace Roguehalla.Client
                 rule.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
                 var icon = MythicUi.Icon(cell, "StatIcon", CellGlyph[i], 13f);
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
-                icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
+                icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(4, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 21, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                var name = HudUi.Label(HudUi.At(cell, "Name", 17, 0, 65, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
                 // The names keep a floor of 7 under the text-size fit; the values the default floor of 6.
                 name.GetComponent<MythicTextScale>().MinSize = 7f;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 79, 0, 30, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                var value = HudUi.Label(HudUi.At(cell, "Value", 82, 0, 29, BuildCellHeight), "Count", "—", 6f, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
                 
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
