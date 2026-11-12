@@ -54,3 +54,15 @@ High, about 350 lines. Opus, Opus review.
 ## 11. Known traps
 - Learner writes need the single-writer lease and only non-training, non-void runs.
 - Do not widen the fill-bot seed path: `BotSeatSpec.seed` is the policy's own randomness.
+
+2026-11-12 (coordinator, from the reviewer-opus review of piece 1 @ 13c5d90e): the degraded-profile DEVIATIONS row
+lists, beyond the brief's table: quest-giver names, container weapon when contents are unknown, event names without a
+roster row, hit and signature-hit weapon (always unknown), projectile `from` = the wire owner (null when not drawn),
+field/container/chest ids built from public cues or positions (two identical ground weapons on one 1/8-unit point
+share an id), camp id taken from the map (the wire's camp row has no id), `hud.playerCount` capped by the 32-row
+roster, off-screen NPC deaths dropped (an undrawn elite's death announcement is lost), a focused cannon marked
+interactable, all events of a frame stamped with its `source_time` with fx before events, a refused frame's events
+lost, `build` in card catalog order, no bleed/ability damage ticks, owner notices or `extras.skills`.
+Measure `seat.budget` with 8 Brain bots: hot spots are `extras.effects` (a string allocation per drawn row and actor),
+`sort_by_key(actor_key)` (allocates per comparison: `sort_by_cached_key`), and the roster `find` per fighter;
+`compose()` is one 520-line function to split.

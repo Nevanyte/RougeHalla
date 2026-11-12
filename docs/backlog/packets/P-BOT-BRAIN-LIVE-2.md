@@ -61,3 +61,21 @@ High, about 450 lines. Opus, Opus review. Split further at the `Policy::finish` 
 - `Seat.budget` is `None` unless set; a slow Brain stalls a room (piece 3 sets it for live seats).
 - Per-tick `BVal` rebuild allocation; the room path budget starts once per room frame, not once per bot.
 - Learner writes need the single-writer lease and only non-training, non-void runs (piece 3).
+
+2026-11-12 (coordinator, from the reviewer-opus review of piece 1 @ 13c5d90e): this piece must also settle
+- **The Brain's input reader rejects what the composer now emits.** `adapters.rs` (`text(row, "name")`) refuses an
+  `undefined` name (self and fighters without a roster row, zombies, quest givers), and the test-only source validator
+  (`source_input.rs:82`) accepts only kinds `mob`, `elite`, `dummy`, `npc`, not `zombie`. Widen the reader (and the
+  validator) to legacy's grammar: write scope gains `adapters.rs` and `source_input.rs`.
+- **`extras.wish` is absent**, so the Wishes module sees no wish and a Brain bot never casts (`adapters.rs:974`).
+  `WireWishOwner` carries no rank and `module_wish` requires a number: either let `module_wish` accept an undefined
+  rank and take `def` from the public catalog, or record "Brain bots never cast Wishes" as a deviation. Prefer the first.
+- **Held lock on a hidden target**: `brain.rs:1286` checks `me_attack_target.is_some()` where legacy `brain.ts:218`
+  checks `!== null` (undefined counts as held). Add a typed "held" flag or read it from `raw`; write scope gains
+  `percept.rs`/`brain.rs` for that line.
+- **World delay**: legacy live bots ran `worldDelayMs = INTERP_DELAY_MS + latencyMs`, `selfDelayMs = latencyMs`
+  (`BotManager.ts:351`). Pin the delays `BrainBot` uses; with a delay above zero the composer has no "ring does not
+  cover viewT yet" refusal (legacy `frames.ts:131` returns no percept), runs the camera ahead across the coliseum
+  teleport (`frames.ts:137-142`) and draws mobs at the newest sample: decide whether `Composed14` needs a covered flag.
+- Build `Setup14` only from what a client receives (it currently borrows the server's map type, which also holds the
+  seed, crate and ground spots and the spawn pool, unread by the composer); call `reset()` on a new session or a clock gap.
