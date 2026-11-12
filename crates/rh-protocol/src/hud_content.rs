@@ -114,25 +114,127 @@ pub struct WireHudContent {
     pub terms: Vec<WireHudTerm>,
 }
 
-/// The first reason a decoder would refuse this block (see the module doc for the order).
-pub fn content_fault(_c: &WireHudContent) -> Option<&'static str> {
-    // STUB (P-WIRE17-HUD-2b): the implementer writes the checks.
+fn value_ok(v: f64) -> bool {
+    v.is_finite() && (0.0..=MAX_HUD_VALUE).contains(&v)
+}
+
+impl WireWeaponScaling {
+    fn values_ok(&self) -> bool {
+        [self.ad, self.ap, self.bonus_hp, self.bonus_defense]
+            .into_iter()
+            .all(value_ok)
+    }
+}
+
+/// The scaling rows' first fault once they are read: values, then order.
+fn scaling_rows_fault(rows: &[WireWeaponScaling]) -> Option<&'static str> {
+    if !rows.iter().all(WireWeaponScaling::values_ok) {
+        return Some("scaling");
+    }
+    if rows.windows(2).any(|w| w[1].id <= w[0].id) {
+        return Some("scaling order");
+    }
     None
 }
 
+/// The term rows' first fault once they are read: values, then order.
+fn term_rows_fault(rows: &[WireHudTerm]) -> Option<&'static str> {
+    if !rows.iter().all(|t| value_ok(t.value)) {
+        return Some("hud term");
+    }
+    if rows.windows(2).any(|w| w[1].code <= w[0].code) {
+        return Some("hud term order");
+    }
+    None
+}
+
+/// The first reason a decoder would refuse this block (see the module doc for the order).
+pub fn content_fault(c: &WireHudContent) -> Option<&'static str> {
+    if c.scaling.len() > MAX_SCALING_ROWS {
+        return Some("scaling count");
+    }
+    if let Some(why) = scaling_rows_fault(&c.scaling) {
+        return Some(why);
+    }
+    if c.terms.len() > MAX_HUD_TERMS {
+        return Some("hud term count");
+    }
+    if c.terms.iter().any(|t| t.code >= HUD_TERM_COUNT) {
+        return Some("hud term code");
+    }
+    term_rows_fault(&c.terms)
+}
+
 /// Encoded size of the block.
-pub fn content_len(_c: &WireHudContent) -> usize {
-    // STUB (P-WIRE17-HUD-2b).
-    0
+pub fn content_len(c: &WireHudContent) -> usize {
+    1 + c.scaling.len() * SCALING_ROW_LEN + 1 + c.terms.len() * HUD_TERM_ROW_LEN
 }
 
-pub(crate) fn write_content(_w: &mut Writer, _c: &WireHudContent) {
-    // STUB (P-WIRE17-HUD-2b): nothing is written yet.
+pub(crate) fn write_content(w: &mut Writer, c: &WireHudContent) {
+    w.u8(c.scaling.len() as u8);
+    for s in &c.scaling {
+        w.u8(s.id);
+        w.f64(s.ad);
+        w.f64(s.ap);
+        w.f64(s.bonus_hp);
+        w.f64(s.bonus_defense);
+        w.u8(u8::from(s.dominant));
+    }
+    w.u8(c.terms.len() as u8);
+    for t in &c.terms {
+        w.u8(t.code);
+        w.f64(t.value);
+    }
 }
 
-pub(crate) fn read_content(_r: &mut Reader) -> Result<WireHudContent, DecodeError> {
-    // STUB (P-WIRE17-HUD-2b): nothing is read yet.
-    Ok(WireHudContent::default())
+pub(crate) fn read_content(r: &mut Reader) -> Result<WireHudContent, DecodeError> {
+    let n = r.u8()? as usize;
+    if n > MAX_SCALING_ROWS {
+        return Err(DecodeError::BadField("scaling count"));
+    }
+    let mut scaling = Vec::with_capacity(n);
+    for _ in 0..n {
+        let id = r.u8()?;
+        let ad = r.f64()?;
+        let ap = r.f64()?;
+        let bonus_hp = r.f64()?;
+        let bonus_defense = r.f64()?;
+        let dominant = match r.u8()? {
+            0 => false,
+            1 => true,
+            _ => return Err(DecodeError::BadField("scaling dominant")),
+        };
+        scaling.push(WireWeaponScaling {
+            id,
+            ad,
+            ap,
+            bonus_hp,
+            bonus_defense,
+            dominant,
+        });
+    }
+    if let Some(why) = scaling_rows_fault(&scaling) {
+        return Err(DecodeError::BadField(why));
+    }
+    let n = r.u8()? as usize;
+    if n > MAX_HUD_TERMS {
+        return Err(DecodeError::BadField("hud term count"));
+    }
+    let mut terms = Vec::with_capacity(n);
+    for _ in 0..n {
+        let code = r.u8()?;
+        if code >= HUD_TERM_COUNT {
+            return Err(DecodeError::BadField("hud term code"));
+        }
+        terms.push(WireHudTerm {
+            code,
+            value: r.f64()?,
+        });
+    }
+    if let Some(why) = term_rows_fault(&terms) {
+        return Err(DecodeError::BadField(why));
+    }
+    Ok(WireHudContent { scaling, terms })
 }
 
 /// Writes a block without checking it (for decoder refusal vectors).

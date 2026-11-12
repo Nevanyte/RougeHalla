@@ -899,9 +899,57 @@ pub fn sample_weapons() -> Vec<WireWeapon> {
 
 /// The sample HUD content block (P-WIRE17-HUD-2b): exactly what the server sends (`rh_policy::delivery::projection::
 /// wire_hud`, held equal by the rh-policy oracle): the six weapons' scaling rows and every [`crate::HudTerm`] code.
+/// Scaling: legacy `WEAPONS[w].scaling` / `.dominant` (packages/shared/src/weapons.ts:96-124) by wire id (sword, bow, wand,
+/// shield, axe, fists). Terms: the legacy Wish constants (packages/shared/src/abilities.ts:140-167) by `HudTerm` code.
 pub fn sample_hud() -> crate::WireHudContent {
-    // STUB (P-WIRE17-HUD-2b): the implementer fills the rows (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Vector names").
-    crate::WireHudContent::default()
+    use crate::{WireHudTerm, WireWeaponScaling};
+    let row = |id, ad, ap, bonus_hp, bonus_defense, dominant| WireWeaponScaling {
+        id,
+        ad,
+        ap,
+        bonus_hp,
+        bonus_defense,
+        dominant,
+    };
+    let terms: [f64; crate::MAX_HUD_TERMS] = [
+        1250.0, // FreezeStunMs
+        450.0,  // FreezeRange
+        8000.0, // SwarmHiddenMs
+        72.0,   // SwarmCloudRadius
+        5000.0, // TrialZoneMs
+        0.8,    // TrialDealtMult
+        0.7,    // TrialMoveMult
+        1.2,    // TrialTakenMult
+        1500.0, // TrialExitStunMs
+        300.0,  // TrialRadius
+        200.0,  // TrialConvictedRadius
+        30.0,   // BlazeBurnDps
+        2000.0, // BlazeBurnMs
+        64.0,   // BlazeMinDist
+        300.0,  // BlazeMaxDist
+        5000.0, // LastStandMs
+        0.3,    // LastStandSpeedBonus
+        0.3,    // LastStandHealShare
+        1.0,    // LastStandFloorHp
+    ];
+    crate::WireHudContent {
+        scaling: vec![
+            row(0, 1.0, 1.0, 0.0, 0.0, true),
+            row(1, 1.0, 0.0, 0.0, 0.0, false),
+            row(2, 0.3, 1.0, 0.0, 0.0, false),
+            row(3, 0.0, 0.3, 0.0, 0.4, false),
+            row(4, 1.0, 0.0, 0.02, 0.0, false),
+            row(5, 0.6, 0.6, 0.0, 0.0, false),
+        ],
+        terms: terms
+            .into_iter()
+            .enumerate()
+            .map(|(code, value)| WireHudTerm {
+                code: code as u8,
+                value,
+            })
+            .collect(),
+    }
 }
 
 /// Writes a weapon table without checking it (for decoder refusal tests).
@@ -909,9 +957,18 @@ pub fn write_weapon_table_for_tests(w: &mut Writer, rows: &[WireWeapon]) {
     crate::weapon::write_weapon_table_for_tests(w, rows);
 }
 
+/// Where the weapon table starts after the Welcome header in the hand-built frames below: after an empty archetype table
+/// and the default vision block.
+const PRE_WEAPON_LEN: usize = 1 + crate::vision::VISION_BLOCK_LEN;
+
+/// Where the HUD content block starts after the Welcome header in the hand-built frames below: after the empty weapon
+/// table.
+const PRE_HUD_LEN: usize = PRE_WEAPON_LEN + 1;
+
 /// Bytes between the Welcome header and the map in the hand-built frames below: an empty archetype table, the default
-/// vision block and an empty weapon table (protocol 16 and later).
-const PRE_MAP_LEN: usize = 1 + crate::vision::VISION_BLOCK_LEN + 1;
+/// vision block, an empty weapon table (protocol 16 and later) and an empty HUD content block (two count bytes,
+/// P-WIRE17-HUD-2b).
+const PRE_MAP_LEN: usize = PRE_HUD_LEN + 2;
 
 const PUBLIC_W: u16 = 8;
 const PUBLIC_H: u16 = 6;
@@ -2879,7 +2936,7 @@ fn malformed_vision() -> Vec<(&'static str, Vec<u8>)> {
 /// A Welcome on a valid 2 x 2 map whose weapon table is these raw bytes (protocol 16 and later).
 fn welcome_weapon_bytes(table: &[u8]) -> Vec<u8> {
     let good = welcome_map(2, 2, None, &[(1, 4)]);
-    let at = WELCOME_HEADER_LEN + PRE_MAP_LEN - 1;
+    let at = WELCOME_HEADER_LEN + PRE_WEAPON_LEN;
     let mut out = good[..at].to_vec();
     out.extend_from_slice(table);
     out.extend_from_slice(&good[at + 1..]);
@@ -2922,7 +2979,7 @@ fn malformed_weapons() -> Vec<(&'static str, Vec<u8>)> {
         ("welcome_weapon_truncated", {
             // Two rows promised, the second cut off inside its reach: the frame ends inside the table.
             let good = welcome_map(2, 2, None, &[(1, 4)]);
-            let mut out = good[..WELCOME_HEADER_LEN + PRE_MAP_LEN - 1].to_vec();
+            let mut out = good[..WELCOME_HEADER_LEN + PRE_WEAPON_LEN].to_vec();
             out.extend_from_slice(&cut[..1 + crate::weapon::WEAPON_ROW_LEN + 6]);
             out
         }),
@@ -3043,6 +3100,114 @@ fn malformed_weapons() -> Vec<(&'static str, Vec<u8>)> {
     ]
 }
 
+/// A Welcome on a valid 2 x 2 map whose HUD content block (after the empty weapon table) is these raw bytes, followed by
+/// the map (P-WIRE17-HUD-2b).
+fn welcome_hud_bytes(block: &[u8]) -> Vec<u8> {
+    let good = welcome_map(2, 2, None, &[(1, 4)]);
+    let mut out = good[..WELCOME_HEADER_LEN + PRE_HUD_LEN].to_vec();
+    out.extend_from_slice(block);
+    out.extend_from_slice(&good[WELCOME_HEADER_LEN + PRE_MAP_LEN..]);
+    out
+}
+
+/// [`welcome_hud_bytes`] with this block written unchecked.
+fn welcome_hud(c: &crate::WireHudContent) -> Vec<u8> {
+    let mut w = Writer::default();
+    crate::hud_content::write_hud_content_for_tests(&mut w, c);
+    welcome_hud_bytes(&w.finish())
+}
+
+/// HUD content blocks a client must refuse (each one fault), on a 2 x 2 map (P-WIRE17-HUD-2b).
+fn malformed_hud_content() -> Vec<(&'static str, Vec<u8>)> {
+    use crate::{WireHudContent, WireHudTerm};
+    let sample = sample_hud();
+    let sword = sample.scaling[0];
+    let bow = sample.scaling[1];
+    let scaling = |rows: Vec<crate::WireWeaponScaling>| {
+        welcome_hud(&WireHudContent {
+            scaling: rows,
+            terms: Vec::new(),
+        })
+    };
+    let terms = |rows: &[(u8, f64)]| {
+        welcome_hud(&WireHudContent {
+            scaling: Vec::new(),
+            terms: rows
+                .iter()
+                .map(|&(code, value)| WireHudTerm { code, value })
+                .collect(),
+        })
+    };
+    let mut dominant = Writer::default();
+    crate::hud_content::write_hud_content_for_tests(
+        &mut dominant,
+        &WireHudContent {
+            scaling: vec![sword],
+            terms: Vec::new(),
+        },
+    );
+    let mut dominant = dominant.finish();
+    // The sword row's dominant byte: after the count, the id and four f64.
+    dominant[1 + crate::hud_content::SCALING_ROW_LEN - 1] = 2;
+    vec![
+        // Count 33, refused before any row is read: the map follows.
+        ("welcome_hud_scaling_count", welcome_hud_bytes(&[33])),
+        (
+            "welcome_hud_scaling_dominant",
+            welcome_hud_bytes(&dominant),
+        ),
+        (
+            "welcome_hud_scaling_nan",
+            scaling(vec![crate::WireWeaponScaling {
+                ad: f64::NAN,
+                ..sword
+            }]),
+        ),
+        (
+            "welcome_hud_scaling_negative",
+            scaling(vec![crate::WireWeaponScaling { ap: -0.5, ..sword }]),
+        ),
+        ("welcome_hud_scaling_order", scaling(vec![bow, sword])),
+        // No rows, then a term count of 20, refused before any term is read: the map follows.
+        ("welcome_hud_term_count", welcome_hud_bytes(&[0, 20])),
+        ("welcome_hud_term_code", terms(&[(19, 1.0)])),
+        ("welcome_hud_term_infinite", terms(&[(0, f64::INFINITY)])),
+        (
+            "welcome_hud_term_over_max",
+            terms(&[(0, crate::hud_content::MAX_HUD_VALUE + 1.0)]),
+        ),
+        (
+            "welcome_hud_term_order",
+            terms(&[(4, 5000.0), (3, 72.0)]),
+        ),
+        ("welcome_hud_truncated", {
+            // No rows, two terms promised, the second cut off after four bytes: the frame ends inside the block.
+            let good = welcome_map(2, 2, None, &[(1, 4)]);
+            let mut block = Writer::default();
+            crate::hud_content::write_hud_content_for_tests(
+                &mut block,
+                &WireHudContent {
+                    scaling: Vec::new(),
+                    terms: vec![
+                        WireHudTerm {
+                            code: 0,
+                            value: 1250.0,
+                        },
+                        WireHudTerm {
+                            code: 1,
+                            value: 450.0,
+                        },
+                    ],
+                },
+            );
+            let block = block.finish();
+            let mut out = good[..WELCOME_HEADER_LEN + PRE_HUD_LEN].to_vec();
+            out.extend_from_slice(&block[..2 + crate::hud_content::HUD_TERM_ROW_LEN + 4]);
+            out
+        }),
+    ]
+}
+
 /// A Welcome whose archetype table is one legacy-circle row with this key (written unchecked). A valid 1x1 map follows.
 fn welcome_archetype_key(key: &str) -> Vec<u8> {
     let good = welcome_map(1, 1, None, &[(1, 1)]);
@@ -3074,10 +3239,12 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
-    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later), then an empty
+    // HUD content block (P-WIRE17-HUD-2b).
     b.u8(0);
     crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
     b.u8(0);
+    b.bytes(&[0, 0]);
     b.u16(w);
     b.u16(h);
     b.u32(hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)));
@@ -3159,10 +3326,11 @@ fn welcome_public_raw(
     b.u8(20);
     b.u32(0);
     b.f64(0.0);
-    // An empty archetype table, the default vision block and an empty weapon table.
+    // An empty archetype table, the default vision block, an empty weapon table and an empty HUD content block.
     b.u8(0);
     crate::vision::write_vision_for_tests(&mut b, &WireVision::default());
     b.u8(0);
+    b.bytes(&[0, 0]);
     b.u16(RAW_W);
     b.u16(RAW_H);
     b.u32(layer);
@@ -3404,16 +3572,18 @@ fn ground_welcome_bytes(
     w.u8(20);
     w.u32(0);
     w.f64(0.0);
-    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later).
+    // An empty archetype table, the default vision block and an empty weapon table (protocol 16 and later), then an empty
+    // HUD content block (P-WIRE17-HUD-2b).
     w.u8(0);
     crate::vision::write_vision_for_tests(&mut w, &WireVision::default());
     w.u8(0);
+    w.bytes(&[0, 0]);
     map.write(&mut w);
     w.finish()
 }
 
 /// `at` is the offset in the frame without the blocks between the header and the map ([`PRE_MAP_LEN`]: the empty
-/// archetype table, the vision block and the empty weapon table move the map).
+/// archetype table, the vision block, the empty weapon table and the empty HUD content block move the map).
 fn mutate_ground_welcome(mut frame: Vec<u8>, at: usize, bytes: &[u8]) -> Vec<u8> {
     let at = at + PRE_MAP_LEN;
     frame[at..at + bytes.len()].copy_from_slice(bytes);
@@ -4992,6 +5162,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     .into_iter()
     .chain(malformed_vision())
     .chain(malformed_weapons())
+    .chain(malformed_hud_content())
     .chain(malformed_deltas())
     .chain(malformed_hud())
     .collect()
@@ -6546,6 +6717,7 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         archetypes,
         vision,
         weapons,
+        hud,
         ..
     } = m
     else {
@@ -6562,6 +6734,25 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         })
         .collect();
     let weapons = weapons.join(",");
+    // P-WIRE17-HUD-2b: the HUD content block (f64 in shortest round-trip form, `dominant` a JSON boolean).
+    let scaling = hud
+        .scaling
+        .iter()
+        .map(|s| {
+            format!(
+                "{{\"id\":{},\"ad\":{},\"ap\":{},\"bonusHp\":{},\"bonusDefense\":{},\"dominant\":{}}}",
+                s.id, s.ad, s.ap, s.bonus_hp, s.bonus_defense, s.dominant
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let terms = hud
+        .terms
+        .iter()
+        .map(|t| format!("{{\"code\":{},\"value\":{}}}", t.code, t.value))
+        .collect::<Vec<_>>()
+        .join(",");
+    let hud = format!("{{\"scaling\":[{scaling}],\"terms\":[{terms}]}}");
     let coliseum = vision.coliseum.map_or_else(
         || "null".to_string(),
         |r| {
@@ -6660,7 +6851,7 @@ fn decoded_map_json(m: &ServerMsg) -> String {
         .collect::<Vec<_>>()
         .join(",");
     format!(
-        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"weapons\":[{weapons}],\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{},\"camps\":[{camps}],\"coliseum\":{map_coliseum},\"bushes\":{},\"props\":[{props}],\"groundVariants\":{}}}}}",
+        "{{\"archetypes\":[{archetypes}],\"vision\":{vision},\"weapons\":[{weapons}],\"hud\":{hud},\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{},\"camps\":[{camps}],\"coliseum\":{map_coliseum},\"bushes\":{},\"props\":[{props}],\"groundVariants\":{}}}}}",
         map.w,
         map.h,
         nums(&map.tiles),

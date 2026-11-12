@@ -689,9 +689,65 @@ pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
 /// (wire id `code()`) from `rh_sim::modifiers::rules::DEFINITION.weapon_scaling`, and every `rh_protocol::HudTerm` code
 /// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list"). All public content constants,
 /// the same for every viewer (no C-OBS concern).
+///
+/// A term whose sim source is missing (a content change that drops the value) is left out rather than sent as a made-up
+/// number; `crates/rh-policy/tests/hud_content.rs` requires every code.
 pub fn wire_hud() -> rh_protocol::WireHudContent {
-    // STUB (P-WIRE17-HUD-2b): the implementer builds the rows.
-    rh_protocol::WireHudContent::default()
+    use rh_protocol::HudTerm::*;
+    use rh_sim::abilities::{self as ab, Target};
+    use rh_sim::status_runtime::{AbilityId, BLAZE_FIELD_POLICY, TRIAL_FIELD_POLICY};
+    let scaling = rh_sim::WeaponId::ALL
+        .into_iter()
+        .map(|w| {
+            // Columns: AD, AP, bonus HP, bonus defense, dominant (modifiers/rules.rs).
+            let [ad, ap, bonus_hp, bonus_defense, dominant] =
+                rh_sim::modifiers::DEFINITION.weapon_scaling[usize::from(w.code())];
+            rh_protocol::WireWeaponScaling {
+                id: w.code(),
+                ad,
+                ap,
+                bonus_hp,
+                bonus_defense,
+                dominant: dominant != 0.0,
+            }
+        })
+        .collect();
+    let freeze_range = match ab::definition(AbilityId::Freeze).target {
+        Target::Unit(range) => Some(range),
+        _ => None,
+    };
+    let burn = BLAZE_FIELD_POLICY.burn;
+    // In code order (the wire requires strictly ascending codes).
+    let terms = [
+        (FreezeStunMs, Some(ab::FREEZE_STUN_MS)),
+        (FreezeRange, freeze_range),
+        (SwarmHiddenMs, Some(ab::SWARM_MS)),
+        (SwarmCloudRadius, Some(ab::SWARM_RADIUS)),
+        (TrialZoneMs, Some(ab::TRIAL_MS)),
+        (TrialDealtMult, Some(ab::TRIAL_DEALT_MULT)),
+        (TrialMoveMult, Some(ab::TRIAL_MOVE_MULT)),
+        (TrialTakenMult, Some(ab::TRIAL_TAKEN_MULT)),
+        (TrialExitStunMs, TRIAL_FIELD_POLICY.exit_stun_ms),
+        (TrialRadius, Some(ab::TRIAL_RADIUS)),
+        (TrialConvictedRadius, Some(ab::TRIAL_CONVICTED_RADIUS)),
+        (BlazeBurnDps, burn.map(|(dps, _)| dps)),
+        (BlazeBurnMs, burn.map(|(_, ms)| ms)),
+        (BlazeMinDist, Some(ab::blink::MIN_DIST)),
+        (BlazeMaxDist, Some(ab::blink::MAX_DIST)),
+        (LastStandMs, Some(ab::LAST_STAND_MS)),
+        (LastStandSpeedBonus, Some(ab::LAST_STAND_HASTE)),
+        (LastStandHealShare, Some(ab::LAST_STAND_HEAL)),
+        (LastStandFloorHp, Some(ab::LAST_STAND_FLOOR)),
+    ]
+    .into_iter()
+    .filter_map(|(code, value)| {
+        value.map(|value| rh_protocol::WireHudTerm {
+            code: code as u8,
+            value,
+        })
+    })
+    .collect();
+    rh_protocol::WireHudContent { scaling, terms }
 }
 
 #[cfg(test)]
