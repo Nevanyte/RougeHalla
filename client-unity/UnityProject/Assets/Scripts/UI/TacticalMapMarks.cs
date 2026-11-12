@@ -188,13 +188,24 @@ namespace Roguehalla.Client
             host.transform.SetParent(parent, false);
             _zoneLabelHost = (RectTransform)host.transform;
             _zoneLabelHost.anchorMin = Vector2.zero; _zoneLabelHost.anchorMax = Vector2.one; _zoneLabelHost.offsetMin = _zoneLabelHost.offsetMax = Vector2.zero;
-            _zoneLabelHost.SetAsLastSibling();
             return _zoneLabelHost;
+        }
+
+        protected override void OnDestroy()
+        {
+            // The host may live under the marks' parent: it goes with the marks.
+            if (_zoneLabelHost != null)
+            {
+                if (Application.isPlaying) Destroy(_zoneLabelHost.gameObject); else DestroyImmediate(_zoneLabelHost.gameObject);
+            }
+            _zoneLabelHost = null; _zoneLabels.Clear();
+            base.OnDestroy();
         }
 
         void RefreshZoneLabels()
         {
             bool show = Large && _map != null;
+            if (show && _zoneLabelHost != null) _zoneLabelHost.SetAsLastSibling();   // later siblings may have been added since it was created
             for (int i = 0; i < MapZones.Count; i++)
             {
                 int region = i + 1;

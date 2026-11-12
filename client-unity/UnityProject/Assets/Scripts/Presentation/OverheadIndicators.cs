@@ -119,13 +119,13 @@ namespace Roguehalla.Client
             return t;
         }
 
-        /// <summary>True while the name label is drawn (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         /// <summary>Where the name label is anchored, in world units.</summary>
         public Vector3 NameWorldPosition { get { return _name.transform.position; } }
         /// <summary>How wide the drawn name is, in world units.</summary>
         public float NameWorldWidth { get { return _name.preferredWidth * _name.transform.lossyScale.x; } }
         /// <summary>Hides the name for this frame (the pack merge); <see cref="Update"/> shows it again next frame.</summary>
         public void HideName() { _name.gameObject.SetActive(false); }
+        /// <summary>True while the name label is drawn (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         public bool NameActive { get { return _name.gameObject.activeSelf; } }
 
         public void HideAll()
