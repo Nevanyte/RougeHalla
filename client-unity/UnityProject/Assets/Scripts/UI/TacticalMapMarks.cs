@@ -28,9 +28,9 @@ namespace Roguehalla.Client
         public int MerchantCount { get; private set; }
         public int QuestGiverCount { get; private set; }
         public int QuestObjectiveCount { get; private set; }
-        readonly List<CampMarkRow> _camps = new List<CampMarkRow>();
+        readonly List<CampGlyphRow> _camps = new List<CampGlyphRow>();
+        int _realIcons;
         readonly List<TMP_Text> _campClocks = new List<TMP_Text>();
-        readonly List<CampBadgeRow> _rewards = new List<CampBadgeRow>();
         readonly List<CampWardRow> _wards = new List<CampWardRow>();
         readonly List<ChestBadgeRow> _chestRows = new List<ChestBadgeRow>();
         readonly List<TMP_Text> _chestTexts = new List<TMP_Text>();
@@ -51,7 +51,7 @@ namespace Roguehalla.Client
         readonly List<TMP_Text> _badgeTexts = new List<TMP_Text>();
         readonly List<Image> _badgeIcons = new List<Image>();
         /// <summary>Reward badges (stat badge and elite chest) and ward marks the model produced for the last presentation.</summary>
-        public int RewardBadgeCount => _rewards.Count;
+        public int RewardBadgeCount => _realIcons;
         public int WardMarkCount => _wards.Count;
         /// <summary>Badges, chests and ward marks actually drawn in the last mesh pass (not covered by a contact).</summary>
         public int BadgesDrawn { get; private set; }
@@ -67,6 +67,18 @@ namespace Roguehalla.Client
         public int CampMarkerCount => _camps.Count;
         /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>
         public int CampMarkersDrawn { get; private set; }
+        // Test-visible counts for P-UNITY-DECLUTTER-1 (reset on each pass that sets them). Mesh pass: CampShapesDrawn, EngagedRingsDrawn,
+        // EliteMarkersDrawn. Presentation pass (Present): CampBuffGlyphsDrawn, CampDimGlyphsDrawn.
+        /// <summary>Zone-shape glyphs drawn for camps in the last mesh pass. Owner rule: always 0.</summary>
+        public int CampShapesDrawn { get; private set; }
+        /// <summary>"Someone has fought here" rings drawn in the last mesh pass. Owner rule: Tab map only.</summary>
+        public int EngagedRingsDrawn { get; private set; }
+        /// <summary>Elite camp markers drawn in the last mesh pass: exactly one per drawn elite camp.</summary>
+        public int EliteMarkersDrawn { get; private set; }
+        /// <summary>Buff glyphs (stat icon, or the neutral dot of a row with no reward) shown for camps after the last Present, none under a contact.</summary>
+        public int CampBuffGlyphsDrawn { get; private set; }
+        /// <summary>Of <see cref="CampBuffGlyphsDrawn"/>, those dimmed because the camp is cleared.</summary>
+        public int CampDimGlyphsDrawn { get; private set; }
         /// <summary>Legacy minimapMarkers.ts:87-88: a camp mark is dropped where a contact sits this close.</summary>
         public const float CampDropPx = 8f;
         /// <summary>The zones that have an icon (0 when the map has no region plane).</summary>
@@ -107,14 +119,14 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _rewards.Clear(); _wards.Clear(); _contactMarks.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _realIcons = 0; _wards.Clear(); _contactMarks.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
                 if (_map != null)
                 {
                     bool active = !session.Training;
-                    CampMarks.Markers(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _camps);
-                    CampBadges.Rewards(_map.Camps, session.Collections.Camps, active, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _rewards);
+                    CampMarks.Glyphs(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, Large ? CampSurface.TabMap : CampSurface.Minimap, _camps);
+                    for (int i = 0; i < _camps.Count; i++) if (_camps[i].IconKey != null) _realIcons++;
                     CampBadges.Wards(_map.Camps, session.Collections.Camps, session.ServerTimeMs, active, _wards);
                 }
                 session.Snapshots.Sample(session.Snapshots.NewestMs, _actors);
@@ -203,7 +215,7 @@ namespace Roguehalla.Client
                 for (int i = 0; i < _camps.Count; i++)
                 {
                     var camp = _camps[i];
-                    if (camp.Countdown == null) continue;
+                    if (camp.Clock == null) continue;
                     if (ChestBadges.Replaces(_chestRows, camp.Index)) continue; // one badge per camp: the chest's seconds win while it stands
                     var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
                     if (ContactNear(p)) continue;
@@ -216,8 +228,8 @@ namespace Roguehalla.Client
                     }
                     var text = _campClocks[used++];
                     if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
-                    if (text.text != camp.Countdown) text.text = camp.Countdown;
-                    text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -10f);
+                    if (text.text != camp.Clock) text.text = camp.Clock;
+                    text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -12f);
                 }
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
             CampClocksShown = used;
@@ -318,9 +330,9 @@ namespace Roguehalla.Client
             int used = 0;
             if (_map != null)
             {
-                for (int i = 0; i < _rewards.Count; i++)
+                for (int i = 0; i < _camps.Count; i++)
                 {
-                    var b = _rewards[i];
+                    var b = _camps[i];
                     var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
                     if (ContactNear(p)) continue;
                     int row = 0;
@@ -339,17 +351,18 @@ namespace Roguehalla.Client
             for (int i = used; i < _badgeTexts.Count; i++) if (_badgeTexts[i].gameObject.activeSelf) _badgeTexts[i].gameObject.SetActive(false);
         }
 
-        /// <summary>The stat glyph (the GAINED strip's art, tinted with the model's icon colour) of each reward badge: pooled Image children.</summary>
+        /// <summary>The one buff glyph of each camp (the GAINED strip's art, tinted with the row's colour, dimmed when cleared): pooled Image children. A row without a reward is a neutral dot drawn in the mesh pass.</summary>
         void RefreshBadgeIcons()
         {
-            int used = 0;
+            int used = 0, glyphs = 0, dim = 0;
             if (_map != null)
-                for (int i = 0; i < _rewards.Count; i++)
+                for (int i = 0; i < _camps.Count; i++)
                 {
-                    var b = _rewards[i];
-                    if (b.IconKey == null) continue;
+                    var b = _camps[i];
                     var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
                     if (ContactNear(p)) continue;
+                    glyphs++; if (b.Dim) dim++;
+                    if (b.IconKey == null) continue;
                     if (used >= _badgeIcons.Count)
                     {
                         var go = new GameObject("CampBadgeIcon" + used, typeof(RectTransform)); go.transform.SetParent(transform, false);
@@ -358,31 +371,26 @@ namespace Roguehalla.Client
                         _badgeIcons.Add(image);
                     }
                     var icon = _badgeIcons[used++];
-                    float size = (Large ? 15f : 12f);
+                    float size = IconSize;
                     if (!icon.gameObject.activeSelf) icon.gameObject.SetActive(true);
                     icon.sprite = CampRespawnLabels.Art(b.IconKey);
-                    icon.color = Rgb(b.IconRgb);
+                    var c = Rgb(b.IconRgb); if (b.Dim) c.a = 110;
+                    icon.color = c;
                     icon.rectTransform.sizeDelta = new Vector2(size, size);
-                    icon.rectTransform.anchoredPosition = RewardSlot(p, 0);
+                    icon.rectTransform.anchoredPosition = p;
                 }
             for (int i = used; i < _badgeIcons.Count; i++) if (_badgeIcons[i].gameObject.activeSelf) _badgeIcons[i].gameObject.SetActive(false);
+            CampBuffGlyphsDrawn = glyphs; CampDimGlyphsDrawn = dim;
         }
+
+        float IconSize => Large ? 15f : 12f;
 
         static Color32 Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
 
-        /// <summary>Reward badges as a dark plate under the stat glyph Image, chests as squares, ward marks as rings in the beacon colour.</summary>
+        /// <summary>Ward marks as rings in the beacon colour.</summary>
         void DrawBadges(VertexHelper vh, Color32 ink, float s)
         {
-            BadgesDrawn = WardsDrawn = 0;
-            foreach (var b in _rewards)
-            {
-                var p = At(new Vector2((float)b.WorldX, (float)b.WorldY));
-                if (ContactNear(p)) continue;
-                BadgesDrawn++;
-                int row = 0;
-                if (b.IconKey != null) { Glyph(vh, RewardSlot(p, row++), 17f * s, MapGlyph.Disc, Alpha(ink, .9f)); } // dark plate under the glyph Image
-                if (b.EliteIconKey != null) Marker(vh, RewardSlot(p, row), 7f * s, MapGlyph.Square, ChestTone, ink);
-            }
+            WardsDrawn = 0;
             foreach (var w in _wards)
             {
                 var p = At(new Vector2((float)w.WorldX, (float)w.WorldY));
@@ -392,28 +400,24 @@ namespace Roguehalla.Client
             }
         }
 
+        /// <summary>Per camp: a dark plate under the buff icon (or the neutral dot), the Tab-map fought-here ring, one gold elite diamond. No zone shape.</summary>
         void DrawCamps(VertexHelper vh, UiTheme theme, Color32 ink, float s)
         {
-            CampMarkersDrawn = 0;
+            CampMarkersDrawn = CampShapesDrawn = EngagedRingsDrawn = EliteMarkersDrawn = BadgesDrawn = 0;
             foreach (var camp in _camps)
             {
                 var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
                 if (ContactNear(p)) continue;
                 CampMarkersDrawn++;
-                float size = (camp.Elite ? 9.2f : 6.8f) * s;
-                Color zone = theme.ZoneColor(camp.Zone);
-                var glyph = MapGlyphs.ForShape(MapZones.Shape(camp.Zone));
-                bool cleared = camp.State == CampMarkState.Cleared;
-                float a = cleared ? .38f : 1f;
-                Glyph(vh, p, size + 3f, glyph, Alpha(ink, a));
-                Glyph(vh, p, size, glyph, Alpha(zone, a));
-                if (camp.State == CampMarkState.Engaged) Glyph(vh, p, size + 5f, MapGlyph.Ring, Alpha(theme.TextSecondary, .7f));
-                if (cleared)
+                float a = camp.Dim ? .45f : 1f;
+                if (camp.IconKey != null) { BadgesDrawn++; Glyph(vh, p, 17f * s, MapGlyph.Disc, Alpha(ink, .9f * a)); }
+                else Marker(vh, p, 6f * s, MapGlyph.Disc, Alpha(Rgb(camp.IconRgb), a), Alpha(ink, a));
+                if (camp.Engaged) { EngagedRingsDrawn++; Glyph(vh, p, 22f * s, MapGlyph.Ring, Alpha(theme.TextSecondary, .55f)); }
+                if (camp.Elite)
                 {
-                    Glyph(vh, p, size + 3f, MapGlyph.Cross, ink);
-                    Glyph(vh, p, size, MapGlyph.Cross, new Color32(0xec, 0xef, 0xf1, 255));
+                    EliteMarkersDrawn++;
+                    Marker(vh, p + new Vector2(0f, IconSize * .5f + 5f * s), 6f * s, MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), ink);
                 }
-                if (camp.Elite) Marker(vh, p + new Vector2(0f, size + 3f), 6f * s, MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), ink);
             }
         }
 
