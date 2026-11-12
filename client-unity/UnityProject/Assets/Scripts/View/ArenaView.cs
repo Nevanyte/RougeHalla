@@ -274,7 +274,12 @@ namespace Roguehalla.Client
             uint shownLock = LockDisplay.Shown(lockTarget ?? 0u, Time.realtimeSinceStartupAsDouble * 1000.0);
             lockTarget = shownLock == 0 ? (uint?)null : shownLock; _lockForNpc = lockTarget;
             _wishFx.BeginFrame(); _wishFx.SetOwner(mine);
-            _inspector?.Show(remote, _hoverId, shownLock, mine);
+            if (_inspector != null)
+            {
+                uint inspected = _hoverId != 0 ? _hoverId : shownLock;
+                if (_hasMembership && !_membership.Contains(inspected)) _inspector.Hide();   // C-OBS: left vision in the newest snapshot
+                else _inspector.Show(remote, _hoverId, shownLock, mine, me == null || me.Status == ActorStatus.Alive);
+            }
             foreach (var a in remote)
             {
                 if (a.Id == mine) continue;
