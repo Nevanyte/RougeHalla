@@ -75,16 +75,16 @@ namespace Roguehalla.Client.Tests
             f.Sig = 0; _ind.Update(f); Assert.IsFalse(cue.gameObject.activeSelf); Assert.IsFalse(Find("Signature cue plate").enabled);
         }
 
-        // ---- role badge rides the body height (M1) ---------------------------------------------------------------------------------------
-        [Test] public void The_role_badge_follows_the_look_height_so_the_name_plate_cannot_cover_it()
+        // ---- elite emblem rides the body height (M1) ---------------------------------------------------------------------------------------
+        [Test] public void The_elite_emblem_follows_the_look_height_so_the_name_plate_cannot_cover_it()
         {
             var go = new GameObject("identity"); var owner = ShowcaseIdentityOwner.Configure(go.transform);
             try
             {
-                owner.Present((int)FactionId.Fire, ActorKind.RegionalMob, MobTypeId.CinderHound, 2000, true, 0f);
-                float tall = go.transform.Find("Mob role badge glyph").localPosition.y;
-                owner.Present((int)FactionId.Fire, ActorKind.RegionalMob, MobTypeId.CinderHound, 2000, true, -.8f);
-                Assert.AreEqual(tall - .8f, go.transform.Find("Mob role badge glyph").localPosition.y, .001f);
+                owner.Present((int)FactionId.Fire, ActorKind.RegionalMob, MobTypeId.Wyrmling, 2000, true, 0f);
+                float tall = go.transform.Find("Elite emblem glyph").localPosition.y;
+                owner.Present((int)FactionId.Fire, ActorKind.RegionalMob, MobTypeId.Wyrmling, 2000, true, -.8f);
+                Assert.AreEqual(tall - .8f, go.transform.Find("Elite emblem glyph").localPosition.y, .001f);
             }
             finally { Object.DestroyImmediate(go); }
         }
