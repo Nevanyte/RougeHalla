@@ -51,7 +51,31 @@ none (P-SIGNATURE-1 is merged)
 - `scripts/gate.sh --oracle packet/P-SIGNATURE-1-fix` passes.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-SIGNATURE-1-fix`
+- `crates/rh-server/src/signature/tests.rs`: the new cases `graveyard_stones_keep_walkable_gaps_and_the_yard_stays_reachable`,
+  `every_church_has_an_open_door_joined_to_the_map`, `a_failing_base_map_is_left_alone_and_kept_landmarks_certify_clean`
+  and their helpers (`Placed`, `placed_maps`, `flood`, `first_spawn`, `broken`). The three pre-existing cases are
+  untouched. The file is in section 5's write scope only for those old cases' sake: **the implementer does not edit it**.
+
+Stub commit: `Report.churches: Vec<Church>` (`Church { door, stones }`), filled by `church_site` from the inserted
+features after a church is kept; `insert` now returns the index of its first feature. The implementer may restructure
+how the report is filled, but must keep `Report.churches` (one entry per placed church; `door` the three ring tiles on
+the door side; `stones` every grave-stone tile).
+
+## Confirmed findings (oracle author, 2026-11-11)
+1. **Graveyard: confirmed.** `signature.rs` `church` (the `stones` loop, ~:482-505): stones are 2x3 (`STONE`) at pitch
+   `col * 3` across the door axis; on a left/right door the stone is 3 tall on a 3 pitch, so neighbours touch with no
+   gap (and rows are `4` apart along, 3 tall: one gap row). Seeds 1-8: stones placed on 2 (seeds 1 and 5, 18 tiles
+   each, 4-connected pieces of 18 not 6). Seeds 2, 3, 4, 7 have a church with no stones; 6 and 8 no church. Seeds 1-60:
+   12 churches have touching stones (seeds 1, 5, 15, 18, 26, 34, 41, 44, 45, 54, 55, 60). Yard floor did NOT become unreachable on seeds 1 and 5 (0 lost tiles); the
+   reachability assertion is kept as an invariant but does not fail today. The oracle fails on the adjacency assertion.
+2. **Church doors: code finding confirmed, no failing seed.** `church` (:459-470) pushes the three door-side tiles
+   to `door` and never checks them (`g.free` is only tested for ring tiles). On seeds 1-60 every placed church had a
+   floor, spawn-reachable door tile; seeds 35 and 50 have 2 of 3 door tiles open. So the door test passes today and is
+   a regression pin only. It would fail on a sealed door; the implementer should still add the check.
+3. **Certifier check: confirmed.** `apply` :80-81 keeps a candidate when `f.iter().all(|x| baseline.contains(x))`, a
+   subset test, and still edits maps whose baseline is non-empty. With one camp's clearing walled (the certifier
+   fails; asserted in the test), `apply` places all four landmarks on seed 1. The test fails on `report.placed.is_empty()`.
+   Seeds 1-8 base maps all have zero failures, so none of them will place nothing after the fix.
 
 ## 9. Validation commands
 - `cargo test -p rh-server signature`, `scripts/gate.sh --quick`
