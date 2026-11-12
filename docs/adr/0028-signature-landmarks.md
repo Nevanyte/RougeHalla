@@ -2,7 +2,8 @@
 
 Status: **Proposed.** Owner beta-follow-up decisions 5 and 6 (MIGRATION, 2026-11-10); owner direction 2026-11-12 (the
 generation order and the core rules G1-G8 below). Packets P-SIGNATURE-1, P-SIGNATURE-1-fix (the server post-pass) and
-P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner
+P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator),
+P-MAPGEN-SIG-FROST-1 (the Frost cave in the generator; the server post-pass deleted). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner
 signs.
 
 **Per-operation checklist.** D1: new terrain with no legacy counterpart, an intentional difference (DEV-020); with the
@@ -35,7 +36,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 1. **Where.** `rh_sim::mapgen::landmarks::signature`, a step inside the Landmarks phase: `pipeline::build_attempt`
    runs it right after the legacy landmark stage and before the spawn preparation, only when
    `pipeline::Options::signature` (serde default `false`) and the attempt is styled. Zones in order Fire, Sentenced,
-   Plague; each keeps out of the aprons marked before it. Not a landmark recipe: the legacy
+   Plague, Frost; each keeps out of the aprons marked before it. All four landmarks are generator-placed; nothing is
+   added after generation. Not a landmark recipe: the legacy
    stage admits only floor-to-wall writes owned by `FeatureKind::Landmark`, whose certifier rules and `map.buildings`
    records belong to the legacy buildings.
 2. **How later steps see it.** The step writes the stage's tiles, features and feature owners, marks each landmark's
@@ -43,7 +45,7 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    core band (2 tiles, the apron) in `masks.near1` (the spawn pool keeps off it; the stylers' `protect`/`no_block`
    covers its unowned tiles; owned tiles are refused by `feature_owner`). A lava stream's or pool's box is a long
    diagonal, so its keep mask is its own tiles and its apron those tiles grown by the core band. Its terrain (the bog,
-   the lava and ember) is the attempt's starting terrain layer.
+   the lava and ember, the cave's ice) is the attempt's starting terrain layer.
 3. **Randomness.** One stream per zone: `Mulberry32(hash_seed(seed, attempt, zone slot, 5))` (0-2 stylers, 3 recipes,
    4 bushes). The attempt's main stream and every styler stream draw exactly what they drew before.
 4. **Plague, the bog tree** (`FeatureKind::BogTree`, job landmark): a 13-tile trunk (wall, squared distance <= 4 from
@@ -63,21 +65,24 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    rectangles. A choice that splits the zone's floor or leaves a wall piece under 6 tiles is redrawn.
 6. **Refusal.** A zone with no legal site refuses the attempt in the Landmarks phase (`Refusal::Signature`); the
    pipeline tries the next one. After records, a signature map is discarded (`Refusal::SignatureDiscarded`) unless
-   every signature tile is still as placed, no styler feature owns a tile of an apron (styler floor claims do not read
+   every signature tile is still as placed (the cave: walls, and floor carrying its ice), every entrance tile is still
+   floor, no styler feature owns a tile of an apron (styler floor claims do not read
    `no_block`), and the strict certifier (every zone) finds zero failures.
 7. **Anchors (G3).** `GameMapData.anchors` only, zone-code order, omitted from JSON when empty. They are not on the
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
    decoration bake reads them from the generator's map at pool-build time. Fire the volcano (centre the cone's centre,
    footprint the cone's box), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree, Holy
-   the largest `Hall` (written when the map is finished: the hall is placed by the Holy styler in step 3). Not in the
+   the largest `Hall` (written when the map is finished: the hall is placed by the Holy styler in step 3), Frost the
+   cave (centre the camp tile, footprint the chamber's box, the mouth as entrance). Not in the
    map hash (they restate hashed features). `rh-map/2` does not move: older readers refuse a document with anchors, which exists only inside an
    option-on server.
 8. **Bands (G4).** `signature::band(anchor, x, y)`: Chebyshev distance from the footprint, core <= 2, near <= 6,
-   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10); the other stylers and `rh-mapdress`
-   from `P-MAPGEN-SIG-STYLE-1` on.
-9. **Server.** `--map-pool --signature-landmarks` sets the option; the `rh-server` post-pass now builds only the Frost
-   cave (`P-MAPGEN-SIG-FROST-1` moves it into the generator; then the pass is deleted).
+   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10), the Frost styler for its mere
+   (decision 11); the other stylers and `rh-mapdress` from `P-MAPGEN-SIG-STYLE-1` on.
+9. **Server.** `--map-pool --signature-landmarks` sets the generator option and nothing else: the served map is the
+   generator's own map, exported. The `rh-server` post-pass (`signature.rs`, which last built the Frost cave as a rock
+   arch on 9 of 16 maps) is deleted (P-MAPGEN-SIG-FROST-1).
 10. **Fire, the volcano** (`Volcano`, job landmark; `LavaStream` and `LavaPool`, job crossing; certifier rows in
    `SIGNATURE_KINDS`). A cone of wall (squared distance <= 6 from the centre tile: a 5x5 box) round a lava crater
    (squared distance <= 1), its centre at least 2 tiles farther from the map centre than the Fire zone's centroid (the
@@ -95,6 +100,22 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    feature in its zone (no new styler input): it places no lava river, and a crater (a camp's pen; it cannot move) that
    would reach the volcano's core band shrinks a quarter tile at a time or is dropped; no crater bowl claims floor in a
    stream's or pool's apron.
+11. **Frost, the cave** (`Cave`, job landmark; certifier row in `SIGNATURE_KINDS`: wall, no LOW). Around the far elite
+   camp, as the church: a rectangular wall ring whose interior holds the camp's halo, each wall line 4-7 tiles from the
+   camp tile or the side leaning on the map border (within 9 tiles; a side whose own wall would leave under 2 tiles to
+   the border must lean). Closed except for one 3-tile mouth in the wall facing the coliseum (the dominant axis of the
+   front, else the other axis toward the coliseum), its axis up to 5 tiles off the camp's, nearer the coliseum than the
+   camp, with 2 tiles of free Frost floor beyond it. A mouth is first sought with a forecourt (a 9x9 square of Frost
+   just beyond it, room for the lake), then without. The cave owns its walls and its ice: every interior tile with
+   interior floor on all eight sides, off every camp halo and off the map corners the spawn rules keep open; at least 8.
+   Choice as the church's: the mouth axis nearest the camp admitting any chamber, one uniform draw among those
+   chambers, redrawn while it would split the zone's floor or leave a wall piece under 6. The Frost styler
+   (`style_rime`) learns signature mode from the `Cave` feature in its zone (`signature_anchor`; the mouth is the floor
+   on the box's edge with floor just outside it): no lake tile in the cave's core band; the first lake (the mere) is
+   seeded at the allowed tile within 8 floor steps of the mouth with the most clearance and grown round its seed (value
+   falling with chamfer distance, plus the styler's noise), off the route guard's corridor; while a spawn route crosses
+   it, it is regrown off the routes (at most 3 times); the second lake grows to at most 75% of the mere's area. Spires
+   and headlands keep their placement rules, which already keep them off the cave's apron (`no_block`).
 
 ## Measurements (seeds 1-16, `decor: false`, debug test build, macOS arm64)
 
@@ -104,13 +125,21 @@ at attempt 2; 470-680 ms per map at attempt 0 (the step plus the in-pipeline cer
 attempt 2. The refused first attempts of seeds 8, 9 and 16 put the far elite camp in a 9-11 tile strip of the zone along
 the map edge, where the door side points into a neighbouring zone or any church would seal the strip from the zone.
 
+With the cave (P-MAPGEN-SIG-FROST-1; four landmarks): seeds 1-32 refuse exactly the attempts they refused with three
+(worst attempt index 2, seed 8); the cave itself refuses no attempt. Seeds 1-16 generate in about 12 s in all (about
+0.75 s per certified map with its refused attempts). Every cave holds 8-65 ice tiles. On seeds 1-16 and on 30 of seeds
+1-32 the zone's largest ice body outside the cave is 3-5 floor steps from the mouth, its nearest tile in the near band;
+on seeds 17 and 18 the far camp sits in a 12-14 tile strip of the zone along the edge with another camp within 15
+tiles, so no lake fits within reach of the mouth by the styler's clearance rules and the mere grows where it does today.
+
 ## Consequences
 
 - The Holy hall is an anchor only after step 3. Moving it into the Landmarks phase means porting the hall's placement
   out of the Holy styler (`style_sanctum`) into this step, publishing it to the styler (which then builds round it
   instead of placing it), and re-pinning the option-on Holy layouts: a styler packet.
-- The Frost anchor is absent until its packet. Only the Fire styler arranges round its anchor; the others wait for
-  `P-MAPGEN-SIG-STYLE-1`.
+- The Fire and Frost stylers arrange round their anchors; the others wait for `P-MAPGEN-SIG-STYLE-1`.
+- On a seed whose far Frost camp has no room for a lake within reach of the mouth (seeds 17 and 18 of 1-32), the mere
+  grows where today's styler puts it; the attempt is not refused for it.
 - The Fire craters stay camp pens: by band they only shrink or drop (none reaches the core band). That the near-band
   craters average larger than the mid and far ones is measured, not arranged.
 - Elite bushes read the stylers' `protect` and stay out of every apron. Repair's walls (the safety net's connectivity
