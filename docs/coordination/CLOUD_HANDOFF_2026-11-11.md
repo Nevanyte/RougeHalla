@@ -99,4 +99,14 @@ Baseline (`e43e8cf6`, full with Postgres, 4-core container): clippy and the work
 load at a 143.6 s game-time condition and passed when rerun alone (0.19 s). Treated as a load-sensitive flake, not a
 regression; worth watching.
 
-Final head: recorded below when the run finishes.
+Final head (code as of `0a0da282`; later commits add docs and `hosting/` only), full gate with Postgres:
+**PASS with one environment exception.** Path checks, rustfmt, clippy (all features and default), workspace tests,
+the `rh-sim` suite (trusted-status-probes) all pass. In the `rh-server` Postgres suite,
+`result_recovery::database_stopped_during_a_match_ticks_continue_and_the_result_lands_after_restart` cannot run in this
+container: it calls `pg_ctl stop` directly and PostgreSQL refuses to run as root (the container's user); after
+installing the `en_US.UTF-8` locale its start step passes. The gate stops at the first red step, so the remaining steps
+were run by hand with the same commands: the rest of the `rh-server` Postgres suite and the `rh-placement` Postgres
+suite pass; parity report: 109 slice scenarios + 13 capture-only and 300 pathfinding queries, all MATCH; JS decoder
+agrees with `v17.json`; C# 1,444/1,444 and the Unity copy is current; headless smoke (seed1, 8 bots, 4,000 ticks) runs.
+Not run here: Unity EditMode and Web build (no Editor), capture `--check` tools, perfproof, cross-architecture
+determinism, browser proof. CI on the pushed branch is the final word.
