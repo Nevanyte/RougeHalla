@@ -24,10 +24,11 @@ also serves a self-hosted multi-room process. Nothing here mentions GameLift typ
   endpoint tables: 400 `bad_request` | `unsupported_version` | `unsupported_property`, 401 `unauthorized`, 403 `forbidden` (any request carrying an `Origin` header: no control client is a browser), 413
   `payload_too_large`, 503 `not_ready`, and 409 `not_final` (ack of a record that has not ended) and `too_many_admits` (the room
   holds 256 player records, live and final).
-- Optional defense in depth: when the server is started with `--control-token-file <path>`, every request must carry
+- Token (mandatory unless waived): `--control` requires `--control-token-file <path>`; the server refuses to start (exit 2) without it unless `--control-insecure-loopback` is passed (development and load tests only; `glbridge` passes it when `GLBRIDGE_CONTROL_TOKEN` is unset). With a token, every request must carry
   `Authorization: Bearer <token>` (401 otherwise; the compare is over fixed-length SHA-256 digests, so it is constant time). The bridge sends it when
   `GLBRIDGE_CONTROL_TOKEN` is set. The loopback bind is the primary boundary; the token only guards against a co-located
   process.
+- Shutdown budget: SIGTERM or `POST /control/drain` stops admissions. `--drain-max-secs N` (default 55, `0` = no cap) is one deadline from the signal after which rooms still running are ended (seats closed out, earned results kept; unresponsive rooms abandoned); then `--drain-write-wait-secs N` (default 20) for result writes and 5 s of HTTP shutdown. The sum (default 80 s) must stay within the platform's termination grace (systemd's default `TimeoutStopSec` is 90 s).
 - Time values crossing the API are **relative milliseconds** (`...Ms`), never wall-clock stamps, so bridge and server need no
   clock agreement.
 - Never log or echo profile tokens or admission tickets. `callsign` is public, `playerSessionId` is a GameLift identifier.

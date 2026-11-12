@@ -65,8 +65,8 @@ fsync (milliseconds) is not recovered; a match cut by process death has no resul
 - One game session per process means the container group ends with the match. Unless `--result-spool` points at storage that **outlives the container** (a host-mounted volume or off-host store:
   whether GameLift container fleets can mount one is UNVERIFIED), the spool dies with the container: the effective guarantee is the **in-process retry only**.
 - **Defect for a reviewer to look at first:** after a room closes, `glbridge` calls `ProcessEnding` and exits, and its deferred `proc.stop(5 * time.Second)` sends `rh-server` SIGTERM and then SIGKILL after 5 s
-  (`hosting/glbridge/main.go`, `supervisor.go`). `rh-server` itself waits up to 150 s for result writes before exiting (`main.rs`). So a database outage at match end loses the retry window at 5 s after the
-  room closes, not 150 s, and with an ephemeral spool the record goes with the container. Proposed fix (not made here, `glbridge` is outside this work package): after `finish`, before `ProcessEnding`,
+  (`hosting/glbridge/main.go`, `supervisor.go`). `rh-server` itself waits up to `--drain-write-wait-secs` (default 20 s; it was a fixed 150 s before the drain budget was bounded, `main.rs`) for result writes before exiting. So a database outage at match end loses the retry window at 5 s after the
+  room closes, not 20 s, and with an ephemeral spool the record goes with the container. Proposed fix (not made here, `glbridge` is outside this work package): after `finish`, before `ProcessEnding`,
   poll `/control/health` until `results.spoolPending == 0` and in-flight writes are done (a pending-writes figure is needed in the metrics, [OBSERVABILITY.md](OBSERVABILITY.md) section 4), bounded by
   the result retry deadline and GameLift's termination time.
 - No managed-database failover has been exercised, and a local PostgreSQL restart is not evidence about Aurora.

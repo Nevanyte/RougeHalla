@@ -150,6 +150,8 @@ pub struct MemoryStore {
     pub release_delay: std::time::Duration,
     pub record_delay: std::time::Duration,
     pub renew_delay: Duration,
+    /// Strict mode (tests): how long a live-lease acquisition takes (a database that is slow or gone).
+    pub acquire_delay: Duration,
 }
 
 impl MemoryStore {
@@ -219,6 +221,36 @@ impl HeldLease {
             fence,
             #[cfg(feature = "postgres")]
             profile_id: None,
+        }
+    }
+}
+
+/// Why a live-lease acquisition failed. The two need different answers: `Held` is a real conflict (the profile is already
+/// in a live match, here or on another host), `Unavailable` is the storage failing or timing out and says nothing about
+/// the player's seat.
+#[derive(Debug)]
+pub(crate) enum LeaseError {
+    Held(String),
+    Unavailable(String),
+}
+
+impl LeaseError {
+    /// The timeout wrapped around the acquisition (a database that answers too slowly or not at all).
+    pub(crate) fn timed_out() -> Self {
+        LeaseError::Unavailable("lease acquisition timed out".into())
+    }
+
+    #[cfg(feature = "postgres")]
+    fn from_persist(e: &rh_persist::Error) -> Self {
+        let text = format!("lease refused: {e}");
+        match e {
+            rh_persist::Error::LeaseHeld { .. } | rh_persist::Error::Conflict(_) => {
+                LeaseError::Held(text)
+            }
+            // `FOR UPDATE NOWAIT` on a row another admission holds.
+            _ if e.is_lock_contention() => LeaseError::Held(text),
+            // Pool exhaustion, connect/IO failure, statement timeout, shutdown: the database, not the player.
+            _ => LeaseError::Unavailable(text),
         }
     }
 }
@@ -410,14 +442,14 @@ impl Persistence {
         m: MatchId,
         profile: &str,
         policy: crate::director::LeasePolicy,
-    ) -> Result<HeldLease, String> {
+    ) -> Result<HeldLease, LeaseError> {
         #[cfg(feature = "postgres")]
         if let (Self::Postgres { store, owner, held }, ProfileKey::Durable(id)) = (self, key) {
             let mid = uuid::Uuid::from_bytes(m);
             let (tx, fence, writing_xid) = store
                 .prepare_live_lease(*id, mid, owner, policy.ttl, policy.db_timeout)
                 .await
-                .map_err(|e| format!("lease refused: {e}"))?;
+                .map_err(|e| LeaseError::from_persist(&e))?;
             let id = *id;
             let store = store.clone();
             let (send, receive) = tokio::sync::oneshot::channel();
@@ -431,7 +463,10 @@ impl Persistence {
                         .await;
                 }
             });
-            receive.await.map_err(|_| "lease commit interrupted")??;
+            receive
+                .await
+                .map_err(|_| LeaseError::Unavailable("lease commit interrupted".into()))?
+                .map_err(|e| LeaseError::Unavailable(format!("lease commit failed: {e}")))?;
             held.lock().expect("held").note(profile, fence, id, false);
             let _ = accept.send(());
             return Ok(HeldLease {
@@ -441,9 +476,23 @@ impl Persistence {
         }
         let _ = profile;
         match self {
-            Self::Memory(store) => store.acquire(key.memory_name()?, m, policy.ttl, false),
+            Self::Memory(store) => {
+                if store.leases.is_some() && !store.acquire_delay.is_zero() {
+                    tokio::time::sleep(store.acquire_delay).await;
+                }
+                store
+                    .acquire(
+                        key.memory_name().map_err(LeaseError::Unavailable)?,
+                        m,
+                        policy.ttl,
+                        false,
+                    )
+                    .map_err(LeaseError::Held)
+            }
             #[cfg(feature = "postgres")]
-            Self::Postgres { .. } => Err("missing durable identity".into()),
+            Self::Postgres { .. } => {
+                Err(LeaseError::Unavailable("missing durable identity".into()))
+            }
         }
     }
 
@@ -837,6 +886,36 @@ mod static_auth_tests {
         assert!(
             !auth.verify("bob", b"s3cret-token").await.unwrap(),
             "unknown callsign"
+        );
+    }
+}
+
+#[cfg(all(test, feature = "postgres"))]
+mod lease_error_tests {
+    use super::LeaseError;
+    use rh_persist::Error;
+
+    #[test]
+    fn only_real_conflicts_are_held_everything_else_is_storage_trouble() {
+        assert!(matches!(
+            LeaseError::from_persist(&Error::Conflict("profile already leased".into())),
+            LeaseError::Held(_)
+        ));
+        assert!(matches!(
+            LeaseError::from_persist(&Error::LeaseHeld {
+                callsign: "papa".into(),
+                match_id: uuid::Uuid::nil(),
+                owner: "other".into()
+            }),
+            LeaseError::Held(_)
+        ));
+        let outage = Error::Invalid("no answer".into());
+        assert!(
+            matches!(
+                LeaseError::from_persist(&outage),
+                LeaseError::Unavailable(_)
+            ),
+            "{outage}"
         );
     }
 }
