@@ -77,12 +77,12 @@ fn summary_of(items: &[StateItem]) -> Option<Option<rh_protocol::state::WireBuil
 fn identities_move_for_the_new_observation_fields() {
     assert_eq!(
         rh_sim::OBSERVATION_VERSION,
-        25,
-        "observation gains camp_hud and summary"
+        26,
+        "observation gains camp_hud and summary (25), then the champion panel (26, P-WIRE17-HUD-2)"
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        19,
+        20,
         "policy projection gains the HUD facts"
     );
 }

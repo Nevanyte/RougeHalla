@@ -542,6 +542,23 @@ eq(summaryItem.key, 13, "build summary key");
 eqJson(summaryItem.value.gains, [120000,50000,905,1900,-337,850000,65000,-32500,600], "build summary gains keep sign");
 eqJson(summaryItem.value.mobRows.map(r => [r.mobType, r.stat, r.stacks, r.total]), [[0,2,7,700],[4,6,300,3750000]], "build summary mob rows");
 eq(decode(bytes(fx.server.find(v => v.name === "state_build_summary_none").hex)).items[0].value, null, "unseated build summary");
+// P-WIRE17-HUD-2: the champion panel after the mob rows: rows {code, quanta (the i32), value (quanta x HUD_QUANTUM)}.
+eqJson(summaryItem.value.panel, [], "HUD-1 summary vector carries an empty panel");
+const panelVector = fx.server.find(v => v.name === "state_build_summary_panel");
+if (!panelVector) throw new Error("missing Rust-generated state_build_summary_panel vector");
+const panelState = decode(bytes(panelVector.hex));
+eq(panelState.tick, 216, "panel vector tick");
+const panelSummary = panelState.items[0].value;
+eqJson(panelSummary.gains, [25000,15000,0,-5000,0,0,0,0,0], "panel vector gains");
+eqJson(panelSummary.mobRows, [], "panel vector has no mob rows");
+eqJson(panelSummary.panel.map(p => [p.code, p.quanta]),
+  [[0,18182],[1,473697],[2,0],[3,19800],[4,643750],[5,6000],[6,5000],[7,12500],[8,2500000],[9,0]], "Fire panel codes and quanta");
+eq(Math.abs(panelSummary.panel[8].value - 250) < 1e-9, true, "roam charge scaled to 250, no recomputation");
+for (const name of ["state_camp_reward_stat_10", "state_camp_ward_verdict_3", "state_camp_ward_missing_expiry",
+  "state_build_summary_gains_short", "state_build_summary_mob_stat_9", "state_build_summary_panel_code_23",
+  "state_build_summary_panel_order", "state_build_summary_panel_count_over"]) {
+  if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
 const emptyTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_empty").hex));
 eqJson(emptyTradeVector.items.find(item => item.key === 11)?.value?.offers, [], "available empty Trade preserves empty offers");
 const unavailableTradeVector = decode(bytes(fx.server.find(v => v.name === "state_trade_unavailable").hex));
@@ -725,6 +742,11 @@ const reason = {
   state_roster_count_over_32: /roster count/, state_roster_id_zero: /roster id/, state_roster_order: /roster order/,
   state_roster_flags_unknown: /roster flags/, state_roster_name_empty: /roster name/, state_roster_name_long: /roster name/,
   state_roster_name_control: /roster name/, state_roster_name_utf8: /utf-8/, state_roster_truncated: /./,
+  // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
+  state_camp_reward_stat_10: /camp reward/, state_camp_ward_verdict_3: /camp ward/, state_camp_ward_missing_expiry: /./,
+  state_build_summary_gains_short: /./, state_build_summary_mob_stat_9: /summary stat code/,
+  state_build_summary_panel_code_23: /summary panel code/, state_build_summary_panel_order: /summary panel order/,
+  state_build_summary_panel_count_over: /too many summary panel values/,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];

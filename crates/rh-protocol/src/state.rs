@@ -964,6 +964,22 @@ pub struct WireMobBonusRow {
 pub struct WireBuildSummary {
     pub gains: [i32; 9],
     pub mob_rows: Vec<WireMobBonusRow>,
+    /// P-WIRE17-HUD-2: the owner's champion panel values, strictly ascending by code, at most [`MAX_PANEL_VALUES`].
+    /// Appended after the mob rows: count u8, then rows of code u8 (`< PANEL_CODE_COUNT`) and value i32 LE in
+    /// [`HUD_QUANTUM`] units.
+    pub panel: Vec<WirePanelValue>,
+}
+
+/// P-WIRE17-HUD-2: how many champion panel codes exist (`rh_sim::build_summary::PanelCode`; append only).
+pub const PANEL_CODE_COUNT: u8 = 23;
+/// P-WIRE17-HUD-2: the most panel values a build summary carries (one per code).
+pub const MAX_PANEL_VALUES: usize = 23;
+
+/// P-WIRE17-HUD-2: one champion panel number: its code and its value in [`HUD_QUANTUM`] units.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WirePanelValue {
+    pub code: u8,
+    pub value: i32,
 }
 impl WireBuildSummary {
     fn len(&self) -> usize {
@@ -973,8 +989,11 @@ impl WireBuildSummary {
                 .iter()
                 .map(|r| 2 + varint_len(r.stacks) + 4)
                 .sum::<usize>()
+            + 1
+            + self.panel.len() * 5
     }
-    /// The first fault in the row list (count cap first, then per row: mob code, strict mob order, stat code, stacks).
+    /// The first fault in the row lists (count caps are checked by the caller first): per mob row, mob code, strict mob
+    /// order, stat code, stacks; then per panel row, code, strict code order.
     fn fault(&self) -> Option<&'static str> {
         let mut previous: Option<u8> = None;
         for row in &self.mob_rows {
@@ -992,6 +1011,16 @@ impl WireBuildSummary {
                 return Some("summary stacks");
             }
         }
+        let mut previous: Option<u8> = None;
+        for row in &self.panel {
+            if row.code >= PANEL_CODE_COUNT {
+                return Some("summary panel code");
+            }
+            if previous.is_some_and(|p| row.code <= p) {
+                return Some("summary panel order");
+            }
+            previous = Some(row.code);
+        }
         None
     }
     fn write(&self, w: &mut Writer) {
@@ -1004,6 +1033,11 @@ impl WireBuildSummary {
             w.u8(row.stat);
             w.varint(row.stacks);
             w.u32(row.total as u32);
+        }
+        w.u8(self.panel.len() as u8);
+        for row in &self.panel {
+            w.u8(row.code);
+            w.u32(row.value as u32);
         }
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
@@ -1024,7 +1058,22 @@ impl WireBuildSummary {
                 total: r.u32()? as i32,
             });
         }
-        let v = Self { gains, mob_rows };
+        let n = usize::from(r.u8()?);
+        if n > MAX_PANEL_VALUES {
+            return Err(DecodeError::TooMany(n));
+        }
+        let mut panel = Vec::with_capacity(n);
+        for _ in 0..n {
+            panel.push(WirePanelValue {
+                code: r.u8()?,
+                value: r.u32()? as i32,
+            });
+        }
+        let v = Self {
+            gains,
+            mob_rows,
+            panel,
+        };
         match v.fault() {
             None => Ok(v),
             Some(why) => Err(DecodeError::BadField(why)),
@@ -2000,6 +2049,13 @@ impl StateItem {
                         what: "summary mob rows",
                         n: value.mob_rows.len(),
                         max: MAX_SUMMARY_MOB_ROWS,
+                    });
+                }
+                if value.panel.len() > MAX_PANEL_VALUES {
+                    return Err(EncodeError::TooMany {
+                        what: "summary panel values",
+                        n: value.panel.len(),
+                        max: MAX_PANEL_VALUES,
                     });
                 }
                 if let Some(why) = value.fault() {

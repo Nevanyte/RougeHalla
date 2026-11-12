@@ -198,6 +198,7 @@ fn summary() -> WireBuildSummary {
                 total: 3_750_000,
             },
         ],
+        panel: Vec::new(),
     }
 }
 
@@ -218,10 +219,17 @@ fn summary_frame(s: &WireBuildSummary) -> Vec<u8> {
         b.push(v as u8);
         b.extend_from_slice(&r.total.to_le_bytes());
     }
+    // P-WIRE17-HUD-2: the champion panel follows the mob rows (count u8, then code u8 + value i32 per row).
+    b.push(s.panel.len() as u8);
+    for p in &s.panel {
+        b.push(p.code);
+        b.extend_from_slice(&p.value.to_le_bytes());
+    }
     b
 }
 
-/// Layout of key 13: present u8; 9 x i32 gains; row count u8; rows of mob u8, stat u8, stacks varint, total i32.
+/// Layout of key 13: present u8; 9 x i32 gains; row count u8; rows of mob u8, stat u8, stacks varint, total i32;
+/// (P-WIRE17-HUD-2) panel count u8; rows of code u8, value i32.
 #[test]
 fn build_summary_round_trips_with_the_brief_layout() {
     assert_eq!(MAX_STATE_KEYS, 13, "key 13 is the newest state key");
@@ -259,6 +267,7 @@ fn build_summary_refuses_an_over_cap_mob_row_count() {
     let full = WireBuildSummary {
         gains: [0; 9],
         mob_rows: rows(MAX_SUMMARY_MOB_ROWS),
+        panel: Vec::new(),
     };
     let ok = round_trip(&state(vec![StateItem::BuildSummary(Some(full.clone()))]));
     assert_eq!(ok, summary_frame(&full));
@@ -266,6 +275,7 @@ fn build_summary_refuses_an_over_cap_mob_row_count() {
     let over = WireBuildSummary {
         gains: [0; 9],
         mob_rows: rows(MAX_SUMMARY_MOB_ROWS + 1),
+        panel: Vec::new(),
     };
     match state(vec![StateItem::BuildSummary(Some(over.clone()))]).try_encode() {
         Err(EncodeError::TooMany { n, max, .. }) => {

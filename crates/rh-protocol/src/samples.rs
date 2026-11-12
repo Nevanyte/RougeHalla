@@ -9,9 +9,9 @@ use crate::delta::{
 };
 use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use crate::state::{
-    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_STAT_COUNT, MAX_QUEST_ROWS,
-    MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_SUMMARY_MOB_ROWS,
-    MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WirePanelValue, WireWard, HUD_STAT_COUNT,
+    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_SUMMARY_MOB_ROWS,
+    MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS, PANEL_CODE_COUNT,
 };
 use crate::*;
 use crate::{
@@ -692,6 +692,13 @@ fn state_all_max_budget() -> ServerMsg {
                 total: i32::MIN,
             })
             .collect(),
+        // P-WIRE17-HUD-2: every panel code; the prop-label padding below absorbs its bytes.
+        panel: (0..PANEL_CODE_COUNT)
+            .map(|code| WirePanelValue {
+                code,
+                value: i32::MIN,
+            })
+            .collect(),
     };
     let projectiles = (0..512)
         .map(|i| WireProjectile {
@@ -1190,6 +1197,33 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                             total: 3_750_000,
                         },
                     ],
+                    panel: Vec::new(),
+                }))],
+            },
+        ),
+        // P-WIRE17-HUD-2: a Fire owner's champion panel (codes 0..=9) after an empty mob list.
+        (
+            "state_build_summary_panel",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary {
+                    gains: [25_000, 15_000, 0, -5_000, 0, 0, 0, 0, 0],
+                    mob_rows: Vec::new(),
+                    panel: [
+                        (0, 18_182),
+                        (1, 473_697),
+                        (2, 0),
+                        (3, 19_800),
+                        (4, 643_750),
+                        (5, 6_000),
+                        (6, 5_000),
+                        (7, 12_500),
+                        (8, 2_500_000),
+                        (9, 0),
+                    ]
+                    .into_iter()
+                    .map(|(code, value)| WirePanelValue { code, value })
+                    .collect(),
                 }))],
             },
         ),
@@ -4951,7 +4985,58 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     .chain(malformed_vision())
     .chain(malformed_weapons())
     .chain(malformed_deltas())
+    .chain(malformed_hud())
     .collect()
+}
+
+/// P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward and ward, State key 6; the build summary and
+/// its champion panel, key 13), refused identically by the Rust, C# and JS decoders.
+fn malformed_hud() -> Vec<(&'static str, Vec<u8>)> {
+    // T_STATE, tick 5, one item, key 6, one camp: mob 3, elite 29 (present: 30), alive 2, state 0, cleared_at 1000,
+    // respawn_at 181000; the HUD tail (reward, ward) follows.
+    let camp = |tail: &[u8]| {
+        let mut b = vec![0x88, 5, 1, 6, 1, 3, 30, 2, 0];
+        b.extend_from_slice(&1000f64.to_le_bytes());
+        b.extend_from_slice(&181000f64.to_le_bytes());
+        b.extend_from_slice(tail);
+        b
+    };
+    // T_STATE, tick 5, one item, key 13, present, nine zero gains; the mob rows and the panel follow.
+    let summary = |tail: &[u8]| {
+        let mut b = vec![0x88, 5, 1, 13, 1];
+        b.extend_from_slice(&[0; 36]);
+        b.extend_from_slice(tail);
+        b
+    };
+    let row = |lead: &[u8], value: i32| {
+        let mut b = lead.to_vec();
+        b.extend_from_slice(&value.to_le_bytes());
+        b
+    };
+    let mut gains_short = vec![0x88, 5, 1, 13, 1];
+    gains_short.extend_from_slice(&[0; 32]);
+    let mut mob_stat_9 = vec![1];
+    mob_stat_9.extend(row(&[0, 9, 1], 1));
+    mob_stat_9.push(0);
+    let mut code_23 = vec![0, 1];
+    code_23.extend(row(&[23], 1));
+    let mut order = vec![0, 2];
+    order.extend(row(&[3], 1));
+    order.extend(row(&[3], 1));
+    let mut over = vec![0, 24];
+    for code in 0..24u8 {
+        over.extend(row(&[code], 1));
+    }
+    vec![
+        ("state_camp_reward_stat_10", camp(&[10, 0x10, 0x27, 0])),
+        ("state_camp_ward_verdict_3", camp(&[0, 3])),
+        ("state_camp_ward_missing_expiry", camp(&[0, 1])),
+        ("state_build_summary_gains_short", gains_short),
+        ("state_build_summary_mob_stat_9", summary(&mob_stat_9)),
+        ("state_build_summary_panel_code_23", summary(&code_23)),
+        ("state_build_summary_panel_order", summary(&order)),
+        ("state_build_summary_panel_count_over", summary(&over)),
+    ]
 }
 
 /// What one frame of a chain does to a client's [`SnapshotTracker`].

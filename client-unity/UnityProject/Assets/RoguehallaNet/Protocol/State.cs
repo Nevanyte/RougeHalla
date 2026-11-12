@@ -110,6 +110,16 @@ namespace Roguehalla.Net.Protocol
         public const double Quantum = 1e-4;
         public const byte StatCount = 9;
         public const int MaxSummaryMobRows = 20;
+        /// <summary>P-WIRE17-HUD-2: champion panel codes (0..22, append only) and the most a summary carries.</summary>
+        public const byte PanelCodeCount = 23;
+        public const int MaxPanelValues = 23;
+    }
+
+    /// <summary>P-WIRE17-HUD-2: one champion panel number: its code and its value in <see cref="Hud.Quantum"/> units.</summary>
+    public struct WirePanelValue
+    {
+        public byte Code; public int Value;
+        public double Scaled => Value * Hud.Quantum;
     }
 
     /// <summary>A camp's per-kill reward: HUD stat code and amount in <see cref="Hud.Quantum"/> units (greater than 0).</summary>
@@ -134,6 +144,9 @@ namespace Roguehalla.Net.Protocol
     {
         public int[] Gains = new int[9];
         public WireMobBonusRow[] MobRows = Array.Empty<WireMobBonusRow>();
+        /// <summary>P-WIRE17-HUD-2: champion panel values (codes 0..22, strictly ascending, at most 23), appended after the
+        /// mob rows. Unity formats them; it never recomputes them (R-AUTH).</summary>
+        public WirePanelValue[] Panel = Array.Empty<WirePanelValue>();
         public double Gain(int stat) => Gains[stat] * Hud.Quantum;
     }
     public struct WireBuild { public byte[] Cards, Boosts; }
@@ -940,7 +953,8 @@ namespace Roguehalla.Net.Protocol
     /// <summary>
     /// Key 13 (P-WIRE17-HUD-1): the owning seat's build summary, never another seat's; Value null when unseated. Wire:
     /// present u8 (0/1); when 1: 9 x i32 gains, count u8 (at most 20), rows of mob u8 (below 30, strictly ascending),
-    /// stat u8 (below 9), stacks varint (at least 1), total i32.
+    /// stat u8 (below 9), stacks varint (at least 1), total i32; then (P-WIRE17-HUD-2) the champion panel: count u8 (at
+    /// most 23, refused before the rows), rows of code u8 (below 23, strictly ascending) and value i32.
     /// </summary>
     public sealed class BuildSummaryState : StateItem
     {
@@ -949,7 +963,7 @@ namespace Roguehalla.Net.Protocol
 
         static string Fault(WireBuildSummary v)
         {
-            if (v.Gains == null || v.Gains.Length != 9 || v.MobRows == null) return "build summary";
+            if (v.Gains == null || v.Gains.Length != 9 || v.MobRows == null || v.Panel == null) return "build summary";
             int previous = -1;
             foreach (var row in v.MobRows)
             {
@@ -959,6 +973,13 @@ namespace Roguehalla.Net.Protocol
                 if (row.Stat >= Hud.StatCount) return "summary stat code";
                 if (row.Stacks == 0) return "summary stacks";
             }
+            previous = -1;
+            foreach (var row in v.Panel)
+            {
+                if (row.Code >= Hud.PanelCodeCount) return "summary panel code";
+                if (row.Code <= previous) return "summary panel order";
+                previous = row.Code;
+            }
             return null;
         }
 
@@ -966,6 +987,7 @@ namespace Roguehalla.Net.Protocol
         {
             if (Value == null) return;
             Require(Value.MobRows == null || Value.MobRows.Length <= Hud.MaxSummaryMobRows, "summary mob rows");
+            Require(Value.Panel == null || Value.Panel.Length <= Hud.MaxPanelValues, "summary panel values");
             string fault = Fault(Value);
             Require(fault == null, fault);
         }
@@ -977,6 +999,8 @@ namespace Roguehalla.Net.Protocol
             foreach (int g in Value.Gains) w.U32(unchecked((uint)g));
             w.U8((byte)Value.MobRows.Length);
             foreach (var row in Value.MobRows) { w.U8(row.MobType); w.U8(row.Stat); w.Varint(row.Stacks); w.U32(unchecked((uint)row.Total)); }
+            w.U8((byte)Value.Panel.Length);
+            foreach (var row in Value.Panel) { w.U8(row.Code); w.U32(unchecked((uint)row.Value)); }
         }
 
         internal static BuildSummaryState Read(ref Reader r)
@@ -989,6 +1013,11 @@ namespace Roguehalla.Net.Protocol
             v.MobRows = n == 0 ? Array.Empty<WireMobBonusRow>() : new WireMobBonusRow[n];
             for (int i = 0; i < n; i++)
                 v.MobRows[i] = new WireMobBonusRow { MobType = r.U8(), Stat = r.U8(), Stacks = r.Varint(), Total = unchecked((int)r.U32()) };
+            int m = r.U8();
+            if (m > Hud.MaxPanelValues) throw new DecodeException(DecodeError.TooMany, m.ToString());
+            v.Panel = m == 0 ? Array.Empty<WirePanelValue>() : new WirePanelValue[m];
+            for (int i = 0; i < m; i++)
+                v.Panel[i] = new WirePanelValue { Code = r.U8(), Value = unchecked((int)r.U32()) };
             string fault = Fault(v);
             if (fault != null) throw new DecodeException(DecodeError.BadField, fault);
             return new BuildSummaryState { Value = v };
