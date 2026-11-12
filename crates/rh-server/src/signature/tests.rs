@@ -169,3 +169,89 @@ fn a_failing_base_map_is_left_alone_and_kept_landmarks_certify_clean() {
         assert!(after.is_empty(), "seed {}: {after:?}", p.seed);
     }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// P-MAPGEN-SIGNATURE-CORE-1: the generator places the church and the bog tree (owner rules G1-G2, 2026-11-12); the pass
+// keeps only Fire and Frost until their packets land.
+// ---------------------------------------------------------------------------------------------------------------
+
+/// With `--signature-landmarks` the pool's maker passes the generator option, the pass neither places nor tries a church
+/// or a bog tree and leaves the Sentenced and Plague zones exactly as the generator made them, and the served map holds
+/// the generator's one church and one bog tree with its anchors.
+#[test]
+fn the_generator_owns_the_church_and_the_bog_tree() {
+    use crate::map_pool::{MapMaker, StyledMaker};
+    assert_eq!(
+        StyledMaker::default().options(),
+        pipeline::Options {
+            decor: false,
+            ..pipeline::Options::default()
+        }
+    );
+    let maker = StyledMaker { signature: true };
+    assert_eq!(
+        maker.options(),
+        pipeline::Options {
+            decor: false,
+            signature: true,
+            ..pipeline::Options::default()
+        },
+        "the maker does not pass the signature option"
+    );
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    for seed in 1..=3u32 {
+        let generated = generator
+            .certified_styled(i64::from(seed), maker.options())
+            .unwrap()
+            .expect("certified");
+        let mut after = generated.clone();
+        let report = apply(&mut after);
+        for name in ["church", "bog tree"] {
+            assert!(
+                !report.placed.contains(&name) && !report.skipped.iter().any(|(n, _)| *n == name),
+                "seed {seed}: the pass still runs the {name}: {report:?}"
+            );
+        }
+        for zone in [Zone::Plague, Zone::Sentenced] {
+            let features = |m: &GameMapData| -> Vec<MapFeature> {
+                m.features
+                    .iter()
+                    .filter(|f| f.zone == zone)
+                    .cloned()
+                    .collect()
+            };
+            assert_eq!(
+                features(&after),
+                features(&generated),
+                "seed {seed}: the pass changed {zone:?} features"
+            );
+            for i in 0..generated.tiles.len() {
+                if generated.region_grid[i] == zone.code() {
+                    assert!(
+                        after.tiles[i] == generated.tiles[i]
+                            && after.terrain[i] == generated.terrain[i],
+                        "seed {seed}: the pass changed {zone:?} tile {i}"
+                    );
+                }
+            }
+        }
+        let arena = maker.make(seed).unwrap().expect("a served map");
+        let data = arena.map.layers().expect("map layers").data();
+        for (kind, zone) in [
+            (FeatureKind::BogTree, Zone::Plague),
+            (FeatureKind::Church, Zone::Sentenced),
+        ] {
+            let n = data
+                .features
+                .iter()
+                .filter(|f| f.kind == kind && f.zone == zone)
+                .count();
+            assert_eq!(n, 1, "seed {seed}: the served map has {n} {kind:?}");
+        }
+        assert!(
+            !data.anchors.is_empty() && data.anchors == after.anchors,
+            "seed {seed}: the served map lost the anchors"
+        );
+    }
+}

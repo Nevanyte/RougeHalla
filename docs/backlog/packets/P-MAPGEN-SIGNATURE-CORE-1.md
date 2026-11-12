@@ -55,18 +55,20 @@ shape checks, see `packet/P-SIGNATURE-2` @ b58de6ab, `crates/rh-server/src/signa
   `refresh_camps`) and the measurements in the P-SIGNATURE-2 brief on `packet/P-SIGNATURE-2`.
 
 ## 4. New paths
-- chosen by the oracle author inside `crates/rh-sim/src/mapgen/landmarks/` (signature recipes or a `signature` module)
+- `crates/rh-sim/src/mapgen/landmarks/signature/mod.rs` (stub committed; the implementer may add sibling files in
+  `landmarks/signature/`, e.g. `bog_tree.rs`, `church.rs`)
+- `crates/rh-sim/tests/mapgen_signature_core.rs` (oracle)
 
 ## 5. Exclusive write scope
-- `crates/rh-sim/src/mapgen/pipeline/` (the option; the phase's inputs and outputs), `crates/rh-sim/src/mapgen/landmarks/`
-  (the signature landmarks), `crates/rh-sim/src/mapdata/model.rs` (appended `FeatureKind`s and the anchor record on
-  the map, serialized so that a map without them is unchanged), `crates/rh-sim/src/mapgen/map_hash/` and
-  `certify/diagnostics.rs` only for the new kinds' names
-- `crates/rh-server/src/map_pool.rs` (pass the option), `crates/rh-server/src/signature.rs` (skip Plague and Sentenced
-  when the generator placed them), `crates/rh-server/src/signature/tests.rs` cases that pinned the post-pass for those
-  two zones (the oracle author replaces them)
-- `docs/adr/0028-signature-landmarks.md` (rewritten around G1-G8)
-- not the zone stylers (`style_*`): they are the next packets
+- `crates/rh-sim/src/mapgen/landmarks/signature/` (the step, the anchors, the band helper)
+- `crates/rh-sim/src/mapgen/pipeline/mod.rs` (the seam is committed; only if the step needs more inputs)
+- Already stubbed, touch only if a row is wrong: `crates/rh-sim/src/mapdata/model.rs`, `mapdata/validate.rs` (anchor
+  validation may be added here), `mapgen/certify/rules.rs` (`SIGNATURE_KINDS` only), `mapgen/certify/features.rs` and
+  `certify/diagnostics.rs` (signature kinds only), `mapgen/map_hash/mod.rs` (kind names)
+- `crates/rh-server/src/map_pool.rs` (`StyledMaker::options` passes `signature`), `crates/rh-server/src/signature.rs`
+  (drop the church and bog-tree builders, `Church`/`Report.churches`, `church_site`, `door_open`; keep Fire and Frost)
+- `docs/adr/0028-signature-landmarks.md` (rewritten around G1-G8); a DEVIATIONS row proposal in the hand-off
+- not the zone stylers (`style_*`), not `records/`, `spawns/`, `repair/`, not `tests/content.rs`
 
 ## 6. Contracts and references
 - G1-G8 above. G8 is checked by the existing pinned-map tests (`pipeline/tests.rs`, `styled_tests.rs`,
@@ -99,7 +101,133 @@ shape checks, see `packet/P-SIGNATURE-2` @ b58de6ab, `crates/rh-server/src/signa
 - `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIGNATURE-CORE-1` passes (the coordinator runs the full gate).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-MAPGEN-SIGNATURE-CORE-1`
+- `crates/rh-sim/tests/mapgen_signature_core.rs`: `g8_signature_off_is_todays_generator` (passes on the stub and must
+  keep passing), `g1_g2_one_bog_tree_and_one_church_placed_before_the_stylers`,
+  `shape_bog_tree_stands_in_the_outer_third_ringed_by_bog`,
+  `shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front`,
+  `shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap`, `g3_the_finished_map_carries_the_zone_anchors`,
+  `g4_band_helper_measures_from_the_footprint`, `g5_signature_maps_certify_clean_and_spawns_avoid_the_landmarks`, and
+  their helpers. The definitions they measure (front, door side, outer third, far elite camp, apron, styler feature)
+  are written at the top of the file.
+- `crates/rh-server/src/signature/tests.rs`: the whole file; the new case is
+  `the_generator_owns_the_church_and_the_bog_tree` (see "Existing tests changed" for what the stub commit removed).
+- This brief.
+
+Against the stub each new case fails on an assertion: g4 `inside (40,50) left: Far right: Core`; g1/g2, tree, church,
+graveyard and g5 `seed 1: 0 <Kind> features`; g3 `seed 1: anchored zones left: [] right: [Sentenced, Plague, Holy]`;
+rh-server `the maker does not pass the signature option`. g8 passes.
+
+## Seam (oracle author's decision, 2026-11-12)
+
+**A sibling step inside the Landmarks phase, not recipes.** `pipeline::build_attempt` calls
+`landmarks::signature::SignatureContext::apply(&frame, &mut landmark)` right after `stage::StageContext::apply`, before
+`observe(Phase::Landmarks)` and `spawns::prepare_and_pick`, only when `options.signature && styled`. Why not a
+recipe or template in the existing stage:
+- `LandmarkRuntime` writes only floor-to-wall under `admit_changes` (`landmarks/stage/mod.rs:180-215`: every changed
+  cell must be owned by a `FeatureKind::Landmark` of its zone) and asserts an all-zero terrain layer
+  (`landmarks/runtime/mod.rs`, `LandmarkRuntime::new`); the bog tree's bands are terrain.
+- `FeatureKind::Landmark` carries the legacy buildings' certifier rules (fixed variant per zone, `landmark_margin`,
+  `landmark_gap`; `certify/features.rs:113-130`), and every Landmark bbox becomes `map.buildings` (`stage/mod.rs:151`,
+  `record_buildings` in `pipeline/mod.rs`), which repair and records treat as legacy buildings.
+- `Recipes::apply` is the ported legacy dispatch pinned by `fixtures/landmark-recipes-*.json` and `landmark-stage.json`.
+
+**What the step writes** (all on `LandmarkStage`, so everything later sees it):
+- `state.tiles`, `state.features` (appended after the stage's own: their draft index is below every styler feature's,
+  and `records::finalize` sorts stably by (zone, infill), so they precede the zone's styler features on the map),
+  `state.feature_owner`.
+- `masks.near1 |= footprint grown by bands[0]` (the apron). Read by `spawns::PoolInput::landmark_near1` (the spawn pool
+  avoids it) and by `SpawnContext::style_protect` (`spawns/mod.rs:120-133`: `landmark_near1 && feature_owner == 0`
+  becomes `protect`, which `style_runtime::no_block` (`style_runtime/mod.rs:208`) makes the stylers' `no_block`); owned
+  tiles are refused by `Runtime::open` / `can_block` through `feature_owner != 0` (`style_runtime/mod.rs:569-606`).
+- `masks.boxes |= footprint`: repair's keep mask (no rezone or carving, `repair/mod.rs:698-702`), the ground spots
+  (`spots/ground.rs:53`) and the region pole (`records/mod.rs:184`) keep off it.
+- `Placed.terrain`: the attempt's starting terrain layer (the pipeline uses it instead of `vec![0; W*H]`): the bog.
+- Not `LandmarkStage::buildings` (that is `map.buildings`).
+- Draws: `Mulberry32::new(hash_seed(seed as u32, attempt as u32, zone slot (1-based), Definition::stream = 5))`;
+  streams 0-2 are the stylers', 3 the recipes', 4 the bushes'. Never `frame.rng`.
+- `Ok(None)` refuses the attempt (`Refusal::Signature`, appended); the pipeline tries the next one (G5).
+- After `records::finalize`, `SignatureContext::finish(&mut map, placed.anchors)` writes `map.anchors`.
+
+**Stub signatures** (`landmarks/signature/mod.rs`): `pub struct Definition { pub stream: u32, pub bands: [i32; 3] }`
+(the implementer appends the shape tunables here, nowhere else), `pub const DEFAULT_DEFINITION` (`stream: 5, bands:
+[2, 6, 14]`), `pub enum Band { Core, Near, Mid, Far }`, `pub fn band(anchor: &ZoneAnchor, x: i32, y: i32) -> Band`
+(stub: `Far`), `pub struct Placed { anchors: Vec<ZoneAnchor>, terrain: Vec<u8> }`, `SignatureContext::{new,
+from_definition, definition, apply(&self, &AttemptFrame, &mut LandmarkStage) -> Result<Option<Placed>,
+AttemptInputError> (stub: places nothing), finish(&self, &mut GameMapData, Vec<ZoneAnchor>) (stub: nothing)}`.
+`pipeline::Options { .., #[serde(default)] pub signature: bool }`, `pipeline::Refusal::Signature`. rh-server:
+`StyledMaker::options(&self) -> pipeline::Options` (stub: does not pass `signature`; `make` uses it).
+
+**Feature kinds** (appended to `FeatureKind`, serialized `bogTree`, `church`, `graveyard`; names in `map_hash` and the
+certifier diagnostics; `p` empty): `BogTree` (trunk walls plus bog-band floor, job `landmark`), `Church` (wall ring,
+job `landmark`), `Graveyard` (headstone walls, job `cover`). Their certifier rows are a separate
+`certify::rules::SIGNATURE_KINDS`, looked up through `rules::kind(k)`, so the legacy `KINDS` (pinned length 13) and
+`content_hash` do not move. `Volcano`, `LavaStream`, `LavaPool`, `Cave` are **not** reserved: each needs a certifier
+row whose wall/low/terrain choice belongs to its packet; appending later is free (serde by name, earlier
+discriminants unchanged).
+
+**Anchor record** (`mapdata::ZoneAnchor` on `GameMapData.anchors` and `LayerData.anchors`, carried by `split`/`join`):
+`{ zone, kind: FeatureKind, centre: TilePt, footprint: TileRect (the anchor feature's bbox), front: u8 (DIR16 toward
+the coliseum centre), entrance: Vec<TilePt> (the church door; empty for the tree) }`, in zone-code order,
+`#[serde(default, skip_serializing_if = "Vec::is_empty")]`. Holy's anchor is its largest `Hall` feature, written by
+`finish`. **`rh-map/2` does not move**: `GameMapData`, `LayerData` and `ZoneAnchor` are `deny_unknown_fields`; every
+existing document (no `anchors` key) reads unchanged and an option-off map writes no key (g8 checks it). A document
+with anchors exists only inside an option-on server process (`StyledMaker::make` -> `MapExport::validate` -> `Arena`),
+never as a fixture; an older Rust reader would refuse it, the right failure. The C# reader
+(`AtmospherePreviewCapture.cs`) and the JS tools read legacy `rh-map/2` fixtures only, and the wire carries neither
+features nor anchors (`public_ground.rs` reads only bushes). Anchors are **not** in the map hash (they restate the
+signature features' kind and bbox, which are hashed).
+
+**Band table (G4)**: Chebyshev distance d from the footprint rectangle (0 inside): core d <= 2 (also the apron kept
+clear), near <= 6, mid <= 14, far beyond. Reasoning: a zone is about 4,900 tiles of the 160-tile map (about 50 tiles
+deep from the coliseum road to the edge), a camp territory reaches at most 30 tiles and a crater 5-7.5
+(`docs/ZONE_SHAPES_AS_BUILT.md`), and a landmark is 10-16 tiles across: core 2 matches the certifier's
+`landmark_gap` 3, near 6 is about a crater radius, mid 14 keeps the landmark's half of the zone inside near and mid and
+leaves the rest far, blending into the neighbours.
+
+## Existing tests and records changed in the stub commit (owner approval needed)
+- `crates/rh-sim/src/mapgen/pipeline/tests.rs:207` and `pipeline/styled_controls.rs:173`: the exhaustive
+  `Options { .. }` literals gain `signature: false` (a new field breaks them; values unchanged).
+- `crates/rh-sim/src/mapgen/map_hash/tests.rs:380` (`every_dto_field_requires_an_explicit_hashing_decision`):
+  `anchors: _` with its reason; the test exists to force this decision.
+- `crates/rh-sim/tests/content.rs` `NON_GAMEPLAY`: two entries (`certify/rules.rs SIGNATURE_KINDS`,
+  `landmarks/signature/mod.rs DEFAULT_DEFINITION`), so the signature tunables are **not** folded into `content_hash`
+  and `GOLDEN_CONTENT_HASH` stays. **Owner decision:** every other mapgen definition is folded
+  (`TABLES_FOLDED_BY_HASH`); folding these too moves the content hash the client checks. This packet keeps the brief's
+  "no content-hash change" by exempting them while the option is off by default.
+- `crates/rh-server/src/signature/tests.rs`: removed `graveyard_stones_keep_walkable_gaps_and_the_yard_stays_reachable`,
+  `every_church_has_an_open_door_joined_to_the_map` and their helpers `flood`, `first_spawn` (ported as the rh-sim
+  church and graveyard cases); the first case's "placed at least once" list is now volcano and frozen cave.
+- Outside the original scope, stubbed: `mapgen/records/mod.rs` (`anchors: Vec::new()` in its `GameMapData` literal),
+  `mapdata/mod.rs` (a test helper's literal), `mapdata/validate.rs` (signature kinds take no params).
+
+## Measurements (oracle author, 2026-11-12; debug test build, `CARGO_PROFILE_TEST_DEBUG=0`, macOS arm64)
+- `certified_styled`, option off, seeds 1-16: **1 attempt on every seed**, with `decor: false` and with the defaults;
+  every map certifies with zero failures (Strict::All). One certified map takes **260-475 ms** (median about 300).
+- Plague radial extent on every seed: lo 10, hi 104-111, so the outer third starts near 77 tiles; 124-535 outer-third
+  Plague cells have a radius-8 disk wholly inside the zone.
+- Sentenced has two elite camps on every seed; the far one is 81-104 tiles from the centre, mostly 6-10 tiles from the
+  map edge or a corner. A camp-centred square ring of radius 7 stays inside the zone or on border walls on 11 of 16
+  seeds; it leaves the map or enters a neighbouring zone on seeds 7 (1 tile), 8 (10), 9 (44; camp at (6.5, 6.5)), 13
+  (27) and 16 (22). The church should lean on the border wall or be an off-centre rectangle round the clearing
+  (radius 2.5) rather than a camp-centred square; otherwise those attempts are refused.
+- The implementer reports attempts per seed and ms per map with the option on.
+
+## Where to cut if it is too large (estimate: about 450 lines of implementation)
+Step plumbing, anchors and band helper (~100), the bog tree (~100), the church with its graveyard (~250). If the
+first attempt runs over, split: **CORE-1** = seam + bog tree + anchors + band (cases g4, tree, g3 for Plague and Holy)
+and **CORE-2** = church and graveyard (church, graveyard; g1/g2, g3, g5 and the rh-server case need both). The oracle
+is written for the whole packet; a split moves cases, it does not change them.
+
+## Doubts and misfits (oracle author)
+- G1 vs the Holy hall: the "temple hall" is the `Hall` feature the Holy styler places in step 3
+  (`crates/rh-sim/src/mapgen/style_sanctum/mod.rs:299`), not a Landmarks-phase landmark, so Holy's anchor exists only
+  after the stylers and the Holy styler cannot read it. Moving it is a styler packet.
+- Front is DIR16 toward the coliseum (defined in the oracle file); the church door takes its dominant axis, so a
+  diagonal front (2, 6, 10, 14) puts the door on the x side.
+- The church is closed (with the door shut the camp cannot reach the first spawn). `Bush` and `Infill` features may
+  still fall in an apron: they are not styler features.
+- `Options::signature` with `styled == false` does nothing (the plain tail strips terrain; plain maps are fixtures).
+- The content-hash decision above.
 
 ## 9. Validation commands
 - `cargo test -p rh-sim mapgen::landmarks`, `cargo test -p rh-sim mapgen::pipeline`, `cargo test -p rh-server --lib
