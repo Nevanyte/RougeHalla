@@ -63,6 +63,27 @@ namespace Roguehalla.Client.Tests
             Assert.That(mob.text, Is.EqualTo("Ember Imp ×15 +15% damage"));
         }
 
+        [TestCase(1280f, 800f)]
+        [TestCase(1920f, 1080f)]
+        public void TheWidestFormattedGainsFitTheValueBoxWithoutAnEllipsis(float w, float h)
+        {
+            ((HudStage)Get("_stageScaler")).Apply(w, h, HudLayout.CanvasScalerFactor(w, h));
+            var values = (TMP_Text[])Get("_gainValues");
+            string[] widest = { "+125.5%", "+1234.5", "+125.5%", "+125.5%", "+125.5%", "+1234.5", "+1234.5", "+1234.5", "+125.5%" };
+            for (int i = 0; i < 9; i++)
+            {
+                var v = values[i];
+                v.text = widest[i]; v.ForceMeshUpdate();
+                float resolved = Mathf.Min(v.fontSizeMax, v.fontSizeMin);   // the smallest size autosizing may settle on: the widest value must fit there
+                v.enableAutoSizing = false; v.fontSize = resolved;
+                float needed = v.GetPreferredValues(v.text, 0f, 0f).x;
+                v.enableAutoSizing = true;
+                Assert.That(v.overflowMode, Is.Not.EqualTo(TextOverflowModes.Ellipsis));
+                Assert.That(v.isTextTruncated, Is.False, widest[i]);
+                Assert.That(needed, Is.LessThanOrEqualTo(v.rectTransform.rect.width + .01f), widest[i] + " needs " + needed + " of " + v.rectTransform.rect.width);
+            }
+        }
+
         void Refresh(CollectionsView view) =>
             typeof(MatchHud).GetMethod("RefreshBuildIcons", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(_hud, new object[] { view });
         object Get(string name) => typeof(MatchHud).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_hud);
