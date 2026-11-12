@@ -157,6 +157,8 @@ namespace Roguehalla.Client
             foreach (var e in batch.List)
                 if (e.Kind == Roguehalla.Net.Protocol.EventKind.MatchEnded) { _matchEnded = true; _winnerId = e.Draw ? null : e.Winner; _winnerLabel = null; _winnerLabelFor = null; }
         }
+        // A new match on a reused Session (rematch without a fresh Bind) must not inherit the previous winner: entering InMatch clears it.
+        void NoteSessionState(SessionState state) { if (state == SessionState.InMatch) ResetMatchEnded(); }
         void ResetMatchEnded() { _matchEnded = false; _winnerId = null; _winnerLabel = null; _winnerLabelFor = null; }
         string WinnerLabel()
         {

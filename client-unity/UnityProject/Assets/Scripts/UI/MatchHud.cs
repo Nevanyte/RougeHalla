@@ -222,7 +222,7 @@ namespace Roguehalla.Client
 
         void OnDisable() { HudIconHint.CloseAll(); CloseResumeChooser(); UnbindTrainingSession(); }
         void OnDestroy() { Unbind(); if (_trainingConsole != null) _trainingConsole.OpenStateChanged -= ConsumeTrainingUiUpdate; if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
-        void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
+        void Changed(SessionState state) { NoteSessionState(state); if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { RefreshTrainingConsole(_session, snapshot); _dirty = true; }
         void Collections(CollectionsView view) { RefreshCollections(view); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Events(ServerMsg.Events events)

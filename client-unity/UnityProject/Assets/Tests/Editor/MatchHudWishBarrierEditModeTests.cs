@@ -52,6 +52,20 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void ANewMatchOnTheSameSessionDoesNotInheritThePreviousWinner()
+        {
+            object Field(string n) => typeof(MatchHud).GetField(n, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_hud);
+            var ended = new ServerMsg.Events { Tick = 9, List = new System.Collections.Generic.List<WireEvent> { new WireEvent { Kind = EventKind.MatchEnded, Winner = 7 } } };
+            Invoke("NoteMatchEnded", ended);
+            Assert.That(Field("_matchEnded"), Is.EqualTo(true));
+            Assert.That(Field("_winnerId"), Is.EqualTo((uint?)7));
+            // The rematch reuses the Session (no Bind); entering InMatch starts a fresh match, which then ends without a MatchEnded event.
+            Invoke("NoteSessionState", SessionState.InMatch);
+            Assert.That(Field("_matchEnded"), Is.EqualTo(false));
+            Assert.That(Field("_winnerId"), Is.Null, "a run that ends with no MatchEnded shows the bare Run over, not the old winner");
+        }
+
+        [Test]
         public void OwnerFactsRenderAndClearAcrossWishAndSessionResetTransitions()
         {
             var me = new SelfView { Hp = 60, MaxHp = 100, Barrier = 25, BarrierRingStep = 5, Kills = 2, Gv = 4, Status = ActorStatus.Alive };
