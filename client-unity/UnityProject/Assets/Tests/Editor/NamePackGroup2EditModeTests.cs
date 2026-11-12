@@ -224,7 +224,10 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void FightersStandingTogetherHaveTheirNamesStackedNearestToTheLocalFighterLowest()
         {
-            PlayersFrame((1, 640f, "aaa1"), (2, 660f, "bbb2"), (3, 680f, "ccc3"), (4, 700f, "ddd4"), (5, 3000f, "eee5"));
+            // Six pixels apart: every pair of these four names overlaps when unstacked (a drawn name is about 22 px wide),
+            // so each farther one must climb. Names that do not overlap are not stacked (coordinator amendment 2026-11-12:
+            // at 20 px apart only neighbours overlapped, and the strict order could be met only by a 45 px blanket margin).
+            PlayersFrame((1, 640f, "aaa1"), (2, 646f, "bbb2"), (3, 652f, "ccc3"), (4, 658f, "ddd4"), (5, 3000f, "eee5"));
             var n = new[] { NameLabel("aaa1"), NameLabel("bbb2"), NameLabel("ccc3"), NameLabel("ddd4") };
             for (int i = 0; i < 4; i++)
                 for (int j = i + 1; j < 4; j++)
