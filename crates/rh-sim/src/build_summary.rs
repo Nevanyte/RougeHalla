@@ -351,8 +351,7 @@ pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
             } else {
                 1.
             };
-            let bloodthirst =
-                p.build.count(crate::cards::CardId::Bloodthirst) > 0 && hp_frac < 0.5;
+            let bloodthirst = p.build.count(crate::cards::CardId::Bloodthirst) > 0 && hp_frac < 0.5;
             let camp_leech = f64::from(p.camps_cleared)
                 * HOLY_CAMP_LIFESTEAL_PER_CLEAR
                 * if bloodthirst { 2. } else { 1. };

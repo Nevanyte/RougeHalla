@@ -1,6 +1,7 @@
 //! Reliable collection replacements built only from the already-filtered observation.
 use rh_protocol::state::{
-    WireBuildSummary, WireCampReward, WireMobBonusRow, WireWard, HUD_QUANTUM, MAX_SUMMARY_MOB_ROWS,
+    WireBuildSummary, WireCampReward, WireMobBonusRow, WirePanelValue, WireWard, HUD_QUANTUM,
+    MAX_SUMMARY_MOB_ROWS,
 };
 use rh_protocol::{
     EncodeError, PickupHandle, RewardChestHandle, ServerMsg, StateItem, WireArena, WireBuild,
@@ -514,11 +515,22 @@ fn summary(observation: &Observation) -> Result<Option<WireBuildSummary>, Encode
             })
         })
         .collect::<Result<_, EncodeError>>()?;
-    // STUB (P-WIRE17-HUD-2): the observed champion panel is not projected yet.
+    // P-WIRE17-HUD-2: the viewer's own champion panel, ascending by code; none observed sends an empty panel.
+    let panel = observation
+        .panel
+        .iter()
+        .flat_map(|p| p.iter())
+        .map(|(code, v)| {
+            Ok(WirePanelValue {
+                code: code.code(),
+                value: quantize_i32(v, "summary panel value")?,
+            })
+        })
+        .collect::<Result<_, EncodeError>>()?;
     Ok(Some(WireBuildSummary {
         gains,
         mob_rows,
-        panel: Vec::new(),
+        panel,
     }))
 }
 
@@ -526,15 +538,24 @@ fn summary(observation: &Observation) -> Result<Option<WireBuildSummary>, Encode
 /// or stacks changed, or any number moved at least one whole [`HUD_QUANTUM`] from the value the client holds. A
 /// sub-quantum wobble (hp-dependent life steal) sends nothing even where it would round to the next step; the client's
 /// value then stays within one quantum of the build.
+/// P-WIRE17-HUD-2: the champion panel follows the same rule: a code added or removed, or a value moved a whole quantum.
 fn summary_stale(
     sent: Option<&WireBuildSummary>,
     view: Option<&rh_sim::observe::SummaryView>,
+    panel: Option<&rh_sim::build_summary::ChampionPanel>,
 ) -> bool {
     let (Some(sent), Some(view)) = (sent, view) else {
         return sent.is_some() != view.is_some();
     };
     let moved = |held: i32, v: f64| (v / HUD_QUANTUM - f64::from(held)).abs() >= 1.;
-    sent.mob_rows.len() != view.mob_rows.len()
+    let panel_len = panel.map_or(0, |p| p.iter().count());
+    sent.panel.len() != panel_len
+        || sent
+            .panel
+            .iter()
+            .zip(panel.iter().flat_map(|p| p.iter()))
+            .any(|(w, (code, v))| w.code != code.code() || moved(w.value, v))
+        || sent.mob_rows.len() != view.mob_rows.len()
         || sent.gains.iter().zip(view.gains).any(|(q, v)| moved(*q, v))
         || sent.mob_rows.iter().zip(&view.mob_rows).any(|(w, r)| {
             w.mob_type != r.mob as u8
@@ -710,7 +731,13 @@ impl CollectionPublisher {
                 &observation.roster,
             )));
         }
-        if full || summary_stale(self.summary.as_ref(), observation.summary.as_ref()) {
+        if full
+            || summary_stale(
+                self.summary.as_ref(),
+                observation.summary.as_ref(),
+                observation.panel.as_ref(),
+            )
+        {
             items.push(StateItem::BuildSummary(next_summary));
         }
         let (frame, items) = if items.is_empty() {
