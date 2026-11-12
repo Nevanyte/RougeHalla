@@ -3152,10 +3152,7 @@ fn malformed_hud_content() -> Vec<(&'static str, Vec<u8>)> {
     vec![
         // Count 33, refused before any row is read: the map follows.
         ("welcome_hud_scaling_count", welcome_hud_bytes(&[33])),
-        (
-            "welcome_hud_scaling_dominant",
-            welcome_hud_bytes(&dominant),
-        ),
+        ("welcome_hud_scaling_dominant", welcome_hud_bytes(&dominant)),
         (
             "welcome_hud_scaling_nan",
             scaling(vec![crate::WireWeaponScaling {
@@ -3176,10 +3173,7 @@ fn malformed_hud_content() -> Vec<(&'static str, Vec<u8>)> {
             "welcome_hud_term_over_max",
             terms(&[(0, crate::hud_content::MAX_HUD_VALUE + 1.0)]),
         ),
-        (
-            "welcome_hud_term_order",
-            terms(&[(4, 5000.0), (3, 72.0)]),
-        ),
+        ("welcome_hud_term_order", terms(&[(4, 5000.0), (3, 72.0)])),
         ("welcome_hud_truncated", {
             // No rows, two terms promised, the second cut off after four bytes: the frame ends inside the block.
             let good = welcome_map(2, 2, None, &[(1, 4)]);
