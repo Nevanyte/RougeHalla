@@ -51,7 +51,9 @@ Head `feature/unity-rework` carries this note. Pushed to origin: `e43e8cf6` (int
 unset (the two conditions that failed overnight). Its result line is recorded below when it finishes; if this note
 still says "running", rerun it: `eval "$(tools/pgtest/start.sh)"; scripts/gate.sh --coordinator`.
 
-GATE RESULT: running (started 2026-11-11, head `cdb7731d`).
+GATE RESULT: **GATE PASS (full)** on `846fe8b1`, 2026-11-11 19:27 to 19:56 CST, with `PGBIN` and `LC_ALL` unset, including the new
+Unity EditMode step (610 of 610) and the Unity tool tests. An earlier run started 09:02 was invalid: the laptop went to
+clamshell sleep at 09:07 and a timing-sensitive lease test failed.
 
 **After a green gate, in order:** push `feature/unity-rework` (owner pre-approved backup pushes); rerun the Opus review
 of `agent/opus/P-WIRE17-HUD-1` @ `e9dc0b84` (stopped twice by pauses); merge it, full gate, EditMode, push; then
