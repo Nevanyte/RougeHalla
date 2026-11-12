@@ -1879,4 +1879,94 @@ mod tests {
             assert!(lease_policy(&args(&values)).is_err(), "{values:?}");
         }
     }
+
+    /// Integration of fix/server-security and fix/server-resilience with the integration branch's runtime flags (map pool,
+    /// signature landmarks, lobby timing, hitboxes, bot learning; taken from integration/launch-fixes 3f5e68c8 with
+    /// fix/map-variety's `--generate-maps` replaced by `--map-pool`): each flag family's typo guard (`--insecure*`,
+    /// `--ws-*`/`--http-*`, `--require*`/`--admit*`/`--control*`, `--runtime*`) must accept every other family's real flags in
+    /// one command line.
+    #[test]
+    fn every_flag_parser_accepts_the_other_branches_flags_together() {
+        let token_file =
+            std::env::temp_dir().join(format!("rh-int-flags-token-{}", std::process::id()));
+        std::fs::write(&token_file, "int-token\n").unwrap();
+        let common = [
+            "rh-server",
+            "--bind",
+            "127.0.0.1:7777",
+            "--runtime",
+            "source-arena",
+            "--map",
+            "map.json",
+            "--map-pool",
+            "--signature-landmarks",
+            "--lobby-timing",
+            "matchmaking",
+            "--hitboxes",
+            "archetypes",
+            "--bot-learning",
+            "single-writer",
+            "--client-ip-header",
+            "x-forwarded-for",
+            "--trusted-proxies",
+            "127.0.0.1",
+            "--api-cors-origins",
+            "https://play.example",
+            "--ws-origins",
+            "https://play.example",
+            "--ws-max-per-ip",
+            "16",
+            "--ws-connect-burst",
+            "20",
+            "--ws-connect-per-second",
+            "2",
+            "--ws-max-pending",
+            "256",
+            "--ws-auth-fails-per-minute",
+            "10",
+            "--ws-auth-fails-per-minute-all",
+            "0",
+            "--http-header-timeout-secs",
+            "10",
+            "--insecure-dev-auth",
+            "--db-connect-timeout-secs",
+            "60",
+            "--drain-max-secs",
+            "55",
+            "--drain-write-wait-secs",
+            "20",
+            "--control",
+            "127.0.0.1:7778",
+        ];
+        let token = token_file.to_str().unwrap();
+        for tail in [
+            vec!["--control-insecure-loopback"],
+            vec!["--control-token-file", token],
+        ] {
+            let a = args(&[&common[..], &tail[..]].concat());
+            let bind: SocketAddr = "127.0.0.1:7777".parse().unwrap();
+            let exposure = exposure_check(&a, bind).unwrap();
+            assert!(
+                exposure.public,
+                "--client-ip-header makes the listener public"
+            );
+            hosted_settings(&a).unwrap();
+            let d = drain_settings(&a).unwrap();
+            assert_eq!(d.max, Some(Duration::from_secs(55)));
+            assert_eq!(db_connect_budget(&a).unwrap(), Duration::from_secs(60));
+            let api = api_config(&a).unwrap();
+            edge_settings(&a, &api, exposure.public).unwrap();
+            lease_policy(&a).unwrap();
+            let rt = rh_server::runtime::Settings::from_args(&a)
+                .unwrap()
+                .unwrap();
+            assert_eq!(rt.profile, rh_server::runtime::Profile::SourceArena);
+            assert!(rt.map_pool && rt.signature_landmarks);
+            assert_eq!(
+                rh_server::bot_learning::LearningMode::from_args(&a).unwrap(),
+                rh_server::bot_learning::LearningMode::SingleWriter
+            );
+        }
+        let _ = std::fs::remove_file(&token_file);
+    }
 }
