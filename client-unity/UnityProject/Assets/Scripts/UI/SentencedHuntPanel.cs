@@ -15,7 +15,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class SentencedHuntPanel : MonoBehaviour
     {
-        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 46f, RowsTop = 72f;
+        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 50f, RowsTop = 76f;
         RectTransform _root;
         TMP_Text _title, _status;
         readonly List<Button> _rows = new List<Button>();
@@ -100,7 +100,7 @@ namespace Roguehalla.Client
             if (tracking)
             {
                 string who = haveTarget ? Rival(targetActor) : "rival";
-                _status.text = "Tracking " + who + " · +5% speed toward them";
+                _status.text = "Tracking " + who + " · +5% speed";
             }
             else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight" : "Choose a rival · +5% speed toward them";
             int rows = tracking ? 0 : Mathf.Min(_rivals.Count, (int)MaxRows);
@@ -115,7 +115,7 @@ namespace Roguehalla.Client
                 _rowIcon[i].sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp(f, 0, 4)].Shape); _rowIcon[i].color = UiTheme.Current.FactionColor(f);
                 button.interactable = _pending == 0;
             }
-            _root.sizeDelta = new Vector2(Width, RowsTop + (rows > 0 ? rows * (RowH + 3f) : 0f) + 4f);
+            _root.sizeDelta = new Vector2(Width, RowsTop + (rows > 0 ? rows * (RowH + 3f) : 12f) + 4f);
         }
 
         /// <summary>Legacy rule: only a living Sentenced in an active run, never in Training.</summary>
