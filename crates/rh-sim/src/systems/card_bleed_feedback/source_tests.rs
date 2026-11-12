@@ -189,6 +189,7 @@ fn config_with_hitboxes(input: &V, hitboxes: crate::archetype::HitboxMode) -> Si
         // the other mode, and it does so here, before the Sim is constructed.
         hitboxes,
         mob_spacing: Default::default(),
+        regen_in_combat: crate::RegenInCombat::Legacy,
     }
 }
 

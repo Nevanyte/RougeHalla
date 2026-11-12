@@ -83,6 +83,7 @@ impl From<&SimSpec> for SimConfig {
             walk_hints: None,
             hitboxes: Default::default(),
             mob_spacing: Default::default(),
+            regen_in_combat: rh_sim::RegenInCombat::Legacy,
             regen: false,
             min_players: spec.min_players,
             lobby_seconds: spec.lobby_seconds,

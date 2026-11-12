@@ -9,6 +9,7 @@ pub mod control;
 pub mod director;
 pub mod hosting;
 pub mod lobby;
+pub mod map_pool;
 pub mod metrics;
 pub mod outbox;
 pub mod pacer;
@@ -16,6 +17,7 @@ pub mod persist;
 pub mod public_ground;
 pub mod room;
 pub mod runtime;
+pub mod signature;
 #[cfg(feature = "postgres")]
 pub mod spool;
 pub mod wire;

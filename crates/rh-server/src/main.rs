@@ -475,6 +475,7 @@ async fn main() {
         || rh_sim::SimConfig {
             hitboxes: core_hitboxes,
             mob_spacing: Default::default(),
+            regen_in_combat: rh_sim::RegenInCombat::Legacy,
             walk_hints: None,
             regen: false,
             quests: false,
@@ -540,6 +541,19 @@ async fn main() {
         ),
         ..DirectorConfig::new(sim, arena)
     };
+    if runtime.as_ref().is_some_and(|r| r.map_pool) {
+        // P-MAP-3: certified maps made ahead on a worker thread; the configured --map is the last resort.
+        let configured = rh_server::room::MapAssets::new(cfg.arena.clone())
+            .unwrap_or_else(|e| panic!("the configured map encodes as a Welcome: {e:?}"));
+        let signature = runtime.as_ref().is_some_and(|r| r.signature_landmarks);
+        cfg.map_pool = Some(std::sync::Arc::new(rh_server::map_pool::MapPool::start(
+            configured, signature,
+        )));
+        eprintln!(
+            "[server] map pool on: each room takes its own certified map (target {})",
+            rh_server::map_pool::MAP_POOL_TARGET
+        );
+    }
     cfg.require_admit = hosted.require_admit;
     if let Some(ttl) = hosted.admit_ttl {
         cfg.admit_ttl = ttl;

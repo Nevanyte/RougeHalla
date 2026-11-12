@@ -20,6 +20,12 @@ pub struct Settings {
     pub hitboxes: rh_sim::archetype::HitboxMode,
     /// `--lobby-timing legacy|matchmaking` (P-LOBBY-TIMING-1).
     pub lobby_timing: crate::bot_fill::LobbyTiming,
+    /// `--map-pool` (P-MAP-3, source-arena only, off by default): every room takes its own certified generated map from
+    /// [`crate::map_pool::MapPool`]; `--map` is the last resort.
+    pub map_pool: bool,
+    /// `--signature-landmarks` (owner decision 6; needs `--map-pool`): pooled maps get the signature landmarks
+    /// ([`crate::signature`]).
+    pub signature_landmarks: bool,
 }
 
 /// `--lobby-timing legacy|matchmaking`, default legacy. `matchmaking` is a 15 s lobby with bots at second 13.
@@ -89,6 +95,18 @@ fn value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>, String> 
         .filter(|v| !v.starts_with("--"))
         .map(|s| Some(s.as_str()))
         .ok_or_else(|| format!("{flag} requires a value"))
+}
+
+/// A bare switch such as `--map-pool`, at most once.
+fn switch_flag(args: &[String], flag: &str) -> Result<bool, String> {
+    if args.iter().any(|a| a.starts_with(flag) && a != flag) {
+        return Err(format!("unknown {flag} option; it takes no value"));
+    }
+    match args.iter().filter(|a| *a == flag).count() {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(format!("{flag} must occur once")),
+    }
 }
 
 impl Settings {
@@ -170,7 +188,15 @@ impl Settings {
             fill_seconds: seconds("--fill-seconds", if training { 0. } else { 5. })?,
             hitboxes: hitboxes_flag(args, LIVE_DEFAULT_HITBOXES)?,
             lobby_timing: lobby_timing_flag(args)?,
+            map_pool: switch_flag(args, "--map-pool")?,
+            signature_landmarks: switch_flag(args, "--signature-landmarks")?,
         };
+        if settings.signature_landmarks && !settings.map_pool {
+            return Err("--signature-landmarks needs --map-pool".into());
+        }
+        if training && settings.map_pool {
+            return Err("training uses the practice arena; --map-pool is not accepted".into());
+        }
         if training && settings.lobby_timing != crate::bot_fill::LobbyTiming::Legacy {
             return Err("training does not accept --lobby-timing matchmaking".into());
         }
@@ -185,6 +211,8 @@ impl Settings {
         SimConfig {
             walk_hints: Some(true),
             regen: true,
+            // Owner decision 2026-11-10 (legacy f8cd956e): passive regeneration out of combat only (P-REGEN-COMBAT-1).
+            regen_in_combat: rh_sim::RegenInCombat::Off,
             quests: !training,
             training,
             dummies: training,
@@ -262,6 +290,11 @@ mod tests {
             "--runtime source-arena --map x --fill-seconds NaN",
             "--runtime source-arena --map x --max-rooms 0",
             "--runtime source-arena --map x --map y",
+            "--runtime training --map-pool",
+            "--runtime source-arena --map x --map-pool --map-pool",
+            "--runtime source-arena --map x --map-pool=on",
+            "--runtime source-arena --map x --signature-landmarks",
+            "--runtime training --map-pool --signature-landmarks",
         ] {
             assert!(parse(args).is_err(), "{args}");
         }
@@ -271,7 +304,23 @@ mod tests {
         assert!(sim.quests && sim.regen && sim.initial_loot && sim.faction_mode.fire_roam());
         assert_eq!(sim.abilities, abilities::Mode::Full);
         assert!(matches!(sim.lifecycle, ArenaMode::Source(_)));
+        assert_eq!(sim.regen_in_combat, rh_sim::RegenInCombat::Off);
+        assert!(!source.map_pool);
+        let pooled = parse("--runtime source-arena --map x --map-pool")
+            .unwrap()
+            .unwrap();
+        assert!(pooled.map_pool && !pooled.signature_landmarks);
+        let signed = parse("--runtime source-arena --map x --map-pool --signature-landmarks")
+            .unwrap()
+            .unwrap();
+        assert!(signed.map_pool && signed.signature_landmarks);
+        assert_eq!(
+            pooled.sim(),
+            sim,
+            "the pool changes the maps, not the rules"
+        );
         let training = parse("--runtime training").unwrap().unwrap().sim();
+        assert_eq!(training.regen_in_combat, rh_sim::RegenInCombat::Off);
         assert_eq!(training.walk_hints, Some(true));
         assert!(training.training && training.dummies && !training.quests);
         assert_eq!(training.lifecycle, ArenaMode::Off);

@@ -250,6 +250,42 @@ pub struct SimConfig {
     /// checkpoint and every replay; `Auto` adds nothing to the digest (every hash from before the field is unchanged).
     #[serde(default)]
     pub mob_spacing: crate::archetype::MobSpacing,
+    /// Passive regeneration while fighting (P-REGEN-COMBAT-1): `Legacy` (the default: the in-repo legacy oracle's
+    /// `PLAYER_REGEN_SHARE_IN`) or `Off` (unreleased legacy f8cd956e, owner decision 2026-11-10: out of combat only; the
+    /// live profiles opt in). Serialized like [`crate::archetype::MobSpacing`]: `Legacy` adds nothing to any hash.
+    #[serde(default)]
+    pub regen_in_combat: RegenInCombat,
+}
+
+/// `SimConfig::regen_in_combat`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
+/// unit), so a config that leaves it alone has the statics digest, state hashes, checkpoints and replays it had before
+/// the field existed; `Off` is the string `"off"`, folded into all of them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RegenInCombat {
+    #[default]
+    Legacy,
+    Off,
+}
+
+impl serde::Serialize for RegenInCombat {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Legacy => s.serialize_unit(),
+            Self::Off => s.serialize_str("off"),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for RegenInCombat {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        match Option::<String>::deserialize(d)?.as_deref() {
+            None => Ok(Self::Legacy),
+            Some("off") => Ok(Self::Off),
+            Some(other) => Err(serde::de::Error::custom(format!(
+                "regen_in_combat must be null or \"off\", not {other:?}"
+            ))),
+        }
+    }
 }
 
 fn default_wish_lock() -> f64 {
@@ -287,6 +323,7 @@ impl Default for SimConfig {
             walk_hints: None,
             hitboxes: crate::archetype::HitboxMode::LegacyCircle,
             mob_spacing: crate::archetype::MobSpacing::Auto,
+            regen_in_combat: RegenInCombat::Legacy,
         }
     }
 }

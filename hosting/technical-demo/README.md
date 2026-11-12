@@ -147,8 +147,10 @@ and durable Source result spool on the ephemeral root. Source uses
 the fill target is eight total players, normally one human plus seven bots.
 The first seat sets the 10-second lobby deadline; reaching the one-human minimum
 shortens it to at most three remaining seconds, with missing bots filled before
-lobby close. Training remains solo/immediate with no bots and one room. Both
-retain `--bot-learning off`. These launch scripts do not pass a `--hitboxes`
+lobby close. Training remains solo/immediate with no bots and one room. Source
+runs `--bot-learning single-writer` (owner approval 2026-11-11; the host's
+Postgres holds the single-writer lease); Training keeps `--bot-learning off`,
+because rh-server refuses learning in training. These launch scripts do not pass a `--hitboxes`
 override. The current integration runtime is still protocol 14; it does not gain
 that parser option until the reviewed union is integrated. The incoming primary
 protocol-16 runtime implements `--hitboxes` overrides and defaults live Source

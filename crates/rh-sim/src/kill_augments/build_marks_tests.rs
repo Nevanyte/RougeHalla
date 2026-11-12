@@ -141,3 +141,82 @@ fn top_two_keeps_the_earlier_key_on_a_tie_and_skips_small_or_nan_scores() {
     s[KillStatKey::Speed.index()] = 0.02;
     assert_eq!(top_two(&s), [Some(KillStatKey::Speed), None]);
 }
+
+/// Integration-1 review finding (P-LEECH-GROUPING-1): legacy `combatReadability` sums the leech score as
+/// `cardLeech(...) + killStat(...)`, where `cardLeech` is `max(0, min(0.25, rows)) + max(0, farm)`
+/// (combatReadability.ts:102, :135): `(cards + farm) + kill`, each part clamped on its own. The score must equal that
+/// grouping bit for bit, and the inputs below must include a case where the other grouping differs (or the test proves
+/// nothing).
+#[test]
+fn the_leech_score_groups_its_sum_as_legacy() {
+    use crate::cards::CardRow;
+    use crate::stat_fold::{EffectKind, StatKey};
+    let faction = FactionId::Fire;
+    let rows_leech = |id: CardId| -> f64 {
+        id.definition()
+            .selection(faction)
+            .1
+            .iter()
+            .map(|row| match row {
+                CardRow::Fold(EffectKind::Stat { stat, v })
+                    if StatKey::from(*stat) == StatKey::Lifesteal =>
+                {
+                    *v
+                }
+                _ => 0.,
+            })
+            .sum()
+    };
+    let card = CardId::ALL
+        .into_iter()
+        .find(|c| rows_leech(*c) > 0.)
+        .expect("a card with a lifesteal row");
+    let cards = rows_leech(card);
+    let build = Build::from_counts([(card, 1)]);
+    let mirrors = StatMirrors {
+        as_mult: 1.,
+        windup_mult: 1.,
+        speed_mult: 1.,
+        armor_bonus: 0.,
+        shield_bonus: 0.,
+        ad_bonus: 0.,
+        ap_bonus: 0.,
+    };
+    let mut told_apart = false;
+    for stacks in 1..=20u64 {
+        let mut farm = crate::modifiers::Farm::default();
+        farm.set(crate::mob_catalog::MobTypeId::RotMonk, stacks);
+        let (farm_rows, farm_len) = farm.rows();
+        let farm_leech: f64 = farm_rows[..farm_len]
+            .iter()
+            .map(|row| match row.kind {
+                EffectKind::Stat { stat, v } if StatKey::from(stat) == StatKey::Lifesteal => v,
+                _ => 0.,
+            })
+            .sum();
+        for kill_leech in [0.01, 0.02, 0.03, 0.07, 0.1] {
+            let mut kill = KillStats::default();
+            kill.add(KillStatKey::Leech, kill_leech);
+            let r = Readable {
+                build: &build,
+                faction,
+                mirrors,
+                max_hp: crate::content::faction(faction).hp,
+                farm_rows: &farm_rows[..farm_len],
+                kill: &kill,
+                camp_clears: 0,
+            };
+            let got = invested_scores(&r, false)[KillStatKey::Leech.index()];
+            let card_part = cards.clamp(0., 0.25);
+            let legacy = ((card_part + farm_leech.max(0.)) + kill_leech) / 0.05;
+            let other = (card_part + (farm_leech + kill_leech).max(0.)) / 0.05;
+            told_apart |= legacy.to_bits() != other.to_bits();
+            assert_eq!(
+                got.to_bits(),
+                legacy.to_bits(),
+                "{stacks} stacks, kill {kill_leech}: {got} vs legacy {legacy}"
+            );
+        }
+    }
+    assert!(told_apart, "no input separates the two groupings");
+}

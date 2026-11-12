@@ -214,6 +214,9 @@ def app_unit(c, training):
     mode = 'training' if training else 'source-arena'
     port = 7779 if training else 7777
     options = '--min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0' if training else f'--map {ROOT}/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3'
+    # Owner approval 2026-11-11: the legacy bot learner runs on Source (single writer on this host's Postgres); training
+    # refuses learning (rh-server exits 2), so it keeps it off.
+    learning = 'off' if training else 'single-writer'
     return f'''[Unit]
 Requires=rh-demo-pg.service rh-demo-expiry.timer
 After=rh-demo-pg.service rh-demo-expiry.timer
@@ -222,7 +225,7 @@ OnFailure=rh-demo-poweroff.service
 User=rougehalla
 Group=rougehalla
 ExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard
-ExecStart={ROOT}/rh-server --runtime {mode} --bind 127.0.0.1:{port} --instance-id {c['run_id']}-{mode} {options} --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
+ExecStart={ROOT}/rh-server --runtime {mode} --bind 127.0.0.1:{port} --instance-id {c['run_id']}-{mode} {options} --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning {learning} --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1
 Restart=no
 NoNewPrivileges=yes
 PrivateTmp=yes
