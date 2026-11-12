@@ -133,7 +133,7 @@ namespace Roguehalla.Client
             label.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
             label.color = color; label.alignment = align;
             label.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
-            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.overflowMode = TextOverflowModes.Overflow;
             label.margin = Vector4.zero;
             // TextMeshPro hides a line that is taller than its rect when the overflow mode is Ellipsis. Nunito's line box is about 1.36 em,
             // so a rect sized for a 1.2 em legacy line (a 12 to 15 unit row for 10 to 11 px text) would blank the text. Grow the rect
@@ -145,7 +145,7 @@ namespace Roguehalla.Client
                 case VerticalAlignmentOptions.Bottom: case VerticalAlignmentOptions.Baseline: rect.offsetMax = new Vector2(0f, lineGrow * 2f); break;
                 default: rect.offsetMin = new Vector2(0f, -lineGrow); rect.offsetMax = new Vector2(0f, lineGrow); break;
             }
-            var scale = rect.gameObject.AddComponent<MythicTextScale>(); scale.BaseSize = size;
+            var scale = rect.gameObject.AddComponent<MythicTextScale>(); scale.BaseSize = size; scale.FitBox = true;
             scale.Apply(ShowcaseSettings.Current != null ? ShowcaseSettings.Current.TextScale : 1f);
             return label;
         }
