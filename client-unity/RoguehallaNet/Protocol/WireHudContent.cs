@@ -68,9 +68,93 @@ namespace Roguehalla.Net.Protocol
             return null;
         }
 
-        // STUB (P-WIRE17-HUD-2b): the implementer writes the codec and wires it into ServerMsg.Welcome.
-        internal int Length() { return 0; }
-        internal void Write(Writer w) { }
-        internal static WireHudContent Read(ref Reader r) { return new WireHudContent(); }
+        static bool InRange(double v) { return !double.IsNaN(v) && !double.IsInfinity(v) && v >= 0 && v <= MaxValue; }
+
+        static bool ValuesOk(WireWeaponScaling s)
+        {
+            return InRange(s.Ad) && InRange(s.Ap) && InRange(s.BonusHp) && InRange(s.BonusDefense);
+        }
+
+        /// <summary>The scaling rows' first fault once read (values, then id order), or null.</summary>
+        static string ScalingRowsFault(WireWeaponScaling[] rows)
+        {
+            foreach (var s in rows) if (s == null || !ValuesOk(s)) return "scaling";
+            for (int i = 1; i < rows.Length; i++) if (rows[i].Id <= rows[i - 1].Id) return "scaling order";
+            return null;
+        }
+
+        /// <summary>The term rows' first fault once read (values, then code order), or null.</summary>
+        static string TermRowsFault(WireHudTerm[] rows)
+        {
+            foreach (var t in rows) if (t == null || !InRange(t.Value)) return "hud term";
+            for (int i = 1; i < rows.Length; i++) if (rows[i].Code <= rows[i - 1].Code) return "hud term order";
+            return null;
+        }
+
+        internal int Length()
+        {
+            return 1 + (Scaling?.Length ?? 0) * ScalingRowLength + 1 + (Terms?.Length ?? 0) * TermRowLength;
+        }
+
+        /// <summary>The encoder's checks, in the Rust <c>content_fault</c> order: scaling count, scaling values, scaling order,
+        /// term count, term code, term values, term order.</summary>
+        internal void Validate()
+        {
+            var scaling = Scaling ?? Array.Empty<WireWeaponScaling>();
+            var terms = Terms ?? Array.Empty<WireHudTerm>();
+            if (scaling.Length > MaxScalingRows) throw new ArgumentException("scaling count");
+            string why = ScalingRowsFault(scaling);
+            if (why != null) throw new ArgumentException(why);
+            if (terms.Length > MaxTerms) throw new ArgumentException("hud term count");
+            foreach (var t in terms) if (t != null && t.Code >= TermCount) throw new ArgumentException("hud term code");
+            why = TermRowsFault(terms);
+            if (why != null) throw new ArgumentException(why);
+        }
+
+        internal void Write(Writer w)
+        {
+            Validate();
+            var scaling = Scaling ?? Array.Empty<WireWeaponScaling>();
+            var terms = Terms ?? Array.Empty<WireHudTerm>();
+            w.U8((byte)scaling.Length);
+            foreach (var s in scaling)
+            {
+                w.U8(s.Id); w.F64(s.Ad); w.F64(s.Ap); w.F64(s.BonusHp); w.F64(s.BonusDefense); w.U8(s.Dominant ? (byte)1 : (byte)0);
+            }
+            w.U8((byte)terms.Length);
+            foreach (var t in terms) { w.U8(t.Code); w.F64(t.Value); }
+        }
+
+        /// <summary>Reads the block with the Rust decoder's reasons and order: a count over its cap before any row, a dominant
+        /// byte above 1 or a code at or above <see cref="TermCount"/> as soon as read, then values, then order.</summary>
+        internal static WireHudContent Read(ref Reader r)
+        {
+            int n = r.U8();
+            if (n > MaxScalingRows) throw new DecodeException(DecodeError.BadField, "scaling count");
+            var scaling = n == 0 ? Array.Empty<WireWeaponScaling>() : new WireWeaponScaling[n];
+            for (int i = 0; i < n; i++)
+            {
+                var s = new WireWeaponScaling { Id = r.U8() };
+                s.Ad = r.F64(); s.Ap = r.F64(); s.BonusHp = r.F64(); s.BonusDefense = r.F64();
+                byte dominant = r.U8();
+                if (dominant > 1) throw new DecodeException(DecodeError.BadField, "scaling dominant");
+                s.Dominant = dominant == 1;
+                scaling[i] = s;
+            }
+            string why = ScalingRowsFault(scaling);
+            if (why != null) throw new DecodeException(DecodeError.BadField, why);
+            int m = r.U8();
+            if (m > MaxTerms) throw new DecodeException(DecodeError.BadField, "hud term count");
+            var terms = m == 0 ? Array.Empty<WireHudTerm>() : new WireHudTerm[m];
+            for (int i = 0; i < m; i++)
+            {
+                byte code = r.U8();
+                if (code >= TermCount) throw new DecodeException(DecodeError.BadField, "hud term code");
+                terms[i] = new WireHudTerm { Code = code, Value = r.F64() };
+            }
+            why = TermRowsFault(terms);
+            if (why != null) throw new DecodeException(DecodeError.BadField, why);
+            return new WireHudContent { Scaling = scaling, Terms = terms };
+        }
     }
 }
