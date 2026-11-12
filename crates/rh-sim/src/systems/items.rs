@@ -77,61 +77,10 @@ impl WeaponRt {
     }
 }
 
-/// The legacy hitLanded hook: the axe shred first, then the owned cards' on-hit rows.
+/// The legacy hitLanded hook (`cardHooks.onHitLanded`): the victim's hitTaken triggers, then `runOnHit` — the axe's
+/// shred, then the owned cards' on-hit rows (`cards::on_hit`).
 pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
-    axe_shred(hx, args);
     crate::cards::on_hit::apply(hx, args);
-}
-
-/// Axe shred is the first effect of the legacy hitLanded hook. Returned hits
-/// do not proc it; the status is paid after every victim in the pass.
-fn axe_shred(hx: &mut Hx, args: &HookArgs) {
-    let HookArgs::HitLanded { ref entry, .. } = *args else {
-        return;
-    };
-    if !hx.k.config.weapon_specials
-        || entry.passive
-        || entry.derived
-        || entry.sig.is_some()
-        || entry.weapon != Some(WeaponId::Axe)
-    {
-        return;
-    }
-    let Some(source) = entry.by.filter(|id| hx.w.fighter_idx(*id).is_some()) else {
-        return;
-    };
-    if hx
-        .w
-        .fighter_idx(entry.victim)
-        .is_some_and(|i| hx.w.standing(i))
-    {
-        let source = crate::status_runtime::StatusSource {
-            id: Some(source),
-            name: hx.w.actor_label(source).expect("present axe owner"),
-            owner_id: None,
-        };
-        super::status::operations::apply_with(
-            hx.k,
-            hx.w,
-            hx.ev,
-            entry.victim,
-            crate::status_runtime::StatusApply {
-                kind: crate::status_runtime::StatusKind::Shred,
-                source,
-                ms: crate::constants::AXE_SHRED_MS,
-                ability: None,
-                tag: Some(crate::status_runtime::StatusTag::Axe),
-                value: None,
-                add: Some(crate::status_runtime::AddValue {
-                    per: crate::constants::AXE_SHRED_ARMOR,
-                    cap: crate::constants::AXE_SHRED_CAP,
-                }),
-                data: None,
-            },
-            true,
-            hx.stats,
-        );
-    }
 }
 
 pub(crate) fn weapon_changed(p: &mut FighterCore, now: f64) {
