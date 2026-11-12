@@ -311,6 +311,12 @@ pub fn weapon_table() -> &'static [rh_protocol::WireWeapon] {
     TABLE.get_or_init(rh_policy::delivery::projection::wire_weapons)
 }
 
+/// The HUD content block every Welcome carries (protocol 17, P-WIRE17-HUD-2b): built once from the sim content.
+pub fn hud_content() -> &'static rh_protocol::WireHudContent {
+    static TABLE: std::sync::OnceLock<rh_protocol::WireHudContent> = std::sync::OnceLock::new();
+    TABLE.get_or_init(rh_policy::delivery::projection::wire_hud)
+}
+
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
 /// one per map; a room only clones the `Arc`s.
 #[derive(Clone)]
@@ -606,6 +612,7 @@ impl Room {
             archetype_table(),
             &rh_policy::delivery::projection::wire_vision(&self.sim.arena().map),
             weapon_table(),
+            hud_content(),
             &self.welcome_map,
             crate::public_ground::mode(self.sim.config().hazards),
         )

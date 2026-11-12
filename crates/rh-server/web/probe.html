@@ -463,6 +463,34 @@ function readWeapons(r) {
   for (let i = 1; i < n; i++) if (rows[i].id <= rows[i - 1].id) throw new Error("bad weapon order");
   return rows;
 }
+// P-WIRE17-HUD-2b: the HUD content block, between the weapon table and the map: scaling count u8 (<= 32), rows of id u8,
+// ad f64, ap f64, bonusHp f64, bonusDefense f64, dominant u8 (0/1); term count u8 (<= 19), rows of code u8 (< 19),
+// value f64. Ids and codes strictly ascend; every value finite in 0..=1e6. Checked in the Rust order: a count over its cap
+// before any row, a dominant byte or a code as soon as read, then values, then order.
+function readHud(r) {
+  const ok = (v) => Number.isFinite(v) && v >= 0 && v <= 1e6;
+  const n = r.u8();
+  if (n > 32) throw new Error("bad scaling count");
+  const scaling = [];
+  for (let i = 0; i < n; i++) {
+    const id = r.u8(), ad = r.f64(), ap = r.f64(), bonusHp = r.f64(), bonusDefense = r.f64(), dominant = r.u8();
+    if (dominant > 1) throw new Error("bad scaling dominant");
+    scaling.push({ id, ad, ap, bonusHp, bonusDefense, dominant: dominant === 1 });
+  }
+  for (const s of scaling) if (![s.ad, s.ap, s.bonusHp, s.bonusDefense].every(ok)) throw new Error("bad scaling");
+  for (let i = 1; i < n; i++) if (scaling[i].id <= scaling[i - 1].id) throw new Error("bad scaling order");
+  const m = r.u8();
+  if (m > 19) throw new Error("bad hud term count");
+  const terms = [];
+  for (let i = 0; i < m; i++) {
+    const code = r.u8();
+    if (code >= 19) throw new Error("bad hud term code");
+    terms.push({ code, value: r.f64() });
+  }
+  for (const t of terms) if (!ok(t.value)) throw new Error("bad hud term");
+  for (let i = 1; i < m; i++) if (terms[i].code <= terms[i - 1].code) throw new Error("bad hud term order");
+  return { scaling, terms };
+}
 // Protocol 16 (ADR0026) indicator facts, checked in the Rust order: off-hand code 0..=16 (0 empty, else weapon + 1), build
 // marks (first stat key in the low nibble, second in the high one, each 0 none or 1..=9; a second needs a first and differs
 // from it), the mark plate (tier 0..=4, brand and tax 0..=100) and the flags (bit 0 wish ready, 1 engaged, 2 teleport
@@ -482,6 +510,7 @@ function decodeBody(r) {
     m.archetypes = readArchetypes(r);
     m.vision = readVision(r);
     m.weapons = readWeapons(r);
+    m.hud = readHud(r);
     // Preflight a copied bounded suffix first. No decoded plane allocation occurs until every byte,
     // run, domain, terrain/collision relation, and hash in the complete map has been checked.
     const p = cursor(r.v, r.p, r.limit);

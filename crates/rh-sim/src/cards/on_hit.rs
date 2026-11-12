@@ -1,7 +1,8 @@
-//! cardHooks.onHitLanded, the rows half: the owned cards' on-hit effects (Hemorrhage's bleed) after a landed hit.
+//! cardHooks.onHitLanded and Best Offense's block hit: the victim's hitTaken triggers, then `runOnHit` (the weapon
+//! special, the axe's shred, then the owned cards' on-hit rows such as Hemorrhage's bleed).
 //!
-//! Source: `packages/server/src/sim/onHit.ts` (`runOnHit`). The weapon special (axe shred) stays in `systems::items`;
-//! this module applies the card rows, quiet, with the source's tag and payload.
+//! Source: `packages/server/src/sim/cardHooks.ts` (`onHitLanded`, `onBlocked`), `packages/server/src/sim/onHit.ts`
+//! (`runOnHit`). Every status is applied quiet, with the source's tag and payload.
 use crate::cards::CardRow;
 use crate::content::DamageShares;
 use crate::hooks::{HookArgs, Hx};
@@ -133,6 +134,11 @@ fn hit_taken_rows(hx: &mut Hx, entry: &crate::systems::ledger::Entry, applied: f
     }
 }
 
+/// Source `cardHooks.onHitLanded` (in the pass). The entry's kind is the source `outgoingKindOf`: a damage-over-time tick
+/// (a DoT signature or `dot`), then returned damage (Fire's backlash, or any `passive` entry: a riposte, Spiked Shell, a
+/// reflected arrow), then a weapon hit (a weapon, no signature, no ability); anything else is no hit. A follow-on
+/// (`derived`) and the arena's damage set off nothing. On a weapon hit the victim's hitTaken triggers run, then `runOnHit`
+/// with `streak = true`; returned damage runs `runOnHit` with `streak = false`, and only for an Eye for an Eye holder.
 pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::HitLanded { ref entry, amount } = *args else {
         return;
@@ -141,94 +147,184 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     if entry.arena || entry.derived {
         return;
     }
-    // A weapon hit or a returned hit (Eye for an Eye); a DoT tick, an ability or a signature is no hit.
-    let returned = entry.passive;
-    let weapon_hit = !entry.passive
-        && !entry.dot
+    let dot = entry.dot
+        || entry
+            .sig
+            .is_some_and(crate::factions::SignatureKind::is_dot);
+    let returned =
+        !dot && (entry.passive || entry.sig == Some(crate::factions::SignatureKind::Backlash));
+    let weapon_hit = !dot
+        && !returned
         && entry.sig.is_none()
         && entry.ability.is_none()
         && entry.weapon.is_some();
-    if !weapon_hit && !(returned && entry.weapon.is_some()) {
+    if !weapon_hit && !returned {
+        return;
+    }
+    if hx.w.fighter_idx(by).is_none() {
         return;
     }
     if weapon_hit {
         hit_taken_rows(hx, entry, amount);
-    }
-    let Some(victim_ix) = hx.w.fighter_idx(entry.victim) else {
-        return;
-    };
-    if !hx.w.standing(victim_ix) {
-        return;
-    }
-    let Some(by_ix) = hx.w.fighter_idx(by) else {
-        return;
-    };
-    if !hx.w.is_player(by_ix) {
+    } else if !hx
+        .w
+        .player(by)
+        .is_some_and(|p| p.build.has_flag(crate::stat_fold::EffectFlag::EyeForAnEye))
+    {
+        // Returned damage applies the on-hit effects only for an Eye for an Eye holder.
         return;
     }
-    let weapon = entry.weapon.unwrap();
-    let Some(name) = hx.w.roster.label(by).cloned() else {
+    run_on_hit(
+        hx,
+        by,
+        entry.victim,
+        entry.weapon,
+        (entry.packet.raw, entry.packet.phys, entry.scale),
+        weapon_hit,
+    );
+}
+
+/// Source `cardHooks.onBlocked` under Best Offense (`blockHits`): the block is the holder's own blow with the weapon in
+/// hand, `runOnHit(world, holder, attacker, {weapon, packet: packetFor(holder, weapon), scale: 1}, true)`, applied at once
+/// (outside the ledger pass).
+pub(crate) fn block_hit(
+    hx: &mut Hx,
+    holder: crate::PlayerId,
+    victim: crate::PlayerId,
+    weapon: crate::content::WeaponId,
+) {
+    let Some(p) = hx.w.player(holder) else { return };
+    // Source packetFor: a fighter without a faction sheet has `{raw: 0, phys: 1}` (no panic on this hook path); otherwise
+    // the hit multiplier is folded into raw (`hit === 1 ? base : base * hit`, `total * hit`).
+    let (raw, phys) = if p.core.faction_id().is_some() {
+        let hit = p.modifiers.hit_mult();
+        let packet = crate::modifiers::packet(&p.core, weapon);
+        let raw = if hit == 1. {
+            packet.raw
+        } else {
+            packet.raw * hit
+        };
+        (raw, packet.phys)
+    } else {
+        (0., 1.)
+    };
+    run_on_hit(hx, holder, victim, Some(weapon), (raw, phys, 1.), true);
+}
+
+/// Source `onHit.ts runOnHit(world, attacker, victim, e, streak)`: `k = onHitPower(weapon) * onHitApplications(...,
+/// streak)` (a player's Fists of Fury on an empty hand, Third Time's the Charm on every third hit in a row only when the
+/// streak counts; 1 for an NPC), then the weapon special (the axe's shred, `armor * k`), then the player's card rows with
+/// the hit multiplier stripped from a bleed only when the streak counts (`hit = streak ? hitMultOf : 1`). `packet` is the
+/// entry's (raw, physical share, scale). An entry without a weapon has power 1 and no special (`spec?.onHitPower ?? 1`).
+fn run_on_hit(
+    hx: &mut Hx,
+    by: crate::PlayerId,
+    victim: crate::PlayerId,
+    weapon: Option<crate::content::WeaponId>,
+    packet: (f64, f64, f64),
+    streak: bool,
+) {
+    if !hx.w.fighter_idx(victim).is_some_and(|i| hx.w.standing(i)) {
+        return;
+    }
+    let player = hx.w.player(by);
+    let applications = player.map_or(1., |p| {
+        let w = &p.core.weapon;
+        let hand_empty = (if w.slot == 0 { w.weapon0 } else { w.weapon1 }).is_none();
+        let unarmed = p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty;
+        // Read at the pass start, so this tick's streak write cannot see itself.
+        let third = streak
+            && p.build.has_flag(crate::stat_fold::EffectFlag::ThirdCharm)
+            && (crate::cards::streak_before(
+                p.card_streak.as_ref(),
+                hx.w.server_time,
+                victim,
+                crate::constants::STREAK_GAP_MS,
+            ) + 1)
+                % 3
+                == 0;
+        1. + f64::from(u8::from(unarmed)) + f64::from(u8::from(third))
+    });
+    let k = weapon.map_or(
+        crate::constants::PLAIN_ON_HIT_POWER,
+        crate::content::on_hit_power,
+    ) * applications;
+    let Some(name) = hx.w.actor_label(by) else {
         return;
     };
-    let (k, hit, rows, n) = {
-        let Some(p) = hx.w.player(by) else { return };
-        // Returned damage only applies the on-hit rows for an Eye for an Eye holder.
-        if returned && !p.build.has_flag(crate::stat_fold::EffectFlag::EyeForAnEye) {
-            return;
-        }
-        let mut rows = [(StatusKind::Dot, 0., None, 0.); MAX_ON_HIT_ROWS];
-        let mut n = 0;
-        for id in p.build.cards() {
-            for row in id.definition().rows {
-                if let CardRow::OnHit(o) = row {
-                    if n < rows.len() {
-                        rows[n] = (o.status, o.per, o.cap, o.ms);
-                        n += 1;
-                    }
+    if hx.k.config.weapon_specials && weapon == Some(crate::content::WeaponId::Axe) {
+        crate::systems::status::operations::apply_with(
+            hx.k,
+            hx.w,
+            hx.ev,
+            victim,
+            StatusApply {
+                kind: StatusKind::Shred,
+                source: StatusSource {
+                    id: Some(by),
+                    name: name.clone(),
+                    owner_id: None,
+                },
+                ms: crate::constants::AXE_SHRED_MS,
+                ability: None,
+                tag: Some(StatusTag::Axe),
+                value: None,
+                add: Some(AddValue {
+                    per: crate::constants::AXE_SHRED_ARMOR * k,
+                    cap: crate::constants::AXE_SHRED_CAP,
+                }),
+                data: None,
+            },
+            true,
+            hx.stats,
+        );
+    }
+    let Some(p) = hx.w.player(by) else { return };
+    let mut rows = [(StatusKind::Dot, 0., None, 0.); MAX_ON_HIT_ROWS];
+    let mut n = 0;
+    for id in p.build.cards() {
+        for row in id.definition().rows {
+            if let CardRow::OnHit(o) = row {
+                if n < rows.len() {
+                    rows[n] = (o.status, o.per, o.cap, o.ms);
+                    n += 1;
                 }
             }
         }
-        // Fists of Fury: one more application while the active hand is empty. Third Time's the Charm: one more on every
-        // third hit in a row on the same target (read at the pass start, so this tick's write cannot see itself).
-        let w = &p.core.weapon;
-        let hand_empty = (if w.slot == 0 { w.weapon0 } else { w.weapon1 }).is_none();
-        let streak = crate::cards::streak_before(
-            p.card_streak.as_ref(),
-            hx.w.server_time,
-            entry.victim,
-            crate::constants::STREAK_GAP_MS,
-        );
-        let third =
-            p.build.has_flag(crate::stat_fold::EffectFlag::ThirdCharm) && (streak + 1) % 3 == 0;
-        let applications =
-            1. + f64::from(u8::from(
-                p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty,
-            )) + f64::from(u8::from(third));
-        (
-            crate::content::on_hit_power(weapon) * applications,
-            p.modifiers.hit_mult(),
-            rows,
-            n,
-        )
-    };
+    }
+    let hit = if streak { p.modifiers.hit_mult() } else { 1. };
+    let (raw, phys, scale) = packet;
+    // The hit as recorded, before the multipliers (the bleed is mitigated, and scaled by the attacker's rows and the PvP
+    // factor, when it ticks); its physical share.
+    let base = (raw / if hit > 0. { hit } else { 1. }) * scale * phys;
+    apply_rows(hx, by, victim, name, &rows[..n], k, base);
+}
+
+/// Source `runOnHit`'s card rows: each owned on-hit row applied quietly to `victim` with the source's tag and payload.
+/// `base` is the source's `(packet.raw / hit) * scale * packet.phys` (a bleed's raw is `base * per * k`).
+fn apply_rows(
+    hx: &mut Hx,
+    by: crate::PlayerId,
+    victim: crate::PlayerId,
+    name: Arc<str>,
+    rows: &[(StatusKind, f64, Option<f64>, f64)],
+    k: f64,
+    base: f64,
+) {
     let tick = hx.w.tick;
     let source = StatusSource {
         id: Some(by),
         name,
         owner_id: None,
     };
-    for &(status, per, cap, ms) in &rows[..n] {
+    for &(status, per, cap, ms) in rows {
         if !(ms > 0.) {
             continue;
         }
         if status == StatusKind::Dot {
             // The hit as recorded, before the multipliers: the bleed is mitigated, and scaled by the attacker's rows and
             // the PvP factor, when it ticks. Its shares are physical.
-            let raw = (entry.packet.raw / if hit > 0. { hit } else { 1. })
-                * entry.scale
-                * entry.packet.phys
-                * per
-                * k;
+            let raw = base * per * k;
             if !(raw > 0.) {
                 continue;
             }
@@ -256,7 +352,7 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
                 hx.k,
                 hx.w,
                 hx.ev,
-                entry.victim,
+                victim,
                 apply,
                 true,
                 Default::default(),
@@ -282,7 +378,7 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
                 hx.k,
                 hx.w,
                 hx.ev,
-                entry.victim,
+                victim,
                 apply,
                 true,
                 Default::default(),

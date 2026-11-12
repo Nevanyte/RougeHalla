@@ -439,7 +439,8 @@ namespace Roguehalla.Client
                 }
                 if (_pickupHint != null) _pickupHint.Text = view.Focus.HasValue ? "F · Pick up " + what : "F · Pick up\nNo pickup in range";
             }
-            bool buildChanged = !_buildShown || _hasBuildShown != view.HasBuild;
+            bool buildChanged = !_buildShown || _hasBuildShown != view.HasBuild || !ReferenceEquals(_summaryShown, view.Summary);
+            _summaryShown = view.Summary;
             if (_cardsShown.Length != view.Cards.Count)
             {
                 _cardsShown = new byte[view.Cards.Count];
@@ -455,10 +456,11 @@ namespace Roguehalla.Client
             for (int i = 0; i < view.Cards.Count; i++) if (view.Cards[i] > 0) { text.Append(CardDisplayCatalog.Title((byte)i)).Append('×').Append(view.Cards[i]).Append("  "); any = true; }
             for (int i = 0; i < view.Boosts.Count; i++) if (view.Boosts[i] > 0) { text.Append((BoostId)i).Append('+').Append(view.Boosts[i]).Append("  "); any = true; }
             if (!any) text.Append(view.HasBuild ? "None" : "awaiting server");
-            Set(_build, view.HasBuild ? "Cards & mob bonuses · " + CountCards(view) : "Cards & mob bonuses");
+            Set(_build, view.HasBuild ? BuildHudText.ExtrasHeader(CountCards(view), view.Summary) : "Cards & mob bonuses");
             if (_buildHint != null) _buildHint.Text = "B · Full build details\n" + text;
             RefreshCardsRow(view);
         }
+        object _summaryShown;
         void RefreshRewards()
         {
             var chests = _session.Collections.RewardChests;

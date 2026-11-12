@@ -47,7 +47,42 @@ none (P-UNITY-HUD-VISUAL-FIX-2 is merged)
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-NAME-GROUP-1` passes; a fourth screenshot round (the coordinator).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-UNITY-NAME-GROUP-1`
+- `client-unity/RoguehallaNet.Tests/NamePackTests.cs` (23 unit cases; 21 fail on the stub, 2 pass as guards: the constant and the name/bar layout)
+- `client-unity/UnityProject/Assets/Tests/Editor/NamePackEditModeTests.cs` and its `.meta` (10 EditMode cases; 7 fail, 3 pass as guards)
+- Existing and unchanged: `NameMergeTests.cs`, `HudVisualFix2EditModeTests.cs` (they keep passing).
+
+## API (stubbed in commit `stub:`; the implementer fills it)
+`NameMerge.DecidePacks(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch)` returns the shown count.
+`NameMergeItem.Always` (new): engaged or locked mob. `Decide` and its tests are untouched. `scratch` (at least `count` ints, caller
+owned, contents free) is the union-find parent array; no allocation in the helper.
+- Only non-elite, non-`Always` items with a non-empty `Text` pack. Every other item is shown and neither joins, links nor suppresses a pack
+  (so an elite, or an engaged mob, in the middle of a line does not chain its neighbours).
+- Same `Text` and Euclidean distance strictly less than `packDistance` links two items; links chain. Width is ignored.
+- One item per pack is shown: the lowest `Id` (independent of input order). This is also the answer to the "no jumping" trap: a stable
+  rule on ids, no previous-survivor memory needed.
+- `NameMerge.PackDistancePx = 128f` (legacy px, 4 tiles of 32; a TUNING value, pinned by a test). Names are anchored in Unity world units
+  (1 unit = 1 tile, `ArenaView.Scale = 1/32`), so the presenter passes `NameMerge.PackDistancePx * ArenaView.Scale` (= 4). The world
+  y is squashed by `ArenaView.GroundSquash` (.78), so vertical pack reach on screen is slightly shorter; accepted.
+- Presenter: `MergeMobNames` fills `Always = f.M.Engaged || f.Locked` (`LockDisplay` is the local lock; `PresentIndicators(..., locked)` already
+  reaches `IndFacts.Locked`), keeps `Elite`, calls `DecidePacks` instead of `Decide`, with reused `int[]` scratch sized like `_mergeShown`.
+  `NameMergeItem.Width` stays filled (harmless).
+
+## Names over hp bars: finding
+Not a layout defect. `OverheadStack.Build` puts the name bottom at y 45.2 px and the bar top at 35.2 px (bar y 31.2 + h 4): a 10 px gap above
+the bar for every actor kind, and `OverheadIndicators.Update` and the presenter share one base (`BarY - U(33.2)`), so it holds for every
+head height. Measured in EditMode for one hurt Magma Brute (world units): name y -13.05..-12.77, bar y -13.50..-13.38, a 0.32 gap, no overlap.
+In `fire-1920x1080-dpr1-match.png` the "Penitent" names sit over the mob ABOVE them: each is the name of the mob below (32 px above its own
+bar) lying on the neighbour's body, a column of mobs 70 px apart. It disappears when the pack shows one name above its topmost mob,
+which is why this packet needs no change to `OverheadIndicators` anchors. Pinned (both pass today, guards): `NamePackTests.TheNameIsNeverBelowItsOwnHpBarForAnyActorKind`
+and `NamePackEditModeTests.AHurtMobsNameSitsAboveItsOwnBarAndNeverOverlapsIt`. Drawing the pack's one name above the TOPMOST member
+(rather than above the lowest-id member, which may be the bottom of the column) is a presentation choice left to the implementer; no
+test pins which member carries it, only that exactly one name is active and that it is the lowest id's (tests read `NameShown(id)`),
+so the lowest-id mob's own name object is the one kept. Do not move it.
+
+## Exact files the implementer changes
+- `client-unity/RoguehallaNet/Net/Ui/NameMerge.cs` (body of `DecidePacks`) and its synced copy via `bash client-unity/sync-net.sh`
+- `client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs` (`MergeMobNames`, scratch buffer)
+- Also add a `DEVIATIONS.md` row (DEV-024 is cited above: owner signs).
 
 ## 10. Risk and suggested model tier
 Sonnet. Small. The pack distance is a tuning value: start at about four tiles (128 world units) and say so.

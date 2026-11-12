@@ -237,6 +237,7 @@ namespace Roguehalla.Client
             _panel.anchoredPosition = Vector2.zero; _panel.sizeDelta = _stage.sizeDelta; _panel.localScale = _stage.localScale;
         }
 
+        string _laidLegend;
         void ApplyLayout(bool force = false)
         {
             if (_panel == null) return;
@@ -271,8 +272,12 @@ namespace Roguehalla.Client
                 float sq = Mathf.Max(80f, Mathf.Min(rw - 20f, rh * .48f));
                 var diagram = (RectTransform)_counterGuide.WheelRoot.parent;
                 HudUi.Place(diagram, HudAnchor.TopLeft, (rw - sq) / 2f, 34f, sq, sq);
-                HudUi.Place(_counterGuide.LegendRoot, HudAnchor.TopLeft, 10f, 34f + sq + 2f, rw - 20f, 30f);
-                float qy = 34f + sq + 38f;
+                // The legend takes the height its text needs (two to four lines once a weapon is highlighted); the quests heading follows it.
+                var legendLabel = _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>();
+                float legendH = 30f;
+                if (legendLabel != null) { legendH = Mathf.Max(30f, Mathf.Ceil(legendLabel.GetPreferredValues(legendLabel.text, rw - 20f, 0f).y) + 4f); _laidLegend = legendLabel.text; }
+                HudUi.Place(_counterGuide.LegendRoot, HudAnchor.TopLeft, 10f, 34f + sq + 2f, rw - 20f, legendH);
+                float qy = 34f + sq + 2f + legendH + 6f;
                 var qh = (RectTransform)_questHeading.transform; qh.anchorMin = qh.anchorMax = qh.pivot = new Vector2(.5f, 1f); qh.sizeDelta = new Vector2(rw - 24f, 20f); qh.anchoredPosition = new Vector2(0f, -qy);
                 _questScroll.anchorMin = Vector2.zero; _questScroll.anchorMax = Vector2.one;
                 _questScroll.offsetMin = new Vector2(8f, 10f); _questScroll.offsetMax = new Vector2(-8f, -(qy + 22f));
@@ -505,6 +510,8 @@ namespace Roguehalla.Client
             if (shown == 0) text.Append("No other contacts in view.");
             _contactsText.text = text.ToString().TrimEnd('\n');
             _counterGuide.SetWeapon(_bound.Me != null ? _bound.Me.Weapon.ToString() : "fists");
+            var legendNow = _counterGuide.LegendRoot != null ? _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>() : null;
+            if (legendNow != null && legendNow.text != _laidLegend && _panel.gameObject.activeSelf) ApplyLayout(true);
             var quests = new StringBuilder();
             var qs = _bound.Collections.Quests;
             if (qs != null && qs.Available) foreach (var row in qs.Rows) quests.Append(row.GiverLabel).Append(": ").Append(row.Name).Append("\n");

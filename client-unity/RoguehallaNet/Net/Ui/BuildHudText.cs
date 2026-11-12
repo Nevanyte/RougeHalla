@@ -67,6 +67,19 @@ namespace Roguehalla.Net.Ui
             return cells;
         }
 
+        /// <summary>The label of the collapsed build drawer: "Cards & mob bonuses · N". STUB (P-UNITY-HUD-VISUAL-FIX-3): counts card
+        /// types only; the packet makes N the card types held plus the farmed mob types in <paramref name="summary"/>.</summary>
+        public static string ExtrasHeader(int cardTypes, WireBuildSummary summary)
+        {
+            int mobs = 0;
+            if (summary != null && summary.MobRows != null)
+            {
+                var seen = new HashSet<byte>();
+                foreach (var row in summary.MobRows) if (seen.Add(row.MobType)) mobs++;
+            }
+            return "Cards & mob bonuses \u00b7 " + (cardTypes + mobs).ToString(CultureInfo.InvariantCulture);
+        }
+
         /// <summary>One line per farmed mob type in arrival order; the single <see cref="NoMobBonuses"/> line for an empty
         /// table; nothing for a null summary.</summary>
         public static IReadOnlyList<MobBonusLine> MobLines(WireBuildSummary summary)
