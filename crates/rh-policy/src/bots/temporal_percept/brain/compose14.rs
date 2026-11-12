@@ -325,10 +325,6 @@ impl Composer14 {
     }
 
     fn compose_frame(&mut self, frame: &Frame14) -> Option<Composed> {
-        // Stub (P-BOT-BRAIN-LIVE-1): the history is fenced, nothing is composed yet.
-        if frame.owner.is_some() {
-            return None;
-        }
         let me = frame.owner.as_ref()?;
         let arena = frame.collections.arena.as_ref()?;
         let statics = Arc::clone(&self.statics);

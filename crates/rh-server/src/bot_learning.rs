@@ -598,9 +598,8 @@ impl<B: Backend + Send + Sync + 'static> LiveLearning<B> {
     /// Source `BotManager.onResult`: the brain's choices in its order, then the manager's faction key.
     pub fn record_choices(&self, facts: BotRunFacts, brain_choices: &[String]) {
         let now = (self.clock)();
-        // Stub: the brain's choices are not recorded yet.
-        let _ = brain_choices;
-        let choices = vec![facts.faction_key()];
+        let mut choices = brain_choices.to_vec();
+        choices.push(facts.faction_key());
         let summary = RunSummary {
             tier: facts.tier,
             outcome: facts.outcome,
