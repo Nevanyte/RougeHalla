@@ -197,8 +197,16 @@ namespace Roguehalla.Client
         /// <summary>Writes the top-centre phase line and its tone (P-UNITY-HUD-VISUAL-FIX-1 test seam: the tone must reach the label's colour, never tags in its text).</summary>
         public void ApplyPhaseStrip(string text, Roguehalla.Net.Ui.Indicators.ArenaLineTone tone)
         {
-            string hex = tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? "#ff8a80" : tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? "#ffcc80" : null;
-            _phaseStrip.text = hex == null ? text : "<color=" + hex + ">" + text + "</color>";
+            // Colour through the label, never tags: HudUi.Label is plain text (richText = false). Legacy --warn and .hud-arena.sudden (style.css:44,320).
+            _phaseStrip.color = tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Danger ? (Color)new Color32(0xff, 0x8a, 0x80, 255)
+                : tone == Roguehalla.Net.Ui.Indicators.ArenaLineTone.Warn ? (Color)new Color32(0xff, 0xcc, 0x80, 255) : (Color)UiTheme.Current.TextPrimary;
+            _phaseStrip.text = text;
+            // Legacy's line is as wide as its text (hud.ts updateArena): size the pill to the measured text.
+            if (_phasePill != null)
+            {
+                float w = _phaseStrip.GetPreferredValues(text, 0f, 0f).x;
+                _phasePill.sizeDelta = new Vector2(Mathf.Max(120f, Mathf.Ceil(w) + 24f), _phasePill.sizeDelta.y);
+            }
         }
         void ToggleBuild()
         {

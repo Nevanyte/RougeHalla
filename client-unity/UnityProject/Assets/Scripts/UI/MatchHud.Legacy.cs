@@ -185,9 +185,9 @@ namespace Roguehalla.Client
                 icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(0, .5f);
                 icon.rectTransform.pivot = new Vector2(0, .5f); icon.rectTransform.anchoredPosition = new Vector2(7, 0);
                 icon.color = stat;
-                var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 58, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
-                name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = theme.SizeTiny;
-                var value = HudUi.Label(HudUi.At(cell, "Value", 80, 0, 26, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
+                var name = HudUi.Label(HudUi.At(cell, "Name", 23, 0, 65, BuildCellHeight), "Label", CellNames[i], theme.SizeTiny, theme.TextSecondary);
+                name.enableAutoSizing = true; name.fontSizeMin = 8f; name.fontSizeMax = Mathf.Min(9f, theme.SizeTiny); name.fontSize = name.fontSizeMax;
+                var value = HudUi.Label(HudUi.At(cell, "Value", 88, 0, 20, BuildCellHeight), "Count", "—", theme.SizeTiny, theme.TextPrimary, TextAlignmentOptions.MidlineRight, true);
                 _gainValues[i] = value;
                 var select = cell.gameObject.AddComponent<UnityEngine.UI.Button>();
                 select.targetGraphic = cell.GetComponent<UnityEngine.UI.Image>();
