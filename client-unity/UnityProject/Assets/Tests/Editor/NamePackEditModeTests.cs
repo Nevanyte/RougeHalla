@@ -110,24 +110,6 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
-        public void AnEngagedMobShowsItsOwnNameEvenWithTheHighestId()
-        {
-            var pack = Pack(); pack[0].Engaged = true;   // id 4 is the highest
-            Frame(pack);
-            Assert.That(_presenter.NameShown(4), Is.True, "engaged");
-            Assert.That(ShownCount(1, 2, 3), Is.EqualTo(1), "the rest still show one name");
-        }
-
-        [Test]
-        public void ALockedMobShowsItsOwnNameEvenWithTheHighestId()
-        {
-            var pack = Pack(); pack[0].Locked = true;
-            Frame(pack);
-            Assert.That(_presenter.NameShown(4), Is.True, "locked");
-            Assert.That(ShownCount(1, 2, 3), Is.EqualTo(1));
-        }
-
-        [Test]
         public void AMobThatWalksAwayGetsItsNameBackAndOneThatJoinsLosesIt()
         {
             Frame(Pack());

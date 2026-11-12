@@ -116,7 +116,7 @@ namespace Roguehalla.Net.Ui
         /// extent, (min X + max X) / 2 over its members (NOT the mean), and the largest Y of its members (the highest one). Every item outside a
         /// pack (an elite, an empty or null Text) is shown at its own anchor. Anchors of hidden items are unspecified. Order of
         /// <paramref name="items"/> does not matter. Allocation-free; the caller owns all four buffers (each at least <paramref name="count"/> long).
-        /// Stub: shows everything at its own anchor.
+        /// On return <paramref name="scratch"/>[i] is the index of the representative of item i's pack (i itself outside a pack), so a caller can count members.
         /// </summary>
         public static int PackNames(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch, float[] anchorX, float[] anchorY)
         {
@@ -161,6 +161,7 @@ namespace Roguehalla.Net.Ui
                 if (items[i].Single != 0) { anchorX[i] = items[i].X; anchorY[i] = items[i].Y; }
                 else { anchorX[i] = (minX + maxX) * 0.5f; anchorY[i] = maxY; }
             }
+            for (int i = 0; i < count; i++) scratch[i] = Packs(items[i]) ? Root(scratch, i) : i;
             return shownCount;
         }
 

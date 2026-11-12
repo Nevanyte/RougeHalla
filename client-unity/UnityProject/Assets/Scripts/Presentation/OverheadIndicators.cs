@@ -123,6 +123,12 @@ namespace Roguehalla.Client
         public Vector3 NameWorldPosition { get { return _name.transform.position; } }
         /// <summary>How wide the drawn name is, in world units.</summary>
         public float NameWorldWidth { get { return _name.preferredWidth * _name.transform.lossyScale.x; } }
+        /// <summary>Height of the drawn name line in world units.</summary>
+        public float NameWorldHeight { get { return _name.preferredHeight * _name.transform.lossyScale.y; } }
+        /// <summary>Moves the name label (centre) to a world point for this frame (pack anchor, stacking); <see cref="Update"/> resets it next frame.</summary>
+        public void MoveName(float worldX, float worldY) { var p = _name.transform.position; _name.transform.position = new Vector3(worldX, worldY, p.z); }
+        /// <summary>A pack's one name, or a hovered or locked mob's, reads at full strength instead of the legacy idle .5.</summary>
+        public void NameFullAlpha() { _nameBase.a = 1f; var c = _nameBase; c.a *= _textFade; _name.color = c; }
         /// <summary>Hides the name for this frame (the pack merge); <see cref="Update"/> shows it again next frame.</summary>
         public void HideName() { _name.gameObject.SetActive(false); }
         /// <summary>True while the name label is drawn (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
