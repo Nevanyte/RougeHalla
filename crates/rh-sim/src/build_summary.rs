@@ -258,11 +258,111 @@ impl ChampionPanel {
     }
 }
 
-/// The champion panel for one player; `None` when `id` is not seated. Read-only, allocation-free.
+/// The champion panel for one player; `None` when `id` is not seated. Read-only, allocation-free (stack array).
 ///
-/// STUB (P-WIRE17-HUD-2): returns an empty panel for a seated player. The implementer fills every code the
-/// player's faction panel prints (packet brief, "Field list").
+/// Legacy: `packages/client/src/ui/championCombatModel.ts:91-216` (auto row and passive row, value and scaling lines,
+/// the auto tooltip's three per-hit components, the Fire roam charge). Codes 0-3 for every champion, then exactly the
+/// owner's faction codes; units per code in the P-WIRE17-HUD-2 brief. Only the owner's own `Player` (and its own
+/// zombie) is read (C-OBS).
 pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
-    sim.player(id)?;
-    Some(ChampionPanel::default())
+    use crate::constants::{
+        CHILL_MOVE_MULT, DUEL_PACE, FIRE_BURN_DPS, FROST_ELITE_GUARD_BONUS,
+        HOLY_CAMP_LIFESTEAL_PER_CLEAR, MARK_KILL_PCT, PLAGUE_DPS,
+    };
+    use crate::modifiers::DEFINITION;
+    use crate::stat_fold::MultKey;
+    use crate::FactionId;
+    use PanelCode as C;
+
+    let p = sim.player(id)?;
+    let mut panel = ChampionPanel::default();
+    let Some(faction) = p.core.vitals.faction.faction_id() else {
+        return Some(panel);
+    };
+    let m = p.core.modifiers.mirrors();
+    let w = p.core.active_weapon();
+    let f = crate::content::paced(faction);
+    let bm = crate::content::weapon(w).dps_mult;
+    // The card/farm fold's DoT mult only (legacy `folded.mults.dot`), not `Runtime::dot_mult()` (Plague crit fold).
+    let dot = p.core.modifiers.mult_of(MultKey::Dot);
+    let h = p.core.modifiers.hit_mult();
+    let aps = 1. / crate::content::attack_interval(&f, w, m.as_mult);
+
+    // Auto row (:96-113): raw per-hit components after the hit multiplier.
+    let pk = crate::modifiers::packet(&p.core, w);
+    panel.set(C::HitPhysical, pk.raw * pk.phys * h);
+    panel.set(C::HitMagic, pk.raw * pk.magic * h);
+    panel.set(C::HitTrue, pk.raw * pk.true_ * h);
+    panel.set(C::AttacksPerSecond, aps);
+
+    let flag = |b: bool| if b { 1. } else { 0. };
+    match faction {
+        FactionId::Fire => {
+            // Dragonslayer (:144-155) and Fire Roam (:114-116).
+            let burn = (FIRE_BURN_DPS * DUEL_PACE * bm
+                + DEFINITION.ap_dot_ratio * m.ap_bonus
+                + DEFINITION.fire_ad_ratio * m.ad_bonus)
+                * dot;
+            panel.set(C::BurnDps, burn);
+            panel.set(C::BurnSoRatio, DEFINITION.ap_dot_ratio);
+            panel.set(C::BurnOffenseRatio, DEFINITION.fire_ad_ratio);
+            panel.set(C::DotMult, dot);
+            let charge = p.roam.last_combat_at.map_or(0., |last| {
+                crate::systems::fire_roam::charge(sim.server_time() - last)
+            });
+            panel.set(C::RoamCharge, charge);
+            panel.set(C::RoamArmed, flag(p.roam.ready));
+        }
+        FactionId::Sentenced => {
+            // Sentence (:157-175): a tier-1 near pulse as a fraction of target max hp.
+            panel.set(C::MarkPulse, crate::modifiers::mark_pulse(p, w, 1., true));
+            panel.set(C::MarkKillStack, MARK_KILL_PCT * DUEL_PACE);
+        }
+        FactionId::Plague => {
+            // Rat King (:177-194).
+            let disease = (PLAGUE_DPS * DUEL_PACE * bm
+                + DEFINITION.plague_ap_per_hit * m.ap_bonus * aps)
+                * dot;
+            panel.set(C::DiseaseDps, disease);
+            let stacks = p.farm.corpse_stacks();
+            panel.set(C::CorpseStacks, f64::from(stacks));
+            if stacks > 0 {
+                let zombie = crate::systems::plague_zombies::zombie_of(&sim.w, id)
+                    .and_then(|z| sim.w.mobs.get(z))
+                    .filter(|z| z.status == crate::Status::Alive);
+                if let Some(z) = zombie {
+                    panel.set(C::ZombieHp, z.core.vitals.hp);
+                    panel.set(C::ZombieMaxHp, z.core.vitals.max_hp);
+                }
+            }
+        }
+        FactionId::Frost => {
+            // Ice wall (:196-203).
+            panel.set(C::ChillSlow, 1. - crate::modifiers::frost_chill(&p.core));
+            panel.set(C::ChillMoveSlow, 1. - CHILL_MOVE_MULT);
+            panel.set(C::EliteGuardBonus, FROST_ELITE_GUARD_BONUS);
+            panel.set(C::EliteGuardActive, flag(p.frost_guard.active));
+        }
+        FactionId::Holy => {
+            // Radiant (:205-214), before card and mob leech.
+            let max_hp = p.core.vitals.max_hp;
+            let hp_frac = if max_hp > 0. {
+                (p.core.vitals.hp / max_hp).clamp(0., 1.)
+            } else {
+                1.
+            };
+            let bloodthirst =
+                p.build.count(crate::cards::CardId::Bloodthirst) > 0 && hp_frac < 0.5;
+            let camp_leech = f64::from(p.camps_cleared)
+                * HOLY_CAMP_LIFESTEAL_PER_CLEAR
+                * if bloodthirst { 2. } else { 1. };
+            panel.set(
+                C::HolyLifeSteal,
+                crate::content::holy_lifesteal_fraction(hp_frac) + camp_leech,
+            );
+            panel.set(C::HolyCampClears, f64::from(p.camps_cleared));
+            panel.set(C::HolyCampLeech, camp_leech);
+        }
+    }
+    Some(panel)
 }

@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 25;
+pub const OBSERVATION_VERSION: u16 = 26;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -317,7 +317,7 @@ pub struct Observation {
     /// when the viewer is not seated. Never another seat's (C-OBS).
     pub summary: Option<SummaryView>,
     /// P-WIRE17-HUD-2: the viewer's own champion panel ([`crate::build_summary::champion_panel`] of the viewer);
-    /// Some exactly when `summary` is Some. Never another seat's (C-OBS). STUB: never filled.
+    /// Some exactly when `summary` is Some. Never another seat's (C-OBS).
     pub panel: Option<crate::build_summary::ChampionPanel>,
     pub events: Vec<SeenEvent>,
     /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
@@ -1030,6 +1030,8 @@ pub(crate) fn observe_with_tiles(
     out.camps.extend_from_slice(sim.camp_rosters());
     camp_hud_into(sim, viewer, now, &mut out.camp_hud);
     summary_into(sim, viewer, &mut out.summary);
+    // P-WIRE17-HUD-2: the viewer's own panel (a stack array, Copy); None for an unseated viewer, like the summary.
+    out.panel = crate::build_summary::champion_panel(sim, viewer);
     roster_into(sim, &mut out.roster);
     out.visible.clear();
     if let Some(m) = me {
