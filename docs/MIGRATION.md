@@ -4,6 +4,17 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-12 (chat): faction home-ground benefits stay
+
+"Please keep faction region benefits. Holy also gets extra healing from heal zones." The live server therefore uses the
+legacy terrain rule, `terrain::Mode::Map`: Fire is not burned by embers, Plague is not slowed by bog, Frost does not
+slide on ice, and Holy heals more on healing ground (`TERRAIN_HOME_HEAL`). This answers the question the branch
+triage raised and replaces the reading recorded from the cloud session on 2026-11-11 ("live faction terrain
+exemptions stay as they are", taken then as `Mode::All`, which affects every faction). Change: the `source-arena`
+profile in `crates/rh-server/src/runtime.rs`, its admission test and the three harness mirrors (the remainder of
+`fix/mechanics-cons`, commits `67092a68` and `318cbd57`); made by the coordinator after the running gate. The Unity
+terrain chips already show the home-ground note under `Mode::Map` (P-UNITY-HUD-TERRAIN-1's oracle pins it).
+
 ## Branch triage 2026-11-12 (owner request: "merge all backend unmerged branches and cut those that are not applicable")
 
 An Opus agent triaged the 147 local branches not merged into `feature/unity-rework`: 4 merged onto
