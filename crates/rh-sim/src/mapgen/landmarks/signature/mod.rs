@@ -39,6 +39,8 @@ pub struct Definition {
     /// Bog tree: squared tile distance from the trunk's centre tile of the trunk (wall), of the dry ground kept round
     /// it, and the inclusive squared-distance ranges of the two bog bands.
     pub trunk_d2: i32,
+    /// The terrain code of the bog bands (`terrain_gate` kind `bog`, home Plague).
+    pub bog: u8,
     pub dry_d2: i32,
     pub bog_d2: [(i32, i32); 2],
     /// Bog tree: the fewest bog tiles a site may keep (of about 90 a whole tree has), and the tiles its centre must stand
@@ -66,6 +68,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     stream: 5,
     bands: [2, 6, 14],
     trunk_d2: 4,
+    bog: 5,
     dry_d2: 10,
     bog_d2: [(13, 21), (36, 56)],
     bog_min: 60,
@@ -306,7 +309,8 @@ impl<'f> SignatureContext<'f> {
             let zone_ok = map.region_grid[i] == f.zone.code();
             match f.kind {
                 FeatureKind::BogTree => {
-                    zone_ok && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == BOG))
+                    zone_ok
+                        && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.bog))
                 }
                 FeatureKind::Church | FeatureKind::Graveyard => zone_ok && t == TILE_WALL,
                 _ => true,
@@ -356,8 +360,6 @@ fn is_signature(k: FeatureKind) -> bool {
         FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard
     )
 }
-
-pub(crate) const BOG: u8 = 5;
 
 /// One feature the step writes: kind, job, anchor point and its cells (index, tile, terrain).
 pub(crate) struct Piece {

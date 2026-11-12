@@ -1,7 +1,7 @@
 //! Plague: the giant bog tree. A solid trunk (wall) on dry ground in the outer third of the zone's radial extent from
 //! the map centre, ringed by two bands of bog (floor, terrain bog), one feature. The site is a uniform draw over every
 //! legal centre tile.
-use super::{at, front, pick, Built, Piece, Site, BOG};
+use super::{at, front, pick, Built, Piece, Site};
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
 use crate::mapgen::coliseum::{H, W};
@@ -76,7 +76,7 @@ pub(super) fn place(s: &Site<'_>, rng: &mut Mulberry32) -> Option<Built> {
             .map(|&i| (i, TILE_WALL, 0))
             .chain(
                 wet.iter()
-                    .map(|&(dx, dy)| (at(x + dx, y + dy).unwrap(), TILE_FLOOR, BOG)),
+                    .map(|&(dx, dy)| (at(x + dx, y + dy).unwrap(), TILE_FLOOR, d.bog)),
             )
             .collect();
         return Some(Built {
