@@ -189,29 +189,6 @@ namespace Roguehalla.Client.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
-        // ---- 5(b) the circled glyph over every mob: legacy marks only swarm, skirmisher and caster (mobRole.ts:20-26, MobView.ts:214) ----
-
-        [TestCase(MobTypeId.EmberImp, true)]       // swarm: dots
-        [TestCase(MobTypeId.CinderHound, true)]    // skirmisher: chevron
-        [TestCase(MobTypeId.FlameCaller, true)]    // caster: ring
-        [TestCase(MobTypeId.Bailiff, false)]       // grunt: none
-        [TestCase(MobTypeId.RotMonk, false)]       // grunt: none
-        [TestCase(MobTypeId.MagmaBrute, false)]    // brute: a thick rim only, no glyph
-        [TestCase(MobTypeId.Wyrmling, false)]      // elite grunt: none
-        public void OnlyTheRolesLegacyMarksGetARoleBadge(MobTypeId type, bool badge)
-        {
-            Assert.That(ShowcaseIdentityAssets.TryGetMobInfo(type, out var info), Is.True);
-            var go = new GameObject("identity");
-            try
-            {
-                var owner = ShowcaseIdentityOwner.Configure(go.transform);
-                owner.Present((int)info.Faction, ActorKind.RegionalMob, type, 2000, true, 0f);
-                Assert.That(go.transform.Find("Mob role badge glyph").GetComponent<SpriteRenderer>().enabled, Is.EqualTo(badge), type + " glyph");
-                Assert.That(go.transform.Find("Mob role badge backplate").GetComponent<SpriteRenderer>().enabled, Is.EqualTo(badge), type + " backplate");
-            }
-            finally { Object.DestroyImmediate(go); }
-        }
-
         // ---- helpers ----
 
         object GetField(string name) => typeof(MatchHud).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_hud);

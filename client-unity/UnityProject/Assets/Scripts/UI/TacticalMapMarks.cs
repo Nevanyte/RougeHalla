@@ -67,6 +67,18 @@ namespace Roguehalla.Client
         public int CampMarkerCount => _camps.Count;
         /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>
         public int CampMarkersDrawn { get; private set; }
+        // Test-visible counts for P-UNITY-DECLUTTER-1 (reset on each pass that sets them). Mesh pass: CampShapesDrawn, EngagedRingsDrawn,
+        // EliteMarkersDrawn. Presentation pass (Present): CampBuffGlyphsDrawn, CampDimGlyphsDrawn.
+        /// <summary>Zone-shape glyphs drawn for camps in the last mesh pass. Owner rule: always 0.</summary>
+        public int CampShapesDrawn { get; private set; }
+        /// <summary>"Someone has fought here" rings drawn in the last mesh pass. Owner rule: Tab map only.</summary>
+        public int EngagedRingsDrawn { get; private set; }
+        /// <summary>Elite camp markers drawn in the last mesh pass: exactly one per drawn elite camp.</summary>
+        public int EliteMarkersDrawn { get; private set; }
+        /// <summary>Buff glyphs (stat icon, or the neutral dot of a row with no reward) shown for camps after the last Present, none under a contact.</summary>
+        public int CampBuffGlyphsDrawn { get; private set; }
+        /// <summary>Of <see cref="CampBuffGlyphsDrawn"/>, those dimmed because the camp is cleared.</summary>
+        public int CampDimGlyphsDrawn { get; private set; }
         /// <summary>Legacy minimapMarkers.ts:87-88: a camp mark is dropped where a contact sits this close.</summary>
         public const float CampDropPx = 8f;
         /// <summary>The zones that have an icon (0 when the map has no region plane).</summary>
@@ -366,6 +378,7 @@ namespace Roguehalla.Client
                     icon.rectTransform.anchoredPosition = RewardSlot(p, 0);
                 }
             for (int i = used; i < _badgeIcons.Count; i++) if (_badgeIcons[i].gameObject.activeSelf) _badgeIcons[i].gameObject.SetActive(false);
+            CampBuffGlyphsDrawn = used; CampDimGlyphsDrawn = 0;
         }
 
         static Color32 Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
@@ -394,12 +407,12 @@ namespace Roguehalla.Client
 
         void DrawCamps(VertexHelper vh, UiTheme theme, Color32 ink, float s)
         {
-            CampMarkersDrawn = 0;
+            CampMarkersDrawn = CampShapesDrawn = EngagedRingsDrawn = EliteMarkersDrawn = 0;
             foreach (var camp in _camps)
             {
                 var p = At(new Vector2((float)camp.WorldX, (float)camp.WorldY));
                 if (ContactNear(p)) continue;
-                CampMarkersDrawn++;
+                CampMarkersDrawn++; CampShapesDrawn++;
                 float size = (camp.Elite ? 9.2f : 6.8f) * s;
                 Color zone = theme.ZoneColor(camp.Zone);
                 var glyph = MapGlyphs.ForShape(MapZones.Shape(camp.Zone));
@@ -407,12 +420,14 @@ namespace Roguehalla.Client
                 float a = cleared ? .38f : 1f;
                 Glyph(vh, p, size + 3f, glyph, Alpha(ink, a));
                 Glyph(vh, p, size, glyph, Alpha(zone, a));
+                if (camp.State == CampMarkState.Engaged) EngagedRingsDrawn++;
                 if (camp.State == CampMarkState.Engaged) Glyph(vh, p, size + 5f, MapGlyph.Ring, Alpha(theme.TextSecondary, .7f));
                 if (cleared)
                 {
                     Glyph(vh, p, size + 3f, MapGlyph.Cross, ink);
                     Glyph(vh, p, size, MapGlyph.Cross, new Color32(0xec, 0xef, 0xf1, 255));
                 }
+                if (camp.Elite) EliteMarkersDrawn++;
                 if (camp.Elite) Marker(vh, p + new Vector2(0f, size + 3f), 6f * s, MapGlyph.Diamond, new Color32(0xff, 0xd5, 0x4f, 255), ink);
             }
         }

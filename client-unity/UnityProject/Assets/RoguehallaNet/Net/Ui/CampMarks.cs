@@ -17,6 +17,28 @@ namespace Roguehalla.Net.Ui
         public string Countdown;
     }
 
+    /// <summary>
+    /// One camp's single map glyph (P-UNITY-DECLUTTER-1, owner direction 2026-11-12, DEV-022): the icon of the buff its kills pay, in the stat colour.
+    /// IconKey is null when the camp row has no delivered reward; the map then draws a neutral dot in <see cref="CampMarks.NeutralRgb"/>.
+    /// Elite is the one elite marker of an elite camp; EliteText is "Aug" on the Tab map only. Dim is a cleared camp (dimmed glyph).
+    /// Clock is the bare respawn seconds of a cleared camp while the match is active (null otherwise). Engaged is the "someone has fought
+    /// here" ring: Tab map only, never on a cleared camp. AmountText ("+3%") is Tab map only. There is no zone shape: the map tint says the zone.
+    /// </summary>
+    public struct CampGlyphRow
+    {
+        public int Index;
+        public double WorldX, WorldY;
+        public byte Zone;
+        public string IconKey;
+        public uint IconRgb;
+        public string AmountText;
+        public bool Elite;
+        public string EliteText;
+        public bool Dim;
+        public string Clock;
+        public bool Engaged;
+    }
+
     /// <summary>The "RESPAWN Ns" / "RESPAWN READY" text in the world at a cleared camp.</summary>
     public struct CampWorldLabel
     {
@@ -46,6 +68,19 @@ namespace Roguehalla.Net.Ui
                     Elite = r.Elite != null, State = state, Countdown = countdown,
                 });
             }
+        }
+
+        /// <summary>Colour of the neutral dot drawn for a camp row with no delivered reward (RGB; the camp clock's grey-blue).</summary>
+        public const uint NeutralRgb = 0xb4c9dc;
+
+        /// <summary>
+        /// Clears <paramref name="into"/> and fills the one glyph of every camp for the Minimap or TabMap surface (the World surface gets none).
+        /// No rows when the row count differs from the map's camp count. Replaces <see cref="Markers"/> and the camp part of
+        /// <see cref="CampBadges.Rewards"/> in the map layer. STUB: fills nothing yet.
+        /// </summary>
+        public static void Glyphs(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, CampSurface surface, List<CampGlyphRow> into)
+        {
+            into.Clear();
         }
 
         const int CacheCap = 1024;
