@@ -12,7 +12,7 @@
 //!
 //! The pass edits only zone floor that is free (no wall, LOW, terrain or feature, outside camp, spawn, loot and chest
 //! clearances), records every change as a map feature of a kind the certifier knows, and keeps a landmark only if the
-//! independent certifier (`rh_sim::mapgen::certify`, every zone strict) finds no failure the map did not already have.
+//! independent certifier (`rh_sim::mapgen::certify`, every zone strict) finds zero failures (a base map that already fails is left alone).
 //! A landmark that does not fit is skipped, never forced: the map stays valid either way. It runs in `rh-server` (map
 //! authoring before a match exists), so `rh-sim`'s content hash and the client's expected identity do not change; the
 //! terrain reaches clients through the existing map planes (collision and terrain), with no protocol change.
@@ -45,18 +45,42 @@ const ICE: u8 = 6;
 pub struct Report {
     pub placed: Vec<&'static str>,
     pub skipped: Vec<(&'static str, String)>,
+    /// One entry per placed church: where its door and grave stones are, read back from the inserted features.
+    pub churches: Vec<Church>,
+}
+
+/// A placed church as the map now holds it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Church {
+    /// The door tiles (tile x, tile y) in the church wall ring facing the map centre, whatever they now are.
+    pub door: Vec<(i32, i32)>,
+    /// Every tile of every grave stone (all stones together, not grouped).
+    pub stones: Vec<(i32, i32)>,
 }
 
 /// Adds the signature landmarks to `map` (a certified styled map). Never fails: a landmark that cannot be placed or that
 /// the certifier would refuse is skipped and named in the report.
 pub fn apply(map: &mut GameMapData) -> Report {
     let mut report = Report::default();
-    let Some(baseline) = failures(map) else {
-        report
-            .skipped
-            .push(("all", "the certifier refuses the input map".into()));
-        return report;
-    };
+    match failures(map) {
+        None => {
+            report
+                .skipped
+                .push(("all", "the certifier refuses the input map".into()));
+            return report;
+        }
+        Some(f) if !f.is_empty() => {
+            report.skipped.push((
+                "all",
+                format!(
+                    "the base map already fails the certifier: {:?}",
+                    &f[..f.len().min(3)]
+                ),
+            ));
+            return report;
+        }
+        Some(_) => {}
+    }
     let builders: [(&'static str, Zone, Builder); 4] = [
         ("volcano", Zone::Fire, volcano),
         ("church", Zone::Sentenced, church),
@@ -76,17 +100,27 @@ pub fn apply(map: &mut GameMapData) -> Report {
                 break;
             }
             let mut candidate = map.clone();
-            insert(&mut candidate, zone, pieces);
+            let count = pieces.len();
+            let at = insert(&mut candidate, zone, pieces);
             match failures(&candidate) {
-                Some(f) if f.iter().all(|x| baseline.contains(x)) => {
+                Some(f) if f.is_empty() => {
+                    if name == "church" {
+                        let site = church_site(&candidate, at, count);
+                        if let Some(c) = &site {
+                            if !door_open(&candidate, c) {
+                                why = "church door sealed".into();
+                                continue;
+                            }
+                        }
+                        report.churches.extend(site);
+                    }
                     *map = candidate;
                     report.placed.push(name);
                     why.clear();
                     break;
                 }
                 Some(f) => {
-                    let new: Vec<_> = f.iter().filter(|x| !baseline.contains(x)).take(3).collect();
-                    why = format!("certifier: {new:?}");
+                    why = format!("certifier: {:?}", &f[..f.len().min(3)]);
                 }
                 None => why = "certifier refused the map".into(),
             }
@@ -96,6 +130,37 @@ pub fn apply(map: &mut GameMapData) -> Report {
         }
     }
     report
+}
+
+/// True when at least one door tile of `church` is floor and joined (4-connected floor) to the first spawn's region.
+/// Door tiles are never edited by the pass; a door with only some tiles open is kept (a narrower door).
+fn door_open(m: &GameMapData, church: &Church) -> bool {
+    let (w, h) = (m.w as i32, m.h as i32);
+    let Some(sp) = m.spawns.first() else {
+        return false;
+    };
+    let start = ((sp.x / TILE).floor() as i32, (sp.y / TILE).floor() as i32);
+    let at = |x: i32, y: i32| (x >= 0 && y >= 0 && x < w && y < h).then(|| (y * w + x) as usize);
+    let mut seen = vec![false; (w * h) as usize];
+    let mut stack = Vec::new();
+    if let Some(i) = at(start.0, start.1).filter(|&i| m.tiles[i] == T_FLOOR) {
+        seen[i] = true;
+        stack.push(start);
+    }
+    while let Some((x, y)) = stack.pop() {
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if let Some(i) = at(x + dx, y + dy) {
+                if !seen[i] && m.tiles[i] == T_FLOOR {
+                    seen[i] = true;
+                    stack.push((x + dx, y + dy));
+                }
+            }
+        }
+    }
+    church
+        .door
+        .iter()
+        .any(|&(x, y)| at(x, y).is_some_and(|i| seen[i] && m.tiles[i] == T_FLOOR))
 }
 
 /// Failures under the strictest certification (every zone strict), as `rule/subject` keys; None if refused outright.
@@ -482,7 +547,7 @@ fn church(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
         let mut stones: Vec<(i32, i32)> = Vec::new();
         for row in 0..2 {
             for col in -2..=2 {
-                let (along, across) = (r + 3 + row * 4, col * 3);
+                let (along, across) = (r + 3 + row * 4, col * 4);
                 let (sx, sy) = if side.0 != 0 {
                     (tx + side.0 * along, ty + across)
                 } else {
@@ -638,7 +703,7 @@ fn frozen_cave(g: &Grid, m: &GameMapData, k: usize) -> Option<Vec<Piece>> {
 
 /// Writes the pieces' cells and inserts their features after the zone's existing non-infill features (the certifier's
 /// order: zone code ascending; landmarks, then the rest, then at most one infill), renumbering the feature grid.
-fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) {
+fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) -> usize {
     let code = zone.code();
     let at = m
         .features
@@ -688,6 +753,48 @@ fn insert(m: &mut GameMapData, zone: Zone, pieces: Vec<Piece>) {
     }
     debug_assert!(m.features.len() <= 250);
     refresh_camps(m);
+    at
+}
+
+/// Reads a just-inserted church back from the map: `at` is where `insert` put its first feature (the wall ring) and
+/// `count` how many features it inserted (the second, if any, is the grave stones).
+fn church_site(m: &GameMapData, at: usize, count: usize) -> Option<Church> {
+    let ring = m.features.get(at)?;
+    let id = (at + 1) as u8;
+    let w = m.w as i32;
+    let cell = |i: usize| ((i as i32) % w, (i as i32) / w);
+    let (tx, ty) = (ring.ax, ring.ay);
+    let r = (0..m.feature_grid.len())
+        .filter(|&i| m.feature_grid[i] == id)
+        .map(|i| {
+            let (x, y) = cell(i);
+            (x - tx).abs().max((y - ty).abs())
+        })
+        .max()?;
+    let side = match ring.p.get(2).copied()? {
+        0 => (1, 0),
+        4 => (0, 1),
+        8 => (-1, 0),
+        _ => (0, -1),
+    };
+    let door = (-1..=1)
+        .map(|d| {
+            if side.0 != 0 {
+                (tx + side.0 * r, ty + d)
+            } else {
+                (tx + d, ty + side.1 * r)
+            }
+        })
+        .collect();
+    let stones = if count > 1 {
+        (0..m.feature_grid.len())
+            .filter(|&i| m.feature_grid[i] == id + 1)
+            .map(cell)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Some(Church { door, stones })
 }
 
 /// Camp area and radius are derived from the territory's floor (the certifier's `camp-area-radius`): the floor tiles of
