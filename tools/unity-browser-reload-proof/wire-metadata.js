@@ -14,6 +14,8 @@ const MAX_MAP_TILES = 1024 * 1024;
 const MAX_MAP_RUNS = 5 * MAX_MAP_TILES;
 const PROTOCOL = 17;
 const MAX_ARCHETYPES = 32, MAX_ARCHETYPE_KEY = 24, MAX_WEAPONS = 32, WEAPON_ROW_LEN = 34;
+// P-WIRE17-HUD-2b HUD content block (crates/rh-protocol/src/hud_content.rs).
+const MAX_SCALING_ROWS = 32, SCALING_ROW_LEN = 34, MAX_HUD_TERMS = 19, HUD_TERM_ROW_LEN = 9;
 const CLIENT_TAGS = new Set([1, 2, 3, 4, 5]);
 const SERVER_TAGS = new Set([0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88]);
 
@@ -110,8 +112,9 @@ export function parseServerWelcome(reader) {
     reader.skip(16); // private session capability: bytes never read.
     reader.skip(13); // tick rate, tick, and server clock; not needed for reload readiness.
     if (reader.length < 60) return fail('server','truncated-welcome-prefix',protocol);
-    // Protocol 16 and later put three public tables between this header and the map, in this order (crates/rh-protocol:
-    // archetype.rs, vision.rs, weapon.rs). Only counts, key lengths and flags are read to find the map; values are skipped.
+    // Protocol 16 and later put public tables between this header and the map, in this order (crates/rh-protocol:
+    // archetype.rs, vision.rs, weapon.rs, hud_content.rs). Only counts, key lengths and flags are read to find the map;
+    // values are skipped.
     const archetypes = reader.u8();
     if (archetypes > MAX_ARCHETYPES) return fail('server','archetype-table',protocol);
     for (let i = 0; i < archetypes; i++) {
@@ -132,6 +135,13 @@ export function parseServerWelcome(reader) {
     const weapons = reader.u8();
     if (weapons > MAX_WEAPONS) return fail('server','weapon-table',protocol);
     reader.skip(weapons * WEAPON_ROW_LEN);
+    // P-WIRE17-HUD-2b: the HUD content block (scaling rows, then term rows) sits between the weapon table and the map.
+    const scalingRows = reader.u8();
+    if (scalingRows > MAX_SCALING_ROWS) return fail('server','hud-content',protocol);
+    reader.skip(scalingRows * SCALING_ROW_LEN);
+    const hudTerms = reader.u8();
+    if (hudTerms > MAX_HUD_TERMS) return fail('server','hud-content',protocol);
+    reader.skip(hudTerms * HUD_TERM_ROW_LEN);
     // Bound the map's byte layout using only dimensions, extension length, and RLE run counts.
     // Tile/terrain/region values and all hashes are skipped unread; this is not map validation.
     const width = reader.u16(), height = reader.u16();

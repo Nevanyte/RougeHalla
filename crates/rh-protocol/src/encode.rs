@@ -1253,6 +1253,7 @@ impl Frame for ServerMsg {
                 archetypes,
                 vision,
                 weapons,
+                hud,
                 map,
                 ..
             } => {
@@ -1260,6 +1261,7 @@ impl Frame for ServerMsg {
                     + crate::archetype::table_len(archetypes)
                     + vision.encoded_len()
                     + crate::weapon::table_len(weapons)
+                    + crate::hud_content::content_len(hud)
                     + map.encoded_len()
             }
             ServerMsg::Reject { reason, .. } => 1 + 2 + str_len(reason),
@@ -1306,6 +1308,7 @@ impl Frame for ServerMsg {
                 archetypes,
                 vision,
                 weapons,
+                hud,
                 map,
                 ..
             } => {
@@ -1319,6 +1322,9 @@ impl Frame for ServerMsg {
                     return Err(EncodeError::BadValue("vision"));
                 }
                 if let Some(why) = crate::weapon::table_fault(weapons) {
+                    return Err(EncodeError::BadValue(why));
+                }
+                if let Some(why) = crate::hud_content::content_fault(hud) {
                     return Err(EncodeError::BadValue(why));
                 }
                 map.check()?
@@ -1514,6 +1520,7 @@ impl Frame for ServerMsg {
                 archetypes,
                 vision,
                 weapons,
+                hud,
                 map,
             } => {
                 WelcomeHeader {
@@ -1530,6 +1537,7 @@ impl Frame for ServerMsg {
                 crate::archetype::write_table(w, archetypes);
                 vision.write(w);
                 crate::weapon::write_table(w, weapons);
+                crate::hud_content::write_content(w, hud);
                 map.write(w);
             }
             ServerMsg::Reject { code, reason } => {
@@ -1837,15 +1845,17 @@ impl WelcomeHeader {
 }
 
 /// A Welcome frame with a pre-encoded map: the same bytes as
-/// `ServerMsg::Welcome { .., archetypes, vision, weapons, map }.encode()`, without RLE encoding (or cloning) the map per
-/// joining player. One allocation of the exact size. `archetypes` must pass [`crate::archetype::table_fault`], `vision`
-/// [`WireVision::fault`] and `weapons` [`crate::weapon::table_fault`] (the server builds them from build constants, sim
-/// content and the validated map, checked by its tests).
+/// `ServerMsg::Welcome { .., archetypes, vision, weapons, hud, map }.encode()`, without RLE encoding (or cloning) the map
+/// per joining player. One allocation of the exact size. `archetypes` must pass [`crate::archetype::table_fault`],
+/// `vision` [`WireVision::fault`], `weapons` [`crate::weapon::table_fault`] and `hud`
+/// [`crate::hud_content::content_fault`] (the server builds them from build constants, sim content and the validated map,
+/// checked by its tests).
 pub fn encode_welcome(
     h: &WelcomeHeader,
     archetypes: &[WireArchetype],
     vision: &WireVision,
     weapons: &[WireWeapon],
+    hud: &WireHudContent,
     map: &EncodedMap,
     mode: GroundMode,
 ) -> Vec<u8> {
@@ -1853,10 +1863,12 @@ pub fn encode_welcome(
     debug_assert_eq!(vision.fault(), None);
     debug_assert!(vision.fits(map.w(), map.h()));
     debug_assert_eq!(crate::weapon::table_fault(weapons), None);
+    debug_assert_eq!(crate::hud_content::content_fault(hud), None);
     let len = WELCOME_HEADER_LEN
         + crate::archetype::table_len(archetypes)
         + vision.encoded_len()
         + crate::weapon::table_len(weapons)
+        + crate::hud_content::content_len(hud)
         + map.encoded_len_for_mode(mode);
     debug_assert!(
         len <= MAX_SERVER_FRAME,
@@ -1867,16 +1879,19 @@ pub fn encode_welcome(
     crate::archetype::write_table(&mut w, archetypes);
     vision.write(&mut w);
     crate::weapon::write_table(&mut w, weapons);
+    crate::hud_content::write_content(&mut w, hud);
     map.write_with_mode(&mut w, mode);
     w.finish()
 }
 
 /// [`encode_welcome`] appended to `out`; a frame over [`MAX_SERVER_FRAME`] is an error and leaves `out` unchanged.
+#[allow(clippy::too_many_arguments)] // the Welcome's sections, in wire order
 pub fn encode_welcome_into(
     h: &WelcomeHeader,
     archetypes: &[WireArchetype],
     vision: &WireVision,
     weapons: &[WireWeapon],
+    hud: &WireHudContent,
     map: &EncodedMap,
     mode: GroundMode,
     out: &mut Vec<u8>,
@@ -1893,10 +1908,14 @@ pub fn encode_welcome_into(
     if let Some(why) = crate::weapon::table_fault(weapons) {
         return Err(EncodeError::BadValue(why));
     }
+    if let Some(why) = crate::hud_content::content_fault(hud) {
+        return Err(EncodeError::BadValue(why));
+    }
     let len = WELCOME_HEADER_LEN
         + crate::archetype::table_len(archetypes)
         + vision.encoded_len()
         + crate::weapon::table_len(weapons)
+        + crate::hud_content::content_len(hud)
         + map.encoded_len_for_mode(mode);
     frame_size(len, MAX_SERVER_FRAME)?;
     let mut w = Writer::from_vec(std::mem::take(out));
@@ -1905,6 +1924,7 @@ pub fn encode_welcome_into(
     crate::archetype::write_table(&mut w, archetypes);
     vision.write(&mut w);
     crate::weapon::write_table(&mut w, weapons);
+    crate::hud_content::write_content(&mut w, hud);
     map.write_with_mode(&mut w, mode);
     *out = w.finish();
     Ok(len)

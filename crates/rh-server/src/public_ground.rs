@@ -189,6 +189,7 @@ mod tests {
             &[],
             &WireVision::default(),
             &[],
+            &Default::default(),
             encoded,
             GroundMode::Map,
         )

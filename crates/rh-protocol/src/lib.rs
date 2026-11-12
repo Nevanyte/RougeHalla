@@ -155,6 +155,7 @@ pub mod archetype;
 pub mod codec;
 mod encode;
 pub mod ground;
+pub mod hud_content;
 pub mod vision;
 pub mod weapon;
 pub use encode::delta;
@@ -182,6 +183,9 @@ pub use delta::{
 };
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
 pub use ground::GroundMode;
+pub use hud_content::{
+    HudTerm, WireHudContent, WireHudTerm, WireWeaponScaling, HUD_TERM_COUNT, MAX_HUD_TERMS,
+};
 pub use vision::{WireRect, WireVision, VISION_RULES_VERSION};
 pub use weapon::{
     WireWeapon, MAX_WEAPONS, WEAPON_KIND_ARC, WEAPON_KIND_NONE, WEAPON_KIND_PROJECTILE,
@@ -858,6 +862,9 @@ pub enum ServerMsg {
         /// The weapon table (protocol 16): each weapon's hit shape from the sim content, rows by ascending id, after the
         /// vision block and before the map.
         weapons: Vec<weapon::WireWeapon>,
+        /// The HUD content block (protocol 17, P-WIRE17-HUD-2b): weapon scaling rows and public HUD constants, after the
+        /// weapon table and before the map.
+        hud: hud_content::WireHudContent,
         /// The canonical public map (server-sent; clients never generate it): docs/adr/0003-canonical-map.md.
         map: map::MapBlob,
     },
@@ -1543,6 +1550,7 @@ impl ServerMsg {
                 let archetypes = archetype::read_table(&mut r)?;
                 let vision = vision::WireVision::read(&mut r)?;
                 let weapons = weapon::read_table(&mut r)?;
+                let hud = hud_content::read_content(&mut r)?;
                 let map = map::MapBlob::read(&mut r)?;
                 if !vision.fits(map.w, map.h) {
                     return Err(DecodeError::BadField("vision"));
@@ -1559,6 +1567,7 @@ impl ServerMsg {
                     archetypes,
                     vision,
                     weapons,
+                    hud,
                     map,
                 }
             }
