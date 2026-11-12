@@ -4,7 +4,7 @@ mod routes;
 mod rules;
 mod shape;
 use crate::map::{TILE_FLOOR, TILE_WALL};
-use crate::mapdata::{FeatureJob, FeatureKind, MapFeature};
+use crate::mapdata::{FeatureJob, FeatureKind, MapFeature, ZoneAnchor};
 use crate::mapgen::{
     coliseum::{FixedDefinition, FixedLayout, GateSide},
     landmarks::recipes::direct_family::rime,
@@ -309,6 +309,28 @@ impl<'a> Callbacks<'a> {
         }
         Ok(())
     }
+}
+/// Frost's anchor (G3) as the styler sees it: the zone's `Cave` feature, placed by the signature step in the Landmarks
+/// phase (`landmarks::signature`), so present only with `pipeline::Options::signature`. Centre: the feature's anchor
+/// point; footprint: its box; front: toward the coliseum (`signature::front`), exactly as the finished map's anchor.
+/// Option off there is no such feature and this is `None`: no new styler input, and nothing for legacy mode to read
+/// (G8). The pattern is `style_scorch::signature_anchor`.
+///
+/// STUB (P-MAPGEN-SIG-FROST-1): `entrance` is left empty and nothing reads this yet. The implementer fills the mouth
+/// (the same tiles as the finished map's anchor, e.g. derived from the cave's owned tiles on its box edge) and branches
+/// on it inside `shape::run`: with `Some`, the signature-mode arrangement (the largest lake in front of the mouth, no
+/// spire or headland in the core band); with `None`, today's code, draw for draw.
+#[allow(dead_code)] // STUB (P-MAPGEN-SIG-FROST-1): read by `shape::run` once the implementer branches on it.
+pub(crate) fn signature_anchor(b: BaseContext<'_>) -> Option<ZoneAnchor> {
+    let f = b.zone_features().find(|f| f.kind == FeatureKind::Cave)?;
+    Some(ZoneAnchor {
+        zone: f.zone,
+        kind: FeatureKind::Cave,
+        centre: crate::mapdata::TilePt { x: f.ax, y: f.ay },
+        footprint: f.bbox,
+        front: crate::mapgen::landmarks::signature::front(f.ax, f.ay),
+        entrance: Vec::new(),
+    })
 }
 fn field_input<'a>(b: &'a BaseContext<'_>, fixed: &'a FixedLayout) -> rime::FieldInput<'a> {
     rime::FieldInput {

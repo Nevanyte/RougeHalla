@@ -12,6 +12,7 @@
 //!
 //! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church).
 mod bog_tree;
+mod cave;
 mod church;
 mod volcano;
 
