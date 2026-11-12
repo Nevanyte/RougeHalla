@@ -63,12 +63,24 @@ section 3). `--require-admit` needs `--control` and is checked as an extra step 
 docs/hosting/CONTROL_API.md section 4. Example with durable results: `glbridge -- --database-url postgres://...` (the URL then shows in the process list of
 the container; prefer a mechanism that does not, once the Rust side supports one).
 
+**Public deployment checklist (rh-server public edge, docs/evidence/fix-server-security/README.md).** The bridge binds
+`0.0.0.0`, so rh-server treats the process as publicly exposed:
+
+* Real credentials are required: pass `--database-url ...` (or `--auth static:<file>`) after `--`. With neither, rh-server
+  refuses to start (exit 2); `--insecure-dev-auth` overrides that for local smoke tests only.
+* Set the browser origin of the Unity WebGL build: `-- --ws-origins https://<game page origin>` (or `--api-cors-origins`, which
+  `--ws-origins` defaults to). With no origin list a publicly exposed rh-server refuses every browser `Origin` on `/ws` (native
+  clients and tools, which send none, still connect), so the WebGL client cannot play until this is set.
+* Behind a reverse proxy, pass `--client-ip-header <name> --trusted-proxies <proxy ips>` so the per-address WebSocket limits
+  key on real clients (with the header configured, a request it does not resolve shares one capped bucket).
+* `--self-signed` is refused here; use `--tls-cert/--tls-key`.
+
 ## Local smoke
 
 ```bash
 docker run --rm rh-match:dev-arm64        # InitSDK fails outside GameLift: "Either AuthToken or AwsRegion ... are required", exit 1
 docker run --rm --entrypoint /local/game/rh-server rh-match:dev-arm64 --bind 0.0.0.0:35000 --max-rooms 1 \
-    --map /local/game/maps/seed1.map.json   # the Rust server alone
+    --map /local/game/maps/seed1.map.json --insecure-dev-auth   # the Rust server alone (dev auth: local smoke only)
 ```
 
 ## End to end without AWS: the real bridge, the real server, a real client

@@ -595,12 +595,23 @@ impl Director {
         if self.lifecycle.draining() {
             return Err((RejectCode::ServerDraining, "server draining".into()));
         }
-        let Some(key) = self
+        let key = match self
             .persistence
             .authenticate(&self.auth, &h.profile, &h.ticket)
             .await
-        else {
-            return Err((RejectCode::BadCredentials, "bad credentials".into()));
+        {
+            Ok(Some(key)) => key,
+            Ok(None) => return Err((RejectCode::BadCredentials, "bad credentials".into())),
+            // The credential store could not answer: that says nothing about the ticket, so it is neither reported nor
+            // counted (the edge throttle counts only `BadCredentials`) as a bad credential. The wire has no "unavailable"
+            // code; "try again shortly" is the honest existing one. The store's error stays in the (rate-limited) log.
+            Err(e) => {
+                crate::api::log_internal("hello credential check", &e);
+                return Err((
+                    RejectCode::RateLimited,
+                    "server busy, storage unavailable; try again shortly".into(),
+                ));
+            }
         };
         // Hosted mode: an additional precondition after the credential check and before profile ownership and the fenced
         // lease (CONTROL_API.md section 4). It never replaces authentication and takes no lease. The admit is consumed
@@ -1418,6 +1429,18 @@ impl Director {
         }
     }
 
+    /// The public `/info`: what a client, a deploy check or a probe needs (protocol, content hash, the coarse lifecycle state)
+    /// and nothing about load. The full [`Director::info`] (rooms, players, results, closed rooms) is served on the loopback
+    /// control listener only (`GET /control/info`).
+    pub fn public_info(&self) -> serde_json::Value {
+        serde_json::json!({
+            "protocol": PROTOCOL_VERSION,
+            "contentHash": format!("{:016x}", rh_sim::content::content_hash()),
+            "state": self.lifecycle.state_name(),
+        })
+    }
+
+    /// The operator view (`GET /control/info`, loopback): the public identity plus room, player and result counters.
     pub fn info(&self) -> serde_json::Value {
         let inner = self.inner.lock().expect("director");
         let lobbies = inner

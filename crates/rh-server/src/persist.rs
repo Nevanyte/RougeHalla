@@ -57,19 +57,34 @@ pub enum Auth {
 impl Auth {
     /// Whether `ticket` (the Hello's opaque admission credential) admits `profile`. Without a hosting layer the ticket is the
     /// callsign's secret as UTF-8 bytes; what P-HOST-1 puts in it (a player-session id, a signed join token) is checked here, at
-    /// the same place in the admission order, and never reaches the room.
-    pub async fn verify(&self, profile: &str, ticket: &[u8]) -> bool {
-        match self {
+    /// the same place in the admission order, and never reaches the room. `Err`: the credential store could not answer (a
+    /// database outage), which says nothing about the ticket and must not be reported or counted as a bad credential.
+    pub async fn verify(&self, profile: &str, ticket: &[u8]) -> Result<bool, String> {
+        Ok(match self {
             Auth::Dev => true,
-            Auth::Static(m) => m
-                .get(&profile.to_ascii_lowercase())
-                .is_some_and(|t| t.as_bytes() == ticket),
+            // Both sides hashed to fixed-length digests and compared in constant time: the time does not depend on where a
+            // guess first differs from the token (nor on its length), and an unknown callsign does the same work.
+            Auth::Static(m) => {
+                use sha2::{Digest, Sha256};
+                let given: [u8; 32] = Sha256::digest(ticket).into();
+                let want: [u8; 32] = match m.get(&profile.to_ascii_lowercase()) {
+                    Some(t) => Sha256::digest(t.as_bytes()).into(),
+                    None => {
+                        let _ = crate::api::limits::ct_eq(&given, &[0u8; 32]);
+                        return Ok(false);
+                    }
+                };
+                crate::api::limits::ct_eq(&given, &want)
+            }
             #[cfg(feature = "postgres")]
             Auth::Postgres(store) => match std::str::from_utf8(ticket) {
-                Ok(token) => store.verify_token(profile, token).await.unwrap_or(false),
+                Ok(token) => store
+                    .verify_token(profile, token)
+                    .await
+                    .map_err(|e| format!("credential check failed: {e}"))?,
                 Err(_) => false,
             },
-        }
+        })
     }
 }
 
@@ -354,30 +369,36 @@ impl Persistence {
         auth: &Auth,
         profile: &str,
         ticket: &[u8],
-    ) -> Option<ProfileKey> {
+    ) -> Result<Option<ProfileKey>, String> {
         #[cfg(feature = "postgres")]
         if let Auth::Postgres(db) = auth {
-            let id = db
-                .verify_token_id(profile, std::str::from_utf8(ticket).ok()?)
+            let Ok(token) = std::str::from_utf8(ticket) else {
+                return Ok(None);
+            };
+            let Some(id) = db
+                .verify_token_id(profile, token)
                 .await
-                .ok()??;
-            return Some(match self {
+                .map_err(|e| format!("credential check failed: {e}"))?
+            else {
+                return Ok(None);
+            };
+            return Ok(Some(match self {
                 Self::Memory(_) => ProfileKey::from(profile),
                 Self::Postgres { .. } => ProfileKey::Durable(id),
-            });
+            }));
         }
-        if !auth.verify(profile, ticket).await {
-            return None;
+        if !auth.verify(profile, ticket).await? {
+            return Ok(None);
         }
         #[cfg(feature = "postgres")]
         if let Self::Postgres { store, .. } = self {
             return store
                 .profile_id(profile)
                 .await
-                .ok()?
-                .map(ProfileKey::Durable);
+                .map(|id| id.map(ProfileKey::Durable))
+                .map_err(|e| format!("profile lookup failed: {e}"));
         }
-        Some(ProfileKey::from(profile))
+        Ok(Some(ProfileKey::from(profile)))
     }
 
     /// Commit ownership only after the row was acquired within the admission budget.
@@ -788,5 +809,34 @@ pub mod pg {
                 .to_owned()
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod static_auth_tests {
+    use super::Auth;
+
+    #[tokio::test]
+    async fn static_tokens_match_exactly_and_case_insensitively_by_callsign() {
+        let auth = Auth::Static(
+            [("alice".to_string(), "s3cret-token".to_string())]
+                .into_iter()
+                .collect(),
+        );
+        assert!(auth.verify("alice", b"s3cret-token").await.unwrap());
+        assert!(auth.verify("ALICE", b"s3cret-token").await.unwrap());
+        for wrong in [
+            &b"s3cret-tokeN"[..],
+            b"s3cret-toke",
+            b"s3cret-token ",
+            b"",
+            b"\xff\xfe",
+        ] {
+            assert!(!auth.verify("alice", wrong).await.unwrap(), "{wrong:?}");
+        }
+        assert!(
+            !auth.verify("bob", b"s3cret-token").await.unwrap(),
+            "unknown callsign"
+        );
     }
 }

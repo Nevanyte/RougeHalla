@@ -183,6 +183,20 @@ async fn a_tiny_scenario_plays_reconnects_churns_and_reports() {
         .unwrap()
         .ends_with("smoke.json"));
     assert!(!r["series"].as_array().unwrap().is_empty());
+    // The operator counters come from the loopback `/control/info` (the public `/info` carries identity and state only).
+    assert!(
+        r["server"]["info"]["maxRooms"].is_u64() && r["server"]["info"]["closedRooms"].is_array(),
+        "final info from /control/info: {}",
+        r["server"]["info"]
+    );
+    assert!(
+        r["series"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["serverPlayers"].is_u64() && p["lobbies"].is_u64()),
+        "sampled players/lobbies from /control/info"
+    );
     assert!(dir.join("smoke.json").exists() && dir.join("smoke.summary.txt").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
