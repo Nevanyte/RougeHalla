@@ -4,6 +4,13 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat): less clutter on the maps and on mobs
+
+After the first real screenshots: no zone type icon on camps (the map's zone tint already shows it); the only mark
+above a camp is the buff it gives; no different logo on each mob; keep it information dense (buff type, a specific
+marker for elites). Packet P-UNITY-DECLUTTER-1, DEV-022. The brute rim asked for by a reviewer of
+P-UNITY-HUD-VISUAL-FIX-1 was cancelled for the same reason.
+
 ## Owner approvals 2026-11-12 (chat): "Everything in your plan and all your suggestions work"; "I approve 1-10 you may change the permission json"
 
 Each approval covers exactly the scope written here (the list the coordinator put to the owner, quoted in substance).
