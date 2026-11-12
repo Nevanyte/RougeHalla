@@ -195,6 +195,9 @@ by `tests/hud_content_wire.rs`, `tests/vectors.rs`, the C# and JS checks):
   call, `hud:` in three `ServerMsg::Welcome` literals; `welcome()` and two calls use `sample_hud()`, the rest an empty
   block); `crates/rh-server/tests/lifecycle.rs` (`hud` in the Welcome destructure and rebuild);
   `crates/rh-server/src/room/ground_tests.rs` and `src/public_ground.rs` tests (one argument each).
+- Implementer (coordinator amendment 2026-11-12, found on attempt 1): `client-unity/RoguehallaNet.Tests/MapBlobGroundTests.cs`
+  hardcodes the map's offset in a Welcome frame at three places (lines 32, 105, 119); the new two-byte empty block moves
+  the map by 2. Those three offsets gain `+ 2`; nothing else in the file changes.
 - Oracle commit: `crates/rh-protocol/tests/vectors.rs`, `client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs`,
   `tools/protocol-js/check-vectors.mjs`: additions only.
 - `crates/rh-protocol/tests/vectors.rs::committed_vectors_match_the_encoder` is red from the stub commit on (the Welcome
