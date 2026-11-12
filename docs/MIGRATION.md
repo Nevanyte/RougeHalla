@@ -4,6 +4,15 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner approvals 2026-11-12 (chat): "Yes to both"
+
+Asked: (1) may `crates/rh-server/src/signature.rs` and `crates/rh-server/src/signature/tests.rs` (the server-side
+landmark pass written by the cloud session, replaced by the generator's Landmarks phase) be deleted when
+P-MAPGEN-SIG-FROST-1 merges; (2) may the browser reload-proof tests (`tools/unity-browser-reload-proof/*.test.mjs`)
+be added to `scripts/gate.sh`, since CI runs them and the gate did not (P-WIRE17-HUD-2b's missed Welcome parser reached
+review that way). Both approved. Scope: exactly those two files, and exactly that gate step (quick: when the protocol,
+its fixtures, the probe page or the reload-proof tools change; full: always).
+
 ## Owner direction 2026-11-12 (chat): show each zone's landmark, close and wide, after visual review
 
 "Once they are developed and approved by visual sub agents please show me the final product of each zones unique
