@@ -76,11 +76,34 @@ namespace Roguehalla.Net.Ui
         /// <summary>
         /// Clears <paramref name="into"/> and fills the one glyph of every camp for the Minimap or TabMap surface (the World surface gets none).
         /// No rows when the row count differs from the map's camp count. Replaces <see cref="Markers"/> and the camp part of
-        /// <see cref="CampBadges.Rewards"/> in the map layer. STUB: fills nothing yet.
+        /// <see cref="CampBadges.Rewards"/> in the map layer.
         /// </summary>
         public static void Glyphs(MapCamp[] camps, IReadOnlyList<CampView> rows, double serverNowMs, bool active, CampSurface surface, List<CampGlyphRow> into)
         {
             into.Clear();
+            if (surface == CampSurface.World || camps == null || rows == null || rows.Count != camps.Length) return;
+            bool tab = surface == CampSurface.TabMap;
+            for (int i = 0; i < camps.Length; i++)
+            {
+                var r = rows[i];
+                bool cleared = r.State == 2;
+                bool elite = r.Elite != null;
+                var g = new CampGlyphRow
+                {
+                    Index = i, WorldX = camps[i].X, WorldY = camps[i].Y, Zone = camps[i].Zone,
+                    IconRgb = NeutralRgb, Elite = elite, Dim = cleared,
+                    Engaged = tab && r.State == 1,
+                };
+                if (r.Reward != null)
+                {
+                    g.IconKey = CampBadges.IconKey(r.Reward.Value.Stat);
+                    g.IconRgb = CampBadges.IconRgb(r.Reward.Value.Stat);
+                    if (tab) g.AmountText = CampBadges.AmountText(r.Reward.Value);
+                }
+                if (elite && tab) g.EliteText = "Aug";
+                if (active && cleared && r.RespawnAt > 0) g.Clock = Digits(Seconds(r.RespawnAt, serverNowMs));
+                into.Add(g);
+            }
         }
 
         const int CacheCap = 1024;
