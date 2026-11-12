@@ -384,7 +384,7 @@ namespace Roguehalla.Client
             if (_mobText != null)
             {
                 var lines = Roguehalla.Net.Ui.BuildHudText.MobLines(summary);
-                var sb = new StringBuilder();
+                var sb = new System.Text.StringBuilder();
                 for (int i = 0; i < lines.Count; i++)
                     sb.Append(i > 0 ? " · " : "").Append(lines[i].Label).Append(lines[i].Total.Length > 0 ? " " + lines[i].Total : "");
                 Set(_mobText, sb.ToString());
