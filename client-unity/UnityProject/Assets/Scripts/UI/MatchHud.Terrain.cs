@@ -13,10 +13,11 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed partial class MatchHud
     {
-        const float TerrainTile = 32f, TerrainWidth = 256f;
+        const float TerrainTile = 32f, TerrainWidth = 294f;
         const float TerrainLine = 18f;
         RectTransform _terrainRow;
         TMP_Text _terrainNoteText;
+        string _terrainNote;
         readonly System.Collections.Generic.List<TerrainChip> _terrainChips = new System.Collections.Generic.List<TerrainChip>(2);
         int _terrainKey = -1, _terrainShown;
         float _terrainTop = -1f, _terrainHeight = TerrainLine;
@@ -83,6 +84,30 @@ namespace Roguehalla.Client
             ShowTerrain(show, code, show ? map.TerrainMode : (byte)0, show ? me.Faction : (FactionId?)null);
         }
 
+        /// <summary>
+        /// Sizes the home-ground note's box to its text at the size the text-size setting asks for (a second wrapped line grows the box), then
+        /// fits the label to it. Run when the note changes and again whenever the setting does.
+        /// </summary>
+        void LayoutTerrainNote()
+        {
+            if (_terrainRow == null || _terrainNoteText == null) return;
+            string note = _terrainNote;
+            float noteY = _terrainShown * TerrainLine, noteH = TerrainLine;
+            var follow = _terrainNoteText.GetComponent<MythicTextScale>();
+            float scale = _showcaseSettings != null ? _showcaseSettings.TextScale : 1f;
+            if (note != null)
+            {
+                if (follow != null) { _terrainNoteText.enableAutoSizing = false; _terrainNoteText.fontSize = follow.BaseSize * Mathf.Clamp(scale, .85f, 1.5f); }
+                noteH = Mathf.Max(TerrainLine, Mathf.Ceil(_terrainNoteText.GetPreferredValues(note, TerrainWidth, 0f).y));
+                var noteRect = _terrainNoteText.transform.parent as RectTransform;
+                HudUi.Place(noteRect, HudAnchor.TopLeft, 0, noteY, TerrainWidth, noteH);
+                if (follow != null) follow.Apply(scale);
+            }
+            _terrainHeight = noteY + (note != null ? noteH : 0f);
+            if (_terrainHeight <= 0f) _terrainHeight = TerrainLine;
+            if (_terrainTop >= 0f) HudUi.Place(_terrainRow, HudAnchor.TopLeft, PlateLeft, _terrainTop, TerrainWidth, _terrainHeight);
+        }
+
         /// <summary>Draws the chips for a terrain code, or hides the row. No-op while the inputs are unchanged.</summary>
         public void ShowTerrain(bool visible, byte terrain, byte terrainMode, FactionId? faction)
         {
@@ -114,18 +139,10 @@ namespace Roguehalla.Client
                 chip.Rect.gameObject.SetActive(true);
             }
             _terrainShown = count;
-            float noteY = count * TerrainLine, noteH = TerrainLine;
+            _terrainNote = note;
             _terrainNoteText.text = note ?? "";
             _terrainNoteText.gameObject.SetActive(note != null);
-            if (note != null)
-            {
-                noteH = Mathf.Max(TerrainLine, Mathf.Ceil(_terrainNoteText.GetPreferredValues(note, TerrainWidth, 0f).y));
-                var noteRect = _terrainNoteText.transform.parent as RectTransform;
-                HudUi.Place(noteRect, HudAnchor.TopLeft, 0, noteY, TerrainWidth, noteH);
-            }
-            _terrainHeight = noteY + (note != null ? noteH : 0f);
-            if (_terrainHeight <= 0f) _terrainHeight = TerrainLine;
-            if (_terrainTop >= 0f) HudUi.Place(_terrainRow, HudAnchor.TopLeft, PlateLeft, _terrainTop, TerrainWidth, _terrainHeight);
+            LayoutTerrainNote();
             _terrainRow.gameObject.SetActive(count > 0 || note != null);
         }
     }

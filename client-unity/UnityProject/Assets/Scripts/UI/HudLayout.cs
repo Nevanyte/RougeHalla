@@ -63,8 +63,8 @@ namespace Roguehalla.Client
             return Mathf.Round(Mathf.Min(baseSize * userScale, uiWidth * .42f, uiHeight * .6f));
         }
 
-        /// <summary>Legacy plate width: min(240, 0.74 * uiW). The border-box includes 7 px padding each side.</summary>
-        public static float PlateWidth(float uiWidth) { return Mathf.Min(240f, .74f * uiWidth); }
+        /// <summary>Plate width: min(294, 0.74 * uiW) (legacy 240; widened so the GAINED cells keep their text labels at a readable size). The border-box includes 8 px padding each side.</summary>
+        public static float PlateWidth(float uiWidth) { return Mathf.Min(294f, .74f * uiWidth); }
 
         /// <summary>Legacy champion combat HUD width: min(250, 0.42 * uiW), narrow 0.62 * uiW.</summary>
         public static float ChampionWidth(float uiWidth, bool narrow) { return Mathf.Min(250f, (narrow ? .62f : .42f) * uiWidth); }

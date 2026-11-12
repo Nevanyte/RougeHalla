@@ -129,6 +129,7 @@ namespace Roguehalla.Client
                 _scaledText[i].fontSizeMax = _textBaseSize[i] * scale;
             }
             MythicUi.ApplyTextScale(_root, scale);
+            LayoutTerrainNote();   // the note's box is measured for its text at the new size
             _hubGuide?.RefreshScale(scale);
             _hubCosmetics?.RefreshScale(scale);
         }

@@ -14,13 +14,14 @@ namespace Roguehalla.Client
     public sealed class InspectorCardView
     {
         public const float WideTop = 88f, WideRight = 18f, WideMax = 330f, NarrowTop = 80f, NarrowRight = 8f, NarrowWidth = 230f, NarrowScreen = 650f;
-        const float Pad = 10f, LineHeight = 20f;
+        const float Pad = 10f, BaseSize = 14f;
 
         readonly RectTransform _root;
         readonly TMP_Text _text;
         readonly List<string> _lines = new List<string>();
         uint _shownId; int _shownSig; bool _visible;
-        float _lastWidth = -1f;
+        readonly MythicTextScale _follow;
+        float _lastWidth = -1f, _lastScale = -1f;
 
         public InspectorCardView(Transform parent)
         {
@@ -28,6 +29,7 @@ namespace Roguehalla.Client
             HudUi.Surface(_root, new Color(0f, 0f, 0f, .78f), 8f, ShowcasePalette.PanelStroke, raycast: false);
             var body = HudUi.Inset(_root, "Lines", Pad, Pad, Pad, Pad);
             _text = HudUi.Label(body, "Text", "", 14f, Color.white, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _follow = _text.GetComponent<MythicTextScale>();
             _root.gameObject.SetActive(false);
         }
 
@@ -85,12 +87,19 @@ namespace Roguehalla.Client
         {
             var parent = _root.parent as RectTransform;
             float view = parent != null ? parent.rect.width : 1920f;
-            if (Mathf.Approximately(view, _lastWidth)) return;
-            _lastWidth = view;
+            // The card is on its own canvas, so MatchHud.ApplyTextScale never reaches it: it reads the setting itself, here, every time it is shown.
+            float scale = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.TextScale : 1f;
+            if (Mathf.Approximately(view, _lastWidth) && Mathf.Approximately(scale, _lastScale)) return;
+            _lastWidth = view; _lastScale = scale;
             bool narrow = view <= NarrowScreen;
             float width = narrow ? NarrowWidth : Mathf.Min(WideMax, view * .4f);
-            float height = _lines.Count * LineHeight + Pad * 2f;
+            // The box grows with the lines: measure the (wrapped) text at the size the setting asks for, then size the card to it.
+            float wanted = BaseSize * Mathf.Clamp(scale, .85f, 1.5f);
+            _text.enableAutoSizing = false; _text.fontSize = wanted;
+            float lines = _text.GetPreferredValues(_text.text, width - Pad * 2f, 0f).y;
+            float height = Mathf.Ceil(lines) + Pad * 2f;
             HudUi.Place(_root, HudAnchor.TopRight, narrow ? NarrowRight : WideRight, narrow ? NarrowTop : WideTop, width, height);
+            if (_follow != null) _follow.Apply(scale);
         }
     }
 }
