@@ -8,7 +8,8 @@ namespace Roguehalla.Net.Ui
         public float X, Y;     // where the name is anchored
         public float Width;    // how wide the drawn text is, in the same unit as X and Y
         public bool Elite;     // an elite's name is never merged away
-        public bool Always;    // a mob that is engaged or locked: its own name is always shown (DecidePacks only; Decide ignores it)
+        public bool Always;    // a mob that is engaged or locked: its own name is always shown (DecidePacks only; Decide and PackNames ignore it)
+        public byte Single;    // PackNames only: 0 nothing, 1 the local attack lock, 2 the mob under the cursor (hover wins over lock)
     }
 
     /// <summary>
@@ -102,6 +103,25 @@ namespace Roguehalla.Net.Ui
                 if (show) shownCount++;
             }
             return shownCount;
+        }
+
+        /// <summary>
+        /// The pack rule of P-UNITY-NAME-GROUP-2 (replaces <see cref="DecidePacks"/> in the presenter; DecidePacks and its tests stay). Writes
+        /// <c>shown[i]</c>, <c>anchorX[i]</c> and <c>anchorY[i]</c> for each of the first <paramref name="count"/> items and returns how many are
+        /// shown. Y is up (Unity world units). Packs are built exactly as DecidePacks builds them (same-name non-elite mobs with a non-empty
+        /// Text, chained, strictly closer than <paramref name="packDistance"/>), except that <see cref="NameMergeItem.Always"/> is ignored: an
+        /// engaged mob stays in its pack and a pack never splits. A pack shows EXACTLY ONE name. The carrier is the member with
+        /// <c>Single == 2</c> (hovered; lowest Id if several), else the member with <c>Single == 1</c> (locked; lowest Id), else the member
+        /// with the lowest Id. A singled carrier's anchor is its own (X, Y). An unsingled pack's anchor is the horizontal centre of the pack's
+        /// extent, (min X + max X) / 2 over its members (NOT the mean), and the largest Y of its members (the highest one). Every item outside a
+        /// pack (an elite, an empty or null Text) is shown at its own anchor. Anchors of hidden items are unspecified. Order of
+        /// <paramref name="items"/> does not matter. Allocation-free; the caller owns all four buffers (each at least <paramref name="count"/> long).
+        /// Stub: shows everything at its own anchor.
+        /// </summary>
+        public static int PackNames(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch, float[] anchorX, float[] anchorY)
+        {
+            for (int i = 0; i < count; i++) { shown[i] = true; anchorX[i] = items[i].X; anchorY[i] = items[i].Y; }
+            return count;
         }
 
         static bool InPacks(NameMergeItem it) { return !it.Elite && !it.Always && !string.IsNullOrEmpty(it.Text); }

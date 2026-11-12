@@ -122,6 +122,29 @@ namespace Roguehalla.Client
             _rows.Clear();
             if (session != null && session.Map != null && session.State == SessionState.InMatch)
                 CampMarks.WorldLabels(session.Map.Camps, session.Collections.Camps, session.ServerTimeMs, !session.Training, _rows);
+            DrawRows();
+        }
+
+        /// <summary>
+        /// P-UNITY-NAME-GROUP-2 seam: world-space rects of the fighter names drawn this frame (Unity world units, y up). The respawn and ward
+        /// labels must not intersect any of them. ArenaView sets it to the presenter's name rects (one line there, owned by another packet).
+        /// Stub: not read yet.
+        /// </summary>
+        public System.Action<List<Rect>> NameRectSource;
+
+        /// <summary>
+        /// P-UNITY-NAME-GROUP-2 seam for tests: draws the respawn labels and the ward beacons with their labels from ready rows, without a
+        /// Session. <see cref="Update(Session, Func{float, float, bool})"/> does the same from the session's rows.
+        /// </summary>
+        public void Draw(List<CampWorldLabel> rows, List<CampWardRow> wards)
+        {
+            _rows.Clear(); _rows.AddRange(rows);
+            _wards.Clear(); _wards.AddRange(wards);
+            DrawBeacons(); DrawRows();
+        }
+
+        void DrawRows()
+        {
             Used = _rows.Count;
             for (int i = 0; i < Used; i++)
             {
