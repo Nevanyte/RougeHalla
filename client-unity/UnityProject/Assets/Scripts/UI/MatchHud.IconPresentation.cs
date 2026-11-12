@@ -28,32 +28,43 @@ namespace Roguehalla.Client
 
         void RefreshDamageReadout(SelfView me)
         {
-            // The server-owned damage projection is a separate coordinator packet. Never reconstruct
-            // combat mirrors, scaling, critical hits or weapon rules from build IDs in the client.
             Set(_damageWeapon, me == null ? "—" : me.Weapon.ToString());
-            // The server delivers the owner's combat multipliers in milli (attack speed, windup, move speed); per-hit damage and the passive's
-            // numbers are not delivered, so the panel shows only the multipliers and the strongest stats (docs/rework/LEGACY_INDICATORS.md, H3).
-            bool mult = me != null && me.OwnerCombat.HasValue;
-            if (_championValue[0] != null)
-            {
-                Set(_championValue[0], mult ? "Atk speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.AsMilli) : "—");
-                Set(_championScaling[0], mult ? "Windup " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.WindupMilli) : "");
-            }
-            if (_championValue[1] != null)
-            {
-                Set(_championValue[1], mult ? "Move speed " + Roguehalla.Net.Ui.WorldIndicatorRules.Multiplier(me.OwnerCombat.Value.SpeedMilli) : "—");
-                Set(_championScaling[1], TopStatsLine(me));
-            }
+            ApplyChampionRows(me == null ? null : _session?.Collections?.Summary, me);
             if (_championScaling[2] != null && me == null) { Set(_championValue[2], "—"); Set(_championScaling[2], ""); }
-            if (_damageHint != null) _damageHint.Text = DamageUnavailable;
         }
 
-        /// <summary>The delivered top two invested stats ("Strongest: Attack damage, Armor"), empty when none.</summary>
-        static string TopStatsLine(SelfView me)
+        // The panel is re-sent as often as every tick: rows are rebuilt only when a value they show changes.
+        readonly Roguehalla.Net.Protocol.WirePanelValue[] _panelShown = new Roguehalla.Net.Protocol.WirePanelValue[Roguehalla.Net.Protocol.Hud.MaxPanelValues];
+        int _panelShownCount = -1;
+        FactionId _panelFaction; WeaponId _panelWeapon;
+
+        /// <summary>Draws the auto and passive rows from the owner's panel values (legacy championCombatModel). Before the first
+        /// summary, or with no owner, the two rows are hidden (legacy hides the panel without data); no placeholder rows.</summary>
+        void ApplyChampionRows(Roguehalla.Net.Protocol.WireBuildSummary summary, SelfView me)
         {
-            if (me == null || (!me.TopStat1.HasValue && !me.TopStat2.HasValue)) return "";
-            string a = me.TopStat1.HasValue ? Roguehalla.Net.Ui.Indicators.StatLabel(me.TopStat1.Value) : null, b = me.TopStat2.HasValue ? Roguehalla.Net.Ui.Indicators.StatLabel(me.TopStat2.Value) : null;
-            return "Strongest: " + (a != null && b != null ? a + ", " + b : a ?? b);
+            var panel = summary?.Panel;
+            bool has = me != null && panel != null && panel.Length > 0 && panel.Length <= _panelShown.Length;
+            for (int r = 0; r < 2; r++)
+                if (_championRow[r] != null && _championRow[r].gameObject.activeSelf != has) _championRow[r].gameObject.SetActive(has);
+            if (!has)
+            {
+                _panelShownCount = -1;
+                Set(_championValue[0], "—"); Set(_championScaling[0], ""); Set(_championValue[1], "—"); Set(_championScaling[1], "");
+                if (_damageHint != null) _damageHint.Text = DamageUnavailable;
+                return;
+            }
+            bool same = _panelShownCount == panel.Length && _panelFaction == me.Faction && _panelWeapon == me.Weapon;
+            for (int i = 0; same && i < panel.Length; i++)
+                same = _panelShown[i].Code == panel[i].Code && _panelShown[i].Value == panel[i].Value;
+            if (same) return;
+            _panelShownCount = panel.Length; _panelFaction = me.Faction; _panelWeapon = me.Weapon;
+            for (int i = 0; i < panel.Length; i++) _panelShown[i] = panel[i];
+            var rows = ChampionPanelText.Rows(summary, me.Faction, me.Weapon);
+            Set(_championLabel[0], rows.Auto.Name); Set(_championLabel[1], rows.Passive.Name);
+            Set(_championValue[0], rows.Auto.Value); Set(_championScaling[0], rows.Auto.Scaling);
+            Set(_championValue[1], rows.Passive.Value); Set(_championScaling[1], rows.Passive.Scaling);
+            if (_damageHint != null)
+                _damageHint.Text = DamageUnavailable + (rows.Auto.Detail.Length > 0 ? "\n" + rows.Auto.Detail : "") + (rows.Roam.Length > 0 ? "\n" + rows.Roam : "");
         }
 
         struct PotionKey { public bool Delivered; public int Large, Small, Healing; public bool Equals(PotionKey o) { return Delivered == o.Delivered && Large == o.Large && Small == o.Small && Healing == o.Healing; } }
