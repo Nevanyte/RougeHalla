@@ -72,10 +72,16 @@ pub fn keep_clear(map: &GameMapData, rules: &Rules) -> Vec<bool> {
     out
 }
 
+/// Half the corridor width in world units. Never under a tile's half diagonal (16 * sqrt 2 = 22.63), so every tile the
+/// camp-to-gate segment crosses is covered even at width 1.
+fn corridor_half(width: u32) -> f64 {
+    (f64::from(width) * TILE / 2.0).max(23.0) + 1e-6
+}
+
 pub fn tall_corridor(map: &GameMapData, rules: &Rules) -> Vec<bool> {
     let (mw, mh) = (i64::from(map.w), i64::from(map.h));
     let mut out = vec![false; map.w as usize * map.h as usize];
-    let half = f64::from(rules.keep_clear.corridor_width) * TILE / 2.0 + 1e-6;
+    let half = corridor_half(rules.keep_clear.corridor_width);
     let half2 = half * half;
     for camp in &map.camps {
         let mut best: Option<(f64, f64, f64)> = None;
@@ -112,4 +118,18 @@ pub fn tall_corridor(map: &GameMapData, rules: &Rules) -> Vec<bool> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::corridor_half;
+
+    #[test]
+    fn width_one_still_covers_a_clipped_tile_centre() {
+        // A tile whose corner the segment just clips has its centre 16 * sqrt 2 from the line.
+        let worst = 16.0 * 2f64.sqrt();
+        assert!(corridor_half(1) >= worst);
+        assert!(corridor_half(0) >= worst);
+        assert!(corridor_half(2) >= 32.0);
+    }
 }
