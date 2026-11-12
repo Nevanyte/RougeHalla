@@ -4,6 +4,28 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat): generation order and core rules
+
+"Like discussed before generation order should be region zones -> landmark places in zones -> set order to randomness and
+thematic obstacles / decor -> around landmark. There should be core rules that tie the random generation together."
+
+- **What it changes.** The landmarks the cloud session added (P-SIGNATURE-1) are placed by `rh-server` *after* the whole
+  map is generated, on leftover floor. That is the wrong order. The landmark step moves into the generator's existing
+  Landmarks phase (`mapgen/pipeline`: Prefix -> Landmarks -> Spawns -> Styler -> ...), behind a `signature` option
+  (default off, pinned maps byte-identical); the zone stylers and `rh-mapdress` then arrange obstacles and decoration
+  in bands around the landmark (the zone's anchor).
+- **The core rules** are G1-G8 in `docs/backlog/packets/P-MAPGEN-SIGNATURE-CORE-1.md` (order; one landmark per zone by
+  a site rule; the landmark is the zone's anchor; distance bands choose obstacle and decoration families; keep-clear
+  outranks theme and the certifier judges; seeded, local randomness; clusters and edges rather than scatter; legacy
+  stays reachable). ADR 0028 is rewritten around them by that packet.
+- **Packets.** P-MAPGEN-SIGNATURE-CORE-1 (option, phase, anchor record, band helper, bog tree and church; Opus; oracle
+  being written), then P-MAPGEN-SIG-FIRE-1 (volcano, streams and pools, craters arranged round it), P-MAPGEN-SIG-FROST-1
+  (cave round the elite camp, lake at its mouth), P-MAPGEN-SIG-STYLE-1 (Plague and Sentenced obstacles in bands),
+  P-DRESS-ANCHOR-1 (decoration rings measured from the landmark, not from a legacy feature). **Superseded:**
+  P-SIGNATURE-2 (post-pass polish; its implementer was stopped, its oracle's shape checks are carried into the new
+  packets). P-SIGNATURE-1-fix stays merged (flag-gated, harmless) until the generator covers all four zones, then
+  `crates/rh-server/src/signature.rs` is deleted.
+
 ## Beta follow-up integration 3 (2026-11-11 21:10 CST): HUD data, the cloud branch, three Unity HUD packets
 
 Integration branch `feature/unity-rework`, pushed head `980229ed`. Owner direction of this stretch (2026-11-11, chat):
