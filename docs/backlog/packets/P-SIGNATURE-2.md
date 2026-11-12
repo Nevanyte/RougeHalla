@@ -29,7 +29,7 @@ only half of the maps (seeds 1-8: bog tree 8, volcano 7, church 6, cave 4). When
 - P-SIGNATURE-1-fix merged (same file; strictly serial)
 
 ## 3. Relevant legacy paths
-- none (new terrain). Reference for zone geometry: `docs/rework/ZONE_SHAPES_AS_BUILT.md` section 10, and the legacy
+- none (new terrain). Reference for zone geometry: `docs/ZONE_SHAPES_AS_BUILT.md` section 10, and the legacy
   stylers ported in `crates/rh-sim/src/mapgen/` (`style_scorch` lava river, `style_rime` lake), which are read, not edited.
 
 ## 4. New paths
