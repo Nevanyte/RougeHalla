@@ -83,10 +83,10 @@ namespace Roguehalla.Client.Tests
             StringAssert.Contains("Blaze", _wish.text); StringAssert.Contains("1/2", _wish.text);
             Assert.That(_summary.text, Is.EqualTo("1/2 · 1"));
             StringAssert.Contains("Ready in 1", _wish.text);
-            StringAssert.Contains("Recharge 4.0s", _wish.text);
+            StringAssert.Contains("Recharge 4", _wish.text);
             StringAssert.Contains("Next charge in 2", _wish.text);
             StringAssert.Contains("Full charges in 7", _wish.text);
-            StringAssert.Contains("Casting Blaze · 1.5s", _wish.text);
+            StringAssert.Contains("Casting Blaze · 2", _wish.text);
             StringAssert.DoesNotContain("5500", _wish.text); StringAssert.DoesNotContain("7000", _wish.text);
             StringAssert.DoesNotContain("12000", _wish.text); StringAssert.DoesNotContain("4500", _wish.text);
             StringAssert.DoesNotContain("6500", _wish.text); StringAssert.DoesNotContain("Opening", _wish.text);
@@ -97,13 +97,13 @@ namespace Roguehalla.Client.Tests
             StringAssert.Contains("Ready in 1", _wish.text);
             StringAssert.Contains("Next charge in 2", _wish.text);
             StringAssert.Contains("Full charges in 7", _wish.text);
-            StringAssert.Contains("Casting Blaze · 1.3s", _wish.text);
+            StringAssert.Contains("Casting Blaze · 2", _wish.text);
 
             Invoke("RefreshOwnerPresentation", me, 13000d);
             StringAssert.Contains("Ready", _wish.text); StringAssert.DoesNotContain("Ready in", _wish.text);
             StringAssert.DoesNotContain("Next charge in", _wish.text);
             StringAssert.DoesNotContain("Full charges in", _wish.text);
-            StringAssert.Contains("Casting Blaze · 0.0s", _wish.text);
+            StringAssert.Contains("Casting Blaze", _wish.text); StringAssert.DoesNotContain("Casting Blaze ·", _wish.text);
             StringAssert.Contains("1/2", _wish.text, "elapsed labels never predict stock");
             Assert.That(_summary.text, Is.EqualTo("1/2"), "elapsed time never predicts summary stock either");
 
@@ -122,7 +122,7 @@ namespace Roguehalla.Client.Tests
 
             Invoke("RefreshOwnerPresentation", me, 13030d);
             StringAssert.DoesNotContain("Ready in", _wish.text);
-            StringAssert.Contains("Recharge 4.0s", _wish.text);
+            StringAssert.Contains("Recharge 4", _wish.text);
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
             Assert.That(_stats.text, Is.EqualTo("Awaiting player stats"), "separated stats clear on owner rebind too");

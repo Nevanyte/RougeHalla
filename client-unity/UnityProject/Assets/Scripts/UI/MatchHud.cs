@@ -359,21 +359,18 @@ namespace Roguehalla.Client
             // P-UNITY-HUD-STATUS-1: legacy abilitySlot.ts texts ("Ready in 9", "2:05"); a line whose time has run out reads nothing.
             var readyIn = SlotText.ReadyIn(w.ReadyAt - serverTimeMs);
             text.Append(" charges\n").Append(readyIn.Length > 0 ? readyIn : "Ready");
-            text.Append("\nRecharge ").Append(FormatSeconds(w.RechargeMs));
+            var recharge = SlotText.Cooldown(w.RechargeMs);
+            if (recharge.Length > 0) text.Append("\nRecharge ").Append(recharge);
             if (w.NextChargeAt.HasValue) { var next = SlotText.Cooldown(w.NextChargeAt.Value - serverTimeMs); if (next.Length > 0) text.Append("\nNext charge in ").Append(next); }
             if (w.FullAt.HasValue) { var full = SlotText.Cooldown(w.FullAt.Value - serverTimeMs); if (full.Length > 0) text.Append("\nFull charges in ").Append(full); }
             if (w.Cast.HasValue)
             {
                 var cast = w.Cast.Value;
-                text.Append("\nCasting ").Append(cast.Ability).Append(" · ").Append(FormatSeconds(cast.LandsAt - serverTimeMs));
+                var landsIn = SlotText.Cooldown(cast.LandsAt - serverTimeMs);
+                text.Append("\nCasting ").Append(cast.Ability);
+                if (landsIn.Length > 0) text.Append(" · ").Append(landsIn);
             }
             return text.ToString();
-        }
-
-        static string FormatSeconds(double remainingMs)
-        {
-            double seconds = Math.Max(0d, Math.Ceiling(remainingMs / 100d) / 10d);
-            return seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s";
         }
 
         static bool WishEquals(WishView a, WishView b)

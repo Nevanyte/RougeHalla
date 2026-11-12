@@ -95,7 +95,7 @@ namespace Roguehalla.Client.Tests
             Assert.That(summary.text, Is.EqualTo("1/2 · 1"));
             StringAssert.Contains("Blaze", hint.Text);
             StringAssert.Contains("Next charge in 2", hint.Text);
-            StringAssert.Contains("Casting Blaze · 1.5s", hint.Text);
+            StringAssert.Contains("Casting Blaze · 2", hint.Text);
             Assert.That(details.gameObject.activeSelf, Is.False);
 
             var eventData = new BaseEventData(EventSystem.current);
