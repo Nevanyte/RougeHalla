@@ -25,6 +25,15 @@ namespace Roguehalla.Net.Ui
             ActorStatus selfStatus, uint? huntTarget, bool tabMapOpen, List<ContactMark> into)
         {
             into.Clear();
+            if (!tabMapOpen) return;
+            bool hunting = selfFaction == FactionId.Sentenced && selfStatus == ActorStatus.Alive && huntTarget.HasValue;
+            for (int i = 0; i < actors.Count; i++)
+            {
+                var a = actors[i];
+                if (a.Id == selfId || a.Kind != ActorKind.Player || a.Status != ActorStatus.Alive) continue;
+                bool hunt = hunting && a.Id == huntTarget.Value;
+                into.Add(new ContactMark { Id = a.Id, Label = hunt ? ContactLabel.Hunt : ContactLabel.Enemy, Text = hunt ? HuntText : EnemyText });
+            }
         }
     }
 }
