@@ -550,7 +550,7 @@ namespace Roguehalla.Client
                 _sparks.Observe(collections.Tick, collections.Projectiles, _camCenter, _camHalf.x, _camHalf.y, ref _sparkRng);
             }
             for (int i = _used; i < _props.Count; i++) _props[i].gameObject.SetActive(false);
-            _worldMarks.Update(collections, MarkVisible); _campLabels.Update(_visionSession);
+            _worldMarks.Update(collections, MarkVisible); _campLabels.Update(_visionSession, MarkVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
             PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
         }
