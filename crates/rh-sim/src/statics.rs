@@ -252,14 +252,22 @@ pub struct SimConfig {
     pub mob_spacing: crate::archetype::MobSpacing,
     /// Passive regeneration while fighting (P-REGEN-COMBAT-1): `Legacy` (the default: the in-repo legacy oracle's
     /// `PLAYER_REGEN_SHARE_IN`) or `Off` (unreleased legacy f8cd956e, owner decision 2026-11-10: out of combat only; the
-    /// live profiles opt in). Serialized like [`crate::archetype::MobSpacing`]: `Legacy` adds nothing to any hash.
+    /// live profiles opt in). `Legacy` adds nothing to any hash; `Off` folds a tag of its own, never `mob_spacing`'s
+    /// `"off"` (see [`RegenInCombat`]).
     #[serde(default)]
     pub regen_in_combat: RegenInCombat,
 }
 
 /// `SimConfig::regen_in_combat`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
 /// unit), so a config that leaves it alone has the statics digest, state hashes, checkpoints and replays it had before
-/// the field existed; `Off` is the string `"off"`, folded into all of them.
+/// the field existed. `Off` is the string `"off"` in a human-readable format (the JSON config, checkpoint and replay)
+/// and the string `"regen_in_combat=off"` in any other (the state hasher), and is folded into all of them.
+///
+/// Why two spellings (P-REGEN-COMBAT-1-fix): the hasher folds values, not field names, and this field comes right after
+/// [`crate::archetype::MobSpacing`], whose default also folds nothing and whose `Off` is also `"off"`. With `"off"` in
+/// the hash, `mob_spacing = Off, regen_in_combat = Legacy` and `mob_spacing = Auto, regen_in_combat = Off` folded the same
+/// words and shared one statics digest. The tag has another length (19 bytes, not 3), so the first word it folds (its
+/// length) already differs from anything `mob_spacing` writes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RegenInCombat {
     #[default]
@@ -267,20 +275,28 @@ pub enum RegenInCombat {
     Off,
 }
 
+/// What `RegenInCombat::Off` writes to a serializer that is not human-readable (the state hasher): a string no other
+/// config field writes. JSON keeps `"off"`.
+const REGEN_IN_COMBAT_OFF_TAG: &str = "regen_in_combat=off";
+
 impl serde::Serialize for RegenInCombat {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Legacy => s.serialize_unit(),
-            Self::Off => s.serialize_str("off"),
+            Self::Off if s.is_human_readable() => s.serialize_str("off"),
+            Self::Off => s.serialize_str(REGEN_IN_COMBAT_OFF_TAG),
         }
     }
 }
 
 impl<'de> serde::Deserialize<'de> for RegenInCombat {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // Each format reads back exactly what it writes; JSON refuses the tag as it refuses any other unknown value.
+        let human = d.is_human_readable();
         match Option::<String>::deserialize(d)?.as_deref() {
             None => Ok(Self::Legacy),
-            Some("off") => Ok(Self::Off),
+            Some("off") if human => Ok(Self::Off),
+            Some(REGEN_IN_COMBAT_OFF_TAG) if !human => Ok(Self::Off),
             Some(other) => Err(serde::de::Error::custom(format!(
                 "regen_in_combat must be null or \"off\", not {other:?}"
             ))),
@@ -343,5 +359,79 @@ impl Arena {
             crate::map::tile_to_world_center(tx),
             crate::map::tile_to_world_center(ty),
         )
+    }
+}
+
+#[cfg(test)]
+mod regen_in_combat_encoding_tests {
+    use super::{RegenInCombat, REGEN_IN_COMBAT_OFF_TAG};
+    use crate::archetype::MobSpacing;
+    use serde::de::{Deserialize, Deserializer, Visitor};
+    use serde_json::{json, Value};
+
+    /// A JSON value read as a format that is not human-readable (none ships today; this checks the other branch).
+    struct Compact(Value);
+
+    impl<'de> Deserializer<'de> for Compact {
+        type Error = serde_json::Error;
+        fn deserialize_any<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+            self.0.deserialize_any(v)
+        }
+        fn deserialize_option<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+            match self.0 {
+                Value::Null => v.visit_none(),
+                other => v.visit_some(Compact(other)),
+            }
+        }
+        fn is_human_readable(&self) -> bool {
+            false
+        }
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string bytes byte_buf unit
+            unit_struct newtype_struct seq tuple tuple_struct map struct enum identifier ignored_any
+        }
+    }
+
+    #[test]
+    fn json_keeps_off_and_null_and_refuses_the_hash_tag() {
+        assert_eq!(
+            serde_json::to_value(RegenInCombat::Off).unwrap(),
+            json!("off")
+        );
+        assert_eq!(
+            serde_json::to_value(RegenInCombat::Legacy).unwrap(),
+            Value::Null
+        );
+        let read = |v: Value| serde_json::from_value::<RegenInCombat>(v);
+        assert_eq!(read(json!("off")).unwrap(), RegenInCombat::Off);
+        assert_eq!(read(Value::Null).unwrap(), RegenInCombat::Legacy);
+        assert!(read(json!(REGEN_IN_COMBAT_OFF_TAG)).is_err());
+        assert!(read(json!("Off")).is_err());
+    }
+
+    #[test]
+    fn a_compact_format_reads_the_tag_and_refuses_off() {
+        let read = |v: Value| RegenInCombat::deserialize(Compact(v));
+        assert_eq!(
+            read(json!(REGEN_IN_COMBAT_OFF_TAG)).unwrap(),
+            RegenInCombat::Off
+        );
+        assert_eq!(read(Value::Null).unwrap(), RegenInCombat::Legacy);
+        assert!(read(json!("off")).is_err());
+    }
+
+    #[test]
+    fn the_hasher_folds_the_tag_not_mob_spacings_off() {
+        use crate::hash::hash_of;
+        assert_eq!(
+            hash_of(0, &RegenInCombat::Off),
+            hash_of(0, REGEN_IN_COMBAT_OFF_TAG)
+        );
+        assert_ne!(
+            hash_of(0, &RegenInCombat::Off),
+            hash_of(0, &MobSpacing::Off)
+        );
+        assert_eq!(hash_of(0, &MobSpacing::Off), hash_of(0, "off"));
+        assert_eq!(hash_of(0, &RegenInCombat::Legacy), hash_of(0, &()));
     }
 }
