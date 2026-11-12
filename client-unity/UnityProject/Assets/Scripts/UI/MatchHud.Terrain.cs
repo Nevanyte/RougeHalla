@@ -58,6 +58,7 @@ namespace Roguehalla.Client
                 var rect = HudUi.At(_terrainRow, "Chip" + n, 0, n * TerrainLine, TerrainWidth, TerrainLine);
                 var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
                 image.color = new Color(10f / 255f, 12f / 255f, 16f / 255f, .8f);
+                var outline = rect.gameObject.AddComponent<UnityEngine.UI.Outline>(); outline.effectDistance = new Vector2(1f, 1f); outline.useGraphicAlpha = false;
                 var label = HudUi.Label(rect, "Label", "", theme.SizeSmall, theme.Warning, TextAlignmentOptions.TopLeft, bold: true);
                 var button = rect.gameObject.AddComponent<UnityEngine.UI.Button>();
                 button.targetGraphic = image;
@@ -66,6 +67,17 @@ namespace Roguehalla.Client
                 _terrainChips.Add(new TerrainChip { Rect = rect, Label = label, Hint = hint });
             }
             return _terrainChips[i];
+        }
+
+        static Color ChipColor(string id)
+        {
+            switch (id)
+            {
+                case "burning": return new Color32(0xff, 0x8a, 0x3d, 255);
+                case "slowed": return new Color32(0xae, 0xd5, 0x81, 255);
+                case "ice": return new Color32(0x81, 0xd4, 0xfa, 255);
+                default: return new Color32(0xff, 0xd5, 0x4f, 255);
+            }
         }
 
         void TickTerrain()
@@ -136,6 +148,8 @@ namespace Roguehalla.Client
             for (int i = 0; i < count; i++)
             {
                 var chip = TerrainChipAt(i);
+                var tone = ChipColor(chips[i].Id);   // legacy terrainChips.css --c
+                chip.Label.color = tone; chip.Rect.GetComponent<UnityEngine.UI.Outline>().effectColor = tone;
                 chip.Label.text = chips[i].Glyph + " " + chips[i].Label;
                 chip.Hint.Text = chips[i].Explanation;
                 chip.Rect.gameObject.SetActive(true);

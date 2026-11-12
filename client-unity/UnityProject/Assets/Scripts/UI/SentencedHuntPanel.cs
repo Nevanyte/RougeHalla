@@ -15,7 +15,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class SentencedHuntPanel : MonoBehaviour
     {
-        const float Width = 240f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 50f, RowsTop = 76f;
+        const float Width = 300f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 76f, RowsTop = 102f;
         RectTransform _root;
         TMP_Text _title, _status;
         readonly List<Button> _rows = new List<Button>();
@@ -100,9 +100,9 @@ namespace Roguehalla.Client
             if (tracking)
             {
                 string who = haveTarget ? Rival(targetActor) : "rival";
-                _status.text = "Tracking " + who + "\n+5% speed toward them";
+                _status.text = "Tracking " + who + ".\n+5% speed toward them;\nchoose again when they fall.";
             }
-            else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight" : "Choose a rival · +5% speed toward them";
+            else _status.text = _pending != 0 ? "Selecting rival…" : _rivals.Count == 0 ? "No rival in sight" : "Choose a living rival ·\n+5% speed while moving\ntoward them";
             int rows = tracking ? 0 : Mathf.Min(_rivals.Count, (int)MaxRows);
             for (int i = 0; i < _rows.Count; i++)
             {
