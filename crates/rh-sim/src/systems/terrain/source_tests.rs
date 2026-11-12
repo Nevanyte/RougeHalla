@@ -515,6 +515,8 @@ fn terrain_player_passes_match_actual_source() {
                                 critical: false,
                                 cut: 1.,
                                 race: 1.,
+                                passive: false,
+                                derived: false,
                                 ability: None,
                                 dot: false,
                                 sig: None,

@@ -171,13 +171,14 @@ fn resolve_swings(cx: &mut Cx) {
                 passive: false,
             };
             if blocked {
-                if k.config.faction_mode.engagement() {
-                    blocks.push(crate::systems::signatures::BlockContact {
-                        attacker: req.attacker,
-                        holder: target.id,
-                        passive: false,
-                    });
-                }
+                // Recorded in every world: the faction layer reads the contact (its rows are gated on it), Best Offense's
+                // pending note the hook (cardHooks.onBlocked; melee.ts:83 fires it for every melee block).
+                blocks.push(crate::systems::signatures::BlockContact {
+                    attacker: req.attacker,
+                    holder: target.id,
+                    passive: false,
+                    hooked: true,
+                });
                 ev.push(Event::Block {
                     id: target.id,
                     by: req.attacker,
@@ -204,6 +205,10 @@ fn resolve_swings(cx: &mut Cx) {
                     },
                 );
                 if req.weapon == WeaponId::Sword {
+                    // Read after the hook, as the source records the riposte after `blocked` returns.
+                    let riposte_returned = w
+                        .fighter_idx(holder)
+                        .map_or(1., |i| w.core(i).modifiers.returned_mult());
                     super::ledger::record_hit(
                         w,
                         ledger,
@@ -219,8 +224,13 @@ fn resolve_swings(cx: &mut Cx) {
                             execute: false,
                             victim: req.attacker,
                             by: Some(holder),
+                            // Source melee.ts:88: returned damage carries the holder's `returned` mult (Boom's x1.25),
+                            // `raw * SHIELD_BLOCK_SHARE * riposteShare() * returnedMultOf(target.s)`.
                             packet: Packet {
-                                raw: req.packet.raw * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE,
+                                raw: req.packet.raw
+                                    * SHIELD_BLOCK_SHARE
+                                    * RIPOSTE_SHARE
+                                    * riposte_returned,
                                 ..req.packet
                             },
                             weapon: Some(WeaponId::Shield),

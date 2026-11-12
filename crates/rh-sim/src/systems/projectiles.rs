@@ -413,13 +413,15 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
     let id = holder.id;
     let facing = holder.body.facing;
     let holder_chest = holder.hull().chest;
-    if cx.k.config.faction_mode.engagement() {
-        cx.s.blocks.push(crate::systems::signatures::BlockContact {
-            attacker: pr.launch.owner,
-            holder: id,
-            passive: pr.launch.reflected,
-        });
-    }
+    // Recorded in every world: the faction layer reads the contact (its rows are gated on it), Best Offense's pending
+    // note the hook, fired below only while the shooter exists (projectiles.ts:305, :310 `if (shooter)`).
+    let hooked = cx.w.fighter_idx(pr.launch.owner).is_some();
+    cx.s.blocks.push(crate::systems::signatures::BlockContact {
+        attacker: pr.launch.owner,
+        holder: id,
+        passive: pr.launch.reflected,
+        hooked,
+    });
     cx.ev.push(Event::Block {
         id,
         by: pr.launch.owner,
@@ -438,7 +440,7 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
             ProjectileEnd::Reflected
         },
     );
-    if cx.w.fighter_idx(pr.launch.owner).is_some() {
+    if hooked {
         crate::hooks::fire(
             &mut crate::hooks::Hx {
                 k: cx.k,

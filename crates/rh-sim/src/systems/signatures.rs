@@ -13,6 +13,9 @@ pub(crate) struct BlockContact {
     pub attacker: PlayerId,
     pub holder: PlayerId,
     pub passive: bool,
+    /// The source `blocked` hook ran for this block (a melee block always; an arrow block while its shooter exists): the
+    /// blocks Best Offense's pending note counts (cardHooks.onBlocked), whatever the faction layer.
+    pub hooked: bool,
 }
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct LandedHit {
@@ -27,6 +30,12 @@ pub struct LandedHit {
     pub amount: f64,
     /// The Race to 0 share of the entry's multiplier (G4: lifesteal must not feed on it; 1 for none).
     pub race: f64,
+    /// Source `landed.passive` (returned damage) and `landed.derived` (a follow-on): no weapon hit for the card streak and
+    /// Wishful Thinking (cardHooks `isWeaponHit`). Scratch only, never serialized.
+    #[serde(skip)]
+    pub passive: bool,
+    #[serde(skip)]
+    pub derived: bool,
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Contact {

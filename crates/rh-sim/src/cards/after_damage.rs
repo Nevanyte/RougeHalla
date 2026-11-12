@@ -12,7 +12,13 @@ use crate::systems::Cx;
 
 /// A weapon hit: not a DoT, an ability, a signature or a returned/follow-on packet (source `isWeaponHit`).
 fn is_weapon_hit(h: &LandedHit) -> bool {
-    h.by.is_some() && h.weapon.is_some() && h.sig.is_none() && h.ability.is_none() && !h.dot
+    h.by.is_some()
+        && h.weapon.is_some()
+        && h.sig.is_none()
+        && h.ability.is_none()
+        && !h.dot
+        && !h.passive
+        && !h.derived
 }
 
 /// Source `tieRank`: orderSalt ^ imul(tick, 0x9e3779b1), FNV-folded over the actor id chars, through mulberry32.
@@ -61,10 +67,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             }
         }
         if best_offense {
-            n_total += blocks
-                .iter()
-                .filter(|b| b.holder == by && !b.passive)
-                .count() as u32;
+            n_total += blocks.iter().filter(|b| b.holder == by && b.hooked).count() as u32;
         }
         let mut wish_ms = 0.;
         for id in w.players[i].build.cards() {
@@ -95,12 +98,13 @@ pub(crate) fn after_damage(cx: &mut Cx) {
                 &mut p.card_trims,
             );
         }
-        // A block under Best Offense is a hit by the holder on the blocked attacker: it counts for the streak.
+        // A block under Best Offense is a hit by the holder on the blocked attacker: it counts for the streak. Source
+        // `pending` holds every block whose `blocked` hook ran (a reflected arrow included), whatever the faction layer.
         let hits_for = |victim: PlayerId| -> (f64, u32) {
             let (damage, mut n) = sum_for(landed, by, victim);
             if best_offense {
                 for b in blocks {
-                    if b.holder == by && !b.passive && b.attacker == victim {
+                    if b.holder == by && b.hooked && b.attacker == victim {
                         n += 1;
                     }
                 }
@@ -142,7 +146,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             consider(h.victim, &mut target, &mut best);
         }
         if best_offense {
-            for b in blocks.iter().filter(|b| b.holder == by && !b.passive) {
+            for b in blocks.iter().filter(|b| b.holder == by && b.hooked) {
                 consider(b.attacker, &mut target, &mut best);
             }
         }
