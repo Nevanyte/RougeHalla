@@ -15,7 +15,34 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static bool Build(in InterpActor row, uint selfId, List<string> lines)
         {
-            return false;   // stub: replaced by the implementer
+            lines.Clear();
+            if (row.Kind != ActorKind.Player || row.Id == selfId || row.Status != ActorStatus.Alive) return false;
+            if ((row.Effects & (HiddenBit | UntargetableBit)) != 0) return false;
+            if (row.Faction == null) return false;
+            int f = (int)row.Faction.Value;
+            if (f < 0 || f >= FactionNames.Length) return false;
+            int w = row.Weapon.HasValue ? (int)row.Weapon.Value : 5;
+            string weapon = w >= 0 && w < WorldIndicatorRules.WeaponNames.Length ? WorldIndicatorRules.WeaponNames[w] : "Fists";
+            lines.Add(FactionNames[f] + " · " + weapon + " · " + Roles[f]);
+            lines.Add("Health " + row.HpPct.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%");
+            AddChip(row.TopStat1, lines);
+            AddChip(row.TopStat2, lines);
+            return true;
+        }
+
+        const ushort UntargetableBit = 128, HiddenBit = 256;
+
+        // Must agree with Unity's ShowcasePalette.FactionNames and HubGuideView.Roles (FactionId order).
+        static readonly string[] FactionNames = { "Fire", "Sentenced", "Plague", "Frost", "Holy" };
+        static readonly string[] Roles = { "Glass-cannon duelist", "Patient executioner", "Attrition swarm", "Control bruiser", "Sustain juggernaut" };
+        // combatReadability.ts:44-54, indexed by StatKey (1..9).
+        static readonly string[] StatLabels = { null, "Offense", "Soul Offence", "Damage", "Health", "Attack Speed", "Defense", "Soul Defense", "Move Speed", "Leech" };
+
+        static void AddChip(StatKey? key, List<string> lines)
+        {
+            if (!key.HasValue) return;
+            int k = (int)key.Value;
+            if (k > 0 && k < StatLabels.Length) lines.Add(StatLabels[k]);
         }
     }
 }
