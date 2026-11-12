@@ -57,8 +57,9 @@ namespace Roguehalla.Client
             Set(_mantle, mantle, show && kind == ActorKind.Player && MantleEnabled, groundSortingOrder - 2);
             Set(_factionBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && StandaloneFactionBadge, groundSortingOrder + 4);
             Set(_factionGlyph, factionGlyph, show && StandaloneFactionBadge, groundSortingOrder + 5);
-            Set(_roleBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && knownMob, groundSortingOrder + 4);
-            Set(_roleGlyph, roleGlyph, show && knownMob, groundSortingOrder + 5);
+            bool roleMark = knownMob && (role == ShowcaseMobRole.Swarm || role == ShowcaseMobRole.Skirmisher || role == ShowcaseMobRole.Caster);   // mobRole.ts:20-26: grunts none, brutes a rim
+            Set(_roleBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && roleMark, groundSortingOrder + 4);
+            Set(_roleGlyph, roleGlyph, show && roleMark, groundSortingOrder + 5);
             Set(_eliteBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && elite, groundSortingOrder + 4);
             Set(_eliteGlyph, eliteGlyph, show && elite, groundSortingOrder + 5);
             if (_sortingBase != groundSortingOrder || _lift != lift)

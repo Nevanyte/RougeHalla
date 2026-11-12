@@ -176,7 +176,9 @@ namespace Roguehalla.Client
                     {
                         nameTopPx = e.Y + e.H;
                         _nameBase = e.Tone == OverheadTone.NameElite ? (Color)theme.Accent : e.Tone == OverheadTone.NameOwn ? (Color)theme.Success : e.Tone == OverheadTone.NameMob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
-                        _nameBase.a = 1f;
+                        // MobView.ts:26-27,183-186: an idle, full-health, non-elite mob's name is faint (IDLE_LABEL_ALPHA); hurt, fighting, elite and the dummy read full.
+                        _nameBase.a = f.Mob && !f.Elite && !f.Dummy && !f.M.Engaged && f.HpPct >= 100f ? .5f : 1f;
+                        _name.fontSize = f.Mob && f.Elite ? 2.5f * 12f / 11f : 2.5f;   // MobView.ts:247: 12 px elite, 11 px otherwise
                         var nc = _nameBase; nc.a *= _textFade; _name.color = nc;
                         _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
                         _name.transform.localPosition = new Vector3(cx, cy, 0);
