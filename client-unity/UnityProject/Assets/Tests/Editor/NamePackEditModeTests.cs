@@ -131,13 +131,15 @@ namespace Roguehalla.Client.Tests
         public void AMobThatWalksAwayGetsItsNameBackAndOneThatJoinsLosesIt()
         {
             Frame(Pack());
-            Assert.That(_presenter.NameShown(3), Is.False);
-            var pack = Pack(); pack[2].X += 1600f;   // id 3 leaves
+            Assert.That(_presenter.NameShown(4), Is.False);
+            // An END of the chain leaves (id 4): the other three still chain into one pack. (Removing a middle member
+            // would split the chain into two packs, 200 px apart, which the pack rule correctly shows as two names.)
+            var pack = Pack(); pack[0].X -= 1600f;   // id 4 leaves
             Frame(pack);
-            Assert.That(_presenter.NameShown(3), Is.True, "back");
-            Assert.That(ShownCount(1, 2, 4), Is.EqualTo(1));
+            Assert.That(_presenter.NameShown(4), Is.True, "back");
+            Assert.That(ShownCount(1, 2, 3), Is.EqualTo(1));
             Frame(Pack());
-            Assert.That(_presenter.NameShown(3), Is.False, "rejoined");
+            Assert.That(_presenter.NameShown(4), Is.False, "rejoined");
         }
 
         [Test]
