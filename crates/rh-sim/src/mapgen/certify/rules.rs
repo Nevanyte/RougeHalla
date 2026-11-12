@@ -168,7 +168,14 @@ pub const KINDS: [Kind; 13] = [
 /// `LavaStream` and `LavaPool` hold only LOW lava (never wall), like the legacy `LavaRiver` row they replace in
 /// signature mode, and own their ember edge as floor (the certifier's `feature-hazards` rule fails unowned hazard
 /// floor). Every wall or LOW piece needs `piece_min` solid tiles (`feature-size`).
-pub const SIGNATURE_KINDS: [Kind; 6] = [
+///
+/// Frost (P-MAPGEN-SIG-FROST-1): `Cave` is a wall chamber (the ring) that owns its ice floor. Wall, no LOW (the
+/// chamber holds no water or chasm), terrain 0 (the row's terrain binds LOW tiles only; owned floor may carry any
+/// terrain, and owning the ice is what `feature-hazards` asks of hazard floor in a strict zone), job landmark. The ice
+/// is the cave's own, not a `Mere`: a mere's params count its lake's ice (`feature-params`), and the Frost styler's
+/// lakes are numbered by its plan. Ice must still keep floor on all eight sides (`ice-neighbours`) and stay off camp
+/// clearings and halos (`terrain-protected`).
+pub const SIGNATURE_KINDS: [Kind; 7] = [
     Kind {
         kind: K::BogTree,
         params_min: 0,
@@ -216,6 +223,14 @@ pub const SIGNATURE_KINDS: [Kind; 6] = [
         low: true,
         terrain: 1,
         jobs: &[J::Crossing],
+    },
+    Kind {
+        kind: K::Cave,
+        params_min: 0,
+        wall: true,
+        low: false,
+        terrain: 0,
+        jobs: &[J::Landmark],
     },
 ];
 /// The certifier's row for a feature kind: the legacy table, then the signature table.

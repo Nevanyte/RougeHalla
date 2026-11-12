@@ -23,8 +23,8 @@ pub struct Settings {
     /// `--map-pool` (P-MAP-3, source-arena only, off by default): every room takes its own certified generated map from
     /// [`crate::map_pool::MapPool`]; `--map` is the last resort.
     pub map_pool: bool,
-    /// `--signature-landmarks` (owner decision 6; needs `--map-pool`): pooled maps get the signature landmarks
-    /// ([`crate::signature`]).
+    /// `--signature-landmarks` (owner decision 6; needs `--map-pool`): pooled maps are generated with the signature
+    /// landmarks (`rh_sim::mapgen::pipeline::Options::signature`, set by [`crate::map_pool::StyledMaker`]).
     pub signature_landmarks: bool,
 }
 

@@ -1,5 +1,11 @@
 use super::*;
-use crate::mapgen::{landmarks::recipe_support::js_round, style_features::dir_index16};
+use crate::mapgen::{
+    landmarks::{
+        recipe_support::js_round,
+        signature::{self, band, Band},
+    },
+    style_features::dir_index16,
+};
 pub(super) const NORMALS: [[i32; 2]; 8] = [
     [1, 0],
     [-1, 0],
@@ -117,14 +123,54 @@ pub(super) fn run(cb: &Callbacks<'_>, c: &mut ShapeContext<'_, '_>) -> Result<Pl
         },
         |i| b.is_owned(i),
     );
-    let allow = rime::allow_field(&input, &clr, &cb.shared, |i| b.is_owned(i));
-    let mut lakes = lakes::grow_lakes(&b, &c.streams.noise, &clr, &allow, d, &cb.shared);
+    let mut allow = rime::allow_field(&input, &clr, &cb.shared, |i| b.is_owned(i));
+    // Signature mode (P-MAPGEN-SIG-FROST-1): `signature_anchor` is `Some` only when the Landmarks phase placed the cave
+    // in this zone. No lake tile in the cave's core band (its apron), and the mere is seeded at the mouth. Option off
+    // this is `None` and the styler draws and places exactly what it did before (G8). The mere also keeps off the
+    // route guard's corridor and, once the spawn routes are drawn, off them (`lakes::keep_off_routes`), so the ice at
+    // the mouth stays one body.
+    let anchor = signature_anchor(c.base());
+    let sd = &signature::DEFAULT_DEFINITION;
+    let mut book = routes::RouteBook::new(&b, &corridor, cb.fixed, d);
+    let seeded = anchor.as_ref().and_then(|a| {
+        for (i, v) in allow.iter_mut().enumerate() {
+            if *v == 1 && band(a, (i % w) as i32, (i / w) as i32) == Band::Core {
+                *v = 0;
+            }
+        }
+        let free: Vec<u8> = allow
+            .iter()
+            .zip(&book.band)
+            .map(|(&v, &r)| u8::from(v == 1 && r == 0))
+            .collect();
+        let mouth: Vec<usize> = a
+            .entrance
+            .iter()
+            .map(|p| p.y as usize * w + p.x as usize)
+            .collect();
+        lakes::grow_lakes_at(&b, &c.streams.noise, &clr, &free, d, &cb.shared, &mouth, sd)
+    });
+    let signature_mode = seeded.is_some();
+    let mut lakes = match seeded {
+        Some(l) => l,
+        None => lakes::grow_lakes(&b, &c.streams.noise, &clr, &allow, d, &cb.shared),
+    };
     if lakes.is_empty() {
         return Ok(plan);
     }
-    let mut book = routes::RouteBook::new(&b, &corridor, cb.fixed, d);
     book.ensure(&b, &lakes, d, cb.fixed);
     lakes::fill(&b, &allow, &mut lakes, &mut book, d, cb.fixed);
+    if signature_mode {
+        lakes::keep_off_routes(
+            &b,
+            &allow,
+            &mut lakes,
+            &mut book,
+            d,
+            cb.fixed,
+            sd.lake_rounds,
+        );
+    }
     plan.routed = book.routed;
     let mut chosen: Vec<i32> = b
         .camps

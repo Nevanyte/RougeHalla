@@ -428,3 +428,78 @@ fn the_configured_map_is_described_as_configured() {
     assert_eq!(served.seed, None);
     assert!(served.to_string().contains("configured"), "{served}");
 }
+
+/// P-MAPGEN-SIG-FROST-1: with all five zones' landmarks in the generator (`rh_sim::mapgen::landmarks::signature`),
+/// `--signature-landmarks` sets the generator's signature option and nothing else. The maker's options are the
+/// server's (no decor) with and without the flag; with it, a served map (seeds 1-2) holds the generator's one volcano,
+/// church, bog tree and cave, and is exactly the generator's own map, exported (no post-pass touches it); the
+/// server's post-pass module (`src/signature.rs`, `src/signature/tests.rs`) is gone.
+#[test]
+fn signature_landmarks_only_set_the_generator_option() {
+    use rh_sim::mapdata::{FeatureKind, MapExport, Zone};
+    use rh_sim::mapgen::{coliseum, map_hash, pipeline};
+    assert_eq!(
+        StyledMaker::default().options(),
+        pipeline::Options {
+            decor: false,
+            ..pipeline::Options::default()
+        }
+    );
+    let maker = StyledMaker { signature: true };
+    assert_eq!(
+        maker.options(),
+        pipeline::Options {
+            decor: false,
+            signature: true,
+            ..pipeline::Options::default()
+        },
+        "the maker does not pass the signature option"
+    );
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    for seed in 1..=2u32 {
+        let served = maker.make(seed).unwrap().expect("a served map");
+        let data = served.map.layers().expect("map layers").data();
+        for (kind, zone) in [
+            (FeatureKind::Volcano, Zone::Fire),
+            (FeatureKind::Church, Zone::Sentenced),
+            (FeatureKind::BogTree, Zone::Plague),
+            (FeatureKind::Cave, Zone::Frost),
+        ] {
+            let n = data
+                .features
+                .iter()
+                .filter(|f| f.kind == kind && f.zone == zone)
+                .count();
+            assert_eq!(n, 1, "seed {seed}: the served map has {n} {kind:?}");
+        }
+        let generated = generator
+            .certified_styled(i64::from(seed), maker.options())
+            .unwrap()
+            .expect("certified");
+        let hash = u32::from_str_radix(&map_hash::map_hash(&generated), 16).unwrap();
+        let direct = MapExport {
+            format: "rh-map/2".into(),
+            legacy_map_hash_u32: hash,
+            map: generated,
+        }
+        .validate()
+        .unwrap()
+        .into_arena()
+        .unwrap();
+        assert!(
+            served == direct,
+            "seed {seed}: the served map is not the generator's own map"
+        );
+    }
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    assert!(
+        !src.join("signature.rs").exists() && !src.join("signature").exists(),
+        "the post-pass module src/signature.rs is still in the tree"
+    );
+    let lib = std::fs::read_to_string(src.join("lib.rs")).unwrap();
+    assert!(
+        !lib.lines().any(|l| l.trim() == "pub mod signature;"),
+        "lib.rs still declares the signature module"
+    );
+}

@@ -1,4 +1,5 @@
 use super::*;
+use crate::mapgen::landmarks::signature;
 use crate::mapgen::style_features::{argmax_in, fbm_q, flood_above, majority_smooth, tau_for_area};
 #[derive(Clone)]
 pub(super) struct Lake {
@@ -192,6 +193,135 @@ pub(super) fn grow_lakes(
     }
     out.push(one);
     out
+}
+/// Signature mode (P-MAPGEN-SIG-FROST-1): the first lake (the mere) is seeded at the cave's mouth instead of the
+/// zone's clearest tile. Seed candidates are the allowed tiles at most `lake_reach` floor steps from a mouth tile, most
+/// clearance first (then fewest steps, then row order); the first that grows a lake is kept. Its value field falls
+/// with chamfer distance from the seed (the clearance field's units) plus the same noise, so the lake spreads round
+/// the seed rather than flowing to the zone's open middle. The second lake is today's, grown to at most `second_share`
+/// percent of the mere's area so the mere stays the zone's largest lake. `None` when no candidate grows a lake: the
+/// caller runs today's `grow_lakes`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn grow_lakes_at(
+    b: &BaseContext<'_>,
+    noise: &crate::mapgen::style_features::Noise,
+    clr: &[i32],
+    allow: &[u8],
+    d: &Definition,
+    shared: &rime::Definition<'_>,
+    mouth: &[usize],
+    sd: &signature::Definition,
+) -> Option<Vec<Lake>> {
+    let (reach, tries) = (sd.lake_reach, sd.lake_tries);
+    let (w, h) = (b.w, b.h);
+    let mut steps = vec![usize::MAX; w * h];
+    let mut queue: Vec<usize> = mouth.to_vec();
+    for &i in mouth {
+        steps[i] = 0;
+    }
+    let mut head = 0;
+    while head < queue.len() {
+        let i = queue[head];
+        head += 1;
+        if steps[i] >= reach {
+            continue;
+        }
+        let (x, y) = (i % w, i / w);
+        for (ok, j) in [
+            (x > 0, i.wrapping_sub(1)),
+            (x + 1 < w, i + 1),
+            (y > 0, i.wrapping_sub(w)),
+            (y + 1 < h, i + w),
+        ] {
+            if ok && steps[j] == usize::MAX && b.tiles[j] == TILE_FLOOR {
+                steps[j] = steps[i] + 1;
+                queue.push(j);
+            }
+        }
+    }
+    let mut seeds: Vec<usize> = queue.into_iter().filter(|&i| allow[i] == 1).collect();
+    seeds.sort_by(|&p, &q| {
+        clr[q]
+            .cmp(&clr[p])
+            .then(steps[p].cmp(&steps[q]))
+            .then(p.cmp(&q))
+    });
+    let one = seeds.iter().take(tries).find_map(|&first| {
+        let (fx, fy) = ((first % w) as i32, (first / w) as i32);
+        let mut val = value_field(b, noise, clr, allow, d.salt_one, d);
+        for (i, v) in val.iter_mut().enumerate() {
+            if allow[i] == 1 {
+                let (dx, dy) = (((i % w) as i32 - fx).abs(), ((i / w) as i32 - fy).abs());
+                *v -= d.value_clearance * (clr[i] + 3 * dx.max(dy) + dx.min(dy));
+            }
+        }
+        grow(b, val, allow, first, d.lake_grow, d)
+    })?;
+    let first = one.seed;
+    let mut out = vec![one];
+    if b.zone.painted >= shared.two_lakes_painted {
+        let open = off_limits(w, h, allow, &out[0], d.lake_gap);
+        if let Some(second) = rime::second_seed(w, clr, &open, first, shared) {
+            if let Some(two) = grow(
+                b,
+                value_field(b, noise, clr, &open, d.salt_two, d),
+                &open,
+                second,
+                d.lake_grow.min(out[0].area * sd.second_share / 100),
+                d,
+            ) {
+                out.push(two);
+            }
+        }
+    }
+    Some(out)
+}
+/// Signature mode: while the first lake (the mere at the mouth) has a tile on a route band (where it would be plain
+/// causeway, cutting its ice in pieces), regrow it to the same area on the allowed tiles off every band and off the
+/// second lake's surroundings, from its seed (or, if a band took the seed, from its highest-valued tile still free),
+/// then draw the routes the new shape needs; at most `rounds` times.
+pub(super) fn keep_off_routes(
+    b: &BaseContext<'_>,
+    allow: &[u8],
+    lakes: &mut [Lake],
+    book: &mut routes::RouteBook,
+    d: &Definition,
+    fixed: &FixedLayout,
+    rounds: usize,
+) {
+    for _ in 0..rounds {
+        if !lakes[0]
+            .set
+            .iter()
+            .zip(&book.band)
+            .any(|(&v, &r)| v == 1 && r == 1)
+        {
+            return;
+        }
+        let mut open = match lakes.get(1) {
+            Some(two) => off_limits(b.w, b.h, allow, two, d.lake_gap),
+            None => allow.to_vec(),
+        };
+        for (v, &r) in open.iter_mut().zip(&book.band) {
+            if r == 1 {
+                *v = 0;
+            }
+        }
+        let one = &lakes[0];
+        let seed = if open[one.seed] == 1 {
+            Some(one.seed)
+        } else {
+            (0..one.set.len())
+                .filter(|&i| one.set[i] == 1 && open[i] == 1)
+                .max_by_key(|&i| (one.val[i], core::cmp::Reverse(i)))
+        };
+        let Some(bigger) = seed.and_then(|s| grow(b, one.val.clone(), &open, s, one.area, d))
+        else {
+            return;
+        };
+        lakes[0] = bigger;
+        book.ensure(b, lakes, d, fixed);
+    }
 }
 pub(super) fn fill(
     b: &BaseContext<'_>,

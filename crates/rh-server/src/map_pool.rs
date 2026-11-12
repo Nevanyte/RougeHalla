@@ -55,13 +55,14 @@ pub trait MapMaker: Send + Sync + 'static {
 /// server builds no decor (props are cosmetic and the client draws its own).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StyledMaker {
-    /// Add the signature landmarks (`crate::signature`, owner decision 6) to every map.
+    /// Generate every map with the signature landmarks (owner decision 6): the generator's `Options::signature`.
     pub signature: bool,
 }
 
 impl StyledMaker {
-    /// The generator options this maker runs with: no decor, and with `signature` the generator places the church and
-    /// the bog tree itself (P-MAPGEN-SIGNATURE-CORE-1).
+    /// The generator options this maker runs with: no decor, and with `signature` the generator places every zone's
+    /// signature landmark itself (`rh_sim::mapgen::landmarks::signature`; P-MAPGEN-SIGNATURE-CORE-1, P-MAPGEN-SIG-FIRE-1,
+    /// P-MAPGEN-SIG-FROST-1). Nothing is added after generation.
     pub fn options(&self) -> rh_sim::mapgen::pipeline::Options {
         rh_sim::mapgen::pipeline::Options {
             decor: false,
@@ -77,21 +78,12 @@ impl MapMaker for StyledMaker {
         let fixed = coliseum::fixed_layout();
         let generator = pipeline::Pipeline::new(&fixed);
         let options = self.options();
-        let Some(mut map) = generator
+        let Some(map) = generator
             .certified_styled(i64::from(seed), options)
             .map_err(|e| format!("{e:?}"))?
         else {
             return Ok(None);
         };
-        if self.signature {
-            let report = crate::signature::apply(&mut map);
-            if !report.skipped.is_empty() {
-                eprintln!(
-                    "[maps] seed {seed}: signature landmarks placed {:?}, skipped {:?}",
-                    report.placed, report.skipped
-                );
-            }
-        }
         let legacy_map_hash_u32 =
             u32::from_str_radix(&map_hash::map_hash(&map), 16).map_err(|e| e.to_string())?;
         let arena = rh_sim::mapdata::MapExport {
@@ -285,7 +277,7 @@ pub struct MapPool {
 }
 
 impl MapPool {
-    /// Starts a pool over the real generator with the legacy sizes; `signature` adds the signature landmarks.
+    /// Starts a pool over the real generator with the legacy sizes; `signature` generates with the signature landmarks.
     pub fn start(configured: MapAssets, signature: bool) -> Self {
         Self::with(
             configured,

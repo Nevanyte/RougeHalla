@@ -74,3 +74,9 @@ supported coordinate envelope. When the fixed field matches the callback grid, g
 and shifted mouths must also lie inside that grid before shape initializes its guard or any
 phase writes. These checks bound route sampling and refuse malformed metadata atomically;
 the source defaults, capture tool, fixture and callback algorithms are unchanged.
+
+Signature mode (P-MAPGEN-SIG-FROST-1, ADR 0028 decision 11) runs only when the zone holds the
+signature step's `Cave` feature (`signature_anchor`): the mere is seeded within reach of the
+cave's mouth (`lakes::grow_lakes_at`), no lake tile lies in the cave's core band, the mere keeps
+off the spawn routes (`lakes::keep_off_routes`) and the second lake stays smaller. Without the
+feature every draw and write above is unchanged (G8).

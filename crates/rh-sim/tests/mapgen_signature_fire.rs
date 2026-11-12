@@ -36,13 +36,14 @@ const FIRE_KINDS: [FeatureKind; 3] = [
     FeatureKind::LavaStream,
     FeatureKind::LavaPool,
 ];
-const SIGNATURE: [FeatureKind; 6] = [
+const SIGNATURE: [FeatureKind; 7] = [
     FeatureKind::BogTree,
     FeatureKind::Church,
     FeatureKind::Graveyard,
     FeatureKind::Volcano,
     FeatureKind::LavaStream,
     FeatureKind::LavaPool,
+    FeatureKind::Cave,
 ];
 /// The legacy river's lava, with the option off, seeds 1-16: 107-158 tiles (packet brief). The band the streams and
 /// pools keep to.
@@ -604,8 +605,8 @@ fn craters_are_arranged_by_band_round_the_volcano() {
 // G3, G5: the anchor and the certifier.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// Every option-on map certifies with zero failures (every zone strict); the anchors are Fire, Sentenced, Plague and
-/// Holy in zone-code order; Fire's is the volcano (its box, its anchor point, the front toward the coliseum, no
+/// Every option-on map certifies with zero failures (every zone strict); the anchors other than Frost's are Fire,
+/// Sentenced, Plague and Holy in zone-code order; Fire's is the volcano (its box, its anchor point, the front toward the coliseum, no
 /// entrance); no styler feature owns a tile of the volcano's apron.
 #[test]
 fn fire_maps_certify_clean_and_carry_the_volcano_anchor() {
@@ -626,7 +627,13 @@ fn fire_maps_certify_clean_and_carry_the_volcano_anchor() {
             .map(|f| format!("{}/{}", f.rule, f.subject))
             .collect();
         assert!(failures.is_empty(), "seed {seed}: {failures:?}");
-        let zones: Vec<Zone> = m.anchors.iter().map(|a| a.zone).collect();
+        // Frost's anchor (the cave) is P-MAPGEN-SIG-FROST-1's, checked by `mapgen_signature_frost.rs`.
+        let zones: Vec<Zone> = m
+            .anchors
+            .iter()
+            .map(|a| a.zone)
+            .filter(|&z| z != Zone::Frost)
+            .collect();
         assert_eq!(
             zones,
             [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Holy],
