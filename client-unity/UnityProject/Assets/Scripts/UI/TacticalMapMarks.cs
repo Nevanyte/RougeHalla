@@ -64,6 +64,17 @@ namespace Roguehalla.Client
         bool[] _zoneFound = new bool[MapZones.Count + 1];
         double[] _zoneX = new double[MapZones.Count + 1], _zoneY = new double[MapZones.Count + 1];
         public int ContactCount => _actors.Count;
+        /// <summary>The own-position ring as drawn, in this graphic's local space (what a label must stay clear of); null without a position.
+        /// STUB (P-UNITY-HUD-VISUAL-FIX-3): same geometry as the mesh pass (26 x scale across).</summary>
+        public Rect? SelfMarkerRect
+        {
+            get
+            {
+                if (!_self.HasValue || _map == null) return null;
+                float size = 26f * (Large ? 1.2f : 1f); var p = At(_self.Value);
+                return new Rect(p.x - size * .5f, p.y - size * .5f, size, size);
+            }
+        }
         /// <summary>Camp markers the model produced for the last presentation (map knowledge, drawn regardless of sight).</summary>
         public int CampMarkerCount => _camps.Count;
         /// <summary>Camp markers actually drawn: those not covered by a contact within <see cref="CampDropPx"/>.</summary>
@@ -256,6 +267,14 @@ namespace Roguehalla.Client
                     if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
                     if (text.text != camp.Clock) text.text = camp.Clock;
                     text.rectTransform.anchoredPosition = p + new Vector2(0f, Large ? -16f : -12f);
+                    // Standing on the camp puts the own ring over the clock: move the clock under the ring instead.
+                    var ring = SelfMarkerRect;
+                    if (ring.HasValue)
+                    {
+                        var size = text.rectTransform.sizeDelta; var at = text.rectTransform.anchoredPosition;
+                        var box = new Rect(at - size * .5f, size);
+                        if (box.Overlaps(ring.Value)) text.rectTransform.anchoredPosition = new Vector2(at.x, ring.Value.yMin - 2f - size.y * .5f);
+                    }
                 }
             for (int i = used; i < _campClocks.Count; i++) if (_campClocks[i].gameObject.activeSelf) _campClocks[i].gameObject.SetActive(false);
             CampClocksShown = used;
