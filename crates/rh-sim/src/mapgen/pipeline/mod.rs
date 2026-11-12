@@ -614,6 +614,7 @@ impl<'f> Pipeline<'f> {
             &mut state.territory_grid,
         )
         .map_err(|_| Error::Leaf("records admission"))?;
+        let placed_any = placed.is_some();
         if let Some(p) = placed {
             self.signature.finish(&mut map, p.anchors);
         }
@@ -640,6 +641,10 @@ impl<'f> Pipeline<'f> {
         {
             return Ok(AttemptReport::refused(Refusal::Terrain));
         }
+        // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
+        if placed_any && (!self.signature.intact(&map) || !certifies(&map)) {
+            return Ok(AttemptReport::refused(Refusal::Signature));
+        }
         observe(Phase::Gates, &frame.rng, &kept);
         Ok(AttemptReport {
             map: Some(map),
@@ -652,6 +657,18 @@ fn world(t: usize) -> WorldPt {
         x: (t % W) as f64 * TILE + TILE / 2.0,
         y: (t / W) as f64 * TILE + TILE / 2.0,
     }
+}
+/// Zero failures under the strictest certification (every zone strict).
+fn certifies(map: &GameMapData) -> bool {
+    super::certify::certify(
+        map,
+        &super::certify::Options {
+            styled: true,
+            zone: true,
+            strict: super::certify::Strict::All,
+        },
+    )
+    .is_ok_and(|c| c.failures.is_empty())
 }
 fn first_attempt<T, E>(
     limit: u64,
