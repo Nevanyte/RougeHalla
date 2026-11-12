@@ -78,7 +78,38 @@ namespace Roguehalla.Net.Ui
         /// </summary>
         public static int DecidePacks(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch)
         {
-            return 0;
+            for (int i = 0; i < count; i++) scratch[i] = i;
+            float d2 = packDistance * packDistance;
+            for (int i = 0; i < count; i++)
+            {
+                if (!InPacks(items[i])) continue;
+                for (int j = i + 1; j < count; j++)
+                {
+                    if (!InPacks(items[j]) || items[i].Text != items[j].Text) continue;
+                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                    if (dx * dx + dy * dy >= d2) continue;
+                    int ri = Root(scratch, i), rj = Root(scratch, j);
+                    if (ri == rj) continue;
+                    // The root of a pack is its lowest id.
+                    if (items[ri].Id < items[rj].Id) scratch[rj] = ri; else scratch[ri] = rj;
+                }
+            }
+            int shownCount = 0;
+            for (int i = 0; i < count; i++)
+            {
+                bool show = !InPacks(items[i]) || Root(scratch, i) == i;
+                shown[i] = show;
+                if (show) shownCount++;
+            }
+            return shownCount;
+        }
+
+        static bool InPacks(NameMergeItem it) { return !it.Elite && !it.Always && !string.IsNullOrEmpty(it.Text); }
+
+        static int Root(int[] parent, int i)
+        {
+            while (parent[i] != i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+            return i;
         }
     }
 }
