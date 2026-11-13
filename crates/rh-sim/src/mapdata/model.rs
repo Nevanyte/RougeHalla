@@ -201,6 +201,9 @@ pub enum FeatureKind {
     /// Signature landmark (P-MAPGEN-SIG-FROST-1, no legacy counterpart): the Frost cave, a wall chamber round the far
     /// elite camp, closed except for one mouth (the anchor's `entrance`), owning its ice floor. Frost's anchor.
     Cave,
+    /// Signature styler feature (P-LAND-PLAGUE-1, no legacy counterpart): one free bog pool of the Plague zone in
+    /// signature mode, overlapping discs of floor with terrain bog that it owns (no wall, no LOW).
+    BogPool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

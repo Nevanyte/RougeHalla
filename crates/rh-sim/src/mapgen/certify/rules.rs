@@ -175,7 +175,11 @@ pub const KINDS: [Kind; 13] = [
 /// is the cave's own, not a `Mere`: a mere's params count its lake's ice (`feature-params`), and the Frost styler's
 /// lakes are numbered by its plan. Ice must still keep floor on all eight sides (`ice-neighbours`) and stay off camp
 /// clearings and halos (`terrain-protected`).
-pub const SIGNATURE_KINDS: [Kind; 7] = [
+///
+/// Plague (P-LAND-PLAGUE-1): `BogPool` is one free pool of the Plague styler in signature mode: owned floor carrying
+/// terrain bog (owning it is what `feature-hazards` asks of hazard floor in a strict zone). No wall, no LOW, terrain 0
+/// (the row's terrain binds LOW tiles only), no params, job crossing.
+pub const SIGNATURE_KINDS: [Kind; 8] = [
     Kind {
         kind: K::BogTree,
         params_min: 0,
@@ -231,6 +235,14 @@ pub const SIGNATURE_KINDS: [Kind; 7] = [
         low: false,
         terrain: 0,
         jobs: &[J::Landmark],
+    },
+    Kind {
+        kind: K::BogPool,
+        params_min: 0,
+        wall: false,
+        low: false,
+        terrain: 0,
+        jobs: &[J::Crossing],
     },
 ];
 /// The certifier's row for a feature kind: the legacy table, then the signature table.

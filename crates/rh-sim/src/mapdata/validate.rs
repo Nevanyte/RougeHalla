@@ -474,7 +474,8 @@ fn feature_params(d: &LayerData, f: &MapFeature, path: &str) -> Result<(), MapDa
         | FeatureKind::Volcano
         | FeatureKind::LavaStream
         | FeatureKind::LavaPool
-        | FeatureKind::Cave => p.is_empty(),
+        | FeatureKind::Cave
+        | FeatureKind::BogPool => p.is_empty(),
     };
     require(
         ok,

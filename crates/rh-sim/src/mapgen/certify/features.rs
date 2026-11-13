@@ -346,7 +346,8 @@ pub(super) fn check(m: &GameMapData, out: &mut Certificate) {
             | K::Volcano
             | K::LavaStream
             | K::LavaPool
-            | K::Cave => p.len() == kind.params_min,
+            | K::Cave
+            | K::BogPool => p.len() == kind.params_min,
         };
         out.check("feature-params", format!("p{k}"), valid);
     }
