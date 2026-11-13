@@ -52,6 +52,12 @@ namespace Roguehalla.Client
         const float FootprintOutline = .72f;
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; SpriteOutline.ConfigureFromUrl(Application.absoluteURL); /* CONTRAST */ }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
+        /// <summary>
+        /// The delivered camps (Session.Map.Camps and Session.Collections.Camps, index-aligned) so a mob's name can be packed by camp
+        /// (P-UNITY-HUD-VISUAL-FIX-4, <see cref="NameMerge.CampOfMob"/>). Null or empty: every mob has no camp and packs by distance.
+        /// Stub: stores nothing; the implementer keeps the arrays and uses them in the pack merge. ArenaView calls it (coordinator wiring).
+        /// </summary>
+        public void SetCamps(MapCamp[] camps, IReadOnlyList<CampView> rows) { }
         public int ActiveCount { get { return _active.Count; } }
         /// <summary>True when the actor's overhead name label is drawn this frame (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         public bool NameShown(uint id) { return _active.TryGetValue(id, out var art) && art.Ind.NameActive; }
