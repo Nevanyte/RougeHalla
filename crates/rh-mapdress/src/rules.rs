@@ -68,6 +68,29 @@ pub struct RingRule {
     pub on: Vec<TileClass>,
 }
 
+/// P-DRESS-ANCHOR-1: the generator's distance bands (`signature::band`, G4), re-exported so rules and callers name one type.
+pub use rh_sim::mapgen::landmarks::signature::Band;
+
+/// A ring of the landmark path: every tile of the zone whose `signature::band` from the zone's anchor footprint is
+/// `band` (instead of a distance range from a feature centre).
+#[derive(Clone, Debug, PartialEq)]
+pub struct BandRing {
+    pub name: String,
+    pub band: Band,
+    pub ground_variant: u8,
+    pub props: Vec<RingProp>,
+    pub on: Vec<TileClass>,
+}
+
+/// The rings a zone lays round the generator's landmark (`GameMapData.anchors`); used for a zone only when the map has
+/// an anchor for it. Otherwise the zone's `signature_feature` and `rings` (the fallback path) apply as before.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LandmarkRules {
+    /// The landmark's feature kind: `Volcano`, `Church`, `BogTree`, `Cave` or `Hall`. Must equal the anchor's `kind`.
+    pub feature: FeatureKind,
+    pub rings: Vec<BandRing>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClusterRule {
     pub name: String,
@@ -115,6 +138,8 @@ pub struct ZoneRules {
     /// The zone's signature feature kind; the largest such feature of the zone is the ring anchor.
     pub signature_feature: FeatureKind,
     pub rings: Vec<RingRule>,
+    /// The landmark path (P-DRESS-ANCHOR-1); `None` for a file without `signature.landmark`.
+    pub landmark: Option<LandmarkRules>,
     pub clusters: Vec<ClusterRule>,
     pub edges: Vec<EdgeRule>,
     pub fillers: Vec<FillerRule>,
@@ -230,6 +255,33 @@ struct RawZone {
 struct RawSignature {
     feature: FeatureKind,
     rings: Vec<RawRing>,
+    #[serde(default)]
+    landmark: Option<RawLandmark>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLandmark {
+    feature: FeatureKind,
+    rings: Vec<RawBandRing>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawBandRing {
+    name: String,
+    band: RawBand,
+    #[serde(default)]
+    ground_variant: u8,
+    props: Vec<RawRingProp>,
+    #[serde(default = "floor_only")]
+    on: Vec<TileClass>,
+}
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum RawBand {
+    Core,
+    Near,
+    Mid,
+    Far,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -465,10 +517,46 @@ impl Raw {
                     on: f.on.clone(),
                 });
             }
+            // STUB (P-DRESS-ANCHOR-1): parses the landmark block and resolves kinds, densities and names. Still to do
+            // (tests/landmark_rules.rs): refuse a second ring for one band and a ring with no props, naming the rule;
+            // refuse an unknown band naming the rule (serde's message does not); `allowed_classes` must include these rings.
+            let landmark = match &rz.signature.landmark {
+                None => None,
+                Some(l) => {
+                    let mut band_rings = Vec::new();
+                    for r in &l.rings {
+                        claim(&r.name)?;
+                        let mut props = Vec::new();
+                        for p in &r.props {
+                            props.push(RingProp {
+                                kind: code(&r.name, &p.kind)?,
+                                density: density(&r.name, p.density)?,
+                            });
+                        }
+                        band_rings.push(BandRing {
+                            name: r.name.clone(),
+                            band: match r.band {
+                                RawBand::Core => Band::Core,
+                                RawBand::Near => Band::Near,
+                                RawBand::Mid => Band::Mid,
+                                RawBand::Far => Band::Far,
+                            },
+                            ground_variant: r.ground_variant,
+                            props,
+                            on: r.on.clone(),
+                        });
+                    }
+                    Some(LandmarkRules {
+                        feature: l.feature,
+                        rings: band_rings,
+                    })
+                }
+            };
             zones.push(ZoneRules {
                 zone: z,
                 signature_feature: rz.signature.feature,
                 rings,
+                landmark,
                 clusters,
                 edges,
                 fillers,
