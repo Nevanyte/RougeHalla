@@ -43,7 +43,9 @@ use std::time::{Duration, Instant};
 /// build summary (State key 13); bots do not decide on them.
 /// Version 20 (observation 26, P-WIRE17-HUD-2): the owner's build summary carries its champion panel values; bots do
 /// not decide on them.
-pub const POLICY_CONTRACT_VERSION: u16 = 20;
+/// Version 21 (observation 27, P-WIRE17-HUD-2c): the owner's champion panel gains codes 23-27 (Fire roam speed bonus and
+/// burst, hit multiplier, weapon scaling split); bots do not decide on them.
+pub const POLICY_CONTRACT_VERSION: u16 = 21;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1852,7 +1854,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 20);
+        assert_eq!(POLICY_CONTRACT_VERSION, 21);
     }
 }
 
