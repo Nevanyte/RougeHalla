@@ -33,6 +33,22 @@ pub const MAX_GATE_TILES: usize = 16;
 /// Most cosmetic props (reserved section; ships empty).
 pub const MAX_MAP_PROPS: usize = 8192;
 
+// P-DRESS-BAKE-1 (stub: the values are the brief's; the checks that use them are the implementer's).
+/// Prop flag: drawn tall (`rh_mapdress::FLAG_TALL`).
+pub const PROP_FLAG_TALL: u8 = 1;
+/// Prop flag: a generator `GameMapData.props` entry; `kind` is a legacy prop-catalogue index (`rh_mapdress::FLAG_LEGACY`).
+pub const PROP_FLAG_LEGACY: u8 = 2;
+/// Highest rule-file kind code: five zones x ten codes x two blocks (`crates/rh-mapdress/src/rules.rs` module doc).
+/// Rule props carry `1..=MAX_PROP_KIND`.
+pub const MAX_PROP_KIND: u8 = 100;
+/// Legacy props carry a kind below this: the generator's prop catalogue
+/// (`rh_sim::mapgen::terrain_gate::DEFAULT_DEFINITION.props`).
+pub const LEGACY_PROP_KINDS: u8 = 34;
+/// Highest sprite variant of a rule prop (`rh_mapdress` draws `0..=3`); a legacy prop's variant is its generator `v`.
+pub const MAX_PROP_VARIANT: u8 = 3;
+/// Highest ground-variant id in the ground-variant plane.
+pub const MAX_GROUND_VARIANT: u8 = 15;
+
 /// One camp marker, index-aligned with the `WireCamp` rows in state. World units; `zone` is `Zone::code` (1..=5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MapCamp {

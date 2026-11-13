@@ -257,6 +257,17 @@ impl Settings {
     }
 }
 
+/// P-DRESS-BAKE-1: the shipped dressing rules (`crates/rh-mapdress/rules/zones.json`), embedded at build time.
+pub const DRESS_RULES_JSON: &str = include_str!("../../rh-mapdress/rules/zones.json");
+
+/// P-DRESS-BAKE-1: parses dressing rules at start-up. A file that fails to parse is an error whose message names the
+/// dressing rules and the parser's reason; the server never serves an undressed map in its place.
+/// Stub: ignores `text` (the implementer parses it).
+pub fn dress_rules(text: &str) -> Result<rh_mapdress::Rules, String> {
+    let _ = text;
+    Ok(rh_mapdress::Rules::starter())
+}
+
 /// Unlike the core loader, this refuses collision-only maps and validates real gates, coliseum, layers and spawns.
 pub fn source_map(bytes: &[u8]) -> Result<Arena, String> {
     let map: rh_sim::mapdata::MapExport =
