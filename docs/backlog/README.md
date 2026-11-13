@@ -416,7 +416,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-MAPGEN-SIGNATURE-CORE-1 | the generator places each zone's landmark right after the zones, and everything later is built around it | P-SIGNATURE-1-fix, P-SIGNATURE-2 | Done (17272682; [spec](packets/P-MAPGEN-SIGNATURE-CORE-1.md)) | see spec |
 | P-MECHANICS-SALVAGE-1 | the on-hit rules of `fix/mechanics-sim` (Best Offense block hits, Eye for an Eye returned on-hit, axe shred k, Fire backlash as returned damage) | P-CAMP-BUFF-THEMES-1, P-FROST-WALL-1 | Done (21417e80; [spec](packets/P-MECHANICS-SALVAGE-1.md)) | see spec |
 | P-MECHANICS-SALVAGE-2 | block and riposte bookkeeping from `fix/mechanics-sim` (Best Offense pending note, card weapon-hit test, riposte returned mult) | P-MECHANICS-SALVAGE-1, P-MECHANICS-SALVAGE-3 | Done (243bd561; [spec](packets/P-MECHANICS-SALVAGE-2.md)) | see spec |
-| P-MECHANICS-SALVAGE-3 | camp-clear and Wish bookkeeping from `fix/mechanics-sim` (bruiser mirror rows, armWishes effect refresh, resetAll DoT crit memory) | P-MECHANICS-SALVAGE-2 | In flight ([spec](packets/P-MECHANICS-SALVAGE-3.md)) | see spec |
+| P-MECHANICS-SALVAGE-3 | camp-clear and Wish bookkeeping from `fix/mechanics-sim` (bruiser mirror rows, armWishes effect refresh, resetAll DoT crit memory) | P-MECHANICS-SALVAGE-2 | Done (447ba55c; [spec](packets/P-MECHANICS-SALVAGE-3.md)) | see spec |
 | P-NPC-BLEED-RESTORE-1 | accept earned Hemorrhage bleed on regional NPC restore | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-NPC-BLEED-RESTORE-1.md)) | see spec |
 | P-TERRAIN-MARSH-1 | mud and water ground (two new slow terrains), Plague exempt | P-WIRE17-HUD-2b | Cancelled ([spec](packets/P-TERRAIN-MARSH-1.md)) | see spec |
 | P-TRAINING-CAMPS-1 | practice camps count as legacy counts them, and the console's clear resets camp progress | P-MECHANICS-SALVAGE-3 | Brief ([spec](packets/P-TRAINING-CAMPS-1.md)); needs oracle | see spec |
@@ -436,12 +436,16 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-UNITY-NAME-GROUP-2 | a pack's one name is readable and sits on the pack; in-world camp labels read on any ground | P-UNITY-NAME-GROUP-1 | Done (8b5033a7; [spec](packets/P-UNITY-NAME-GROUP-2.md)) | see spec |
 | P-UNITY-NAME-LEGIBLE-1 | names read on snow and paving; an elite's name clears its camp badge; the hub card holds its text | P-UNITY-HUD-BUILD-3 | Done (20de5176; [spec](packets/P-UNITY-NAME-LEGIBLE-1.md)) | see spec |
 | P-UNITY-OVERHEAD-2 | statuses are drawn on the body at fixed spots, as legacy | P-UNITY-OVERHEAD-1 | Done (e43e8cf6; [spec](packets/P-UNITY-OVERHEAD-2.md)) | see spec |
-| P-UNITY-TRAINING-HUD-1 | the HUD does not vanish after the drawer and the Tab map are toggled; the training console shows all its rows | none | Brief; oracle being written ([spec](packets/P-UNITY-TRAINING-HUD-1.md)) | see spec |
+| P-UNITY-TRAINING-HUD-1 | the HUD does not vanish after the drawer and the Tab map are toggled; the training console shows all its rows | none | Done (04f43fbd; [spec](packets/P-UNITY-TRAINING-HUD-1.md)) | see spec |
 | P-UNITY-WORLD-MARKS-1 | the "HUNT" label on the hunted rival's dot on the Tab map | none | Done (b4bb37bf; [spec](packets/P-UNITY-WORLD-MARKS-1.md)) | see spec |
 | P-WIRE17-HUD-2b | protocol 17 carries weapon scaling terms and the Wish row numbers | P-WIRE17-HUD-2 | Done (13c58030; [spec](packets/P-WIRE17-HUD-2b.md)) | see spec |
 | P-WIRE17-HUD-2c | protocol 17 carries the Fire roam line and the auto tooltip's missing numbers | P-WIRE17-HUD-2, P-WIRE17-HUD-2b | Done (183690e0; [spec](packets/P-WIRE17-HUD-2c.md)) | see spec |
-| P-WIRE17-HUD-3 | protocol 17 carries the room's minimum players and the owner's healing and wind-emblem end times | P-WIRE17-HUD-2, P-UNITY-HUD-STATUS-1 | In flight ([spec](packets/P-WIRE17-HUD-3.md)) | see spec |
+| P-WIRE17-HUD-3 | protocol 17 carries the room's minimum players and the owner's healing and wind-emblem end times | P-WIRE17-HUD-2, P-UNITY-HUD-STATUS-1 | Done (49767960; [spec](packets/P-WIRE17-HUD-3.md)) | see spec |
 | P-WIRE17-MAP-2 | protocol 17 carries the camp patience plane and the quest carrier's actor id | P-WIRE17-HUD-3 | Brief ([spec](packets/P-WIRE17-MAP-2.md)); needs oracle | see spec |
+| P-UNITY-HUD-STATUS-2 | the HUD shows the lobby's "n/min", the healing and wind-emblem timers, and the RESTING chip | P-WIRE17-HUD-3 | Brief ([spec](packets/P-UNITY-HUD-STATUS-2.md)); oracle being written | see spec |
+| P-MECHANICS-SALVAGE-3-fix | the overhead build marks read the camp-clear mirror | P-MECHANICS-SALVAGE-3 | Brief ([spec](packets/P-MECHANICS-SALVAGE-3-fix.md)); needs oracle | see spec |
+| P-UNITY-TRAINING-BANNER-1 | the practice screen shows legacy's "nothing here is recorded" banner, not Kills and GV | none | Brief ([spec](packets/P-UNITY-TRAINING-BANNER-1.md)); needs oracle | see spec |
+| P-MAPGEN-SIG-HOLY-1 | Holy's temple hall is one fixed open-colonnade blueprint placed in the Landmarks phase, with its own reserved site | P-MAPGEN-SIG-RESERVE-1 | Brief ([spec](packets/P-MAPGEN-SIG-HOLY-1.md)); measurement first | see spec |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
