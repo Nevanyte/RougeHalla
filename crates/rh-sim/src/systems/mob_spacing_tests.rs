@@ -380,7 +380,8 @@ fn the_legacy_circle_trajectory_is_the_pre_spacing_one() {
     }
     assert_eq!(fold, LEGACY_FOLD, "legacy fold {fold:#018x}");
 }
-const LEGACY_FOLD: u64 = 0xe39f_ef7e_8f17_48b7;
+// Checkpoint 32 added the practice contributors' length word to this training world's layout; the trajectory is unchanged.
+const LEGACY_FOLD: u64 = 0xc0bf_771d_5055_1495;
 
 #[test]
 fn the_axe_band_fits_a_ring_of_the_pack() {
