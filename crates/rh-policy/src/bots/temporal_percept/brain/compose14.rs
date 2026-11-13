@@ -109,9 +109,19 @@ pub(crate) const BRAIN_WORLD_DELAY_MS: f64 = 100.;
 pub(crate) const BRAIN_SELF_DELAY_MS: f64 = 0.;
 
 impl Setup14 {
-    /// The setup a `BrainBot` seat uses: only the public map, the room's feature verdicts and the tier's attention share,
-    /// with the pinned delays. The server's spawn points are dropped. The map keeps its layers: the composer reads only the
-    /// camp ids (`extras.camps[].id`) and the coliseum gate tiles (`withGates`) from them, both drawn by a client.
+    /// The setup a `BrainBot` seat uses: the collision map with its static layers, the room's feature verdicts and the
+    /// tier's attention share, with the pinned delays. The arena's own spawn points are dropped.
+    ///
+    /// The map keeps its whole `MapLayers`, so it still HOLDS server-side facts the Brain path never reads: the layer
+    /// `seed`, `spawns`, `crate_spots` and `ground_spots` (also `buildings`, `features` and the territory and feature
+    /// grids). Unread is proved by the map-twin test (`brain_bot/reconcile_tests.rs`): arenas that differ in the seed, the
+    /// crate and ground spots and the arena spawns compose identical percepts and commands; the layer `spawns` cannot
+    /// differ alone (validation ties them to the spawn pool). From the layers, the composer reads the camp ids
+    /// (`extras.camps[].id`) and the coliseum gate tiles (`withGates`); the Brain's map (`brain_map`) reads, beyond the
+    /// client's map blob, per camp `id`, `spots`, `elite_spot`, `chest`, `area`, `radius`, the coliseum `inner_spawns`
+    /// and the spawn pool at the indexes the frame's plan deals (HumanBot reads the same through `PlanMap::from_arena`).
+    /// These are static map facts a legacy client generated for itself, not match state; whether they
+    /// count as public is the owner's ruling (DEV-026).
     pub(crate) fn public(arena: &Arena, features: Features, attention_central: f64) -> Self {
         Self {
             arena: Arc::new(Arena {

@@ -370,17 +370,17 @@ impl Seat {
         }
     }
 
-    /// The policy's end-of-run summary, asked once: a second call, a policy that was never attached (an incompatible
-    /// contract or observation) or one that panics answers `None`. The fallback never reports (its choices are not the
+    /// The policy's end-of-run summary, asked once: a second call, a faulted seat (its fallback played; this includes a
+    /// policy never attached for an incompatible contract or observation) or a policy that panics answers `None`. The fallback never reports (its choices are not the
     /// policy's).
     pub fn finish(&mut self, result: Option<&rh_sim::RunResult>) -> Option<PolicyFinish> {
         if std::mem::replace(&mut self.finished, true) {
             return None;
         }
-        if matches!(
-            self.fault,
-            Some(Fault::IncompatibleContract { .. } | Fault::IncompatibleObservation { .. })
-        ) {
+        // A faulted seat's result was played (at least in part) by its fallback: the policy's choices are not evidence
+        // for that result, so nothing reaches a learning record. This also covers a policy never attached (an
+        // incompatible contract or observation).
+        if self.fault.is_some() {
             return None;
         }
         catch_unwind(AssertUnwindSafe(|| self.policy.finish(result)))

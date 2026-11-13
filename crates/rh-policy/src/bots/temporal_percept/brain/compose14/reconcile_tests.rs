@@ -116,7 +116,7 @@ fn mob_kills_count_only_the_seats_own_credited_deaths_of_delivered_mobs() {
         ..setup(&sim)
     });
     let mut session = DeliverySession::new(OWNER);
-    let mob = |obs: &Observation, id: u32| {
+    let mob = |obs: &Observation, id: u32, kind: ActorKind| {
         let mut a = obs
             .visible
             .iter()
@@ -124,17 +124,20 @@ fn mob_kills_count_only_the_seats_own_credited_deaths_of_delivered_mobs() {
             .expect("enemy")
             .clone();
         a.id = PlayerId(id);
-        a.kind = ActorKind::Regional;
-        a.mob_type = Some(rh_sim::mob_catalog::MobTypeId::ALL[0]);
+        a.kind = kind;
+        a.mob_type =
+            (kind == ActorKind::Regional).then_some(rh_sim::mob_catalog::MobTypeId::ALL[0]);
         a.x = 360.;
         a
     };
     let mut kills = Vec::new();
-    for (i, (by, delivered)) in [
-        (Some(OWNER), true),  // credited and drawn: counts
-        (Some(ENEMY), true),  // another killer: does not
-        (Some(OWNER), false), // the dead row was not delivered: not seen, not counted
-        (None, true),         // no killer: does not
+    let regional = ActorKind::Regional;
+    for (i, (by, delivered, kind)) in [
+        (Some(OWNER), true, regional),          // credited and drawn: counts
+        (Some(ENEMY), true, regional),          // another killer: does not
+        (Some(OWNER), false, regional), // the dead row was not delivered: not seen, not counted
+        (None, true, regional),         // no killer: does not
+        (Some(OWNER), true, ActorKind::Zombie), // a credited zombie is not a regional mob: does not
     ]
     .into_iter()
     .enumerate()
@@ -142,7 +145,7 @@ fn mob_kills_count_only_the_seats_own_credited_deaths_of_delivered_mobs() {
         let mut obs = scene(&sim, 1000. + 50. * i as f64, 20 + i as u32);
         let id = 0x8000_0100 + i as u32;
         if delivered {
-            let row = mob(&obs, id);
+            let row = mob(&obs, id, kind);
             obs.visible.push(row);
         }
         obs.events.push(SeenEvent::Death {
@@ -157,7 +160,7 @@ fn mob_kills_count_only_the_seats_own_credited_deaths_of_delivered_mobs() {
         kills.push(raw.get("self").and_then(|s| s.get("mobKills")).cloned());
     }
     let n = |v: f64| Some(BVal::num(v));
-    assert_eq!(kills, [n(1.), n(1.), n(1.), n(1.)]);
+    assert_eq!(kills, [n(1.), n(1.), n(1.), n(1.), n(1.)]);
 }
 
 /// Coordinator ruling (`hud.winner` follows legacy, arena.ts:91 and :466): `""` until the seat's accepted `MatchEnded`,

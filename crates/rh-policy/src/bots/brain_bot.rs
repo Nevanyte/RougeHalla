@@ -327,6 +327,10 @@ impl Policy for BrainBot {
 #[cfg(test)]
 mod tests;
 
+/// P-BOT-BRAIN-RECONCILE-1 review notes: the map twin and a faulted seat's finish.
+#[cfg(test)]
+mod reconcile_tests;
+
 /// P-BOT-BRAIN-RECONCILE-1: the seat composes with the public setup only (C-OBS), with the pinned delays.
 #[cfg(test)]
 mod setup_tests {
