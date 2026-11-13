@@ -377,7 +377,7 @@ fn the_console_drops_a_practice_camp_with_gaps_and_caps() {
     let camp = mobs[0].camp;
     assert!((PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&camp));
     assert!(mobs.iter().all(|m| m.camp == camp));
-    assert_eq!(sim.w.practice.unwrap().spawned, 3);
+    assert_eq!(sim.w.practice.as_ref().unwrap().spawned, 3);
     submit_train(&mut sim, train_raw(3, ty as u32, 0));
     let events = sim.step();
     assert_eq!(toasts(&events), ["Slow down"]);
