@@ -1,14 +1,19 @@
 //! Cold public map projection. Only canonical collision, terrain and region cells, and the map facts legacy clients
 //! generated themselves (camp markers, the coliseum and its gates, concealment bushes; protocol 17), cross this seam.
 //! The seed, spawn pool, crate and ground spots and the feature list stay on the server (C-OBS). The map's decoration
-//! (P-DRESS-BAKE-1: `rh_mapdress::dress`, looks only, never read by the sim) rides in the prop and ground-variant sections.
+//! (P-DRESS-BAKE-1: `rh_mapdress::dress`, looks only, never read by the sim) rides in the prop and ground-variant sections;
+//! each zone's landmark anchor (P-WIRE17-MAP-3: public map geometry, not gameplay) in the anchors section.
 //! Match effect mode is deliberately separate from the arena-only encoded asset cache.
 
 use rh_mapdress::{Dressing, Rules};
 use rh_protocol::codec::EncodeError;
-use rh_protocol::map::{EncodedMap, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
+use rh_protocol::map::{
+    EncodedMap, MapAnchor, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapRect, MapTile,
+    ANCHOR_KIND_BOG_TREE, ANCHOR_KIND_CAVE, ANCHOR_KIND_CHURCH, ANCHOR_KIND_HALL,
+    ANCHOR_KIND_VOLCANO,
+};
 use rh_protocol::GroundMode;
-use rh_sim::mapdata::{FeatureKind, GateSide, LayerData};
+use rh_sim::mapdata::{FeatureKind, GateSide, LayerData, TilePt, ZoneAnchor};
 use rh_sim::{terrain::Mode, TileMap};
 
 fn dimensions(map: &TileMap) -> Result<(u16, u16), EncodeError> {
@@ -150,13 +155,73 @@ pub fn encode_dressed_map(
     map: &TileMap,
     dressing: Option<&Dressing>,
 ) -> Result<EncodedMap, EncodeError> {
+    encode_landmark_map(map, dressing, &[])
+}
+
+/// [`encode_dressed_map`] also carrying the generator's landmark anchors (P-WIRE17-MAP-3) in the anchors section, in wire
+/// form ([`anchor_sections`]). An arena keeps no anchors, so only the pool, which holds the generator's map, passes any;
+/// none is exactly the dressed blob.
+pub fn encode_landmark_map(
+    map: &TileMap,
+    dressing: Option<&Dressing>,
+    anchors: &[ZoneAnchor],
+) -> Result<EncodedMap, EncodeError> {
     let (w, h) = dimensions(map)?;
     let (terrain, regions) = planes(map);
     let mut public = public(map)?;
     if let Some(d) = dressing {
         (public.props, public.ground_variants) = dressing_sections(d);
     }
+    public.anchors = anchor_sections(anchors)?;
     EncodedMap::from_public(w, h, &map.tiles, terrain, regions, &public)
+}
+
+/// The wire's landmark kind code (`rh_protocol::map::ANCHOR_KIND_*`): a table, never the `FeatureKind` ordinal. Any
+/// other kind on an anchor is a generator bug, refused.
+fn anchor_kind_code(kind: FeatureKind) -> Result<u8, EncodeError> {
+    match kind {
+        FeatureKind::Volcano => Ok(ANCHOR_KIND_VOLCANO),
+        FeatureKind::Church => Ok(ANCHOR_KIND_CHURCH),
+        FeatureKind::BogTree => Ok(ANCHOR_KIND_BOG_TREE),
+        FeatureKind::Cave => Ok(ANCHOR_KIND_CAVE),
+        FeatureKind::Hall => Ok(ANCHOR_KIND_HALL),
+        _ => Err(EncodeError::BadMap("anchor kind")),
+    }
+}
+
+/// The generator's anchors as the wire sends them, in their (zone-code) order: zone code, kind code, tiles as `u16`. A
+/// negative or oversized value is refused with the field's reason, never clamped; the wire's own checks (order, bounds,
+/// caps) are the encoder's.
+pub fn anchor_sections(anchors: &[ZoneAnchor]) -> Result<Vec<MapAnchor>, EncodeError> {
+    let tile = |t: &TilePt, why| {
+        Ok(MapTile {
+            x: tile_u16(t.x, why)?,
+            y: tile_u16(t.y, why)?,
+        })
+    };
+    let size = |v: u32| u16::try_from(v).map_err(|_| EncodeError::BadMap("anchor footprint"));
+    anchors
+        .iter()
+        .map(|a| {
+            Ok(MapAnchor {
+                zone: a.zone.code(),
+                kind: anchor_kind_code(a.kind)?,
+                centre: tile(&a.centre, "anchor centre")?,
+                footprint: MapRect {
+                    x: tile_u16(a.footprint.x, "anchor footprint")?,
+                    y: tile_u16(a.footprint.y, "anchor footprint")?,
+                    w: size(a.footprint.w)?,
+                    h: size(a.footprint.h)?,
+                },
+                front: a.front,
+                entrance: a
+                    .entrance
+                    .iter()
+                    .map(|t| tile(t, "anchor entrance"))
+                    .collect::<Result<Vec<_>, EncodeError>>()?,
+            })
+        })
+        .collect()
 }
 
 /// A `Dressing` as the wire sends it: every prop as a `MapProp` (same five fields) sorted by `(y, x, kind)`, the
@@ -200,8 +265,8 @@ pub fn dress_map(map: &TileMap, rules: &Rules) -> Result<Option<Dressing>, Encod
 }
 
 /// A cache key is only a lookup aid. Reuse requires the complete canonical public content to match; the two dressing
-/// sections may be present or absent (a dressed and an undressed blob of one map both match) but must pass the wire's
-/// value checks.
+/// sections and the landmark anchors (the generator's, which the arena does not keep) may be present or absent (a dressed
+/// and an undressed blob of one map both match) but must pass the wire's value checks.
 pub fn matches_static_map(encoded: &EncodedMap, map: &TileMap) -> bool {
     let Ok((w, h)) = dimensions(map) else {
         return false;

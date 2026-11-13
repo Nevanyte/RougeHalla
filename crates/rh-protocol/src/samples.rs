@@ -7,7 +7,11 @@ use crate::delta::{
     AD_ALL, AD_BOUNTY, AD_HP, AD_KIND, AD_KIT, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP,
     DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
-use crate::map::{MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
+use crate::map::{
+    MapAnchor, MapBlob, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapRect, MapTile,
+    ANCHOR_KIND_BOG_TREE, ANCHOR_KIND_CAVE, ANCHOR_KIND_CHURCH, ANCHOR_KIND_HALL,
+    ANCHOR_KIND_VOLCANO,
+};
 use crate::state::{
     WireBuildSummary, WireCampReward, WireMobBonusRow, WirePanelValue, WireWard, HUD_STAT_COUNT,
     MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_ROSTER_NAME, MAX_SUMMARY_MOB_ROWS,
@@ -1105,6 +1109,71 @@ fn public_map_patience() -> MapBlob {
     };
     map.with_public(public)
         .expect("the patience sample map is valid")
+}
+
+/// One landmark anchor: `centre` and entrance tiles `(x, y)`, footprint `(x, y, w, h)` (P-WIRE17-MAP-3).
+fn sample_anchor(
+    zone: u8,
+    kind: u8,
+    centre: (u16, u16),
+    footprint: (u16, u16, u16, u16),
+    front: u8,
+    entrance: &[(u16, u16)],
+) -> MapAnchor {
+    MapAnchor {
+        zone,
+        kind,
+        centre: MapTile {
+            x: centre.0,
+            y: centre.1,
+        },
+        footprint: MapRect {
+            x: footprint.0,
+            y: footprint.1,
+            w: footprint.2,
+            h: footprint.3,
+        },
+        front,
+        entrance: entrance.iter().map(|&(x, y)| MapTile { x, y }).collect(),
+    }
+}
+
+/// Five anchors on the 8 x 6 public sample, one per zone in zone-code order, every kind code, fronts 0 to 15, entrances
+/// of 0 and 3 tiles, a centre on its footprint's last column and row, a footprint the size of the map (the oracle's
+/// `crates/rh-protocol/tests/map_anchors.rs` `five()`).
+fn sample_anchors() -> Vec<MapAnchor> {
+    vec![
+        sample_anchor(1, ANCHOR_KIND_VOLCANO, (1, 1), (0, 0, 3, 3), 0, &[]),
+        sample_anchor(
+            2,
+            ANCHOR_KIND_CHURCH,
+            (7, 2),
+            (4, 0, 4, 3),
+            4,
+            &[(4, 0), (4, 1), (4, 2)],
+        ),
+        sample_anchor(3, ANCHOR_KIND_BOG_TREE, (1, 4), (0, 3, 3, 3), 8, &[]),
+        sample_anchor(
+            4,
+            ANCHOR_KIND_CAVE,
+            (5, 4),
+            (4, 3, 4, 3),
+            12,
+            &[(5, 3), (6, 3), (7, 3)],
+        ),
+        sample_anchor(5, ANCHOR_KIND_HALL, (3, 2), (0, 0, 8, 6), 15, &[]),
+    ]
+}
+
+/// [`public_map`] plus landmark anchors (P-WIRE17-MAP-3; section version 3, presence2 0x02, no patience plane).
+fn public_map_anchors(all: bool, anchors: Vec<MapAnchor>) -> MapBlob {
+    let map = public_map(all);
+    let public = MapPublic {
+        anchors,
+        ..map.public.clone()
+    };
+    map.with_public(public)
+        .expect("the anchors sample map is valid")
 }
 
 /// An 8 x 6 map dressed at the wire's boundaries (P-DRESS-BAKE-1): props in `(y, x, kind)` order covering a tall rule
@@ -2301,6 +2370,15 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "welcome_public_patience",
             welcome_map_msg(public_map_patience()),
+        ),
+        // P-WIRE17-MAP-3: every section plus five landmark anchors; the shipped sections plus the zone-4 cave alone.
+        (
+            "welcome_public_anchors",
+            welcome_map_msg(public_map_anchors(true, sample_anchors())),
+        ),
+        (
+            "welcome_public_anchor_one",
+            welcome_map_msg(public_map_anchors(false, vec![sample_anchors()[3].clone()])),
         ),
         // P-DRESS-BAKE-1: a dressed map, with and without its ground-variant plane.
         (
@@ -3601,6 +3679,18 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
     // A run count past the extension (and past the cell count): truncation is checked first.
     let mut patience_truncated = rle_wire(&patience(1));
     patience_truncated[0..4].copy_from_slice(&200u32.to_le_bytes());
+    // P-WIRE17-MAP-3: anchors on the 4 x 3 map (section version 3, presence2 0x02, no other section).
+    let anchor = |zone: u8, kind: u8, centre, footprint, front: u8, entrance: &[(u16, u16)]| {
+        sample_anchor(zone, kind, centre, footprint, front, entrance)
+    };
+    let cave = |zone: u8| anchor(zone, ANCHOR_KIND_CAVE, (1, 1), (0, 0, 3, 2), 4, &[(1, 0)]);
+    let anchors3 =
+        |rows: &[MapAnchor]| welcome_public_raw3(0x00, 0x02, &[raw_list(raw_anchors(rows))]);
+    let entrance_over: Vec<(u16, u16)> = (0..=crate::map::MAX_ANCHOR_ENTRANCE as u16)
+        .map(|i| (i % RAW_W, i / RAW_W % RAW_H))
+        .collect();
+    let mut anchors_truncated = raw_anchors(&[cave(4)]);
+    anchors_truncated[0] = 2;
     vec![
         (
             "map17_section_version_1",
@@ -3856,12 +3946,132 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
             welcome_public_raw3(0x04, 0x00, &[one_camp()]),
             "presence",
         ),
+        // P-WIRE17-MAP-3 moved this vector off bit 0x02 (now the anchors) to the last bit, 0x80.
         (
             "map17_v3_presence_unknown",
-            welcome_public_raw3(0x04, 0x03, &[one_camp(), raw_plane(&patience(1))]),
+            welcome_public_raw3(0x04, 0x81, &[one_camp(), raw_plane(&patience(1))]),
             "presence",
         ),
+        // P-WIRE17-MAP-3: the landmark anchors (presence2 0x02).
+        (
+            "map17_anchor_count_zero",
+            welcome_public_raw3(0x00, 0x02, &[raw_list(vec![0])]),
+            "anchor count",
+        ),
+        (
+            "map17_anchor_count_over",
+            anchors3(&(1..=6).map(|z| cave(z.min(5))).collect::<Vec<_>>()),
+            "anchor count",
+        ),
+        ("map17_anchor_zone", anchors3(&[cave(6)]), "anchor zone"),
+        (
+            "map17_anchor_order",
+            anchors3(&[cave(2), cave(1)]),
+            "anchor order",
+        ),
+        (
+            "map17_anchor_duplicate",
+            anchors3(&[cave(3), cave(3)]),
+            "anchor order",
+        ),
+        (
+            "map17_anchor_kind",
+            anchors3(&[anchor(4, 6, (1, 1), (0, 0, 3, 2), 4, &[(1, 0)])]),
+            "anchor kind",
+        ),
+        (
+            "map17_anchor_footprint",
+            anchors3(&[anchor(
+                4,
+                ANCHOR_KIND_CAVE,
+                (2, 1),
+                (2, 0, 3, 2),
+                4,
+                &[(2, 0)],
+            )]),
+            "anchor footprint",
+        ),
+        (
+            "map17_anchor_centre",
+            anchors3(&[anchor(
+                4,
+                ANCHOR_KIND_CAVE,
+                (3, 1),
+                (0, 0, 3, 2),
+                4,
+                &[(1, 0)],
+            )]),
+            "anchor centre",
+        ),
+        (
+            "map17_anchor_front",
+            anchors3(&[anchor(
+                4,
+                ANCHOR_KIND_CAVE,
+                (1, 1),
+                (0, 0, 3, 2),
+                16,
+                &[(1, 0)],
+            )]),
+            "anchor front",
+        ),
+        (
+            "map17_anchor_entrance_over",
+            anchors3(&[anchor(
+                4,
+                ANCHOR_KIND_CAVE,
+                (1, 1),
+                (0, 0, RAW_W, RAW_H),
+                4,
+                &entrance_over,
+            )]),
+            "anchor entrance",
+        ),
+        (
+            "map17_anchor_entrance_tile",
+            anchors3(&[anchor(
+                4,
+                ANCHOR_KIND_CAVE,
+                (1, 1),
+                (0, 0, 3, 2),
+                4,
+                &[(1, 0), (RAW_W, 0)],
+            )]),
+            "anchor entrance",
+        ),
+        (
+            "map17_anchor_truncated",
+            welcome_public_raw3(0x00, 0x02, &[raw_list(anchors_truncated)]),
+            "truncated",
+        ),
     ]
+}
+
+/// An anchors section written by hand (P-WIRE17-MAP-3): the count byte, then each row as given, unchecked.
+fn raw_anchors(rows: &[MapAnchor]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(rows.len() as u8);
+    for a in rows {
+        w.u8(a.zone);
+        w.u8(a.kind);
+        for v in [
+            a.centre.x,
+            a.centre.y,
+            a.footprint.x,
+            a.footprint.y,
+            a.footprint.w,
+            a.footprint.h,
+        ] {
+            w.u16(v);
+        }
+        w.u8(a.front);
+        w.u8(a.entrance.len() as u8);
+        for t in &a.entrance {
+            w.u16(t.x);
+            w.u16(t.y);
+        }
+    }
+    w.finish()
 }
 
 /// A prop section with the given `count` and rows `(kind, x, y, variant, flags)` (a count above the rows is truncated).

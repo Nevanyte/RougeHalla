@@ -347,8 +347,18 @@ impl MapAssets {
         arena: impl Into<Arc<Arena>>,
         dressing: Option<&rh_mapdress::Dressing>,
     ) -> Result<Self, rh_protocol::EncodeError> {
+        Self::landmarked(arena, dressing, &[])
+    }
+
+    /// [`Self::dressed`] also carrying the generator's landmark anchors (P-WIRE17-MAP-3), which the arena does not keep:
+    /// the pool reads them from the generator's map before the arena conversion (`map_pool::MadeMap::anchors`).
+    pub fn landmarked(
+        arena: impl Into<Arc<Arena>>,
+        dressing: Option<&rh_mapdress::Dressing>,
+        anchors: &[rh_sim::mapdata::ZoneAnchor],
+    ) -> Result<Self, rh_protocol::EncodeError> {
         let arena = arena.into();
-        let welcome_map = crate::public_ground::encode_dressed_map(&arena.map, dressing)?;
+        let welcome_map = crate::public_ground::encode_landmark_map(&arena.map, dressing, anchors)?;
         Ok(Self {
             arena,
             welcome_map: Arc::new(welcome_map),

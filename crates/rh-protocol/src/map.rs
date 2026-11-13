@@ -3,9 +3,9 @@
 use crate::codec::{DecodeError, EncodeError, Reader, Writer};
 use crate::ground::{
     context_hash, section_header, semantic_hash, semantic_hash_parts2, validate_plane_values,
-    GroundMode, PRESENCE2_KNOWN, PRESENCE2_PATIENCE, PRESENCE_BUSHES, PRESENCE_CAMPS,
-    PRESENCE_COLISEUM, PRESENCE_GROUND_VARIANTS, PRESENCE_KNOWN, PRESENCE_PROPS, PRESENCE_REGIONS,
-    PRESENCE_TERRAIN, SECTION_VERSION, SECTION_VERSION_PRESENCE2,
+    GroundMode, PRESENCE2_ANCHORS, PRESENCE2_KNOWN, PRESENCE2_PATIENCE, PRESENCE_BUSHES,
+    PRESENCE_CAMPS, PRESENCE_COLISEUM, PRESENCE_GROUND_VARIANTS, PRESENCE_KNOWN, PRESENCE_PROPS,
+    PRESENCE_REGIONS, PRESENCE_TERRAIN, SECTION_VERSION, SECTION_VERSION_PRESENCE2,
 };
 
 /// Maximum cells in any map plane.
@@ -25,6 +25,13 @@ const PROP_LEN: usize = 7;
 /// `Zone::code` runs 1..=5; `GateSide` codes 0..=3 (n, e, s, w).
 const MAX_CAMP_ZONE: u8 = 5;
 const MAX_GATE_SIDE: u8 = 3;
+/// Wire bytes of an anchor row before its entrance tiles: `zone u8, kind u8, centre x/y u16, footprint x/y/w/h u16,
+/// front u8, entrance count u8` (P-WIRE17-MAP-3).
+const ANCHOR_FIXED_LEN: usize = 16;
+/// Wire bytes of one entrance tile (`x u16, y u16`).
+const ANCHOR_TILE_LEN: usize = 4;
+/// DIR16: an anchor's `front` is below this.
+const ANCHOR_DIRS: u8 = 16;
 
 /// Most camp markers a map may carry (legacy: 5 zones x 10 camps).
 pub const MAX_MAP_CAMPS: usize = 64;
@@ -151,7 +158,7 @@ pub struct MapPublic {
     /// presence byte bit 0x01), after the version-2 sections; every cell is at most `camps.len()`.
     pub patience: Option<Vec<u8>>,
     /// P-WIRE17-MAP-3: each zone's landmark anchor, zone-code order (second presence byte bit 0x02, after the patience
-    /// plane). Empty encodes as absent. STUB: neither written, read nor checked yet.
+    /// plane). Empty encodes as absent; the list section's wire bytes (count included) enter the semantic hash.
     pub anchors: Vec<MapAnchor>,
 }
 
@@ -471,11 +478,14 @@ fn public_presence(p: &MapPublic) -> u8 {
 }
 /// Second presence byte (section version 3): 0 when no second-presence section is present (the map is version 2).
 fn public_presence2(p: &MapPublic) -> u8 {
+    let mut flags = 0;
     if p.patience.is_some() {
-        PRESENCE2_PATIENCE
-    } else {
-        0
+        flags |= PRESENCE2_PATIENCE;
     }
+    if !p.anchors.is_empty() {
+        flags |= PRESENCE2_ANCHORS;
+    }
+    flags
 }
 /// Extension bytes before the first section: version, presence, (version 3) presence2, semantic hash.
 fn extension_header_len(p: &MapPublic) -> usize {
@@ -494,6 +504,16 @@ fn coliseum_len(coliseum: Option<&MapColiseum>) -> usize {
         9 + c.gates.iter().map(|g| 2 + 4 * g.tiles.len()).sum::<usize>()
     })
 }
+fn anchors_len(anchors: &[MapAnchor]) -> usize {
+    if anchors.is_empty() {
+        0
+    } else {
+        1 + anchors
+            .iter()
+            .map(|a| ANCHOR_FIXED_LEN + ANCHOR_TILE_LEN * a.entrance.len())
+            .sum::<usize>()
+    }
+}
 fn props_len(props: &[MapProp]) -> usize {
     if props.is_empty() {
         0
@@ -509,6 +529,7 @@ fn public_len(p: &MapPublic) -> usize {
         + props_len(&p.props)
         + p.ground_variants.as_deref().map_or(0, rle_len)
         + p.patience.as_deref().map_or(0, rle_len)
+        + anchors_len(&p.anchors)
 }
 
 fn write_camps(w: &mut Writer, camps: &[MapCamp]) {
@@ -554,6 +575,28 @@ fn write_props(w: &mut Writer, props: &[MapProp]) {
         w.u8(p.flags);
     }
 }
+fn write_anchors(w: &mut Writer, anchors: &[MapAnchor]) {
+    if anchors.is_empty() {
+        return;
+    }
+    w.u8(anchors.len() as u8);
+    for a in anchors {
+        w.u8(a.zone);
+        w.u8(a.kind);
+        w.u16(a.centre.x);
+        w.u16(a.centre.y);
+        w.u16(a.footprint.x);
+        w.u16(a.footprint.y);
+        w.u16(a.footprint.w);
+        w.u16(a.footprint.h);
+        w.u8(a.front);
+        w.u8(a.entrance.len() as u8);
+        for t in &a.entrance {
+            w.u16(t.x);
+            w.u16(t.y);
+        }
+    }
+}
 /// The public sections in wire (presence bit) order.
 fn write_public(w: &mut Writer, p: &MapPublic) {
     write_camps(w, &p.camps);
@@ -562,6 +605,7 @@ fn write_public(w: &mut Writer, p: &MapPublic) {
     write_props(w, &p.props);
     write_plane(w, p.ground_variants.as_deref());
     write_plane(w, p.patience.as_deref());
+    write_anchors(w, &p.anchors);
 }
 
 fn section_bytes(len: usize, f: impl FnOnce(&mut Writer)) -> Vec<u8> {
@@ -571,7 +615,8 @@ fn section_bytes(len: usize, f: impl FnOnce(&mut Writer)) -> Vec<u8> {
 }
 
 /// Version 2 semantic hash: planes hash their decoded cells, list sections their wire bytes (count included). Version 3
-/// hashes `[3, presence, presence2]` instead of `[2, presence]` and the patience cells after the ground-variant cells.
+/// hashes `[3, presence, presence2]` instead of `[2, presence]`, the patience cells after the ground-variant cells, then
+/// the anchors section's wire bytes.
 fn public_semantic_hash(
     w: u16,
     h: u16,
@@ -585,6 +630,7 @@ fn public_semantic_hash(
         write_coliseum(w, p.coliseum.as_ref())
     });
     let props = section_bytes(props_len(&p.props), |w| write_props(w, &p.props));
+    let anchors = section_bytes(anchors_len(&p.anchors), |w| write_anchors(w, &p.anchors));
     semantic_hash_parts2(
         w,
         h,
@@ -599,6 +645,7 @@ fn public_semantic_hash(
             &props,
             p.ground_variants.as_deref().unwrap_or_default(),
             p.patience.as_deref().unwrap_or_default(),
+            &anchors,
         ],
     )
 }
@@ -666,6 +713,56 @@ fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
     {
         return Err(EncodeError::BadMap("patience camp"));
     }
+    check_anchors(w, h, &p.anchors).map_err(EncodeError::BadMap)
+}
+
+/// The encoder's anchor checks, in the decoder's order (count, then per row: the fixed part, the entrance count, the
+/// entrance tiles).
+fn check_anchors(w: u16, h: u16, anchors: &[MapAnchor]) -> Result<(), &'static str> {
+    if anchors.len() > MAX_MAP_ANCHORS {
+        return Err("anchor count");
+    }
+    let mut previous = 0;
+    for a in anchors {
+        check_anchor_head(a, previous, w, h)?;
+        if a.entrance.len() > MAX_ANCHOR_ENTRANCE {
+            return Err("anchor entrance");
+        }
+        if a.entrance.iter().any(|t| t.x >= w || t.y >= h) {
+            return Err("anchor entrance");
+        }
+        previous = a.zone;
+    }
+    Ok(())
+}
+
+/// The checks on an anchor row's fixed part, shared by the encoder and the decoder, in the wire rules' order: zone, order
+/// (`previous` is the zone of the row before, 0 for the first), kind, footprint, centre, front. The entrance is checked
+/// by the caller.
+fn check_anchor_head(a: &MapAnchor, previous: u8, w: u16, h: u16) -> Result<(), &'static str> {
+    if a.zone == 0 || a.zone > MAX_CAMP_ZONE {
+        return Err("anchor zone");
+    }
+    if a.zone <= previous {
+        return Err("anchor order");
+    }
+    if !(ANCHOR_KIND_VOLCANO..=ANCHOR_KIND_HALL).contains(&a.kind) {
+        return Err("anchor kind");
+    }
+    let f = a.footprint;
+    if !coliseum_rect_fits(f.x, f.y, f.w, f.h, w, h) {
+        return Err("anchor footprint");
+    }
+    // Half-open: `x <= cx < x + w`, `y <= cy < y + h` (no u16 overflow).
+    let inside = |c: u16, start: u16, len: u16| {
+        c >= start && u32::from(c) < u32::from(start) + u32::from(len)
+    };
+    if !inside(a.centre.x, f.x, f.w) || !inside(a.centre.y, f.y, f.h) {
+        return Err("anchor centre");
+    }
+    if a.front >= ANCHOR_DIRS {
+        return Err("anchor front");
+    }
     Ok(())
 }
 
@@ -708,6 +805,8 @@ struct MapPlan<'a> {
     ground_variants: Option<PlanePlan<'a>>,
     /// Section version 3's patience plane.
     patience: Option<PlanePlan<'a>>,
+    /// Section version 3's anchors section (wire bytes, count included).
+    anchors: Option<&'a [u8]>,
     mode: GroundMode,
     context_hash: u32,
 }
@@ -818,6 +917,11 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
     } else {
         None
     };
+    let anchors = if presence2 & PRESENCE2_ANCHORS != 0 {
+        Some(section(ext, &mut er, |r| read_anchors(r, w, h))?)
+    } else {
+        None
+    };
     if cumulative_runs > MAX_CUMULATIVE_RUNS {
         return Err(DecodeError::BadMap("run"));
     }
@@ -847,6 +951,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
             Part::Bytes(props),
             Part::Plane(ground_variants),
             Part::Plane(patience),
+            Part::Bytes(anchors),
         ],
     );
     if semantic_hash != actual_semantic_hash {
@@ -870,6 +975,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         props,
         ground_variants,
         patience,
+        anchors,
         mode,
         context_hash,
     })
@@ -926,6 +1032,55 @@ fn read_coliseum(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> 
         }
     }
     Ok(())
+}
+
+/// The anchors section (P-WIRE17-MAP-3). Each row's fixed 16 bytes are read as one block and its entrance bytes are
+/// tested against what the extension still holds, so a short section is `Truncated`, never a row read from the mode and
+/// context-hash bytes after it.
+fn read_anchors(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> {
+    let count = usize::from(r.u8()?);
+    if count == 0 || count > MAX_MAP_ANCHORS {
+        return Err(DecodeError::BadMap("anchor count"));
+    }
+    let mut previous = 0;
+    for _ in 0..count {
+        let row = r.bytes(ANCHOR_FIXED_LEN)?;
+        let head = anchor_head(row);
+        check_anchor_head(&head, previous, w, h).map_err(DecodeError::BadMap)?;
+        let tiles = usize::from(row[ANCHOR_FIXED_LEN - 1]);
+        if tiles > MAX_ANCHOR_ENTRANCE {
+            return Err(DecodeError::BadMap("anchor entrance"));
+        }
+        let entrance = r.bytes(tiles * ANCHOR_TILE_LEN)?;
+        if entrance
+            .chunks_exact(ANCHOR_TILE_LEN)
+            .any(|t| le16(t, 0) >= w || le16(t, 2) >= h)
+        {
+            return Err(DecodeError::BadMap("anchor entrance"));
+        }
+        previous = head.zone;
+    }
+    Ok(())
+}
+
+/// An anchor row's fixed part (its entrance left empty).
+fn anchor_head(row: &[u8]) -> MapAnchor {
+    MapAnchor {
+        zone: row[0],
+        kind: row[1],
+        centre: MapTile {
+            x: le16(row, 2),
+            y: le16(row, 4),
+        },
+        footprint: MapRect {
+            x: le16(row, 6),
+            y: le16(row, 8),
+            w: le16(row, 10),
+            h: le16(row, 12),
+        },
+        front: row[14],
+        entrance: Vec::new(),
+    }
 }
 
 fn read_props(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> {
@@ -1232,7 +1387,7 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
             .ground_variants
             .map(|p| decode_runs(p.runs, p.count, total)),
         patience: plan.patience.map(|p| decode_runs(p.runs, p.count, total)),
-        anchors: Vec::new(),
+        anchors: plan.anchors.map_or_else(Vec::new, decode_anchors),
     };
     Ok(MapBlob {
         w: plan.w,
@@ -1263,6 +1418,28 @@ fn decode_camps(section: &[u8]) -> Vec<MapCamp> {
             zone: row[6],
         })
         .collect()
+}
+
+/// Anchor rows from a section the preflight already checked (count byte first).
+fn decode_anchors(section: &[u8]) -> Vec<MapAnchor> {
+    let count = usize::from(section[0]);
+    let mut at = 1;
+    let mut out = Vec::with_capacity(count);
+    for _ in 0..count {
+        let mut a = anchor_head(&section[at..at + ANCHOR_FIXED_LEN]);
+        let tiles = usize::from(section[at + ANCHOR_FIXED_LEN - 1]);
+        at += ANCHOR_FIXED_LEN;
+        a.entrance = section[at..at + tiles * ANCHOR_TILE_LEN]
+            .chunks_exact(ANCHOR_TILE_LEN)
+            .map(|t| MapTile {
+                x: le16(t, 0),
+                y: le16(t, 2),
+            })
+            .collect();
+        at += tiles * ANCHOR_TILE_LEN;
+        out.push(a);
+    }
+    out
 }
 
 fn prop_row(row: &[u8]) -> MapProp {
@@ -1487,9 +1664,10 @@ impl EncodedMap {
         self.body[offset..] == expected.finish()[..]
     }
 
-    /// [`Self::matches_public`] for a blob that may also carry dressing (props, ground variants): every section but those
-    /// two must match `public` exactly, and the dressing the blob carries must pass the decoder's checks. `public`'s own
-    /// dressing is ignored. A cold path (room start, pool tests), never per tick: it decodes the blob once.
+    /// [`Self::matches_public`] for a blob that may also carry dressing (props, ground variants) and landmark anchors
+    /// (P-WIRE17-MAP-3: the generator's, which an arena does not keep): every other section must match `public` exactly,
+    /// and the dressing and anchors the blob carries must pass the decoder's checks. `public`'s own dressing and anchors
+    /// are ignored. A cold path (room start, pool tests), never per tick: it decodes the blob once.
     pub fn matches_public_any_dressing(
         &self,
         w: u16,
@@ -1508,6 +1686,7 @@ impl EncodedMap {
         let dressed = MapPublic {
             props: decoded.public.props,
             ground_variants: decoded.public.ground_variants,
+            anchors: decoded.public.anchors,
             ..public.clone()
         };
         self.matches_public(w, h, tiles, terrain, regions, &dressed)

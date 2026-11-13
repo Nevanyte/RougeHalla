@@ -71,9 +71,10 @@ namespace Roguehalla.Net.Protocol
     public sealed class MapBlob
     {
         /// <summary>Extension layout version: protocol 17 is version 2; version 1 is refused. Version 3 (P-WIRE17-MAP-2) adds a
-        /// second presence byte after the first, used exactly when a second-presence section (the patience plane) is present.</summary>
+        /// second presence byte after the first, used exactly when a second-presence section (the patience plane, P-WIRE17-MAP-3's
+        /// landmark anchors) is present.</summary>
         const byte GroundVersion = 2, GroundVersionPresence2 = 3;
-        const byte Presence2Patience = 0x01, KnownPresence2 = 0x01;
+        const byte Presence2Patience = 0x01, Presence2Anchors = 0x02, KnownPresence2 = 0x03;
         /// <summary>Six decodable planes (collision, terrain, regions, bushes, ground variants, patience), as Rust's
         /// MAX_DECODED_PLANES and MAX_CUMULATIVE_RUNS.</summary>
         const long MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles, MaxPlaneRuns = 6L * Wire.MaxMapTiles;
@@ -84,6 +85,9 @@ namespace Roguehalla.Net.Protocol
         public const int MaxAnchors = 5, MaxAnchorEntrance = 16;
         public const byte AnchorKindVolcano = 1, AnchorKindChurch = 2, AnchorKindBogTree = 3, AnchorKindCave = 4, AnchorKindHall = 5;
         static readonly MapAnchor[] NoAnchors = new MapAnchor[0];
+        /// <summary>An anchor row before its entrance tiles (zone, kind, centre, footprint, front, entrance count); one entrance
+        /// tile; DIR16 directions.</summary>
+        const int AnchorFixedLength = 16, AnchorTileLength = 4, AnchorDirections = 16;
         const byte MaxCampZone = 5, MaxGateSide = 3;
         /// <summary>Dressing value caps (P-DRESS-BAKE-1), the same as Rust's `rh_protocol::map`: prop flags tall and legacy;
         /// a rule prop's kind 1..MaxPropKind and variant at most MaxPropVariant; a legacy prop's kind below LegacyPropKinds;
@@ -123,8 +127,8 @@ namespace Roguehalla.Net.Protocol
         /// <summary>P-WIRE17-MAP-2: row-major camp patience plane (0, or the 1-based index into Camps of the camp whose patience
         /// range covers the tile), carried by a section-version-3 extension. Null when absent.</summary>
         public byte[] Patience { get; private set; }
-        /// <summary>P-WIRE17-MAP-3: each zone's landmark anchor in zone-code order (second presence bit 0x02). Empty when absent.
-        /// STUB: never decoded or encoded yet.</summary>
+        /// <summary>P-WIRE17-MAP-3: each zone's landmark anchor in zone-code order (second presence bit 0x02, after the patience
+        /// plane). Empty when absent.</summary>
         public MapAnchor[] Anchors { get; private set; } = NoAnchors;
 
         public const byte Floor = 0, Wall = 1, Low = 2;
@@ -162,27 +166,27 @@ namespace Roguehalla.Net.Protocol
         /// the camp count.</summary>
         public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience)
         {
+            return WithPublic(camps, coliseum, bushes, props, groundVariants, patience, null);
+        }
+
+        /// <summary>P-WIRE17-MAP-3: the six-section overload plus the landmark anchors (null or empty = absent; present anchors
+        /// make the extension section version 3). Refuses, with the decoder's reasons, what a decoder would refuse.</summary>
+        public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience,
+            MapAnchor[] anchors)
+        {
             var map = new MapBlob
             {
                 W = W, H = H, Tiles = Tiles, LayerHash = LayerHash, Terrain = Terrain, Regions = Regions, TerrainMode = TerrainMode,
                 Camps = camps ?? NoCamps, Coliseum = coliseum, Bushes = bushes, Props = props ?? NoProps, GroundVariants = groundVariants,
-                Patience = patience,
+                Patience = patience, Anchors = anchors ?? NoAnchors,
             };
-            CheckPublic(map.W, map.H, map.Camps, map.Coliseum, map.Bushes, map.Props, map.GroundVariants, map.Patience);
+            CheckPublic(map.W, map.H, map.Camps, map.Coliseum, map.Bushes, map.Props, map.GroundVariants, map.Patience, map.Anchors);
             map.SemanticHash = map.PublicSemanticHash();
             map.ContextHash = ComputeContextHash(map.LayerHash, map.SemanticHash, map.TerrainMode);
             return map;
         }
 
-        /// <summary>P-WIRE17-MAP-3: the six-section overload plus the landmark anchors (null or empty = absent). STUB: ignores
-        /// the anchors.</summary>
-        public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience,
-            MapAnchor[] anchors)
-        {
-            return WithPublic(camps, coliseum, bushes, props, groundVariants, patience);
-        }
-
-        uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants, Patience);
+        uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants, Patience, Anchors);
 
         /// <summary>FNV-1a 32 over (w u32 LE, h u32 LE, collision tiles), unchanged from protocol 13.</summary>
         public static uint ComputeHash(uint w, uint h, byte[] tiles)
@@ -218,8 +222,16 @@ namespace Roguehalla.Net.Protocol
         public static uint ComputeSemanticHash(ushort w, ushort h, byte[] terrain, byte[] regions,
             MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience)
         {
+            return ComputeSemanticHash(w, h, terrain, regions, camps, coliseum, bushes, props, groundVariants, patience, null);
+        }
+
+        /// <summary>P-WIRE17-MAP-3: version 3 with the landmark anchors: the anchors section's wire bytes (count included) after
+        /// the patience cells. Null or empty anchors are the hash without them.</summary>
+        public static uint ComputeSemanticHash(ushort w, ushort h, byte[] terrain, byte[] regions,
+            MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience, MapAnchor[] anchors)
+        {
             byte presence = Presence(terrain, regions, camps, coliseum, bushes, props, groundVariants);
-            uint hash = BeginSemanticHash(w, h, presence, Presence2(patience));
+            uint hash = BeginSemanticHash(w, h, presence, Presence2(patience, anchors));
             if (terrain != null) Feed(ref hash, terrain);
             if (regions != null) Feed(ref hash, regions);
             var lists = new Writer();
@@ -234,6 +246,9 @@ namespace Roguehalla.Net.Protocol
             Feed(ref hash, lists.Finish());
             if (groundVariants != null) Feed(ref hash, groundVariants);
             if (patience != null) Feed(ref hash, patience);
+            lists = new Writer();
+            WriteAnchors(lists, anchors);
+            Feed(ref hash, lists.Finish());
             return hash;
         }
 
@@ -259,7 +274,23 @@ namespace Roguehalla.Net.Protocol
                 && SameOptionalBytes(Regions, other.Regions)
                 && SameCamps(Camps, other.Camps) && SameColiseum(Coliseum, other.Coliseum)
                 && SameOptionalBytes(Bushes, other.Bushes) && SameProps(Props, other.Props)
-                && SameOptionalBytes(GroundVariants, other.GroundVariants) && SameOptionalBytes(Patience, other.Patience);
+                && SameOptionalBytes(GroundVariants, other.GroundVariants) && SameOptionalBytes(Patience, other.Patience)
+                && SameAnchors(Anchors, other.Anchors);
+        }
+
+        static bool SameAnchors(MapAnchor[] a, MapAnchor[] b)
+        {
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                MapAnchor x = a[i], y = b[i];
+                if (x.Zone != y.Zone || x.Kind != y.Kind || x.Front != y.Front || x.Centre.X != y.Centre.X || x.Centre.Y != y.Centre.Y
+                    || x.Footprint.X != y.Footprint.X || x.Footprint.Y != y.Footprint.Y || x.Footprint.W != y.Footprint.W
+                    || x.Footprint.H != y.Footprint.H || x.Entrance.Length != y.Entrance.Length) return false;
+                for (int t = 0; t < x.Entrance.Length; t++)
+                    if (x.Entrance[t].X != y.Entrance[t].X || x.Entrance[t].Y != y.Entrance[t].Y) return false;
+            }
+            return true;
         }
 
         static bool SameCamps(MapCamp[] a, MapCamp[] b)
@@ -311,12 +342,12 @@ namespace Roguehalla.Net.Protocol
         }
 
         /// <summary>Exact size of the collision blob and the extension (ground planes and public sections; version 3 adds the
-        /// second presence byte and the patience plane).</summary>
+        /// second presence byte, the patience plane and the anchors).</summary>
         public int EncodedLength
         {
             get
             {
-                long extension = GroundFixedLength + (Patience == null ? 0 : 1)
+                long extension = GroundFixedLength + (Presence2(Patience, Anchors) == 0 ? 0 : 1)
                     + (Terrain == null ? 0L : 4L + 3L * RunCount(Terrain))
                     + (Regions == null ? 0L : 4L + 3L * RunCount(Regions))
                     + PublicLength();
@@ -333,7 +364,7 @@ namespace Roguehalla.Net.Protocol
         {
             CheckContent();
             if (terrainMode > GroundTerrainAll) throw new EncodeException("bad map terrain mode");
-            int extensionLength = checked((int)(GroundFixedLength + (Patience == null ? 0 : 1)
+            int extensionLength = checked((int)(GroundFixedLength + (Presence2(Patience, Anchors) == 0 ? 0 : 1)
                 + (Terrain == null ? 0 : 4 + 3 * RunCount(Terrain))
                 + (Regions == null ? 0 : 4 + 3 * RunCount(Regions))
                 + PublicLength()));
@@ -343,7 +374,7 @@ namespace Roguehalla.Net.Protocol
             w.U16(W); w.U16(H); w.U32(LayerHash);
             WritePlane(w, Tiles);
             w.U32((uint)extensionLength);
-            byte presence2 = Presence2(Patience);
+            byte presence2 = Presence2(Patience, Anchors);
             w.U8(presence2 == 0 ? GroundVersion : GroundVersionPresence2);
             w.U8(Presence(Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants));
             if (presence2 != 0) w.U8(presence2);
@@ -356,6 +387,7 @@ namespace Roguehalla.Net.Protocol
             WriteProps(w, Props);
             if (GroundVariants != null) WritePlane(w, GroundVariants);
             if (Patience != null) WritePlane(w, Patience);
+            WriteAnchors(w, Anchors);
             w.U8(terrainMode);
             w.U32(ComputeContextHash(LayerHash, SemanticHash, terrainMode));
         }
@@ -373,6 +405,11 @@ namespace Roguehalla.Net.Protocol
             if (Props.Length > 0) n += 2 + (long)PropRowLength * Props.Length;
             if (GroundVariants != null) n += 4 + 3L * RunCount(GroundVariants);
             if (Patience != null) n += 4 + 3L * RunCount(Patience);
+            if (Anchors.Length > 0)
+            {
+                n += 1;
+                foreach (var a in Anchors) n += AnchorFixedLength + (long)AnchorTileLength * a.Entrance.Length;
+            }
             return n;
         }
 
@@ -403,8 +440,23 @@ namespace Roguehalla.Net.Protocol
             foreach (var p in props) { w.U8(p.Kind); w.U16(p.X); w.U16(p.Y); w.U8(p.Variant); w.U8(p.Flags); }
         }
 
+        static void WriteAnchors(Writer w, MapAnchor[] anchors)
+        {
+            if (anchors == null || anchors.Length == 0) return;
+            w.U8((byte)anchors.Length);
+            foreach (var a in anchors)
+            {
+                w.U8(a.Zone); w.U8(a.Kind);
+                w.U16(a.Centre.X); w.U16(a.Centre.Y);
+                w.U16(a.Footprint.X); w.U16(a.Footprint.Y); w.U16(a.Footprint.W); w.U16(a.Footprint.H);
+                w.U8(a.Front);
+                w.U8((byte)a.Entrance.Length);
+                foreach (var t in a.Entrance) { w.U16(t.X); w.U16(t.Y); }
+            }
+        }
+
         static void CheckPublic(ushort w, ushort h, MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants,
-            byte[] patience)
+            byte[] patience, MapAnchor[] anchors)
         {
             int total = CheckedTileCount(w, h);
             if (camps.Length > MaxCamps) throw new EncodeException("bad map camp count");
@@ -433,6 +485,32 @@ namespace Roguehalla.Net.Protocol
                 foreach (var v in groundVariants) if (v > MaxGroundVariant) throw new EncodeException("bad map ground variant");
             if (patience != null)
                 foreach (var v in patience) if (v > camps.Length) throw new EncodeException("bad map patience camp");
+            // P-WIRE17-MAP-3: the decoder's anchor checks in its order (count, then per row: fixed part, entrance count, tiles).
+            if (anchors.Length > MaxAnchors) throw new EncodeException("bad map anchor count");
+            byte previous = 0;
+            foreach (var a in anchors)
+            {
+                if (a == null) throw new EncodeException("bad map anchor");
+                string fault = AnchorFault(a.Zone, a.Kind, a.Centre, a.Footprint, a.Front, previous, w, h);
+                if (fault != null) throw new EncodeException("bad map " + fault);
+                if (a.Entrance.Length > MaxAnchorEntrance) throw new EncodeException("bad map anchor entrance");
+                foreach (var t in a.Entrance) if (t.X >= w || t.Y >= h) throw new EncodeException("bad map anchor entrance");
+                previous = a.Zone;
+            }
+        }
+
+        /// <summary>The checks on an anchor row's fixed part in the wire rules' order (zone, order against the previous row's
+        /// zone, 0 for the first, kind, footprint, centre inside the half-open footprint, front), shared by the encoder and the
+        /// decoder: null when valid, else the Rust reason.</summary>
+        static string AnchorFault(byte zone, byte kind, MapTile centre, MapRect f, byte front, byte previous, ushort w, ushort h)
+        {
+            if (zone == 0 || zone > MaxCampZone) return "anchor zone";
+            if (zone <= previous) return "anchor order";
+            if (kind < AnchorKindVolcano || kind > AnchorKindHall) return "anchor kind";
+            if (!ColiseumRectFits(f.X, f.Y, f.W, f.H, w, h)) return "anchor footprint";
+            if (centre.X < f.X || centre.X >= f.X + f.W || centre.Y < f.Y || centre.Y >= f.Y + f.H) return "anchor centre";
+            if (front >= AnchorDirections) return "anchor front";
+            return null;
         }
 
         /// <summary>The value checks of one prop row in the wire rules' order (flags, kind, variant, tile, order), shared by the
@@ -534,6 +612,7 @@ namespace Roguehalla.Net.Protocol
             MapProp[] props = (presence & PropsPresent) != 0 ? ReadProps(ref body) : NoProps;
             byte[] groundVariants = (presence & GroundVariantsPresent) != 0 ? DecodeSemanticPlane(ref body, total, byte.MaxValue) : null;
             byte[] patience = (presence2 & Presence2Patience) != 0 ? DecodeSemanticPlane(ref body, total, byte.MaxValue) : null;
+            MapAnchor[] anchors = (presence2 & Presence2Anchors) != 0 ? ReadAnchors(ref body) : NoAnchors;
             byte terrainMode = body.U8();
             uint contextHash = body.U32();
             body.End();
@@ -548,7 +627,7 @@ namespace Roguehalla.Net.Protocol
                 Terrain = terrain, Regions = regions, TerrainMode = terrainMode,
                 SemanticHash = semanticHash, ContextHash = contextHash,
                 Camps = camps, Coliseum = coliseum, Bushes = bushes, Props = props, GroundVariants = groundVariants,
-                Patience = patience,
+                Patience = patience, Anchors = anchors,
             };
         }
 
@@ -593,6 +672,26 @@ namespace Roguehalla.Net.Protocol
                 props[i] = new MapProp(kind, x, y, variant, r.U8());
             }
             return props;
+        }
+
+        static MapAnchor[] ReadAnchors(ref Reader r)
+        {
+            var anchors = new MapAnchor[r.U8()];
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                byte zone = r.U8(), kind = r.U8();
+                ushort cx = r.U16(), cy = r.U16();
+                ushort fx = r.U16(), fy = r.U16(), fw = r.U16(), fh = r.U16();
+                byte front = r.U8();
+                var entrance = new MapTile[r.U8()];
+                for (int t = 0; t < entrance.Length; t++)
+                {
+                    ushort tx = r.U16();
+                    entrance[t] = new MapTile(tx, r.U16());
+                }
+                anchors[i] = new MapAnchor(zone, kind, new MapTile(cx, cy), new MapRect(fx, fy, fw, fh), front, entrance);
+            }
+            return anchors;
         }
 
         struct GroundHeader
@@ -677,6 +776,12 @@ namespace Roguehalla.Net.Protocol
                 if (ValidatePublicPlane(ref extension, runs, total, ref actualSemanticHash) > campCount)
                     throw BadMap("patience camp");
             }
+            if ((presence2 & Presence2Anchors) != 0)
+            {
+                Reader start = extension;
+                ValidateAnchors(ref extension, w, h);
+                FeedConsumed(ref actualSemanticHash, start, extension.Remaining);
+            }
             if (actualSemanticHash != expectedSemanticHash) throw BadMap("semantic hash");
 
             byte terrainMode = extension.U8();
@@ -735,6 +840,34 @@ namespace Roguehalla.Net.Protocol
                     ushort tx = r.U16(), ty = r.U16();
                     if (tx >= w || ty >= h) throw BadMap("gate tile");
                 }
+            }
+        }
+
+        /// <summary>P-WIRE17-MAP-3: the anchors section. Each row's fixed 16 bytes must be in the extension before any is read,
+        /// and the entrance bytes are tested against what remains, so a short section is Truncated (as Rust and JS).</summary>
+        static void ValidateAnchors(ref Reader r, ushort w, ushort h)
+        {
+            int count = r.U8();
+            if (count == 0 || count > MaxAnchors) throw BadMap("anchor count");
+            byte previous = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (r.Remaining < AnchorFixedLength) throw new DecodeException(DecodeError.Truncated);
+                byte zone = r.U8(), kind = r.U8();
+                ushort cx = r.U16(), cy = r.U16();
+                ushort fx = r.U16(), fy = r.U16(), fw = r.U16(), fh = r.U16();
+                byte front = r.U8();
+                int tiles = r.U8();
+                string fault = AnchorFault(zone, kind, new MapTile(cx, cy), new MapRect(fx, fy, fw, fh), front, previous, w, h);
+                if (fault != null) throw BadMap(fault);
+                if (tiles > MaxAnchorEntrance) throw BadMap("anchor entrance");
+                if (r.Remaining < tiles * AnchorTileLength) throw new DecodeException(DecodeError.Truncated);
+                for (int t = 0; t < tiles; t++)
+                {
+                    ushort tx = r.U16(), ty = r.U16();
+                    if (tx >= w || ty >= h) throw BadMap("anchor entrance");
+                }
+                previous = zone;
             }
         }
 
@@ -897,7 +1030,7 @@ namespace Roguehalla.Net.Protocol
             CheckPlaneForWrite(Terrain, total, 7, "terrain");
             CheckPlaneForWrite(Regions, total, 6, "region");
             if (Terrain != null && !CompatibleTerrainArrays(Tiles, Terrain)) throw new EncodeException("bad terrain collision");
-            CheckPublic(W, H, Camps, Coliseum, Bushes, Props, GroundVariants, Patience);
+            CheckPublic(W, H, Camps, Coliseum, Bushes, Props, GroundVariants, Patience, Anchors);
             if (PublicSemanticHash() != SemanticHash) throw new EncodeException("bad semantic hash");
         }
 
@@ -927,7 +1060,8 @@ namespace Roguehalla.Net.Protocol
                 | (camps == null || camps.Length == 0 ? 0 : CampsPresent) | (coliseum == null ? 0 : ColiseumPresent)
                 | (bushes == null ? 0 : BushesPresent) | (props == null || props.Length == 0 ? 0 : PropsPresent)
                 | (groundVariants == null ? 0 : GroundVariantsPresent));
-        static byte Presence2(byte[] patience) => patience == null ? (byte)0 : Presence2Patience;
+        static byte Presence2(byte[] patience, MapAnchor[] anchors)
+            => (byte)((patience == null ? 0 : Presence2Patience) | (anchors == null || anchors.Length == 0 ? 0 : Presence2Anchors));
 
         static bool SameOptionalBytes(byte[] a, byte[] b) => a == null ? b == null : b != null && SameBytes(a, b);
         static bool SameBytes(byte[] a, byte[] b)
