@@ -367,6 +367,13 @@ fn push_bow_shot(
     if status != "alive" || in_hand != Some(WeaponId::Bow) || draw_started_at <= 0. {
         return;
     }
+    // P-BOT-BRAIN-CONTINUITY-1 (DEV-026): on the degraded fair profile a remote draw start is unknown (NaN). The source
+    // never sees one; read literally (`NaN <= 0` is false) it makes a shot that leaves at NaN, a juke whose hold ends at
+    // NaN, and a seat whose orders are held for the rest of the run (`now >= NaN` is never true). A pull the seat cannot
+    // time is not a shot it can juke.
+    if !draw_started_at.is_finite() {
+        return;
+    }
     // Another fighter's mirrors are not drawn: its pull is read at base speed, which no ranged fighter's is ever
     // shorter than (G9).
     let windup_ms = match faction {
@@ -710,5 +717,35 @@ impl Retreat {
         };
         self.at = now;
         self.dest
+    }
+}
+
+#[cfg(test)]
+mod unknown_draw_tests {
+    //! P-BOT-BRAIN-CONTINUITY-1: an unknown draw start is no shot, so no juke can hold the seat's orders at NaN.
+    use super::{push_bow_shot, WeaponId};
+    use rh_sim::FactionId;
+
+    #[test]
+    fn a_bow_draw_with_an_unknown_start_is_not_a_shot() {
+        let mut out = Vec::new();
+        let draw = |out: &mut Vec<_>, at: f64| {
+            push_bow_shot(
+                out,
+                "p2",
+                "alive",
+                Some(WeaponId::Bow),
+                at,
+                Some(FactionId::Fire),
+                10.,
+                10.,
+                0.,
+            )
+        };
+        draw(&mut out, f64::NAN);
+        assert!(out.is_empty(), "an unknown pull is not timed");
+        draw(&mut out, 1000.);
+        assert_eq!(out.len(), 1, "a known pull still is");
+        assert!(out[0].release_at.is_finite());
     }
 }
