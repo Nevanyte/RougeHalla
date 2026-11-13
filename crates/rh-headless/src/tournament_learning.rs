@@ -15,12 +15,13 @@ use crate::tournament::{
     plan_game, play_each, run_game_seats, GameSummary, SeatSpec, TournamentPlan,
 };
 use crate::tournament_cli::lineup_text;
+use crate::Env;
 use rh_policy::bots::learning::LEARN_VERSION;
 use rh_policy::bots::learning::{Cell, LearnedBias, RunOutcome, RunSummary, Stats, Tier};
 use rh_policy::bots::TierId;
 use rh_policy::bots::{BrainBot, HumanBot};
 use rh_policy::PolicyFinish;
-use rh_sim::{Arena, Outcome, RunResult, SimConfig};
+use rh_sim::{Arena, Outcome, PlayerId, RunResult, SimConfig};
 use serde_json::{json, Map, Value};
 
 /// Which built-in policy a tournament seats (the source tournament always seats its Brain; the port's default is the
@@ -65,8 +66,9 @@ pub const DEFAULT_LEARN_OUT: &str = "tournament-learning.json";
 
 /// The extra usage lines (`--policy`, `--learn-out`).
 pub const LEARNING_USAGE: &str = "  --policy P       human (default: the live fill bot) or brain (the ported legacy Brain)
-  --learn on       with --policy brain: play the games in plan order through one in-memory store of the ported
-                   legacy learner (each game's seats read the store as it stood when the game began)
+  --learn on       needs --policy brain: plays the games one after another in plan order through one in-memory
+                   store of the ported legacy learner (each game's seats read the store as it stood when the game
+                   began); ignores --workers; writes the store to --learn-out
   --learn-out FILE where --learn on writes the final store (default tournament-learning.json)";
 
 /// The format tag of a store file.
@@ -176,6 +178,19 @@ pub fn seat_record(
         players: f64::from(result.players),
         choices,
     }
+}
+
+/// The record of the seat `player` (lineup position `index`, spec `seat`) the moment its result arrives: the end-of-run
+/// summary is read for `player`, the id the runner holds, never for whoever sits at `index`.
+pub fn resolved_record(
+    env: &mut Env,
+    index: usize,
+    player: PlayerId,
+    seat: &SeatSpec,
+    result: &RunResult,
+) -> SeatRecord {
+    let finish = env.finish_seat(player, Some(result));
+    seat_record(index, seat, result, finish)
 }
 
 fn cell_json(cell: Cell) -> Value {
@@ -318,13 +333,11 @@ pub fn run_learning_game(
                 ),
             }
         },
-        |env, i, result| {
+        |env, i, player, result| {
             if lineup.is_empty() {
                 lineup = plan_game(plan, index).lineup;
             }
-            let player = env.sim.players()[i].id;
-            let finish = env.finish_seat(player, Some(result));
-            records.push(seat_record(i, &lineup[i], result, finish));
+            records.push(resolved_record(env, i, player, &lineup[i], result));
         },
     );
     LearnedGame {

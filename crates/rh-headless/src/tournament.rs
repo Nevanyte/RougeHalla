@@ -95,7 +95,8 @@ pub struct TournamentPlan {
     pub max_sim_ms: f64,
     /// Independent games are split across this many workers and returned in plan order.
     pub workers: u32,
-    /// Unsupported here: actual tournament play requires false; no learning store is activated.
+    /// Learning on (`--learn on`, with `--policy brain`): the games are played one after another in plan order through
+    /// one in-memory store (`tournament_learning::play_learning`); `workers` does not apply. `play`/`run_game` need false.
     pub learn: bool,
     /// Patience seconds at a full lobby, scaling to 40% (source planOf config.patienceSeconds; None = the headless
     /// defaults).
@@ -106,7 +107,8 @@ pub struct TournamentPlan {
     /// Observations are not delayed. None/zero preserves the ordinary Env path.
     pub latency_ms: Option<f64>,
     pub jitter_ms: Option<f64>,
-    /// The source tune.ts table patch: parsed and carried; the ported runner refuses to run a diagnostic it cannot apply.
+    /// The source tune.ts table patch (`--tune`): applied to the Brain tables for this tournament only (`tune::plan_tables`);
+    /// an invalid patch is refused before any game.
     pub tune: Option<serde_json::Value>,
     /// Write every game's reduced summary NDJSON to this directory (the source telemetry record is the P-BOTS-6
     /// remainder item 3; this is the ported telemetry surface).
@@ -542,11 +544,11 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
         arena,
         sim,
         |seat| Box::new(HumanBot::new(seat.tier, seat.persona)),
-        |_, _, _| {},
+        |_, _, _, _| {},
     )
 }
 
-/// [`run_game`] with the seats' policies built by `policy_of`, calling `on_resolved(env, seat index, result)` the moment
+/// [`run_game`] with the seats' policies built by `policy_of`, calling `on_resolved(env, seat index, player id, result)` the moment
 /// each seat's result arrives, in event order (source `BotManager.onResult`). The learning series uses it; `run_game`
 /// is this with HumanBot seats and no hook.
 pub fn run_game_seats(
@@ -555,7 +557,7 @@ pub fn run_game_seats(
     arena: &Arena,
     sim: &SimConfig,
     policy_of: impl Fn(&SeatSpec) -> Box<dyn rh_policy::Policy>,
-    mut on_resolved: impl FnMut(&mut Env, usize, &RunResult),
+    mut on_resolved: impl FnMut(&mut Env, usize, PlayerId, &RunResult),
 ) -> GameSummary {
     let game = plan_game(plan, index);
     let damage_available = damage_telemetry_supported(sim);
@@ -694,7 +696,7 @@ pub fn run_game_seats(
                 }
                 Event::Resolved { id, result, .. } => {
                     if let Some(i) = ids.iter().position(|candidate| *candidate == id) {
-                        on_resolved(&mut env, i, &result);
+                        on_resolved(&mut env, i, id, &result);
                         resolved[i] = Some(result);
                     }
                 }

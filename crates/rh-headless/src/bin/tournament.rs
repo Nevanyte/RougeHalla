@@ -7,7 +7,8 @@ use rh_headless::tournament::{
     ReportMeta,
 };
 use rh_headless::tournament_cli::{
-    default_arena, json_payload, lineup_text, parse_args, plan_of, write_telemetry, USAGE,
+    default_arena, json_payload, json_payload_with_policy, lineup_text, parse_args, plan_of,
+    write_telemetry, USAGE,
 };
 use rh_headless::tournament_learning::{
     check_learning, learning_file, play_learning, play_policy, split_learning_args, LearnStore,
@@ -133,7 +134,14 @@ fn main() -> std::process::ExitCode {
     };
     print!("{}", format_report_with(&report, &meta));
     if args.json.is_some() {
-        let payload = json_payload(&plan, &report, &games, Some(wall_ms), game_ms);
+        let payload = json_payload_with_policy(
+            &plan,
+            &report,
+            &games,
+            Some(wall_ms),
+            game_ms,
+            learning.policy,
+        );
         if let Some(path) = &args.json {
             if let Err(error) =
                 std::fs::write(path, serde_json::to_string(&payload).unwrap_or_default())
