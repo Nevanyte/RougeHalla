@@ -66,7 +66,11 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
     let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1);
     let v = DIR16[usize::from(front(f.ax, f.ay))];
     let horizontal = v[0].abs() >= v[1].abs();
-    let sign = if horizontal { v[0].signum() } else { v[1].signum() };
+    let sign = if horizontal {
+        v[0].signum()
+    } else {
+        v[1].signum()
+    };
     if sign == 0 {
         return None;
     }
@@ -79,7 +83,11 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
     // The entrance: the tiles of the door-side wall line the church's ring leaves open (`church.rs`: 3 of them).
     let door: Vec<i32> = (lo..=hi)
         .filter(|&t| {
-            let i = if horizontal { b.at(line, t) } else { b.at(t, line) };
+            let i = if horizontal {
+                b.at(line, t)
+            } else {
+                b.at(t, line)
+            };
             i >= 0 && !b.is_owned(i) && b.tiles[i as usize] == TILE_FLOOR
         })
         .collect();
@@ -134,9 +142,7 @@ impl Callbacks<'_> {
                 let i = grid.idx(s, t);
                 let (x, y) = if f.horizontal { (s, t) } else { (t, s) };
                 grid.open[tt * n_s + ss] = u8::from(
-                    c.open(i)
-                        && !f.in_apron(x, y)
-                        && corridor.is_none_or(|a| a[i as usize] == 0),
+                    c.open(i) && !f.in_apron(x, y) && corridor.is_none_or(|a| a[i as usize] == 0),
                 );
             }
         }
@@ -178,8 +184,7 @@ impl Callbacks<'_> {
                     entry_i.push(grid.idx(s, t0));
                 } else {
                     let here = grid.idx(s, t0);
-                    if corridor
-                        .is_some_and(|corridor| corridor[here as usize] == 1 && c.open(here))
+                    if corridor.is_some_and(|corridor| corridor[here as usize] == 1 && c.open(here))
                     {
                         corridor_opened += 1
                     }
