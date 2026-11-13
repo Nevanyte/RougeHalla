@@ -235,15 +235,20 @@ namespace Roguehalla.Client
             SetPlateMode(_plateActive);
         }
 
+        /// <summary>Legacy hud.ts:21, the first line of the practice HUD block (no Kills or GV line is shown beside it).</summary>
+        internal const string TrainingBanner = "TRAINING — nothing here is recorded: no GV, no stats";
+        bool _platePractice;
+
         /// <summary>Active: health row, build strip and extras. Otherwise: status, vitals and kills lines (legacy hud-status / hud-vitals).</summary>
         void SetPlateMode(bool active)
         {
             _plateActive = active;
+            _platePractice = _client != null && _client.ConfirmedPractice;
             if (_healthRow == null) return;
             _healthRow.gameObject.SetActive(active); _buildBox.gameObject.SetActive(active && _gainsShown); _extrasToggle.gameObject.SetActive(active);
             _extrasBody.gameObject.SetActive(active && _extrasOpen);
-            _plateStatus.gameObject.SetActive(!active); _vitals.gameObject.SetActive(!active); _combatStats.gameObject.SetActive(!active);
-            float height = active ? 5 + 18 + BuildTop + 5 * BuildRowStep + 3 + 14 + (_extrasOpen ? 66 : 0) + 8 : 5 + 48 + 6;
+            _plateStatus.gameObject.SetActive(!active); _vitals.gameObject.SetActive(!active); _combatStats.gameObject.SetActive(!active && !_platePractice);
+            float height = active ? 5 + 18 + BuildTop + 5 * BuildRowStep + 3 + 14 + (_extrasOpen ? 66 : 0) + 8 : 5 + (_platePractice ? 31 : 48) + 6;
             _vitalsPanel.sizeDelta = new Vector2(_vitalsPanel.sizeDelta.x, height);
         }
 
@@ -481,7 +486,7 @@ namespace Roguehalla.Client
             bool alive = me != null && me.Status == ActorStatus.Alive;
             bool practice = _client != null && _client.ConfirmedPractice;
             bool active = alive && _session != null && _session.Phase == MatchPhase.Active && !practice;
-            if (active != _plateActive) SetPlateMode(active);
+            if (active != _plateActive || practice != _platePractice) SetPlateMode(active);
             _barWanted = alive;
             _championWanted = _session != null && Roguehalla.Net.Ui.ChampionPanelText.Visible(alive, _session.Phase == MatchPhase.Active, practice);
             if (_deathLine != null)
