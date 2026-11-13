@@ -91,3 +91,15 @@ dotnet (no .NET 8 SDK in the container). Run with `CARGO_PROFILE_DEV_DEBUG=0 CAR
 the first attempt filled the container's disk allowance with debug builds). `--base` is the packet base because the
 default integration-branch comparison would count the base branch's own `hosting/` commit as this packet's change. The
 release-only acceptance test is not part of the gate; its run is under Measurements. CI is the final word.
+
+## After the merge into feature/unity-rework (2026-11-13)
+
+At the owner's request the packet was merged into `feature/unity-rework` (fast-forward to `2063dd8b`, after merging
+upstream twice: HumanBot's loot executors folded into the shared command mapper, `lock_recover` kept in the director, the
+deviation row renumbered to DEV-026). This skipped the `reviewer-opus` review the routing table asks for; the review and
+the owner's two decisions in DEV-026 are still open. On the merged tree:
+
+- `cargo test --release -p rh-headless --test brain_bots`: pass, 68 s, the same hashes as before the merge
+  (`5c697bc96ea735ba`, `23505433ab458c99`).
+- `scripts/gate.sh --base origin/feature/unity-rework` (full, debuginfo off): **GATE PASS**; skipped: Postgres suites, dotnet,
+  Unity EditMode (no Editor in the container).
