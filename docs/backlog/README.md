@@ -447,6 +447,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-MECHANICS-SALVAGE-3-fix | the overhead build marks read the camp-clear mirror | P-MECHANICS-SALVAGE-3 | Brief ([spec](packets/P-MECHANICS-SALVAGE-3-fix.md)); needs oracle | see spec |
 | P-UNITY-TRAINING-BANNER-1 | the practice screen shows legacy's "nothing here is recorded" banner, not Kills and GV | none | Brief ([spec](packets/P-UNITY-TRAINING-BANNER-1.md)); needs oracle | see spec |
 | P-MAPGEN-SIG-HOLY-1 | Holy's temple hall is one fixed open-colonnade blueprint placed in the Landmarks phase, with its own reserved site | P-MAPGEN-SIG-RESERVE-1 | Brief ([spec](packets/P-MAPGEN-SIG-HOLY-1.md)); measurement first | see spec |
+| P-ALLOC-CLONE-WARM-1 | the first step after a clone or a restore allocates nothing, and the test that says so runs under the gate | P-TRAINING-CAMPS-1 | Brief ([spec](packets/P-ALLOC-CLONE-WARM-1.md)); needs oracle | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
