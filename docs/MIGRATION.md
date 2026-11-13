@@ -4,6 +4,15 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner approval 2026-11-12 (chat, night): shell commands without prompts
+
+"Yes, apply it": `.claude/settings.json` now allows every `Bash` command, and `git push` and `git merge` are no longer
+in the `ask` list (the owner found the approval prompts were slowing the work). Unchanged: the `deny` list (force
+push; the four CloudFormation commands) and the rest of the `ask` list (`git rebase`, `git reset --hard`,
+`git branch -D`, `gh pr merge`, `aws`, `rm -rf`). The rules in `CLAUDE.md` "Approvals" still bind every session: the
+settings file no longer enforces them for pushes and merges, so they are kept by the coordinator: push only
+`feature/unity-rework` after a green gate; never merge into `main` or `optimization_port` without the owner.
+
 ## Beta follow-up integrations 9 to 12 (2026-11-12, evening): current checkpoint
 
 Integration branch `feature/unity-rework` @ `038f83c8`, pushed. Identities: protocol 17 (protocol 18 is stamped on the
