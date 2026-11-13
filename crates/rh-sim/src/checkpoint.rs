@@ -232,6 +232,10 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = crate::systems::frost::prepare(&k, &mut w) {
             return Err(self.refuse(CheckpointError::Malformed(why.into())));
         }
+        let seated = w.players.len();
+        if let Some(run) = w.practice.as_mut() {
+            run.prepare(seated);
+        }
         let mut scratch = TickScratch::default();
         scratch.reserve_actors(w.fighter_count());
         if let Err(why) = crate::systems::sentenced::prepare(&k, &mut w, &mut scratch) {

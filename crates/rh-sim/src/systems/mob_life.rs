@@ -210,9 +210,12 @@ pub(crate) fn hurt(
         // (camp ref, player) pairs in first-hit order. A training world has no map camps, so `campEngaged` does nothing.
         for h in hits.iter().filter(|h| h.amount > 0.) {
             if let Some(by) = h.by.filter(|by| w.player(*by).is_some()) {
-                let pairs = &mut w.practice.as_mut().expect("practice runtime").contributors;
-                if !pairs.contains(&(camp, by)) {
-                    pairs.push((camp, by));
+                let seated = w.players.len();
+                let run = w.practice.as_mut().expect("practice runtime");
+                if !run.contributors.contains(&(camp, by)) {
+                    // One reservation for the room's whole bound the first time (a no-op once prepared).
+                    run.prepare(seated);
+                    run.contributors.push((camp, by));
                 }
             }
         }
