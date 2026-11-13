@@ -197,6 +197,9 @@ namespace Roguehalla.Net.Protocol
         public double ExpiresAt;
         public WireQuestParticipant[] Participants = Array.Empty<WireQuestParticipant>();
         public RosterId? Carrier;
+        /// <summary>P-WIRE17-MAP-2: the carrier's public actor id, present only while the viewer is delivered that fighter
+        /// (row flag 0x10, a varint after the flags byte). Stub: the codec neither writes, reads nor checks it yet.</summary>
+        public uint? CarrierActor;
         public string DoneBy;
         public bool CanAccept, OwnerAccepted, OwnerCompleted, OwnerReady;
         public uint OwnerProgress;

@@ -63,6 +63,10 @@ pub struct QuestRow {
     pub expires_at: f64,
     pub participants: Vec<Participant>,
     pub carrier: Option<RosterId>,
+    /// P-WIRE17-MAP-2: the carrier's public actor id, present only when the carrier is the viewer or is among this
+    /// observation's delivered actors (`Observation::visible`, after the actor-reference projection); else `None`.
+    // Stub: always `None` (the implementer fills it in `item_view` after the projection and replaces this note).
+    pub carrier_actor: Option<PlayerId>,
     pub done_by: Option<String>,
     /// The current authoritative action checks permit acceptance at this sample.
     pub can_accept: bool,
@@ -376,6 +380,7 @@ impl QuestObserver {
                 expires_at: o.expires_at,
                 participants,
                 carrier,
+                carrier_actor: None,
                 done_by,
                 can_accept,
                 owner_accepted,
@@ -450,6 +455,9 @@ impl Prepared<'_> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod carrier_actor_tests;
 
 #[cfg(test)]
 mod renewal_tests {

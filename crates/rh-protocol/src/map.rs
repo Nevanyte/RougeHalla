@@ -105,6 +105,10 @@ pub struct MapPublic {
     pub props: Vec<MapProp>,
     /// Row-major ground-variant plane (the server's map dressing; ids `0..=MAX_GROUND_VARIANT`).
     pub ground_variants: Option<Vec<u8>>,
+    /// P-WIRE17-MAP-2: row-major camp patience plane: 0, or the 1-based index (into `camps`) of the camp whose patience
+    /// range covers the tile (legacy `campPatienceOutline`). Present only in a section-version-3 extension.
+    // Stub: the codec neither writes, reads nor checks it yet (the implementer replaces this note).
+    pub patience: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1090,6 +1094,7 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
         ground_variants: plan
             .ground_variants
             .map(|p| decode_runs(p.runs, p.count, total)),
+        patience: None,
     };
     Ok(MapBlob {
         w: plan.w,

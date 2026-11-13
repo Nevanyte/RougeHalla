@@ -290,6 +290,7 @@ fn sample_public() -> MapPublic {
             },
         ],
         ground_variants: Some(variants()),
+        patience: None,
     }
 }
 fn sample_map() -> MapBlob {

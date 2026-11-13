@@ -3,6 +3,7 @@
 //! checks metadata references, then `validate_for_tiles` must accompany attachment
 //! to a TileMap. No generator/hash-parity claim is made by this import boundary.
 mod model;
+pub mod patience;
 mod validate;
 pub use model::*;
 use serde::{Deserialize, Serialize};

@@ -81,6 +81,10 @@ pub struct WireQuestRow {
     pub expires_at: f64,
     pub participants: Vec<WireQuestParticipant>,
     pub carrier: Option<RosterId>,
+    /// P-WIRE17-MAP-2: the carrier's public actor id (the id its snapshot actor row carries), present only while the
+    /// viewer is delivered that fighter (C-OBS); `None` when the carrier is unseen or there is no carrier.
+    // Stub: the codec neither writes, reads nor checks it yet (the implementer replaces this note).
+    pub carrier_actor: Option<u32>,
     pub done_by: Option<String>,
     pub can_accept: bool,
     pub owner_accepted: bool,
@@ -1782,6 +1786,7 @@ impl WireQuestRow {
             expires_at,
             participants,
             carrier,
+            carrier_actor: None,
             done_by,
             can_accept: flags & 1 != 0,
             owner_accepted: flags & 2 != 0,

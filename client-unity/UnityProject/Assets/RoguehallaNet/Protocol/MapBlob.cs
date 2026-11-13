@@ -89,6 +89,9 @@ namespace Roguehalla.Net.Protocol
         public MapProp[] Props { get; private set; } = NoProps;
         /// <summary>Row-major ground-variant plane (reserved). Null when absent.</summary>
         public byte[] GroundVariants { get; private set; }
+        /// <summary>P-WIRE17-MAP-2: row-major camp patience plane (0, or the 1-based index into Camps of the camp whose patience
+        /// range covers the tile), carried by a section-version-3 extension. Null when absent. Stub: never decoded yet.</summary>
+        public byte[] Patience { get; private set; }
 
         public const byte Floor = 0, Wall = 1, Low = 2;
         public const byte GroundTerrainOff = 0, GroundTerrainMap = 1, GroundTerrainAll = 2;
@@ -126,6 +129,13 @@ namespace Roguehalla.Net.Protocol
             map.SemanticHash = map.PublicSemanticHash();
             map.ContextHash = ComputeContextHash(map.LayerHash, map.SemanticHash, map.TerrainMode);
             return map;
+        }
+
+        /// <summary>P-WIRE17-MAP-2: <see cref="WithPublic(MapCamp[], MapColiseum, byte[], MapProp[], byte[])"/> plus the camp
+        /// patience plane (null = absent; a present plane makes the extension section version 3). Stub: ignores the plane.</summary>
+        public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience)
+        {
+            return WithPublic(camps, coliseum, bushes, props, groundVariants);
         }
 
         uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants);

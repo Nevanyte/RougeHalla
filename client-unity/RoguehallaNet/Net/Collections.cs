@@ -147,6 +147,9 @@ namespace Roguehalla.Net
         public double ExpiresAt { get; }
         public IReadOnlyList<QuestParticipantView> Participants { get; }
         public RosterId? Carrier { get; }
+        /// <summary>P-WIRE17-MAP-2: the carrier's public actor id (its snapshot actor id) while this viewer is delivered that
+        /// fighter; null when unseen or without a carrier. Stub: always null until the implementer copies it.</summary>
+        public uint? CarrierActor { get; }
         public string DoneBy { get; }
         public bool CanAccept { get; }
         public bool OwnerAccepted { get; }

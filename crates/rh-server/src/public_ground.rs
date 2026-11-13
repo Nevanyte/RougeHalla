@@ -124,6 +124,8 @@ pub fn public_sections(data: &LayerData) -> Result<MapPublic, EncodeError> {
         bushes,
         props: Vec::new(),
         ground_variants: None,
+        // P-WIRE17-MAP-2 stub: the implementer fills the plane from `rh_sim::mapdata::patience::patience_plane`.
+        patience: None,
     })
 }
 

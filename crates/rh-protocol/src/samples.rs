@@ -440,6 +440,7 @@ fn quest_view_sample() -> WireQuestView {
                 visited: 1,
             }],
             carrier: None,
+            carrier_actor: None,
             done_by: None,
             can_accept: true,
             owner_accepted: false,
@@ -475,6 +476,7 @@ fn quest_view_at_max_bytes() -> WireQuestView {
                 expires_at: 0.0,
                 participants: vec![],
                 carrier: None,
+                carrier_actor: None,
                 done_by: None,
                 can_accept: false,
                 owner_accepted: false,
@@ -1068,6 +1070,7 @@ fn public_map(all: bool) -> MapBlob {
             Vec::new()
         },
         ground_variants: all.then(|| (0..total).map(|i| (i / 5 % 3) as u8).collect()),
+        patience: None,
     };
     MapBlob::new_with_ground(
         PUBLIC_W,
