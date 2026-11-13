@@ -339,13 +339,21 @@ mod setup_tests {
     #[test]
     fn a_brain_seat_composes_with_the_public_setup() {
         let arena = crate::bots::temporal_percept::brain::compose14::test_support::seed1_arena();
-        assert!(!arena.spawns.is_empty(), "premise: the server's arena has spawn points");
+        assert!(
+            !arena.spawns.is_empty(),
+            "premise: the server's arena has spawn points"
+        );
         let config = SimConfig::default();
         let mut sim = Sim::new(config.clone(), arena.clone(), Secrets::from_seed(1));
-        let me = sim.add_player("seat", Some(FactionId::Fire), true).expect("seat");
+        let me = sim
+            .add_player("seat", Some(FactionId::Fire), true)
+            .expect("seat");
         let features = brain_features(&config, &arena);
         let mut bot = BrainBot::new(TierId::Hard, PersonaId::Hunter, features.clone());
-        assert!(bot.composer_setup().is_none(), "nothing seated before reset");
+        assert!(
+            bot.composer_setup().is_none(),
+            "nothing seated before reset"
+        );
         bot.reset(&MatchStart::of(&sim, me, 5));
         let setup = bot.composer_setup().expect("seated").clone();
         let public = Setup14::public(

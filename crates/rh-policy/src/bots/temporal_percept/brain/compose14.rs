@@ -1816,7 +1816,10 @@ fn plan_event(plan: &WirePlan, now: f64) -> BVal {
             "spawns",
             BVal::arr(plan.spawns.iter().map(|s| opt(s.map(f64::from)))),
         ),
-        ("taken", BVal::arr(plan.taken.iter().map(|t| BVal::flag(*t)))),
+        (
+            "taken",
+            BVal::arr(plan.taken.iter().map(|t| BVal::flag(*t))),
+        ),
         ("pick", opt(plan.pick.map(f64::from))),
         (
             "boons",
