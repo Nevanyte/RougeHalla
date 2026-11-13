@@ -89,3 +89,14 @@ barrier, and none that reads it for sight or shots may.
 - A DEVIATIONS row is needed (live rule differs from the in-repo legacy oracle): propose it in the hand-off.
 
 ## Notes from previous attempts
+2026-11-12 (coordinator): both dependencies are met: P-REGEN-COMBAT-1-fix and P-CAMP-BUFF-THEMES-1 are merged
+(`SimConfig` now carries `regen_in_combat` and `camp_buffs`, `crates/rh-sim/src/statics.rs:258,265`; a `Legacy`
+variant serializes as a unit and adds no digest word, `hash.rs:21-22`: the wall's switch follows the same rule).
+Identities at this point: protocol 17, observation 27, policy contract 21, checkpoint 31, replay 25, content hash
+`4674a176a28e3c7a`. Facts for the oracle author: Freeze is defined at `crates/rh-sim/src/abilities/mod.rs:106` and
+mapped to Frost at `:247`; `Target` kinds (`Unit`, `Self_`, `Point`) at `:38-39` and `:145`; a point-carrying cast
+is `PublicCommand::Cast` (`crates/rh-sim/src/input.rs:101`, validated points clamped to the world, `:254`); placed
+zones land in `crates/rh-sim/src/systems/abilities/effects.rs:386-476` (Trial) through `fields::add`/`remove`
+(`:201-255`), with the field-kind checkpoint mapping in `abilities/effect_checkpoint.rs:35`. No oracle is written
+yet. The champion panel's Welcome terms pin Freeze's numbers (P-WIRE17-HUD-2b, codes 0 and 1): the wall's own terms
+are appended by P-FROST-WALL-2, not here.
