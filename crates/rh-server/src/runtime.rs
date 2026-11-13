@@ -245,7 +245,10 @@ impl Settings {
         }
     }
 
+    /// The configured map. Parses the shipped dressing rules first (P-DRESS-BAKE-1): every served map is dressed with
+    /// them, so a rules file that fails to parse is a start-up error here, before any map is prepared.
     pub fn arena(&self) -> Result<Arena, String> {
+        shipped_dress_rules()?;
         match self.profile {
             Profile::Training => Ok(rh_sim::arenas::practice_arena()),
             Profile::SourceArena => {
@@ -262,10 +265,20 @@ pub const DRESS_RULES_JSON: &str = include_str!("../../rh-mapdress/rules/zones.j
 
 /// P-DRESS-BAKE-1: parses dressing rules at start-up. A file that fails to parse is an error whose message names the
 /// dressing rules and the parser's reason; the server never serves an undressed map in its place.
-/// Stub: ignores `text` (the implementer parses it).
 pub fn dress_rules(text: &str) -> Result<rh_mapdress::Rules, String> {
-    let _ = text;
-    Ok(rh_mapdress::Rules::starter())
+    rh_mapdress::Rules::from_json(text).map_err(|e| format!("dressing rules: {e}"))
+}
+
+/// The shipped dressing rules ([`DRESS_RULES_JSON`]), parsed once per process and shared by every map preparation
+/// (the fixed map, the pool's worker, the inline take). [`Settings::arena`] calls it before any map is prepared, so a
+/// broken file stops the server at start-up.
+pub fn shipped_dress_rules() -> Result<&'static rh_mapdress::Rules, String> {
+    static RULES: std::sync::OnceLock<Result<rh_mapdress::Rules, String>> =
+        std::sync::OnceLock::new();
+    RULES
+        .get_or_init(|| dress_rules(DRESS_RULES_JSON))
+        .as_ref()
+        .map_err(Clone::clone)
 }
 
 /// Unlike the core loader, this refuses collision-only maps and validates real gates, coliseum, layers and spawns.

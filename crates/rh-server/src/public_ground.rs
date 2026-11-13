@@ -1,10 +1,12 @@
 //! Cold public map projection. Only canonical collision, terrain and region cells, and the map facts legacy clients
 //! generated themselves (camp markers, the coliseum and its gates, concealment bushes; protocol 17), cross this seam.
-//! The seed, spawn pool, crate and ground spots and the feature list stay on the server (C-OBS).
+//! The seed, spawn pool, crate and ground spots and the feature list stay on the server (C-OBS). The map's decoration
+//! (P-DRESS-BAKE-1: `rh_mapdress::dress`, looks only, never read by the sim) rides in the prop and ground-variant sections.
 //! Match effect mode is deliberately separate from the arena-only encoded asset cache.
 
+use rh_mapdress::{Dressing, Rules};
 use rh_protocol::codec::EncodeError;
-use rh_protocol::map::{EncodedMap, MapCamp, MapColiseum, MapGate, MapPublic, MapTile};
+use rh_protocol::map::{EncodedMap, MapCamp, MapColiseum, MapGate, MapProp, MapPublic, MapTile};
 use rh_protocol::GroundMode;
 use rh_sim::mapdata::{FeatureKind, GateSide, LayerData};
 use rh_sim::{terrain::Mode, TileMap};
@@ -57,7 +59,7 @@ fn side_code(side: GateSide) -> u8 {
 
 /// The protocol 17 public sections from the map's metadata. Camps keep `map.camps` order, the order of the `WireCamp`
 /// rows. Bushes are legacy `bushAt` ids (feature index + 1 where the feature is a bush); the plane is absent when the
-/// map has no bush. Props and ground variants are reserved and stay absent.
+/// map has no bush. Props and ground variants stay absent here: they are the dressing ([`encode_dressed_map`]).
 pub fn public_sections(data: &LayerData) -> Result<MapPublic, EncodeError> {
     let camps = data
         .camps
@@ -130,14 +132,70 @@ fn public(map: &TileMap) -> Result<MapPublic, EncodeError> {
         .map_or_else(|| Ok(MapPublic::default()), |l| public_sections(l.data()))
 }
 
-/// Validate borrowed canonical data before allocating the once-encoded static bytes.
+/// Validate borrowed canonical data before allocating the once-encoded static bytes. Undressed: the dressing sections
+/// ship absent (see [`encode_dressed_map`]).
 pub fn encode_static_map(map: &TileMap) -> Result<EncodedMap, EncodeError> {
-    let (w, h) = dimensions(map)?;
-    let (terrain, regions) = planes(map);
-    EncodedMap::from_public(w, h, &map.tiles, terrain, regions, &public(map)?)
+    encode_dressed_map(map, None)
 }
 
-/// A cache key is only a lookup aid. Reuse requires the complete canonical public content to match.
+/// [`encode_static_map`] carrying `dressing` in the prop and ground-variant sections (P-DRESS-BAKE-1), in wire form
+/// ([`dressing_sections`]). `None`, or a dressing with no prop and an all-zero plane, is exactly the undressed blob.
+pub fn encode_dressed_map(
+    map: &TileMap,
+    dressing: Option<&Dressing>,
+) -> Result<EncodedMap, EncodeError> {
+    let (w, h) = dimensions(map)?;
+    let (terrain, regions) = planes(map);
+    let mut public = public(map)?;
+    if let Some(d) = dressing {
+        (public.props, public.ground_variants) = dressing_sections(d);
+    }
+    EncodedMap::from_public(w, h, &map.tiles, terrain, regions, &public)
+}
+
+/// A `Dressing` as the wire sends it: every prop as a `MapProp` (same five fields) sorted by `(y, x, kind)`, the
+/// ground-variant plane only when some cell is non-zero. `dress` returns stage order; the wire's order is part of the bytes.
+pub fn dressing_sections(d: &Dressing) -> (Vec<MapProp>, Option<Vec<u8>>) {
+    let mut props: Vec<MapProp> = d
+        .props
+        .iter()
+        .map(|p| MapProp {
+            kind: p.kind,
+            x: p.x,
+            y: p.y,
+            variant: p.variant,
+            flags: p.flags,
+        })
+        .collect();
+    props.sort_unstable_by_key(|p| (p.y, p.x, p.kind));
+    let ground = d
+        .ground_variants
+        .iter()
+        .any(|&v| v != 0)
+        .then(|| d.ground_variants.clone());
+    (props, ground)
+}
+
+/// The dressing of a map that carries layers, from the map alone: its layers rebuilt as the generator's map (no anchors:
+/// an arena never keeps them, so a pooled map is dressed from the generator's map instead, `map_pool`) and its own
+/// `legacy_map_hash_u32`. `None` for a map without layers (the practice arena): nothing to dress.
+pub fn dress_map(map: &TileMap, rules: &Rules) -> Result<Option<Dressing>, EncodeError> {
+    let Some(layers) = map.layers() else {
+        return Ok(None);
+    };
+    let export = layers
+        .to_export(&map.tiles)
+        .map_err(|_| EncodeError::BadMap("map layers"))?;
+    Ok(Some(rh_mapdress::dress(
+        &export.map,
+        u64::from(export.legacy_map_hash_u32),
+        rules,
+    )))
+}
+
+/// A cache key is only a lookup aid. Reuse requires the complete canonical public content to match; the two dressing
+/// sections may be present or absent (a dressed and an undressed blob of one map both match) but must pass the wire's
+/// value checks.
 pub fn matches_static_map(encoded: &EncodedMap, map: &TileMap) -> bool {
     let Ok((w, h)) = dimensions(map) else {
         return false;
@@ -146,7 +204,7 @@ pub fn matches_static_map(encoded: &EncodedMap, map: &TileMap) -> bool {
         return false;
     };
     let (terrain, regions) = planes(map);
-    encoded.matches_public(w, h, &map.tiles, terrain, regions, &public)
+    encoded.matches_public_any_dressing(w, h, &map.tiles, terrain, regions, &public)
 }
 
 /// Publish the actual simulation configuration, without changing or interpreting terrain rules.
