@@ -81,7 +81,8 @@ namespace Roguehalla.Client
                 float n = RegionNoise.Periodic(u * 2.3f, v * 2.3f, 61, seed), n2 = RegionNoise.Periodic(u * 6f, v * 6f, 61, seed + 7);
                 float t = Mathf.Clamp01(h * .9f + lit * .8f + (n - .5f) * .35f + (n2 - .5f) * .12f);
                 Color c = t < .5f ? Color.Lerp(RockDark, RockMid, t * 2f) : Color.Lerp(RockMid, RockLight, (t - .5f) * 2f);
-                float snow = Mathf.Clamp01((h - .62f) * 3f + (lit > .15f ? .3f : 0f) - Mathf.Abs(n - .62f) * 2.2f);
+                float n3 = RegionNoise.Periodic(u * .7f, v * .7f, 61, seed + 13);
+                float snow = (n3 - .6f) * 5f + (lit > .15f ? .3f : 0f) + (h - .8f) * .5f;
                 if (snow > .35f) c = Color.Lerp(c, Snow, Mathf.Clamp01((snow - .35f) * 2.5f) * .85f);
                 float rim = Mathf.Clamp01((.5f - cover) / .15f);                 // 0 inside, 1 at the edge
                 return Color.Lerp(c, Outline, rim);
@@ -163,7 +164,14 @@ namespace Roguehalla.Client
             {
                 float u = (i + .5f - Margin) / Ppt, v = lm.FootH + (Margin - j - .5f) / Ppt;    // texture row 0 is the south edge
                 float c = field.Cover(u, v);
-                if (c > .35f) px[j * W + i] = AntiAlias(field.Paint(u, v, c, 5), c);
+                if (c > .35f)
+                {
+                    var col = field.Paint(u, v, c, 5);
+                    float du = (u - lm.FootW / 2f) / (lm.FootW / 2f), dv = (v - lm.FootH / 2f) / (lm.FootH / 2f), r = Mathf.Clamp01(Mathf.Sqrt(du * du + dv * dv));
+                    float k = .78f + .38f * (1f - r) - .1f * (du + dv);          // a dome: brighter at the crown, lit from the north west
+                    col.r *= k; col.g *= k; col.b *= k;
+                    px[j * W + i] = AntiAlias(col, c);
+                }
             }
             var tex = NewTexture(lm, W, H, "Cave roof"); tex.SetPixels32(px); tex.Apply(false, true);
             float cx = lm.FootX + lm.FootW / 2f, cy = -(lm.FootY + lm.FootH / 2f) * Sq;
