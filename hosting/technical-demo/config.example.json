@@ -7,5 +7,8 @@
   "domain": "play.rougehalla.com",
   "run_id": "root-replace",
   "protocol": 0,
-  "content_hash": "ROOT-REPLACE-EXACT-16-LOWERCASE-HEX"
+  "content_hash": "ROOT-REPLACE-EXACT-16-LOWERCASE-HEX",
+  "map_pool": false,
+  "signature_landmarks": false,
+  "lobby_timing": "legacy"
 }

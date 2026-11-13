@@ -13,6 +13,8 @@ import tarfile
 import time
 
 ROOT = Path('/opt/rougehalla-demo')
+# Optional Source-room launch settings (P-HOST-FLAGS-1); absent means today's behaviour.
+LAUNCH_SETTINGS = ('map_pool', 'signature_landmarks', 'lobby_timing')
 CONFIG = Path('/etc/rougehalla-demo.json')
 UNITS = Path('/etc/systemd/system')
 MAX_BUNDLE = 160 * 1024 * 1024
@@ -28,8 +30,13 @@ def require(ok, reason):
 
 def config(raw, now=None):
     c = json.loads(raw)
-    require(type(c) is dict and set(c) == {'bucket', 'key', 'sha256', 'region', 'expires_at', 'domain', 'run_id', 'protocol', 'content_hash'}, 'config keys')
-    require(all(type(v) is str and v for k, v in c.items() if k != 'protocol'), 'config strings')
+    required = {'bucket', 'key', 'sha256', 'region', 'expires_at', 'domain', 'run_id', 'protocol', 'content_hash'}
+    require(type(c) is dict and required <= set(c) <= required | set(LAUNCH_SETTINGS), 'config keys')
+    require(all(type(v) is str and v for k, v in c.items() if k not in ('protocol', 'map_pool', 'signature_landmarks')), 'config strings')
+    for flag in ('map_pool', 'signature_landmarks'):
+        require(type(c.get(flag, False)) is bool, f'{flag} must be true or false')
+    require(c.get('lobby_timing', 'legacy') in ('legacy', 'matchmaking'), 'lobby_timing must be legacy or matchmaking')
+    require(not c.get('signature_landmarks', False) or c.get('map_pool', False), 'signature_landmarks needs map_pool')
     require(type(c['protocol']) is int and 1 <= c['protocol'] <= 65535, 'protocol u16')
     require(re.fullmatch(r'[a-f0-9]{16}', c['content_hash']), 'content hash')
     require(re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]', c['bucket']), 'bucket')
@@ -213,7 +220,15 @@ def guard():
 def app_unit(c, training):
     mode = 'training' if training else 'source-arena'
     port = 7779 if training else 7777
-    options = '--min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0' if training else f'--map {ROOT}/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3'
+    if training:
+        options = '--min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0'
+    else:
+        # The training room refuses the pool and the timing switch, so these apply to Source only. With matchmaking the
+        # server sets the 15 s lobby, bots at second 13 itself (it overrides --lobby-seconds/--fill-seconds), so the pair is dropped.
+        matchmaking = c.get('lobby_timing', 'legacy') == 'matchmaking'
+        lobby = '' if matchmaking else ' --lobby-seconds 10 --fill-seconds 3'
+        extra = (' --map-pool' if c.get('map_pool') else '') + (' --signature-landmarks' if c.get('signature_landmarks') else '') + (' --lobby-timing matchmaking' if matchmaking else '')
+        options = f'--map {ROOT}/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1{lobby}{extra}'
     # Owner approval 2026-11-11: the legacy bot learner runs on Source (single writer on this host's Postgres); training
     # refuses learning (rh-server exits 2), so it keeps it off.
     learning = 'off' if training else 'single-writer'
