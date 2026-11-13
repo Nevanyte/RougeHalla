@@ -291,6 +291,7 @@ fn sample_public() -> MapPublic {
         ],
         ground_variants: Some(variants()),
         patience: None,
+        anchors: Vec::new(),
     }
 }
 fn sample_map() -> MapBlob {

@@ -1080,6 +1080,7 @@ fn public_map(all: bool) -> MapBlob {
         },
         ground_variants: all.then(|| (0..total).map(|i| (i / 5 % 3) as u8).collect()),
         patience: None,
+        anchors: Vec::new(),
     };
     MapBlob::new_with_ground(
         PUBLIC_W,

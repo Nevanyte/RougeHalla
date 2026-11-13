@@ -43,6 +43,28 @@ namespace Roguehalla.Net.Protocol
         public MapProp(byte kind, ushort x, ushort y, byte variant, byte flags) { Kind = kind; X = x; Y = y; Variant = variant; Flags = flags; }
     }
 
+    /// <summary>A tile rectangle inside the map (P-WIRE17-MAP-3: an anchor's footprint).</summary>
+    public readonly struct MapRect
+    {
+        public readonly ushort X, Y, W, H;
+        public MapRect(ushort x, ushort y, ushort w, ushort h) { X = x; Y = y; W = w; H = h; }
+    }
+
+    /// <summary>P-WIRE17-MAP-3: one zone's landmark anchor, tile units (layout in docs/backlog/packets/P-WIRE17-MAP-3.md "Wire
+    /// layout"). Zone is the zone code 1..5; Kind one of the MapBlob.AnchorKind* codes; Front a DIR16 index below 16; Entrance
+    /// the way in, generator order, empty for a landmark without one.</summary>
+    public sealed class MapAnchor
+    {
+        public readonly byte Zone, Kind, Front;
+        public readonly MapTile Centre;
+        public readonly MapRect Footprint;
+        public readonly MapTile[] Entrance;
+        public MapAnchor(byte zone, byte kind, MapTile centre, MapRect footprint, byte front, MapTile[] entrance)
+        {
+            Zone = zone; Kind = kind; Centre = centre; Footprint = footprint; Front = front; Entrance = entrance ?? new MapTile[0];
+        }
+    }
+
     /// <summary>The canonical public map: collision tile classes row-major (0 floor, 1 wall, 2 low), the public ground planes and
     /// (protocol 17) the public sections legacy clients generated themselves: camps, coliseum and gates, bushes, props, ground
     /// variants.</summary>
@@ -58,6 +80,10 @@ namespace Roguehalla.Net.Protocol
         const byte TerrainPresent = 0x01, RegionPresent = 0x02, CampsPresent = 0x04, ColiseumPresent = 0x08,
             BushesPresent = 0x10, PropsPresent = 0x20, GroundVariantsPresent = 0x40, KnownPresence = 0x7f;
         public const int MaxCamps = 64, MaxColiseumGates = 8, MaxGateTiles = 16, MaxProps = 8192;
+        /// <summary>P-WIRE17-MAP-3: anchor caps and the wire's landmark kind codes (as Rust's `rh_protocol::map`).</summary>
+        public const int MaxAnchors = 5, MaxAnchorEntrance = 16;
+        public const byte AnchorKindVolcano = 1, AnchorKindChurch = 2, AnchorKindBogTree = 3, AnchorKindCave = 4, AnchorKindHall = 5;
+        static readonly MapAnchor[] NoAnchors = new MapAnchor[0];
         const byte MaxCampZone = 5, MaxGateSide = 3;
         /// <summary>Dressing value caps (P-DRESS-BAKE-1), the same as Rust's `rh_protocol::map`: prop flags tall and legacy;
         /// a rule prop's kind 1..MaxPropKind and variant at most MaxPropVariant; a legacy prop's kind below LegacyPropKinds;
@@ -97,6 +123,9 @@ namespace Roguehalla.Net.Protocol
         /// <summary>P-WIRE17-MAP-2: row-major camp patience plane (0, or the 1-based index into Camps of the camp whose patience
         /// range covers the tile), carried by a section-version-3 extension. Null when absent.</summary>
         public byte[] Patience { get; private set; }
+        /// <summary>P-WIRE17-MAP-3: each zone's landmark anchor in zone-code order (second presence bit 0x02). Empty when absent.
+        /// STUB: never decoded or encoded yet.</summary>
+        public MapAnchor[] Anchors { get; private set; } = NoAnchors;
 
         public const byte Floor = 0, Wall = 1, Low = 2;
         public const byte GroundTerrainOff = 0, GroundTerrainMap = 1, GroundTerrainAll = 2;
@@ -143,6 +172,14 @@ namespace Roguehalla.Net.Protocol
             map.SemanticHash = map.PublicSemanticHash();
             map.ContextHash = ComputeContextHash(map.LayerHash, map.SemanticHash, map.TerrainMode);
             return map;
+        }
+
+        /// <summary>P-WIRE17-MAP-3: the six-section overload plus the landmark anchors (null or empty = absent). STUB: ignores
+        /// the anchors.</summary>
+        public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience,
+            MapAnchor[] anchors)
+        {
+            return WithPublic(camps, coliseum, bushes, props, groundVariants, patience);
         }
 
         uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants, Patience);

@@ -97,6 +97,45 @@ pub struct MapProp {
     pub flags: u8,
 }
 
+/// A tile rectangle inside the map (`x + w <= map w`, `y + h <= map h`, `w` and `h` at least 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MapRect {
+    pub x: u16,
+    pub y: u16,
+    pub w: u16,
+    pub h: u16,
+}
+
+/// P-WIRE17-MAP-3: most landmark anchors in a map (one per zone, five zones).
+pub const MAX_MAP_ANCHORS: usize = 5;
+/// P-WIRE17-MAP-3: most entrance tiles per anchor (today 3: the cave mouth, the church door; the church's main gate is 5).
+pub const MAX_ANCHOR_ENTRANCE: usize = 16;
+/// P-WIRE17-MAP-3: the wire's landmark kind codes (a table, not `rh_sim::mapdata::FeatureKind`'s ordinal, so a kind appended
+/// in the sim never shifts a wire value). Every other code is refused (`"anchor kind"`).
+pub const ANCHOR_KIND_VOLCANO: u8 = 1;
+pub const ANCHOR_KIND_CHURCH: u8 = 2;
+pub const ANCHOR_KIND_BOG_TREE: u8 = 3;
+pub const ANCHOR_KIND_CAVE: u8 = 4;
+pub const ANCHOR_KIND_HALL: u8 = 5;
+
+/// P-WIRE17-MAP-3: one zone's landmark anchor (`rh_sim::mapdata::ZoneAnchor` as sent), tile units. Rows are in zone-code
+/// order, one per zone; layout in docs/backlog/packets/P-WIRE17-MAP-3.md "Wire layout".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapAnchor {
+    /// `Zone::code` (1..=5).
+    pub zone: u8,
+    /// One of the `ANCHOR_KIND_*` codes.
+    pub kind: u8,
+    /// The landmark's centre tile, inside `footprint`.
+    pub centre: MapTile,
+    /// Bounding rectangle of the landmark's owned tiles.
+    pub footprint: MapRect,
+    /// DIR16 index (0 = +x, 4 = +y), below 16.
+    pub front: u8,
+    /// The way in (cave mouth, church door), generator order; empty for a landmark without one.
+    pub entrance: Vec<MapTile>,
+}
+
 /// Public map dressing that legacy clients generated themselves (protocol 17). Empty lists and `None` encode as absent.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MapPublic {
@@ -111,6 +150,9 @@ pub struct MapPublic {
     /// range covers the tile (legacy `campPatienceOutline`). Present only in a section-version-3 extension (second
     /// presence byte bit 0x01), after the version-2 sections; every cell is at most `camps.len()`.
     pub patience: Option<Vec<u8>>,
+    /// P-WIRE17-MAP-3: each zone's landmark anchor, zone-code order (second presence byte bit 0x02, after the patience
+    /// plane). Empty encodes as absent. STUB: neither written, read nor checked yet.
+    pub anchors: Vec<MapAnchor>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1190,6 +1232,7 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
             .ground_variants
             .map(|p| decode_runs(p.runs, p.count, total)),
         patience: plan.patience.map(|p| decode_runs(p.runs, p.count, total)),
+        anchors: Vec::new(),
     };
     Ok(MapBlob {
         w: plan.w,

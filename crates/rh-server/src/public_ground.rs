@@ -129,6 +129,7 @@ pub fn public_sections(data: &LayerData) -> Result<MapPublic, EncodeError> {
         props: Vec::new(),
         ground_variants: None,
         patience,
+        anchors: Vec::new(),
     })
 }
 
