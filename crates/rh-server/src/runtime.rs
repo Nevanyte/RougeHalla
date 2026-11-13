@@ -216,6 +216,7 @@ impl Settings {
             // Owner decision 2026-11-10 (legacy a7b5c4ce): each zone's camps pay a themed stat, spread evenly and within
             // reach of every camp (P-CAMP-BUFF-THEMES-1). Training has no camps: only its config identity changes.
             camp_buffs: rh_sim::CampBuffRule::Themed,
+            frost_wish: rh_sim::FrostWish::Freeze,
             quests: !training,
             training,
             dummies: training,

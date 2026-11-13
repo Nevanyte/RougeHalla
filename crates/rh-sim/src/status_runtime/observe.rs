@@ -83,6 +83,10 @@ pub(crate) fn project(
     let map = sim.collision_view();
     let wards = crate::vision::WardSight::of_sim(sim);
     for f in &a.fields {
+        // P-FROST-WALL-1: a wall is not projected until clients can draw it (P-FROST-WALL-2).
+        if f.kind == FieldKind::Wall {
+            continue;
+        }
         if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick, wards)
             || (f.kind == FieldKind::Trail
                 && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick, wards))
@@ -103,6 +107,7 @@ pub(crate) fn public(sim: &Sim) -> Vec<FieldView> {
         .map(|a| {
             a.fields
                 .iter()
+                .filter(|f| f.kind != FieldKind::Wall)
                 .map(|f| FieldView::from_field(f, |id| sim.player(id).is_some()))
                 .collect()
         })

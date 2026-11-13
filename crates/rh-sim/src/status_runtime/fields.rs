@@ -9,6 +9,9 @@ pub enum FieldKind {
     Zone,
     Cloud,
     Trail,
+    /// A placed barrier (Frost Wall, P-FROST-WALL-1): its tiles live in `AbilityRuntime::barriers`. Only under
+    /// `SimConfig::frost_wish = Wall`; never projected to clients until P-FROST-WALL-2.
+    Wall,
 }
 
 /// Numerical admission, not a gameplay radius limit. Fourfold headroom keeps the
@@ -43,6 +46,13 @@ pub struct AbilityRuntime {
     pub teleported_at: Option<f64>,
     pub dot: Vec<AbilityDotBucket>,
     pub dot_since: f64,
+    /// The standing barriers' tiles (P-FROST-WALL-1), one row per `Wall` field; `null` when none stands (see
+    /// [`crate::barriers::Barriers`]). `#[serde(default)]`: checkpoints written before the field restore as empty.
+    #[serde(default)]
+    pub barriers: crate::barriers::Barriers,
+    /// Derived from `barriers` and the gate state (`barriers::sync`): never serialized, never hashed.
+    #[serde(skip)]
+    pub overlay: crate::barriers::Overlay,
 }
 impl AbilityRuntime {
     pub fn new(now: f64) -> Self {
@@ -51,6 +61,8 @@ impl AbilityRuntime {
             teleported_at: None,
             dot: Vec::with_capacity(crate::constants::MAX_PLAYERS * crate::constants::MAX_PLAYERS),
             dot_since: now,
+            barriers: Default::default(),
+            overlay: Default::default(),
         }
     }
 }
@@ -85,7 +97,9 @@ impl FieldSelector {
                     && Some(f.ability) == ability
             }
             Self::Departed(id) => {
-                (f.owner.id == Some(id) && f.kind != FieldKind::Trail) || f.subject == Some(id)
+                // A trail and a wall outlive their caster (legacy clearFighter, 78dd8bd4).
+                (f.owner.id == Some(id) && f.kind != FieldKind::Trail && f.kind != FieldKind::Wall)
+                    || f.subject == Some(id)
             }
         }
     }

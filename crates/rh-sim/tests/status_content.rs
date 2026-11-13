@@ -52,6 +52,8 @@ fn status_code(kind: StatusKind) -> u64 {
 fn field_code(kind: FieldKind) -> u64 {
     match kind {
         FieldKind::Zone | FieldKind::Cloud | FieldKind::Trail => kind as u64,
+        // Staged: the wall's code enters the content stream with the frostWall id (P-FROST-WALL-2).
+        FieldKind::Wall => unreachable!("Wall is not in the content field list yet"),
     }
 }
 fn ability_code(id: AbilityId) -> u64 {

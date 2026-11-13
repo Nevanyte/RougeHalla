@@ -103,7 +103,9 @@ pub(crate) fn drain_all(cx: &mut Cx) {
 
 fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
     let now = cx.w.server_time;
-    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    // Walks are planned round standing barriers (P-FROST-WALL-1).
+    let held = crate::barriers::held(cx.w);
+    let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
     cx.w.core_mut(ix).inputs.drain_into(&mut cx.s.drained);
     if !cx.w.is_player(ix)
         && crate::status_runtime::has(

@@ -72,14 +72,17 @@ fn field(
     }
 }
 pub(super) fn self_effects(cx: &mut Cx, l: Landing) {
-    self_pass(cx, l, a::definition(l.cast.ability));
+    self_pass(cx, l, a::definition_for(&cx.k.config, l.cast.ability));
 }
 
 pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
-    let Some(target) = l.cast.producer.unwrap().target else {
+    let def = a::definition_for(&cx.k.config, l.cast.ability);
+    let target = l.cast.producer.unwrap().target;
+    // A placed effect's target pass has no unit (legacy effectSide "target" for a wall).
+    if target.is_none() && !matches!(def.target, a::Target::Placed { .. }) {
         return;
-    };
-    target_pass(cx, l, a::definition(l.cast.ability), target);
+    }
+    target_pass(cx, l, def, target);
 }
 
 fn self_pass(cx: &mut Cx, l: Landing, def: a::Definition) {
@@ -90,10 +93,10 @@ fn self_pass(cx: &mut Cx, l: Landing, def: a::Definition) {
     }
 }
 
-fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: PlayerId) {
+fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: Option<PlayerId>) {
     for e in def.effects.iter().copied() {
         if a::effect_side(e) == a::Side::Target {
-            run(cx, l, Some(target), e);
+            run(cx, l, target, e);
         }
     }
 }
@@ -103,7 +106,7 @@ fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: PlayerId) {
 pub(crate) fn run_row(cx: &mut Cx, l: Landing, def: a::Definition) {
     self_pass(cx, l, def);
     if let Some(target) = l.cast.producer.and_then(|p| p.target) {
-        target_pass(cx, l, def, target);
+        target_pass(cx, l, def, Some(target));
     }
 }
 
@@ -238,6 +241,9 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
             if let Some(to) = l.to {
                 super::super::displace::apply(cx.k, cx.w, cx.pf, l.id, to);
             }
+        }
+        a::Effect::Wall { ms, length } => {
+            let _ = (ms, length);
         }
         a::Effect::Trail { ms, half_width } => {
             if let Some(to) = l.to {

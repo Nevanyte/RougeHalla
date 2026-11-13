@@ -37,6 +37,7 @@ fn live_rules() -> SimConfig {
         regen: true,
         regen_in_combat: rh_sim::RegenInCombat::Off,
         camp_buffs: rh_sim::CampBuffRule::Themed,
+        frost_wish: rh_sim::FrostWish::Freeze,
         quests: true,
         hazards: terrain::Mode::Map,
         abilities: abilities::Mode::Full,

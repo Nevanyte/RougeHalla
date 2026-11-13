@@ -29,6 +29,8 @@ pub(crate) fn apply(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: Pla
 }
 fn execute(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: PlayerId, to: Vec2) {
     let now = w.server_time;
+    let held = crate::barriers::held(w);
+    let gates_locked = w.rt.gates_locked;
     if let Some(i) = w.idx(id) {
         let p = &mut w.players[i];
         let goal = p.motion.path.as_slice().last().copied();
@@ -42,9 +44,13 @@ fn execute(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: PlayerId, to
         p.motion.slip = None;
         if let Some(goal) = goal {
             let foot = p.foot();
-            p.motion
-                .path
-                .replan(pf, k.collision_map(w.rt.gates_locked), to, goal, foot);
+            p.motion.path.replan(
+                pf,
+                crate::barriers::body_map(k, &held, gates_locked),
+                to,
+                goal,
+                foot,
+            );
         }
         p.motion.displace_seq = p.motion.displace_seq.wrapping_add(1);
     }

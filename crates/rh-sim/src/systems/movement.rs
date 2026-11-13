@@ -65,7 +65,8 @@ pub(crate) fn walk_one(
         .then(|| core.faction_id())
         .flatten();
     let slippery = k.hazards.slip && super::terrain::slip_allowed(w, ix);
-    let map = k.collision_map(w.rt.gates_locked);
+    let held = crate::barriers::held(w);
+    let map = crate::barriers::body_map(k, &held, w.rt.gates_locked);
     let accel = if slippery {
         crate::terrain::at(map, core.body.x, core.body.y, faction).accel
     } else {

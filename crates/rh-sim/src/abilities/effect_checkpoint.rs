@@ -45,6 +45,13 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         && f.x2 == 0.
                         && f.y2 == 0.
                 }
+                // P-FROST-WALL-1: staged under Freeze's id; its tiles and the switch are `barriers::check`'s.
+                (rt::FieldKind::Wall, AbilityId::Freeze) => {
+                    f.subject.is_none()
+                        && f.r == 0.
+                        && f.ends_at == f.started_at + FROST_WALL_MS
+                        && f.exit_stun_ms.is_none()
+                }
                 _ => false,
             };
             if !shape || !source(w, &f.owner) || f.vx != 0. || f.vy != 0. {

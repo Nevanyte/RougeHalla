@@ -113,8 +113,9 @@ fn resolve_swings(cx: &mut Cx) {
             if !reached {
                 continue;
             }
+            // A standing barrier stops swings (its tiles are LOW: MASK_MELEE), P-FROST-WALL-1.
             if ray_blocked(
-                k.collision_map(w.rt.gates_locked),
+                crate::barriers::body_map(k, &crate::barriers::held(w), w.rt.gates_locked),
                 origin.x,
                 origin.y,
                 at.x,

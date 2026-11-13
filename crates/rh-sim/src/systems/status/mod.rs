@@ -127,8 +127,14 @@ fn end_fields_with(k: &MatchStatic, w: &mut World, selector: FieldSelector, stat
                 }
             }
             FieldKind::Trail => {}
+            FieldKind::Wall => {
+                if let Some(a) = w.abilities.as_mut() {
+                    crate::barriers::forget(a, f.id);
+                }
+            }
         }
     }
+    crate::barriers::sync(k, w);
 }
 fn end_zones(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, stats: Inputs) {
     let mut i = 0;
@@ -359,7 +365,9 @@ pub(crate) fn clear_all(hx: &mut Hx, teleport: bool) {
     }
     if let Some(a) = hx.w.abilities.as_mut() {
         a.fields.clear();
+        a.barriers.0.clear();
     }
+    crate::barriers::sync(hx.k, hx.w);
 }
 pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
     if *args == HookArgs::Teleported {
@@ -398,9 +406,11 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
     }
     if let Some(a) = hx.w.abilities.as_mut() {
         a.fields.clear();
+        a.barriers.0.clear();
         a.dot.clear();
         a.dot_since = hx.w.server_time;
     }
+    crate::barriers::sync(hx.k, hx.w);
 }
 
 #[cfg(test)]

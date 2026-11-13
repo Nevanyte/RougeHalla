@@ -72,6 +72,7 @@ fn config(kind: &str) -> SimConfig {
         mob_spacing: Default::default(),
         regen_in_combat: crate::RegenInCombat::Legacy,
         camp_buffs: crate::CampBuffRule::Legacy,
+        frost_wish: crate::FrostWish::Freeze,
     }
 }
 

@@ -85,6 +85,7 @@ impl From<&SimSpec> for SimConfig {
             mob_spacing: Default::default(),
             regen_in_combat: rh_sim::RegenInCombat::Legacy,
             camp_buffs: rh_sim::CampBuffRule::Legacy,
+            frost_wish: rh_sim::FrostWish::Freeze,
             regen: false,
             min_players: spec.min_players,
             lobby_seconds: spec.lobby_seconds,
