@@ -81,10 +81,7 @@ pub fn patience_plane(data: &LayerData) -> Vec<u8> {
         if def.area == 0 || def.spots.is_empty() {
             continue;
         }
-        let at = Vec2::new(
-            ((i % w) as f64 + 0.5) * TILE,
-            ((i / w) as f64 + 0.5) * TILE,
-        );
+        let at = Vec2::new(((i % w) as f64 + 0.5) * TILE, ((i / w) as f64 + 0.5) * TILE);
         if def
             .spots
             .iter()
