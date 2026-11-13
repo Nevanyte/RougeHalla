@@ -220,7 +220,7 @@ impl<'a> Callbacks<'a> {
             || !good(&p.gallows)
             || !good(&p.dropped)
             || (!p.gallows.is_empty() && p.gallows.len() != 9)
-            || lanes.is_some_and(|f| f.axis() != p.axis)
+            || lanes.is_some_and(|f| !p.rows.is_empty() && f.axis() != p.axis)
             || p.base_rows
                 .iter()
                 .any(|&t| t < 0 || t as usize >= if base_axis == 0 { c.h } else { c.w })
