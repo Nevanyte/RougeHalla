@@ -376,6 +376,73 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 | P-ML-3 | Networked seat interface (the `AsyncSeat` contract over a local socket, auth and rate limits for an external seat) as a specification plus a stub transport test | P-BOTS-1 | Coarse | none |
 | P-ML-4 | Replay stability guarantee across versions (replay + content hash policy) | mechanic packets | Coarse | crates/rh-sim/src/replay.rs |
 
+### 14. Beta follow-up packets not tabled above
+
+Rows generated on 2026-11-12 from each brief's title and dependency section and from the integration branch's merge
+commits; the brief is the authority for scope and legacy references. Current state of the program is in the
+[MIGRATION](../MIGRATION.md) checkpoint.
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-AGENT-GATE-1 | the gate compiles Unity, knows stubs from oracles, and checks its own environment | none | Done (cdb7731d; [spec](packets/P-AGENT-GATE-1.md)) | see spec |
+| P-BACKEND-UNITY-PREFLIGHT-1 | P-BACKEND-UNITY-PREFLIGHT-1 — isolated backend / Unity union preflight | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-BACKEND-UNITY-PREFLIGHT-1.md)) | see spec |
+| P-BOT-BRAIN-1 | complete private createBrain source composition | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-BOT-BRAIN-1.md)) | see spec |
+| P-BOT-BRAIN-CONTINUITY-1 | a Brain seat keeps track of a mob from one frame to the next, so its mob goals last | P-BOT-BRAIN-RECONCILE-1 | Farmed out to a worker session ([spec](packets/P-BOT-BRAIN-CONTINUITY-1.md); prompt in docs/coordination/prompts/) | see spec |
+| P-BOT-BRAIN-LIVE-2 | `BrainBot` policy, production services, shared command mapper, headless selection (piece 2 of 3, second cut) | P-BOT-BRAIN-LIVE-1 | Superseded by P-BOT-BRAIN-RECONCILE-1 (the cloud session built it) ([spec](packets/P-BOT-BRAIN-LIVE-2.md)) | see spec |
+| P-BOT-BRAIN-LIVE-2a | the Brain's input side accepts everything the composer emits (piece 2, first cut) | P-BOT-BRAIN-LIVE-1 | Done (landed before the reconcile, 5d4de8ab; [spec](packets/P-BOT-BRAIN-LIVE-2a.md)) | see spec |
+| P-BOT-BRAIN-LIVE-3 | `rh-server --bot-brain`, seat choice, fault fallback, learning facts (piece 3 of 3) | P-BOT-BRAIN-LIVE-2 | Superseded by P-BOT-BRAIN-RECONCILE-1 (the cloud session built it) ([spec](packets/P-BOT-BRAIN-LIVE-3.md)) | see spec |
+| P-BOT-BRAIN-NATIVE-1 | compose the complete private Brain | none | Done (decf068f) ([spec](packets/P-BOT-BRAIN-NATIVE-1.md)) | see spec |
+| P-BOT-BRAIN-RECONCILE-1 | one bot Brain from two sessions' work | none | Done (5d4de8ab; [spec](packets/P-BOT-BRAIN-RECONCILE-1.md)) | see spec |
+| P-BOT-HAND-FEATURE-1 | preserve source feature rejection before hand work | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-BOT-HAND-FEATURE-1.md)) | see spec |
+| P-BOT-LEARN-ON-1 | the headless tournament seats Brain bots and runs the legacy learner | P-BOT-BRAIN-RECONCILE-1, P-BOT-BRAIN-CONTINUITY-1 | Farmed out to a worker session ([spec](packets/P-BOT-LEARN-ON-1.md); prompt in docs/coordination/prompts/) | see spec |
+| P-BOT-POTION-FACT-1 | accepted owner healing predicate proof | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-BOT-POTION-FACT-1.md)) | see spec |
+| P-BOT-STRATEGY-COMPOSITION-BRIDGE-1 | Send-safe callbacks and mutable module-goal services | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-BOT-STRATEGY-COMPOSITION-BRIDGE-1.md)) | see spec |
+| P-BOT-TUNER-1 | an offline, seeded search over the Brain's existing tier and persona numbers | P-BOT-LEARN-ON-1, P-BOT-BRAIN-CONTINUITY-1 | Farmed out to a worker session ([spec](packets/P-BOT-TUNER-1.md); prompt in docs/coordination/prompts/) | see spec |
+| P-CAMP-BUFF-THEMES-1 | each zone's camps pay a themed stat, spread evenly, as a sim switch the live profiles turn on | P-WIRE17-HUD-1, P-REGEN-COMBAT-1-fix | Done (819f2cf2; [spec](packets/P-CAMP-BUFF-THEMES-1.md)) | see spec |
+| P-CARD-BLEED-FEEDBACK-1 | grouped card DoT hit feedback | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-CARD-BLEED-FEEDBACK-1.md)) | see spec |
+| P-DRESS-ANCHOR-1 | decoration rings are anchored on each zone's landmark, in the generator's bands | P-MAPGEN-SIG-FROST-1, P-MAPGEN-SIG-SENTENCED-1 | Done (552044db; [spec](packets/P-DRESS-ANCHOR-1.md)) | see spec |
+| P-DRESS-BAKE-1 | decoration is baked on the server with each map and sent to clients in the map blob | P-DRESS-ANCHOR-1, P-WIRE17-HUD-3, P-WIRE17-MAP-2 | Brief ([spec](packets/P-DRESS-BAKE-1.md)); needs oracle | see spec |
+| P-DRESS-ENGINE-1 | `rh-mapdress`, a pure rule engine that decorates a generated map in order | none | Done (c6b8ec55; [spec](packets/P-DRESS-ENGINE-1.md)) | see spec |
+| P-DRESS-MARSH-1 | Plague marsh rings as decoration ground variants round bog terrain | P-DRESS-ANCHOR-1 | Done (86806e01; [spec](packets/P-DRESS-MARSH-1.md)) | see spec |
+| P-FROST-WALL-1 | Frost Wall in the sim: a placed barrier that stops bodies and swings, as a switch the live profile turns on | P-REGEN-COMBAT-1-fix, P-CAMP-BUFF-THEMES-1 | Farmed out to a worker session ([spec](packets/P-FROST-WALL-1.md); prompt in docs/coordination/prompts/) | see spec |
+| P-HOST-FLAGS-1 | the beta host can launch with the map pool, the landmarks and the 15-second lobby | none | Farmed out to a worker session ([spec](packets/P-HOST-FLAGS-1.md); prompt in docs/coordination/prompts/) | see spec |
+| P-MAPGEN-SIG-FIRE-1 | the Fire volcano in the generator, with lava streams ending in pools and the zone's obstacles arranged around it | P-MAPGEN-SIGNATURE-CORE-1, P-MAPGEN-SIG-FROST-1, P-MAPGEN-SIG-STYLE-1 | Done (72189c7c; [spec](packets/P-MAPGEN-SIG-FIRE-1.md)) | see spec |
+| P-MAPGEN-SIG-FIRE-2 | Fire's craters are arranged by band from the volcano by construction; streams stay two tiles wide | P-MAPGEN-SIG-FIRE-1, P-MAPGEN-SIG-FROST-1 | Done (7ba766aa; [spec](packets/P-MAPGEN-SIG-FIRE-2.md)) | see spec |
+| P-MAPGEN-SIG-FROST-1 | the Frost cave in the generator, around the far elite camp, its mouth on the frozen lake | P-MAPGEN-SIG-FIRE-1, P-MAPGEN-SIG-FIRE-2, P-MAPGEN-SIG-STYLE-1 | Done (c92a0519; [spec](packets/P-MAPGEN-SIG-FROST-1.md)) | see spec |
+| P-MAPGEN-SIG-FROST-2 | a Frost map whose main lake is not at the cave's mouth, or whose landmarks crowd each other's aprons, is discarded | P-MAPGEN-SIG-FROST-1 | Done (6d292323; [spec](packets/P-MAPGEN-SIG-FROST-2.md)) | see spec |
+| P-MAPGEN-SIG-PLAGUE-1 | Plague's marsh pools are rings (mud, water, bog) arranged by band from the bog tree | P-MAPGEN-SIG-RESERVE-1 (P-TERRAIN-MARSH-1 is cancelled) | Brief ([spec](packets/P-MAPGEN-SIG-PLAGUE-1.md)); needs oracle | see spec |
+| P-MAPGEN-SIG-SCALE-1 | the volcano, church, bog tree and cave are a lot larger, a little smaller than the Holy hall | P-MAPGEN-SIG-FROST-2, P-MAPGEN-SIG-SENTENCED-1, P-MAPGEN-SIG-PLAGUE-1 | Oracle committed on packet/P-MAPGEN-SIG-SCALE-1 ([spec](packets/P-MAPGEN-SIG-SCALE-1.md)) | see spec |
+| P-MAPGEN-SIG-SENTENCED-1 | Sentenced's yards and guard houses are arranged by band from the church; Holy's hall is placed in the Landmarks phase | P-MAPGEN-SIG-FROST-1, P-MAPGEN-SIG-PLAGUE-1 | Oracle committed on packet/P-MAPGEN-SIG-SENTENCED-1 ([spec](packets/P-MAPGEN-SIG-SENTENCED-1.md)) | see spec |
+| P-MAPGEN-SIGNATURE-CORE-1 | the generator places each zone's landmark right after the zones, and everything later is built around it | P-SIGNATURE-1-fix, P-SIGNATURE-2 | Done (17272682; [spec](packets/P-MAPGEN-SIGNATURE-CORE-1.md)) | see spec |
+| P-MECHANICS-SALVAGE-1 | the on-hit rules of `fix/mechanics-sim` (Best Offense block hits, Eye for an Eye returned on-hit, axe shred k, Fire backlash as returned damage) | P-CAMP-BUFF-THEMES-1, P-FROST-WALL-1 | Done (21417e80; [spec](packets/P-MECHANICS-SALVAGE-1.md)) | see spec |
+| P-MECHANICS-SALVAGE-2 | block and riposte bookkeeping from `fix/mechanics-sim` (Best Offense pending note, card weapon-hit test, riposte returned mult) | P-MECHANICS-SALVAGE-1, P-MECHANICS-SALVAGE-3 | Done (243bd561; [spec](packets/P-MECHANICS-SALVAGE-2.md)) | see spec |
+| P-MECHANICS-SALVAGE-3 | camp-clear and Wish bookkeeping from `fix/mechanics-sim` (bruiser mirror rows, armWishes effect refresh, resetAll DoT crit memory) | P-MECHANICS-SALVAGE-2 | In flight ([spec](packets/P-MECHANICS-SALVAGE-3.md)) | see spec |
+| P-NPC-BLEED-RESTORE-1 | accept earned Hemorrhage bleed on regional NPC restore | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-NPC-BLEED-RESTORE-1.md)) | see spec |
+| P-TERRAIN-MARSH-1 | mud and water ground (two new slow terrains), Plague exempt | P-WIRE17-HUD-2b | Cancelled ([spec](packets/P-TERRAIN-MARSH-1.md)) | see spec |
+| P-TRAINING-CAMPS-1 | practice camps count as legacy counts them, and the console's clear resets camp progress | P-MECHANICS-SALVAGE-3 | Brief ([spec](packets/P-TRAINING-CAMPS-1.md)); needs oracle | see spec |
+| P-UNITY-DECLUTTER-1 | one mark per camp (its buff) and a marker for elites; no zone shapes on camps, no per-mob role marks | P-UNITY-HUD-VISUAL-FIX-1 | Done (4899089e; [spec](packets/P-UNITY-DECLUTTER-1.md)) | see spec |
+| P-UNITY-HUD-BUILD-2 | the bottom-left champion panel shows the legacy rows from the server's panel values | P-WIRE17-HUD-2 | Done (c4de710c; [spec](packets/P-UNITY-HUD-BUILD-2.md)) | see spec |
+| P-UNITY-HUD-BUILD-3 | the champion panel and weapon slots draw the numbers the server now delivers | P-WIRE17-HUD-2b, P-WIRE17-HUD-2c | Done (6030df63; [spec](packets/P-UNITY-HUD-BUILD-3.md)) | see spec |
+| P-UNITY-HUD-CAMPS-3 | reward chests show their remaining seconds on the maps and in the world | P-UNITY-HUD-CAMPS-2 | Done (230ab51b; [spec](packets/P-UNITY-HUD-CAMPS-3.md)) | see spec |
+| P-UNITY-HUD-STATUS-1 | the top line, consumable timers and cooldown text read as legacy | P-UNITY-HUD-TERRAIN-1 | Done (bd0fb5e6; [spec](packets/P-UNITY-HUD-STATUS-1.md)) | see spec |
+| P-UNITY-HUD-TERRAIN-1 | terrain chips say what the ground under you is doing | P-UNITY-HUD-BUILD-1 | Done (042989f2; [spec](packets/P-UNITY-HUD-TERRAIN-1.md)) | see spec |
+| P-UNITY-HUD-TEXTSCALE-1 | the text-size setting scales every HUD label and each label still fits its box | P-UNITY-HUD-VISUAL-FIX-2 | Done (9cca8926; [spec](packets/P-UNITY-HUD-TEXTSCALE-1.md)) | see spec |
+| P-UNITY-HUD-VISUAL-FIX-1 | defects seen in the first real screenshots of the Web client | P-UNITY-HUD-BUILD-2 | Done (33333cf7; [spec](packets/P-UNITY-HUD-VISUAL-FIX-1.md)) | see spec |
+| P-UNITY-HUD-VISUAL-FIX-2 | what the second screenshot round still shows wrong | P-UNITY-HUD-VISUAL-FIX-1, P-UNITY-HUD-BUILD-2, P-UNITY-DECLUTTER-1 | Done (c21d662e; [spec](packets/P-UNITY-HUD-VISUAL-FIX-2.md)) | see spec |
+| P-UNITY-HUD-VISUAL-FIX-3 | drawer count, readable terrain chips, Hunt card, Tab-map footer and clock, hub activity card, cannon | P-UNITY-NAME-GROUP-2 | Done (92135661; [spec](packets/P-UNITY-HUD-VISUAL-FIX-3.md)) | see spec |
+| P-UNITY-HUD-VISUAL-FIX-4 | mob names read on pale ground and stay one per camp pack; terrain chip and Hunt card stop overlapping; small leftovers | P-UNITY-NAME-GROUP-2, P-UNITY-HUD-VISUAL-FIX-3 | Done (aacb7c0e; [spec](packets/P-UNITY-HUD-VISUAL-FIX-4.md)) | see spec |
+| P-UNITY-INSPECTOR-1 | the enemy inspector card on hover | none | Done (980229ed; [spec](packets/P-UNITY-INSPECTOR-1.md)) | see spec |
+| P-UNITY-NAME-GROUP-1 | a pack of the same mob shows one name | P-UNITY-HUD-VISUAL-FIX-2 | Done (1aff1d31; [spec](packets/P-UNITY-NAME-GROUP-1.md)) | see spec |
+| P-UNITY-NAME-GROUP-2 | a pack's one name is readable and sits on the pack; in-world camp labels read on any ground | P-UNITY-NAME-GROUP-1 | Done (8b5033a7; [spec](packets/P-UNITY-NAME-GROUP-2.md)) | see spec |
+| P-UNITY-NAME-LEGIBLE-1 | names read on snow and paving; an elite's name clears its camp badge; the hub card holds its text | P-UNITY-HUD-BUILD-3 | Done (20de5176; [spec](packets/P-UNITY-NAME-LEGIBLE-1.md)) | see spec |
+| P-UNITY-OVERHEAD-2 | statuses are drawn on the body at fixed spots, as legacy | P-UNITY-OVERHEAD-1 | Done (e43e8cf6; [spec](packets/P-UNITY-OVERHEAD-2.md)) | see spec |
+| P-UNITY-TRAINING-HUD-1 | the HUD does not vanish after the drawer and the Tab map are toggled; the training console shows all its rows | none | Brief; oracle being written ([spec](packets/P-UNITY-TRAINING-HUD-1.md)) | see spec |
+| P-UNITY-WORLD-MARKS-1 | the "HUNT" label on the hunted rival's dot on the Tab map | none | Done (b4bb37bf; [spec](packets/P-UNITY-WORLD-MARKS-1.md)) | see spec |
+| P-WIRE17-HUD-2b | protocol 17 carries weapon scaling terms and the Wish row numbers | P-WIRE17-HUD-2 | Done (13c58030; [spec](packets/P-WIRE17-HUD-2b.md)) | see spec |
+| P-WIRE17-HUD-2c | protocol 17 carries the Fire roam line and the auto tooltip's missing numbers | P-WIRE17-HUD-2, P-WIRE17-HUD-2b | Done (183690e0; [spec](packets/P-WIRE17-HUD-2c.md)) | see spec |
+| P-WIRE17-HUD-3 | protocol 17 carries the room's minimum players and the owner's healing and wind-emblem end times | P-WIRE17-HUD-2, P-UNITY-HUD-STATUS-1 | In flight ([spec](packets/P-WIRE17-HUD-3.md)) | see spec |
+| P-WIRE17-MAP-2 | protocol 17 carries the camp patience plane and the quest carrier's actor id | P-WIRE17-HUD-3 | Brief ([spec](packets/P-WIRE17-MAP-2.md)); needs oracle | see spec |
+
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
 | Requirement | Items |
