@@ -1104,7 +1104,7 @@ namespace Roguehalla.Net.Tests
                 case "welcome_hud_truncated": want = DecodeError.Truncated; break;
                 // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
                 case "state_camp_reward_stat_10": case "state_camp_ward_verdict_3": case "state_build_summary_mob_stat_9":
-                case "state_build_summary_panel_code_23": case "state_build_summary_panel_order": want = DecodeError.BadField; break;
+                case "state_build_summary_panel_code_unknown": case "state_build_summary_panel_order": want = DecodeError.BadField; break;
                 case "state_camp_ward_missing_expiry": case "state_build_summary_gains_short": want = DecodeError.Truncated; break;
                 case "state_build_summary_panel_count_over": want = DecodeError.TooMany; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);

@@ -40,9 +40,10 @@ namespace Roguehalla.Net.Tests
             };
         }
 
-        /// <summary>Legacy abilities.ts:140-167 by HudTerm code.</summary>
+        /// <summary>Legacy abilities.ts:140-167 by HudTerm code, then (P-WIRE17-HUD-2c) fireRoam.ts:2-7, codes 19-22.</summary>
         static readonly double[] LegacyTerms = {
             1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1,
+            20000, 1000, 50, 0.4,
         };
 
         static (byte, double, double, double, double, bool)[] Rows(WireWeaponScaling[] s)
@@ -69,8 +70,8 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void ConstantsMatchTheBrief()
         {
-            Assert.AreEqual(19, WireHudContent.TermCount);
-            Assert.AreEqual(19, WireHudContent.MaxTerms);
+            Assert.AreEqual(23, WireHudContent.TermCount);
+            Assert.AreEqual(23, WireHudContent.MaxTerms);
             Assert.AreEqual(32, WireHudContent.MaxScalingRows);
             Assert.AreEqual(34, WireHudContent.ScalingRowLength);
             Assert.AreEqual(9, WireHudContent.TermRowLength);
@@ -128,13 +129,13 @@ namespace Roguehalla.Net.Tests
                 ("scaling", with(c => c.Scaling[2].BonusHp = 2e6)),
                 ("scaling order", with(c => c.Scaling[1].Id = 0)),
                 ("hud term count", with(c => c.Terms = c.Terms.Concat(new[] { T(18, 1) }).ToArray())),
-                ("hud term code", with(c => c.Terms[18].Code = 19)),
+                ("hud term code", with(c => c.Terms[22].Code = 23)),
                 ("hud term", with(c => c.Terms[0].Value = double.NaN)),
                 ("hud term", with(c => c.Terms[2].Value = 1e6 + 1)),
                 ("hud term order", with(c => { var t = c.Terms[3]; c.Terms[3] = c.Terms[4]; c.Terms[4] = t; })),
                 // Order of reasons: scaling before terms, a bad code before a bad value, values before order.
                 ("scaling", with(c => { c.Scaling[0].Ap = double.NaN; c.Terms[0].Code = 200; })),
-                ("hud term code", with(c => { c.Terms[0].Value = double.NaN; c.Terms[18].Code = 19; })),
+                ("hud term code", with(c => { c.Terms[0].Value = double.NaN; c.Terms[22].Code = 23; })),
                 ("hud term", with(c => { var t = c.Terms[0]; c.Terms[0] = c.Terms[1]; c.Terms[1] = t; c.Terms[3].Value = double.PositiveInfinity; })),
             };
             foreach (var (why, bad) in cases)

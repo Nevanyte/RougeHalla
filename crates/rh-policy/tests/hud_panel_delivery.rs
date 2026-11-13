@@ -62,13 +62,13 @@ fn full_state(obs: &Observation) -> Vec<StateItem> {
 fn identities_move_for_the_panel() {
     assert_eq!(
         rh_sim::OBSERVATION_VERSION,
-        26,
-        "observation gains the owner's panel"
+        27,
+        "observation gains the owner's panel (26), then codes 23-27 (27, P-WIRE17-HUD-2c)"
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        20,
-        "policy projection gains the panel"
+        21,
+        "policy projection gains the panel (20), then codes 23-27 (21, P-WIRE17-HUD-2c)"
     );
 }
 
