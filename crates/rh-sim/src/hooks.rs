@@ -140,8 +140,9 @@ pub(crate) enum HookArgs {
         contributors: Vec<PlayerId>,
     },
     /// The last member of a regional camp died (legacy `campCleared(world, camp)`, the camp's 0-based index): the
-    /// clear was paid after the ledger pass. Its source consumers are the clear heal (P-MOBS-2), quests (P-QUEST-1) and
-    /// the bruiser passives (P-FACTION-5); elite **chests** are dropped by the `mobKilled` link, not this one.
+    /// clear was paid after the ledger pass. Its source consumers, all ported: quests, the clear heal
+    /// (`campHeal.payCampHeal`) and the bruiser passives' guard refresh (the camp-clear mirror is derived,
+    /// `systems::bruiser::camp_clears`); elite **chests** are dropped by the `mobKilled` link, not this one.
     CampCleared {
         camp: u32,
     },

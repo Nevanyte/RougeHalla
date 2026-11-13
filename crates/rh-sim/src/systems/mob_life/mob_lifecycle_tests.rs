@@ -4,10 +4,9 @@
 //!
 //! The corpus is `parity/mobs/runtime-lifecycle.json`, captured from the unmodified source in the pinned linux/amd64
 //! Node 22.23.4 container by `tools/mob-runtime-fixtures/capture.mts`. Its passive `world.hooks` observers write the
-//! expected producer order and arguments; they change no gameplay state. The pass is not complete: the source chests,
-//! camp-heal and quest consumers stay Pending in other packets (P-CARDS-2, P-MOBS-2, P-QUEST-1), so the corpus profile
-//! excludes the training dummy constructor (P-ARENA-2) and only ground weapon containers are compared (the elite augment
-//! chest is a reward container owned by P-MOBS-2/P-CARDS-2).
+//! expected producer order and arguments; they change no gameplay state. The chest, camp-heal, quest and bruiser
+//! consumers are ported in the schedule, but this pass does not compare their outputs: the corpus profile excludes the
+//! training dummy constructor (P-ARENA-2) and only ground weapon containers are compared (not the elite augment chest).
 use crate::{
     mob_runtime::{ActorOrigin, BrainMode, MobMode},
     status_runtime::probe::HookRecord,

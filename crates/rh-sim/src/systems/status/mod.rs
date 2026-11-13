@@ -395,6 +395,12 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
         hx.w.core_mut(i).statuses.cast = None;
         let id = hx.w.core(i).id;
         operations::remove_discard_with(hx.k, hx.w, id, Selector::All, hx.stats);
+        // Legacy `refreshEffects(world, c)` after the reset, players only (abilities.ts:97): the bits drop the cleared
+        // cast too, even when no status was removed (the removal above refreshes them only when it removed one).
+        if hx.w.is_player(i) {
+            let now = hx.w.server_time;
+            hx.w.core_mut(i).statuses.refresh_effects(now);
+        }
     }
     if let Some(a) = hx.w.abilities.as_mut() {
         a.fields.clear();

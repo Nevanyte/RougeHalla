@@ -1,7 +1,13 @@
-//! Source `sim/bruiserPassives.ts»: Frost's Frozen Justice (elite-contact defense) and Holy's Demon Blood camp-clear
-//! mirror. The Holy side needs the source camp-clear producer (`campHeal.payCampHeal», P-MOBS-2), so only the Frost guard
-//! is installed here; the two update rows and the camp-clear link are `Partial» with P-MOBS-2 as the pending remainder (see
-//! the evidence README).
+//! Source `sim/bruiserPassives.ts»: Frost's Frozen Justice (elite-contact defense) and the public camp-clear mirror that
+//! Holy's Demon Blood reads.
+//!
+//! The camp-clear mirror (source `PlayerState.campClears`) is derived, not stored: the source syncs it from the canonical
+//! `PlayerRuntime.campsCleared` (`Player.camps_cleared` here) in `update` (afterWeapons and systems rows, active phase,
+//! `bruiserPassives.ts:63-71`), in the `campCleared` link right after `campHeal.payCampHeal` counted the clear (`:124`),
+//! and in `resetRun` (raidStarted/runEnded, `:105-109`). The count only changes inside `payCampHeal`, whose very next
+//! installed `campCleared` link is this module's sync, so wherever the installer runs the mirror equals the canonical
+//! count at every read; without the installer the source never writes it and it stays 0. [`camp_clears`] is exactly
+//! that, so the sync rows have nothing left to store.
 use super::Cx;
 use crate::{
     constants::*,
@@ -98,7 +104,8 @@ fn set_guard(
     crate::modifiers::recompute_with(k, w, ix, stats);
 }
 
-/// Source `update»: refresh every Frost seat's guard from its elite lock (and, once P-MOBS-2 lands, the camp-clear mirror).
+/// Source `update»: refresh every Frost seat's guard from its elite lock. The source's camp-clear mirror sync is
+/// [`camp_clears`] (derived; see the module docs).
 pub(crate) fn update_all(
     k: &MatchStatic,
     w: &mut World,
@@ -133,8 +140,8 @@ pub(crate) fn update(cx: &mut Cx) {
     update_all(k, w, *stats);
 }
 
-/// `campCleared» link: the source update also syncs the camp-clear mirror; with that producer pending (P-MOBS-2) the guard
-/// refresh is all this world can carry.
+/// `campCleared» link: the source runs `update» again right after `campHeal.payCampHeal» counted the clear (the guard
+/// refresh; the mirror sync is [`camp_clears`]).
 pub(crate) fn camp_cleared(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::CampCleared { .. } = args else {
         return;
@@ -191,6 +198,17 @@ pub(crate) fn reset_run(hx: &mut Hx, args: &HookArgs) {
     for i in 0..hx.w.players.len() {
         hx.w.players[i].frost_guard = FrostGuard::default();
         crate::modifiers::recompute_with(hx.k, hx.w, FighterIx::of_slot(i), hx.stats);
+    }
+}
+
+/// Source `PlayerState.campClears», the public camp-clear mirror Holy's Demon Blood reads (`factions.ts:895-896`): the
+/// canonical count where the Bruiser installer runs (it keeps the mirror in sync at every read, see the module docs), 0
+/// where it does not.
+pub(crate) fn camp_clears(k: &MatchStatic, p: &crate::state::Player) -> u16 {
+    if crate::schedule::Gates::of(k).bruiser {
+        p.camps_cleared
+    } else {
+        0
     }
 }
 

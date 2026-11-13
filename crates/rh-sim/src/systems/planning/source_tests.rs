@@ -1158,7 +1158,7 @@ fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_p
         (
             crate::schedule::Hook::RaidStarted,
             "cardHooks.resetAll",
-            Some("P-CARDS-1"),
+            None,
         ),
     ] {
         let link = tables
@@ -1173,7 +1173,7 @@ fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_p
         assert_eq!(link.pending, pending, "{name} pending state changed");
     }
     if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
-        panic!("Full ARENA INCOMPLETE: cardHooks.resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
+        panic!("Full ARENA INCOMPLETE: Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
     }
     eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper, plus genuine Wish/refund prerequisite through its dedicated consumer; full card hooks, Source transport/durability and complete case27 arena projection remain INCOMPLETE");
 }

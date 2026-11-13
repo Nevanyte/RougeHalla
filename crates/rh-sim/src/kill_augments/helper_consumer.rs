@@ -244,10 +244,11 @@ fn compare_investments(doc: &serde_json::Value) -> Result<(), String> {
                 row["text"]["text"]
             )
         })?;
-        let native_scores: Vec<(String, f64)> = kill_augments::invested_stats(p)
-            .into_iter()
-            .map(|(k, s)| (k.as_str().to_string(), s))
-            .collect();
+        let native_scores: Vec<(String, f64)> =
+            kill_augments::invested_stats(p, crate::systems::bruiser::camp_clears(&sim.k, p))
+                .into_iter()
+                .map(|(k, s)| (k.as_str().to_string(), s))
+                .collect();
         let want_scores: Vec<(String, f64)> = row["readability"]
             .as_array()
             .unwrap()
@@ -395,10 +396,11 @@ fn compare_ranking(doc: &serde_json::Value) -> Result<(), String> {
                 row["name"].as_str().unwrap()
             )
         })?;
-        let native_scores: Vec<(String, f64)> = kill_augments::invested_stats(p)
-            .into_iter()
-            .map(|(k, s)| (k.as_str().to_string(), s))
-            .collect();
+        let native_scores: Vec<(String, f64)> =
+            kill_augments::invested_stats(p, crate::systems::bruiser::camp_clears(&sim.k, p))
+                .into_iter()
+                .map(|(k, s)| (k.as_str().to_string(), s))
+                .collect();
         let want_scores: Vec<(String, f64)> = row["readability"]
             .as_array()
             .unwrap()
@@ -566,10 +568,11 @@ fn compare_readability(doc: &serde_json::Value) -> Result<(), String> {
     let result = &c["result"];
     let sim = synth(&result["spec"]);
     let p = &sim.w.players[0];
-    let native: Vec<(String, f64)> = kill_augments::invested_stats(p)
-        .into_iter()
-        .map(|(k, s)| (k.as_str().to_string(), s))
-        .collect();
+    let native: Vec<(String, f64)> =
+        kill_augments::invested_stats(p, crate::systems::bruiser::camp_clears(&sim.k, p))
+            .into_iter()
+            .map(|(k, s)| (k.as_str().to_string(), s))
+            .collect();
     let want: Vec<(String, f64)> = result["readability"]["investedStats"]
         .as_array()
         .unwrap()

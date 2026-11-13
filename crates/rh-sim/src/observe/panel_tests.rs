@@ -131,15 +131,36 @@ fn seat(profile: &str, faction: FactionId, weapon: Option<WeaponId>, at: Vec2) -
 }
 
 fn sim_with(ps: &[Placement]) -> Sim {
+    sim_in(
+        SimConfig {
+            quests: false,
+            pvp_rules: false,
+            ..Default::default()
+        },
+        ps,
+    )
+}
+
+/// A world that installs `bruiserPassives` (the practice room, `Gates::TRAINING`), so Holy's public camp-clear mirror holds the
+/// canonical count (`systems::bruiser::camp_clears`); without the installer legacy's mirror is 0.
+fn sim_with_bruiser(ps: &[Placement]) -> Sim {
+    sim_in(
+        SimConfig {
+            quests: false,
+            pvp_rules: false,
+            training: true,
+            faction_mode: crate::FactionMode::EngagementHoly,
+            ..Default::default()
+        },
+        ps,
+    )
+}
+
+fn sim_in(config: SimConfig, ps: &[Placement]) -> Sim {
     let secrets = Secrets {
         order_salt: 1,
         spawn_seed: 0,
         reward_salt: [1, 2, 3, 4],
-    };
-    let config = SimConfig {
-        quests: false,
-        pvp_rules: false,
-        ..Default::default()
     };
     Sim::reset_active(config, room(), secrets, ps)
 }
@@ -182,7 +203,7 @@ fn codes(panel: &ChampionPanel) -> Vec<C> {
 /// the row prints share + camp leech = 0.49, the camp count 6 and the camp leech 0.06.
 #[test]
 fn a_holy_build_shows_the_legacy_auto_and_radiant_numbers() {
-    let mut sim = sim_with(&[seat(
+    let mut sim = sim_with_bruiser(&[seat(
         "holy",
         FactionId::Holy,
         Some(WeaponId::Sword),
