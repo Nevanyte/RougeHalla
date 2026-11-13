@@ -174,12 +174,15 @@ fn optional_text_presence(value: &BVal, key: &'static str) -> R<Option<String>> 
 //
 // The accepted-frame composer (`compose14.rs`, degraded fair profile) leaves some declared leaves `undefined`: a fact the
 // seat cannot see. The component input types (Memory/Strategy/Tactics/Modules/Hand, outside this seam) cannot hold
-// `undefined` in a `f64`, `String`, `bool` or `Option<String>`, so each reader below that takes such a leaf stores the one
-// value that takes the source's own `undefined` branch in every Rust reader of that field (each listed where it is read):
+// `undefined` in a `f64`, `String`, `bool` or `Option<String>`, so each reader below that takes such a leaf stores the
+// value that takes the source's own `undefined` branch in the Rust readers of that field:
 // - a number is NaN: JS `+undefined` is NaN, every relational comparison with it is false and arithmetic stays NaN;
 // - a text is `""` (no key, name or winner is ever empty): falsy like `undefined`, and `=== x` is false for every real x;
 // - a `T | null` text is `Some("")`: `!== null` holds as it does for `undefined`, and it equals no key;
 // - a boolean is `false` (falsy, like `undefined`).
+// Two places tell them apart, neither observable today: `undefined === undefined` but NaN != NaN (Memory's `minimap.t`
+// change test re-runs its dot pass every tick, a no-op while `minimap.mobs` is always empty), and Memory's fighter-name
+// fill (`m.name === ""`) refills a `""` name but not an `undefined` one (no decision reads a remembered fighter name).
 // Only the leaves the composer documents as `undefined` are widened; every other leaf keeps its strict reader, and the
 // declared record (`Percept::raw`) is never rewritten.
 
