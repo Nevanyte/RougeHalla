@@ -118,9 +118,15 @@ fn first_row(msg: &ServerMsg) -> &WireQuestRow {
     let ServerMsg::State { items, .. } = msg else {
         panic!("state")
     };
-    let Some(StateItem::Quests(Some(view))) = items.first() else {
-        panic!("quests")
-    };
+    // The quest item is found by kind, not by position: state keys are sent in ascending order, so a vector that
+    // also carries props (key 2) has them before the quests (key 10).
+    let view = items
+        .iter()
+        .find_map(|item| match item {
+            StateItem::Quests(Some(view)) => Some(view),
+            _ => None,
+        })
+        .expect("quests");
     &view.rows[0]
 }
 
