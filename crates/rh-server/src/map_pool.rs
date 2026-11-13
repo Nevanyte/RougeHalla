@@ -130,7 +130,7 @@ impl MapMaker for StyledMaker {
         let Some(export) = self.generate(seed)? else {
             return Ok(None);
         };
-        let rules = crate::runtime::shipped_dress_rules()?;
+        let rules = crate::runtime::shipped_dress_rules().map_err(str::to_owned)?;
         let dressing =
             rh_mapdress::dress(&export.map, u64::from(export.legacy_map_hash_u32), rules);
         Ok(Some(MadeMap {

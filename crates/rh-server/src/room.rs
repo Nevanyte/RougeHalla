@@ -335,8 +335,9 @@ impl MapAssets {
     /// Runs where the assets are built (start-up, the pool), never on a room's tick.
     pub fn new(arena: impl Into<Arc<Arena>>) -> Result<Self, rh_protocol::EncodeError> {
         let arena = arena.into();
-        let rules = crate::runtime::shipped_dress_rules()
-            .map_err(|_| rh_protocol::EncodeError::BadMap("dressing rules"))?;
+        // The reason is the rules' whole message ("dressing rules: ..."), so a caller's panic names what is wrong.
+        let rules =
+            crate::runtime::shipped_dress_rules().map_err(rh_protocol::EncodeError::BadMap)?;
         let dressing = crate::public_ground::dress_map(&arena.map, rules)?;
         Self::dressed(arena, dressing.as_ref())
     }
