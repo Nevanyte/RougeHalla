@@ -4,6 +4,17 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, late afternoon): "Finish everything first"
+
+The coordinator told the owner that the plan's three unfinished parts (larger landmarks with their art, Frost Wall
+beyond the sim, bots that actually learn) all sit behind switches that are off by default, and asked whether to cut
+the release now without them. The owner answered **"Finish everything first"**: no release is cut until those are
+done. The finish steps (final combined review, protocol 18 stamp, Web build, browser proof, one beta host, the PR to
+`main`) wait for them. Order from here: the landmark packets one at a time on `signature/mod.rs` (bog tree, volcano,
+Holy hall, then the church once its redraw is approved and P-MAPGEN-STYLE-REFUSE-1 has landed); the landmark anchors
+on the wire (P-WIRE17-MAP-3) and the Unity landmark art; Frost Wall parts 1b, 2 and the Unity packet; the Brain
+recording its choices, the tuner's evidence, and the runs; then the screenshot rounds and the finish steps.
+
 ## Owner decision 2026-11-13 (chat, afternoon): the churchyard ("Yes, add churchyard")
 
 The coordinator put requirement L2a to the owner (the land-generation session's
