@@ -34,6 +34,7 @@ mod tests;
 mod trace;
 
 pub(crate) mod compose14;
+pub(crate) mod mob_tracks;
 pub(crate) mod room_paths;
 
 pub(crate) use super::modules::types::CfgToken as BrainCfgToken;
@@ -406,10 +407,11 @@ impl Brain {
         &self.id
     }
 
-    /// The live seat's mob ids are sample-scoped references (P-BOT-BRAIN-LIVE-1): Memory drops a mob record once the
-    /// percept no longer carries its reference (it can never be refreshed), instead of keeping it for the run.
-    pub(crate) fn use_sample_scoped_mob_ids(&mut self) {
-        self.memory.set_sample_scoped_mobs(true);
+    /// The live seat's mob ids are its own track keys (P-BOT-BRAIN-CONTINUITY-1, `brain/mob_tracks.rs`): Memory keeps a
+    /// mob record while its track lives and drops it `memory::TRACK_RETAIN_MS` after the percept last carried its key,
+    /// instead of keeping it for the run.
+    pub(crate) fn use_tracked_mob_ids(&mut self) {
+        self.memory.set_tracked_mobs(true);
     }
 
     pub(crate) fn goal(&self) -> &Goal {

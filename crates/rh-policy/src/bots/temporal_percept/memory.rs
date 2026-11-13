@@ -5,6 +5,8 @@
 pub(super) mod source_input;
 #[cfg(test)]
 mod source_tests;
+#[cfg(test)]
+mod tracked_tests;
 
 use self::source_input::MemoryPercept;
 use crate::bots::types::{ServerMs, Stimulus, StimulusKind, TierParams};
@@ -17,6 +19,11 @@ use rh_sim::{FactionId, Vec2, WeaponId};
 use std::fmt;
 
 const REENTRY_MS: ServerMs = 3000.;
+/// P-BOT-BRAIN-CONTINUITY-1 (live seats only): a mob record whose track key the percept no longer carries is kept this
+/// long after it was last carried, then dropped (legacy keeps mob records for the run, keyed by a fighter id that never
+/// changes; a track key never recurs once its track ends, so an ended track's record is bounded instead). The window is
+/// legacy's REENTRY_MS, the time it gives a fighter that left the screen.
+pub(crate) const TRACK_RETAIN_MS: ServerMs = REENTRY_MS;
 const HP_FORGET_MS: ServerMs = 20_000.;
 const TRADE_MS: ServerMs = ENGAGE_TRADE_SECONDS * 1000.;
 const RECENT_HIT_MS: ServerMs = 3000.;
@@ -272,10 +279,10 @@ struct ObsState {
 }
 
 pub(crate) struct Memory {
-    /// P-BOT-BRAIN-LIVE-1: the live composer's mob ids are sample-scoped references (a reference never recurs in a later
-    /// sample), so a record whose id the current percept does not carry can never be refreshed again and is dropped.
+    /// P-BOT-BRAIN-CONTINUITY-1: the live seat's mob ids are its own track keys (`brain/mob_tracks.rs`), which never
+    /// recur once a track ends; a record is kept while its key is carried and [`TRACK_RETAIN_MS`] after, then dropped.
     /// Off (the source rule: records are kept for the run) for every source-shaped caller.
-    sample_scoped_mobs: bool,
+    tracked_mobs: bool,
     self_id: String,
     tier: &'static TierParams,
     features: Features,
@@ -438,7 +445,7 @@ impl Memory {
             })
             .collect();
         Ok(Self {
-            sample_scoped_mobs: false,
+            tracked_mobs: false,
             self_id: config.self_id,
             tier: config.tier,
             features: config.features,
@@ -1135,9 +1142,9 @@ impl Memory {
         let _ = out;
     }
 
-    /// See [`Memory::sample_scoped_mobs`]; set once, by the live seat composer.
-    pub(crate) fn set_sample_scoped_mobs(&mut self, on: bool) {
-        self.sample_scoped_mobs = on;
+    /// See [`Memory::tracked_mobs`]; set once, by the live seat.
+    pub(crate) fn set_tracked_mobs(&mut self, on: bool) {
+        self.tracked_mobs = on;
     }
 
     fn fold_mobs(&mut self, p: &MemoryPercept, o: &mut ObsState, now: ServerMs) {
@@ -1196,7 +1203,7 @@ impl Memory {
                 }
             }
         }
-        if self.sample_scoped_mobs {
+        if self.tracked_mobs {
             let current = |id: &str| p.mobs.iter().any(|v| v.id == id);
             self.mobs.retain(|(id, _)| current(id));
             self.m_aux.retain(|(id, _)| current(id));

@@ -292,6 +292,11 @@ impl Composer14 {
         }
     }
 
+    /// Key the mob rows by the seat's own tracks (`mob_tracks.rs`) instead of their per-sample references: live seats
+    /// only; the frozen-corpus and composer oracles keep reference keys.
+    /// STUB (P-BOT-BRAIN-CONTINUITY-1): not wired yet.
+    pub(crate) fn track_mobs(&mut self) {}
+
     /// Forget every retained sample (a new session or match).
     pub(crate) fn reset(&mut self) {
         self.samples.clear();
@@ -1916,7 +1921,11 @@ impl SeatComposer14 {
             me,
             tier,
             fence: None,
-            composer: Composer14::new(setup),
+            composer: {
+                let mut composer = Composer14::new(setup);
+                composer.track_mobs();
+                composer
+            },
         }
     }
 
@@ -2130,6 +2139,10 @@ mod tests;
 /// P-BOT-BRAIN-RECONCILE-1: the seat fence and the derived `self.mobKills`.
 #[cfg(test)]
 mod reconcile_tests;
+
+/// P-BOT-BRAIN-CONTINUITY-1: mob keys that last while the mob stays in view.
+#[cfg(test)]
+mod continuity_tests;
 
 #[cfg(test)]
 mod live2a_tests {
