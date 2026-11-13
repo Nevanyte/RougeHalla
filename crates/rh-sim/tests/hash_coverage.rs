@@ -2149,6 +2149,11 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
             "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry",
         ),
         (
+            "systems/signatures.rs",
+            2,
+            "LandedHit (per-tick scratch and the derived fx report, never World state): the source's passive/derived flags, read only by the card weapon-hit test inside the tick that recorded them",
+        ),
+        (
             "systems/card_bleed_feedback.rs",
             1,
             "CardBleedReport: the derived trusted pair index (arena AVL row ordinals) is rebuilt from the serialized ordered rows by cold construction/clone/restore preparation; it is never stored or hashed",
