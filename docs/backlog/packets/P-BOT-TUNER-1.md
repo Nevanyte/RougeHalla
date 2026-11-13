@@ -58,7 +58,39 @@ The live server only ever reads a checked-in table: nothing in `rh-server` searc
 - `scripts/gate.sh --oracle packet/P-BOT-TUNER-1` passes (full).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-BOT-TUNER-1`
+- `crates/rh-headless/tests/tune.rs`
+
+## Verified against the code (oracle author, 2026-11-12)
+- `TIERS` is `types.rs:206`, `PERSONAS` `:515` (before this packet's edits); legacy `tune.ts:28` is `applyTune`. Each
+  tier has 62 leaves (60 numbers, `route.horizon` a whole number, `route.walkPaths` a boolean), each persona 16.
+- **The Brain's constructor path is not edited.** Every reader of the two tables (`BrainBot::reset`
+  `brain_bot.rs:185-186`, HumanBot `bot.rs:154-158`, the humanizer, `memory_prefix.rs`, `reflex.rs`, `planning.rs`)
+  goes through `TierParams::by_id` / `PersonaParams::by_id`. The patch is installed there: `types::with_tables(&'static
+  BrainTables, f)` sets a per-thread override for the duration of `f` and restores it (also on panic). Live code never
+  calls it, so live bots read the compiled tables. This keeps the packet out of `brain_bot.rs`, which
+  P-BOT-BRAIN-CONTINUITY-1 owns. Like legacy (which patches the tables in place for a whole worker), the patch applies
+  to every seat of the game.
+- The legacy spec format is kept: `{"tiers":{"easy":{"knowledge":0.95}},"personas":{"hunter":{"engageEdge":0}}}` with
+  legacy camelCase names, ported as the same deep merge over a JSON form of the tables. Stricter than legacy: values
+  must lie in a validity range (shares and probabilities in [0, 1], `appraisal.bias` in [-1, 1], `route.horizon` a
+  whole number in [1, 64], the rest non-negative), and `id` is not patchable.
+- **Conflict in the brief, resolved here:** section 7 says a patch that breaks the tier order is refused; section 8 says
+  legacy's ablation shapes are expressible, and legacy's own example (easy with hard's knowledge, 0.95) breaks the
+  order. The oracle refuses an order-breaking patch unless the spec says `"ablation": true` (a diagnostic only; the
+  search never sets it and the checked-in table is always checked without it). The persona spread floor applies to
+  every patch. Tier order: a leaf whose compiled values run easy -> normal -> hard in one direction keeps that weak
+  direction. Spread: the smallest pairwise RMS distance between personas, each leaf scaled by its largest compiled
+  magnitude; the floor is half the compiled spread.
+- The tournament binary refused `--tune` at `src/bin/tournament.rs:51-56`; accepting a patch means editing that file
+  (not listed in section 5; one refusal replaced by a validation). `TournamentPlan.tune` already carries the patch,
+  so no plan literal changes. The `--tune` line in `tournament_cli.rs` `USAGE` becomes stale (proposed edit).
+- Search: a seeded (1+lambda) hill-climb from the compiled tables over every leaf with a non-zero number, bounds half to
+  one and a half of the compiled value inside the validity range. Objective: minus each tier's distance from its
+  legacy win band (`tournament::win_band`, the source report's criterion; a win is placement 1), plus 0.1 times the
+  persona spread relative to the compiled spread (capped at 1). The output file records seed, commit, plan, objective,
+  bounds, every candidate and the best table.
+- The checked-in table `crates/rh-policy/data/brain_tuning.json` is written by `tune --write-compiled` and equals the
+  compiled tables; nothing reads it at run time yet (the live server reads the compiled constants).
 
 ## 9. Validation commands
 - `cargo test -p rh-headless`; `cargo run --release -p rh-headless --bin tune -- --help`; `scripts/gate.sh --quick`
