@@ -4,6 +4,19 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, evening): the landmark generator lane goes to the map generator session
+
+The owner told the coordinator "I still have the map generator finishing up, you just need to make sure unity front
+end is ready", and, asked who builds the four remaining landmark generator packets (bog tree, volcano, Holy hall,
+church), answered **"Map generator session"**. From here that session owns the generator code that places each
+approved drawing (P-MAPGEN-STYLE-REFUSE-1, P-MAPGEN-SIG-SCALE-2 to -4, P-MAPGEN-SIG-HOLY-1 and the cave's follow-up);
+the coordinator stops after the cave (P-MAPGEN-SIG-SCALE-1), keeps review and merge, the shared records, the wire and
+all Unity work. Hand-over: [coordination/LANDMARK_LANE_HANDOVER.md](coordination/LANDMARK_LANE_HANDOVER.md).
+The coordinator's Unity list: landmark anchors on the wire (P-WIRE17-MAP-3, in flight), landmark art
+(P-UNITY-LANDMARK-1 framework and cave, then the other four), the world marks (P-UNITY-WORLD-MARKS-2, reviewed LAND),
+decoration art for the 25 stand-in kinds, Frost Wall's drawing, screenshot rounds with a visual review, the Web build
+and the browser proof. The bot packets and Frost Wall's sim and wire parts continue behind that.
+
 ## Owner decision 2026-11-13 (chat, evening): P-BOT-BRAIN-CONTINUITY-1's two points ("Accept both")
 
 The coordinator asked the owner to confirm two things reviewer-opus raised on the worker session's
