@@ -5,7 +5,7 @@ Suggested model: a mid-tier model is enough (Python recipes and offline tests).
 ```text
 You are a worker session on the RogueHalla repository. Read and follow docs/coordination/prompts/WORKER_RULES.md
 and hosting/AGENTS.md, then do packet P-HOST-FLAGS-1 (brief: docs/backlog/packets/P-HOST-FLAGS-1.md). Start from
-origin/feature/unity-rework at or after c9c87aac.
+origin/feature/unity-rework at or after 1060743b.
 
 Goal: the technical-demo bundle gains three launch settings for the Source room, each defaulting to today's
 behaviour: `map_pool` (adds --map-pool, keeping --map as the fallback), `signature_landmarks` (adds

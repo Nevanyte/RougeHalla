@@ -5,7 +5,7 @@ Suggested model: the strongest available (this is `rh-sim` state, collision and 
 ```text
 You are a worker session on the RogueHalla repository. Read and follow docs/coordination/prompts/WORKER_RULES.md,
 then do packet P-FROST-WALL-1 (brief: docs/backlog/packets/P-FROST-WALL-1.md, including its dated note at the end).
-Start from origin/feature/unity-rework at or after c9c87aac.
+Start from origin/feature/unity-rework at or after 1060743b.
 
 Goal: port Frost Wall into rh-sim behind a SimConfig switch. In the unreleased legacy patch Frost's Wish is a placed
 barrier (aimed at a point, range 450, no closer than 64, cast 250 ms, cooldown 45 s; 224 long, square to the line

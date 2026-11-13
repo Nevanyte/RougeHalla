@@ -7,7 +7,7 @@ You are a worker session on the RogueHalla repository. Read and follow docs/coor
 then do two packets in order: P-BOT-LEARN-ON-1 (docs/backlog/packets/P-BOT-LEARN-ON-1.md), and after its hand-off
 P-BOT-TUNER-1 (docs/backlog/packets/P-BOT-TUNER-1.md), branching the second from the first's agent branch. Read the
 R-ML section of docs/REQUIREMENTS.md first: it excludes ML work with one narrow exception, and both packets must
-stay inside that exception's wording. Start from origin/feature/unity-rework at or after c9c87aac.
+stay inside that exception's wording. Start from origin/feature/unity-rework at or after 1060743b.
 
 Packet 1 goal: `tournament --policy brain --learn on` plays a seeded series of headless matches with Brain seats,
 feeds each finished match's choices and placements into an in-memory store of the already-ported legacy learner in

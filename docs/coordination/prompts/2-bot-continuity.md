@@ -7,7 +7,7 @@ You are a worker session on the RogueHalla repository. Read and follow docs/coor
 then do packet P-BOT-BRAIN-CONTINUITY-1 (brief: docs/backlog/packets/P-BOT-BRAIN-CONTINUITY-1.md). Also read
 docs/backlog/packets/P-BOT-BRAIN-RECONCILE-1.md (what the Brain is now: one composer, the BrainBot seat policy, the
 --bot-brain flag, off by default) and the DEV-026 row in docs/DEVIATIONS.md. Start from origin/feature/unity-rework
-at or after c9c87aac: the Brain on that branch is the reconciled one, not the earlier cloud branch.
+at or after 1060743b: the Brain on that branch is the reconciled one, not the earlier cloud branch.
 
 Goal: Brain seats are passive (7 to 241 proposals per seat over 6,000 ticks) because a mob has no identity a seat can
 hold: the sim renews NPC references whenever the visible set changes, so the Brain forgets every mob each tick. Give
