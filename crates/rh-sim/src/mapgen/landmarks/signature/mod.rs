@@ -119,6 +119,12 @@ pub struct Definition {
     /// wall stay inside the site's inner rect).
     pub site_side: i32,
     pub site_depth: i32,
+    /// P-MAPGEN-SIG-SCALE-1: the Frost cave's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text of
+    /// `cave.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/cave.txt` (the docs are not in the
+    /// server image's build context, so the crate carries its own copy). Lines starting `;` are its legend; the rest is
+    /// the 29 x 29 grid, front (toward the coliseum) at the bottom. STUB: empty until the implementer reads the copy
+    /// with `include_str!("cave.txt")`.
+    pub cave_grid: &'static str,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -177,6 +183,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     lake_slack: 2,
     site_side: 34,
     site_depth: 9,
+    cave_grid: "",
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before

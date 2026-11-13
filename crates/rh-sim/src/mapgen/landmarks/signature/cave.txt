@@ -1,0 +1,35 @@
+; FROST CAVE blueprint, 29 x 29 tiles. FRONT (toward the coliseum) is the BOTTOM edge.
+; #  wall (the chamber's outer wall and its bulges)   R  rock inside the chamber (a wall to the generator)
+; .  plain floor        =  ice floor        D  the mouth (3 floor tiles, middle of the front wall)
+; E  elite camp centre (x=14, y=7; its 7x7 halo, corners cut, is plain floor)
+; The lake is NOT drawn: it lies outside the box, 3 dry tiles beyond the mouth (the land-generation lane builds it).
+;
+#############################
+###..RRRRR........RRRRR...###
+##.....RR..======...RR..=..##
+#..===....=========....===..#
+#.====.....=.....==========.#
+#.===.............=======...#
+#.====............======..RR#
+#.======.==...E...======.RRR#
+#.===.....=.......======.RRR#
+#.===.RRR.........======.RRR#
+#.===.RRRR.=.....=======..RR#
+#.===.RRR..=.....========...#
+#...=.....==.....==========.#
+#RR..=======.....===.....==.#
+#RRR.=======.....==..RRR.==.#
+#RRR.=======.....==.RRRR.==.#
+#RRR.=======.....==..RRR.==.#
+#RR..=.....=.....===........#
+#...==.RRR.=.....===......RR#
+#...==.RRR.=.....====...=.RR#
+#RR.==.RRR.=.....=.....==.RR#
+#RR........=.....=.RRR.==...#
+#RR......===.....=.RRR.====.#
+#RR......===.....=.RRR..===.#
+#...==.=====.....=....R.===.#
+#...........................#
+##.........................##
+###.......................###
+#############DDD#############
