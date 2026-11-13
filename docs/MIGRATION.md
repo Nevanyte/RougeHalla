@@ -4,6 +4,19 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat, late): landmarks larger
+
+After seeing text and picture previews of the five landmarks as the generator builds them (seeds 1 to 3): "All of
+the faction landmarks look good. I want most of them (except holy temple) to be a lot larger, maybe just a little
+smaller than the temple." The Holy hall's footprint is 38 to 39 tiles square. So the volcano (5x5 cone today), the
+church (about 10x12), the bog tree (about 13x15 with its bog rings) and the cave (about 12x11) grow to a footprint a
+little under the hall's: target about 28 to 32 tiles across, each keeping the shape the owner approved. The
+coordinator's reading of what "larger" needs so the result is not an empty box, open to correction: the church and
+the cave stay enterable with the elite camp inside and gain interior structure (pillar rows; an ice floor); the
+volcano is a larger cone with a crater lake, its streams leaving from the rim; the tree is a larger trunk with roots
+and wider bog rings. Packet P-MAPGEN-SIG-SCALE-1 (measure what fits first); P-MAPGEN-SIG-SENTENCED-1 and
+P-MAPGEN-SIG-PLAGUE-1 follow it, since both arrange obstacles round a landmark whose size is about to change.
+
 ## Owner decisions 2026-11-12 (chat, evening): bot Brain, Holy hall, marsh
 
 1. **Bot Brain.** Asked whether to reconcile the cloud session's complete P-BOT-BRAIN-LIVE-1 (pushed to
