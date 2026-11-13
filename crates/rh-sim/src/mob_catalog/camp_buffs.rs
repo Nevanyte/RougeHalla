@@ -294,8 +294,7 @@ fn repair_buffs(n: usize, b_len: usize, d: &[i32], theme: &[bool], stat: &mut [u
                     best = Some((k, None, b));
                 }
             }
-            for l in k + 1..n {
-                let b = stat[l];
+            for (l, &b) in stat.iter().enumerate().skip(k + 1) {
                 if b == a {
                     continue;
                 }
