@@ -11,7 +11,7 @@ is a fixed blueprint, placed in one of eight orientations inside its reserved si
 | Sentenced church with its graveyard | `church.txt` | 29 x 29 | P-MAPGEN-SIG-SCALE-2 |
 | Plague bog tree | `bog.txt` | 29 x 29 | P-MAPGEN-SIG-SCALE-3 |
 | Fire volcano | `volcano.txt` | 30 x 30 | P-MAPGEN-SIG-SCALE-4 |
-| Holy hall | `hall.txt` (37 x 37, two Holy camps on the nave; being redrawn from the 39 draft) | 37 x 37 | P-MAPGEN-SIG-HOLY-1 |
+| Holy hall | `hall.txt` (two Holy camps on the nave at rows 15 and 27 from the back; 32 piers; a 7-wide nave) | 37 x 37 | P-MAPGEN-SIG-HOLY-1 |
 
 Placement: a reserved site is 34 tiles a side with a 2-tile apron, so its inner rect is 30. The Sentenced and Frost
 elite camp stands 7 tiles inside the inner rect's far side and one tile off its centre line across (34 is even), so
@@ -24,6 +24,8 @@ are LOW tiles, which the certifier's graveyard row and the landmark intact check
 footprint is the blueprint box, not the bounding box of its written tiles; plain floor, doors, mouths and causeways
 stay unwritten tiles.
 
-Changing a grid is an owner decision. The checker that proved each grid against the generator's rules (enclosure,
+The hall was redrawn at 37 from the approved 39 draft on the owner's size decision: the pier rhythm of the 39 draft
+does not divide 37, so the nave is 7 wide (it was 9) and there are 32 piers (38); the owner was shown the redrawn
+grid the same day. Changing a grid is an owner decision. The checker that proved each grid against the generator's rules (enclosure,
 openings, camp halo, reachability, wall pieces, ice rule, symmetry) and the owner-facing write-up were produced in
 the coordinator's session and are not checked in; each packet's oracle re-proves the rules on generated maps.
