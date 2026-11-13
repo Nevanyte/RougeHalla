@@ -26,6 +26,9 @@ pub struct AttemptState {
     pub clearing: Vec<usize>,
     pub style_camps: Vec<StyleCamp>,
     pub layout_rounds: usize,
+    /// P-MAPGEN-SIG-RESERVE-1: each styled zone's reserved landmark site, in the order Fire, Sentenced, Plague, Frost;
+    /// empty with the signature option off. STUB: always empty.
+    pub reserved: Vec<crate::mapgen::landmarks::signature::ReservedSite>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct AttemptFrame {
@@ -123,6 +126,18 @@ pub fn begin_attempt(
     );
     Ok(state.map(|state| AttemptFrame { state, rng }))
 }
+/// The attempt prefix as the styled pipeline builds it: with `signature` (the pipeline's `Options::signature` on a
+/// styled attempt) the Prefix reserves each styled zone's landmark site before the camps (P-MAPGEN-SIG-RESERVE-1);
+/// without it, exactly `begin_attempt`. STUB: ignores `signature`.
+pub fn begin_attempt_signature(
+    context: &AttemptContext<'_>,
+    seed: i64,
+    attempt: u64,
+    signature: bool,
+) -> Result<Option<AttemptFrame>, AttemptInputError> {
+    let _ = signature;
+    begin_attempt(context, seed, attempt)
+}
 /// One implementation is shared by production and tests that observe the injected stream.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PrefixStage {
@@ -193,6 +208,7 @@ fn assemble(
             clearing,
             style_camps,
             layout_rounds: round + 1,
+            reserved: Vec::new(),
         });
     }
     None

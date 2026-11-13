@@ -170,6 +170,17 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     lake_slack: 2,
 };
 
+/// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
+/// the camps, with the option on only. `rect` is the whole site (the landmark's footprint plus its apron); `camp` is
+/// the tile of the camp drawn inside it (the church's and the cave's elite camp), `None` for the volcano and the tree.
+/// STUB: nothing produces one yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReservedSite {
+    pub zone: Zone,
+    pub rect: TileRect,
+    pub camp: Option<usize>,
+}
+
 /// G4: the band of a tile relative to a zone's anchor, nearest first.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
