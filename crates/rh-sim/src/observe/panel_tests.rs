@@ -469,7 +469,7 @@ fn each_seat_observes_only_its_own_champion_panel() {
 #[test]
 fn the_observation_identity_moves_for_the_panel() {
     assert_eq!(
-        OBSERVATION_VERSION, 28,
+        OBSERVATION_VERSION, 29,
         "Observation gains the owner's champion panel (26), its codes 23-27 (27, P-WIRE17-HUD-2c), the owner's clocks and the room minimum (28, P-WIRE17-HUD-3)"
     );
 }

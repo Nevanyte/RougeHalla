@@ -221,7 +221,7 @@ fn the_arena_view_carries_the_rooms_minimum_players() {
 #[test]
 fn the_observation_version_moves_for_the_clocks_and_the_minimum() {
     assert_eq!(
-        OBSERVATION_VERSION, 28,
+        OBSERVATION_VERSION, 29,
         "Inventory gains the owner's two end times and ArenaView the room minimum (P-WIRE17-HUD-3)"
     );
 }
