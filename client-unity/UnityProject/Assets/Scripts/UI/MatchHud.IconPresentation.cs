@@ -81,17 +81,26 @@ namespace Roguehalla.Client
             return w.Charges + "/" + w.MaxCharges + (cool.Length > 0 ? " · " + cool : "");
         }
 
+        readonly bool[] _slotKeyValid = new bool[2], _slotEquipped = new bool[2];
+        readonly Roguehalla.Net.Protocol.WireHudContent[] _slotBlock = new Roguehalla.Net.Protocol.WireHudContent[2];
+        readonly WeaponId?[] _slotWeapon = new WeaponId?[2];
+
         void UpdateInventoryHints(InventoryView? inventory)
         {
             for (int i = 0; i < 2; i++)
             {
                 var weapon = !inventory.HasValue ? null : i == 0 ? inventory.Value.Slot0 : inventory.Value.Slot1;
+                var block = HudContent;
+                bool equipped = inventory.HasValue && inventory.Value.ActiveSlot == i;
+                // Rebuilt only when the block, the weapon or the equipped flag changes (this runs every frame).
+                if (_slotKeyValid[i] && ReferenceEquals(_slotBlock[i], block) && _slotWeapon[i] == weapon && _slotEquipped[i] == equipped) continue;
+                _slotKeyValid[i] = true; _slotBlock[i] = block; _slotWeapon[i] = weapon; _slotEquipped[i] = equipped;
                 Set(_slots[i].GetComponentInChildren<TMP_Text>(true), (i + 1).ToString());
                 if (_slotNames[i] != null) Set(_slotNames[i], weapon.HasValue ? weapon.Value.ToString() : "Empty");
-                if (_slotScaling[i] != null) Set(_slotScaling[i], weapon.HasValue ? HudContentText.SlotScaling(HudContent, weapon.Value) : "");
-                string tip = weapon.HasValue ? HudContentText.SlotTip(HudContent, weapon.Value) : "";
-                if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " · " + (weapon.HasValue ? (tip.Contains("\n") ? tip : weapon.ToString()) : "Empty weapon slot") +
-                    (inventory.HasValue && inventory.Value.ActiveSlot == i ? " · equipped" : "\nSelect weapon slot");
+                string scaling = weapon.HasValue ? HudContentText.SlotScaling(block, weapon.Value) : "";
+                if (_slotScaling[i] != null) Set(_slotScaling[i], scaling);
+                string title = !weapon.HasValue ? "Empty weapon slot" : scaling.Length > 0 ? HudContentText.SlotTip(block, weapon.Value) : weapon.ToString();
+                if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " \u00b7 " + title + (equipped ? " \u00b7 equipped" : "\nSelect weapon slot");
             }
             // Cache on the values shown: the texts rebuild only when delivery, a count or the healing count changes.
             var key = new PotionKey { Delivered = inventory.HasValue, Large = inventory.HasValue ? inventory.Value.PotionLarge : 0, Small = inventory.HasValue ? inventory.Value.PotionSmall : 0, Healing = inventory.HasValue ? inventory.Value.PotionsHealing : 0 };

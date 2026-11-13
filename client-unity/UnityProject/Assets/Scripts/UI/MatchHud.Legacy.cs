@@ -289,10 +289,19 @@ namespace Roguehalla.Client
 
         /// <summary>P-UNITY-HUD-BUILD-3: draws the Wish row (label, value, scaling) for <paramref name="me"/>. With the HUD block the label is the
         /// ability name and the lines are legacy's numbers; without it, the stock "Ability · charges/max" text under the label "Wish".</summary>
+        // The Wish row is rebuilt only when an input it reads changes (it runs every frame).
+        Roguehalla.Net.Protocol.WireHudContent _wishRowBlock; FactionId _wishRowFaction; bool _wishRowHas, _wishRowKeyValid; AbilityId _wishRowAbility; int _wishRowCharges, _wishRowMax;
+
         void ApplyWishRow(SelfView me)
         {
             if (_championValue[2] == null || me == null) return;
             var block = HudContent;
+            bool has = me.Wish.HasValue;
+            var wish = me.Wish ?? default(WishView);
+            if (_wishRowKeyValid && ReferenceEquals(_wishRowBlock, block) && _wishRowFaction == me.Faction && _wishRowHas == has
+                && (block != null || !has || (_wishRowAbility == wish.Ability && _wishRowCharges == wish.Charges && _wishRowMax == wish.MaxCharges))) return;
+            _wishRowKeyValid = true; _wishRowBlock = block; _wishRowFaction = me.Faction; _wishRowHas = has;
+            _wishRowAbility = wish.Ability; _wishRowCharges = wish.Charges; _wishRowMax = wish.MaxCharges;
             if (block != null)
             {
                 var row = HudContentText.Wish(block, me.Faction);
@@ -300,7 +309,7 @@ namespace Roguehalla.Client
                 return;
             }
             Set(_championLabel[2], "Wish"); Set(_championScaling[2], "");
-            Set(_championValue[2], me.Wish.HasValue ? me.Wish.Value.Ability + " \u00b7 " + me.Wish.Value.Charges + "/" + me.Wish.Value.MaxCharges : "\u2014");
+            Set(_championValue[2], has ? wish.Ability + " \u00b7 " + wish.Charges + "/" + wish.MaxCharges : "\u2014");
         }
 
         const string DamageUnavailable = "Combat overview\nRaw values are before target mitigation; this is not measured DPS.";
