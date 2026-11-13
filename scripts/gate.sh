@@ -175,6 +175,7 @@ jsvectors() {
   run "JS first-playable checks" node tools/protocol-js/check-first-playable.mjs
   run "JS dressing vectors" node tools/protocol-js/check-dressing.mjs
   run "JS patience and carrier vectors" node tools/protocol-js/check-map-patience.mjs
+  run "JS landmark anchor vectors" node tools/protocol-js/check-map-anchors.mjs
 }
 reload_proof_tests() { # hand-written Welcome/Hello parsers of the browser reload proof: CI runs them (rust.yml, the JS step)
   run "browser reload-proof tests (node --test)" node --test tools/unity-browser-reload-proof/*.test.mjs
