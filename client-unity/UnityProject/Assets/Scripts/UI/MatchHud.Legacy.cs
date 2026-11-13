@@ -278,6 +278,13 @@ namespace Roguehalla.Client
             _damageHint = HudIconHint.Attach(focus, _root, DamageUnavailable);
         }
 
+        /// <summary>P-UNITY-HUD-BUILD-3: the Welcome's HUD content block the panel and slots read (null until delivered). STUB: nothing reads it yet.</summary>
+        public Roguehalla.Net.Protocol.WireHudContent HudContent { get; set; }
+
+        /// <summary>P-UNITY-HUD-BUILD-3: draws the Wish row (label, value, scaling) for <paramref name="me"/>. STUB: draws nothing; the implementer moves
+        /// the Wish-row lines of <c>RefreshLegacyHud</c> here.</summary>
+        void ApplyWishRow(SelfView me) { }
+
         const string DamageUnavailable = "Combat overview\nRaw values are before target mitigation; this is not measured DPS.";
 
         // ------------------------------------------------------------------ weapon bar (section 4)
