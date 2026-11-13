@@ -21,7 +21,7 @@
     "sent.grave": { "code": 18 },
     "sent.lamp": { "code": 19 },
     "sent.stump": { "code": 20, "tall": true },
-    "sent.fence": { "code": 51 },
+    "sent.fence": { "code": 61 },
     "plague.column": { "code": 21, "tall": true },
     "plague.rubble": { "code": 22 },
     "plague.tree": { "code": 23, "tall": true },
@@ -42,7 +42,7 @@
     "frost.crag": { "code": 38 },
     "frost.snowbank": { "code": 39 },
     "frost.flurry": { "code": 40 },
-    "frost.spire": { "code": 52, "tall": true },
+    "frost.spire": { "code": 81, "tall": true },
     "holy.pillar": { "code": 41, "tall": true },
     "holy.rock": { "code": 42 },
     "holy.palm": { "code": 43, "tall": true },
@@ -53,7 +53,7 @@
     "holy.banner": { "code": 48 },
     "holy.hedge": { "code": 49 },
     "holy.turf": { "code": 50 },
-    "holy.brazier": { "code": 53 }
+    "holy.brazier": { "code": 91 }
   },
   "keepClear": { "campMargin": 2, "coliseumMargin": 1, "corridorWidth": 2 },
   "zones": {

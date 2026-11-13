@@ -6,6 +6,13 @@
 //! Order rules: a cluster's `moat` (default 2) keeps edge and filler props out of the disk of `radius + moat` tiles round
 //! each of its sites, so a cluster reads as a grove with open ground round it. A filler rule's `minSpacing` (default 2)
 //! keeps filler props that many tiles apart. Both are optional; files without them are still valid.
+//!
+//! Kind code blocks in `rules/zones.json` (the file itself tolerates no unknown keys, so the scheme is recorded here).
+//! Each zone owns ten codes per block: first block Fire 1-10, Sentenced 11-20, Plague 21-30, Frost 31-40, Holy 41-50;
+//! second block Fire 51-60, Sentenced 61-70, Plague 71-80, Frost 81-90, Holy 91-100. Existing codes never move (the
+//! option-off dressing is pinned by hash). Two kinds that look alike are both kept: `fire.vent` (4) is the edge rule's
+//! vent that hugs walls, `fire.emberjet` (8) is the landmark's near-band jet standing in open basalt; a kind belongs to
+//! exactly one rule, so each rule has its own.
 use rh_sim::mapdata::{FeatureKind, Zone};
 use serde::Deserialize;
 use std::collections::BTreeMap;
