@@ -24,7 +24,8 @@ RISKS:           One more generator sweep in the rh-sim suite: 29.8 s in this ga
 
 ## What the test does
 `no_attempt_of_seeds_1_to_32_stops_with_a_generation_error_with_decor_on`: with `pipeline::Options::signature` on and
-decor on (the default, what the server's pool uses), every attempt of seeds 1 to 32 up to the one that makes the map
+decor on (the generator's default; the server's pool runs with decor off, so no production caller uses this path with
+the landmark option today; corrected after the coordinator's review), every attempt of seeds 1 to 32 up to the one that makes the map
 must answer `Ok`; an `Err` fails the test, as does a seed with no map within 16 attempts. Refused attempts are legal.
 It pins no map, hash, attempt number or refusal count.
 

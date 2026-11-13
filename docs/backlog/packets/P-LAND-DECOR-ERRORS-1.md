@@ -14,7 +14,7 @@
 ## 1. ID and outcome
 A new test file, `crates/rh-sim/tests/mapgen_land_decor_attempts.rs`, with one test:
 `no_attempt_of_seeds_1_to_32_stops_with_a_generation_error_with_decor_on`. With `pipeline::Options::signature` on and
-decor on (the default, what the server's pool uses), it runs every attempt of seeds 1 to 32 up to the one that makes
+decor on (the generator's default; the server's pool runs with decor off), it runs every attempt of seeds 1 to 32 up to the one that makes
 the map and fails if any attempt returns `Err`, or if a seed makes no map within 16 attempts. A refused attempt is
 legal.
 
@@ -22,7 +22,10 @@ Why it is needed: each styler's `props` step runs only with decor, and in signat
 reads the church's door again there (P-LAND-SENTENCED-1-fix: a church whose door does not read as three open tiles in
 one run is `Error::Feature`). The lane's other tests run with decor only on the landing attempt of seeds 1 to 8, so
 attempts that are refused afterwards, and seeds 9 to 32, never exercised that path. A styler `Err` fails the whole
-generation call, so one such attempt on a live server is a failed room map, not a retried one.
+generation call. No production caller runs the generator with decor on and the landmark option today
+(`StyledMaker::options` in `crates/rh-server/src/map_pool.rs` sets `decor: false`), so this is a guard on the
+generator's default path, for the tools and tests that use it and for any later caller, not on a live room's map.
+(Corrected 2026-11-13 after the coordinator's review: an earlier wording said the server's pool uses decor.)
 
 ## 2. Dependencies
 P-LAND-SENTENCED-1 with P-LAND-SENTENCED-1-fix (the strict door). P-MAPGEN-STYLE-REFUSE-1 (the landmark lane's,
