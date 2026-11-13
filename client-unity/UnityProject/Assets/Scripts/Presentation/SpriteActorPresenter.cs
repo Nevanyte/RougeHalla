@@ -188,6 +188,59 @@ namespace Roguehalla.Client
         /// <summary>World rects of the fighter names drawn this frame (after stacking), for the camp labels to keep clear of.</summary>
         public void FighterNameRects(List<Rect> into) { into.AddRange(_nameRects); }
 
+        // Luminance of what a player sees on each surface (the averages measured for P-UNITY-NAME-LEGIBLE-1, see NamePalette); the kinds with no
+        // measurement (lava, ember, bog, water, grass, none) are counted dark, the palette of today.
+        static readonly float[] FloorLuminance = BuildFloorLuminance();
+        static float[] BuildFloorLuminance()
+        {
+            var t = new float[System.Enum.GetValues(typeof(SurfaceKind)).Length];
+            for (int i = 0; i < t.Length; i++) t[i] = .05f;
+            void Set(SurfaceKind k, uint srgb) { t[(int)k] = (float)Roguehalla.Net.Ui.NamePalette.Luminance(srgb); }
+            Set(SurfaceKind.Basalt, 0x46251C); Set(SurfaceKind.Flagstone, 0x272223); Set(SurfaceKind.Mud, 0x394C23);
+            Set(SurfaceKind.Snow, 0xA1BED0); Set(SurfaceKind.Sand, 0xCC9F55); Set(SurfaceKind.Limestone, 0x9C9183);
+            Set(SurfaceKind.Ice, 0xA6CAE3); Set(SurfaceKind.HolyLight, 0xAC8B4B); Set(SurfaceKind.TempleFloor, 0xBEAA86);
+            return t;
+        }
+
+        const float BarClearance = .15f;
+
+        // Last step of the name pass, once every name is placed: an elite's name steps above the health bars of other mobs beside it, each name takes the
+        // colours that read on the ground under its anchor, and the names the camp labels must keep clear of (fighters, elites, packs) are published.
+        void FinishNames()
+        {
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                var f = art.IndFacts;
+                if (f.Dead || !art.Ind.NameActive) continue;
+                bool elite = f.Mob && f.Elite;
+                if (elite) ClearOfBars(art);
+                if (Surfaces != null) art.Ind.SetNameGround(FloorLuminance[(int)Surfaces.SurfaceAt(art.Ind.NameWorldPosition)]);
+                if (f.Mob && !elite && !_packNameIds.Contains(pair.Key)) continue;
+                var nb = art.Ind.NameDrawnBounds;
+                _nameRects.Add(new Rect(nb.min.x - .03f, nb.min.y, nb.size.x + .06f, nb.size.y));
+            }
+        }
+
+        void ClearOfBars(Art self)
+        {
+            for (int pass = 0; pass < 4; pass++)
+            {
+                var nb = self.Ind.NameDrawnBounds; float lift = 0f;
+                foreach (var pair in _active)
+                {
+                    var o = pair.Value;
+                    if (o == self || o.Stamp != _stamp || o.Dead || o.HpBack == null || !o.HpBack.enabled) continue;
+                    var b = o.HpBack.bounds;
+                    if (b.max.x + BarClearance <= nb.min.x || b.min.x - BarClearance >= nb.max.x || b.max.y + BarClearance <= nb.min.y || b.min.y - BarClearance >= nb.max.y) continue;
+                    lift = Mathf.Max(lift, b.max.y + BarClearance - nb.min.y);
+                }
+                if (lift <= 0f) return;
+                self.Ind.LiftName(lift);
+            }
+        }
+
         /// <summary>
         /// Mobs of one camp that stand together show exactly one name (P-UNITY-NAME-GROUP-2): over the pack, or over the hovered or locked member.
         /// Then the fighters' names are stacked so none overlaps another. Runs after every actor's indicators were presented. Players are never merged.
@@ -241,12 +294,14 @@ namespace Roguehalla.Client
                     if (!_active.TryGetValue(_mergeIds[i], out var art)) continue;
                     if (!_mergeShown[i]) { art.Ind.HideName(); continue; }
                     bool pack = _packSize[_mergeScratch[i]] > 1;
-                    art.Ind.NameFullAlpha(pack ? _packFade[_mergeScratch[i]] : art.Ind.TextFade);   // every mob name reads at full strength (DEV-024)
+                    // Strength is set in OverheadIndicators.Update (full for every shown mob name, DEV-024); only a pack's one name takes the fade of its most visible member.
+                    if (pack) art.Ind.NameFullAlpha(_packFade[_mergeScratch[i]]);
                     if (_anchorX[i] != _mergeItems[i].X || _anchorY[i] != _mergeItems[i].Y) art.Ind.MoveName(_anchorX[i], _anchorY[i]);
                     if (pack) _packNameIds.Add(_mergeIds[i]);
                 }
             }
             StackFighterNames(fighters);
+            FinishNames();
         }
 
         // Fighters whose names would overlap are stacked, the one nearest the local fighter lowest. Names are never merged.
@@ -292,7 +347,6 @@ namespace Roguehalla.Client
             {
                 var item = _stackItems[i];
                 if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.LiftName(_lift[i]);
-                if (i < fighterCount) _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
             }
         }
 

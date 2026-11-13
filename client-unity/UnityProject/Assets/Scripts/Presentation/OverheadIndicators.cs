@@ -44,6 +44,11 @@ namespace Roguehalla.Client
         }
 
         const float RingK = .86f / .80f; // GroundMarkArt rings sit at .80 of the sprite, the old generic ring at .86
+        /// <summary>
+        /// A name draws at its actor's order + this: above every actor, health bar, wall and prop of the arena (orders 2000 to about 5000) so a mob in front
+        /// of a fighter cannot cover its name, and below every world label and effect layer (29000 and up: camp badges, world marks, fog, particles).
+        /// </summary>
+        public const int NameOrderLift = 18000;
         const float Px = .026f; // legacy px to actor-local units
         readonly SpriteRenderer _hover, _hunt, _wishIcon, _crown, _badgeBack, _badgeEdge, _badgeIcon, _lockOuter, _lockInner, _root, _zone;
         readonly SpriteRenderer[] _glyphs = new SpriteRenderer[Indicators.StatusOrder.Length];
@@ -53,6 +58,7 @@ namespace Roguehalla.Client
         readonly List<StatusAnchor> _anchors = new List<StatusAnchor>();   // this frame's status art spots (StatusAnchors.Build)
         readonly List<OverheadElement> _stack = new List<OverheadElement>();   // this frame's layout (OverheadStack.Build)
         int _bounty = -1; string _nameText;
+        NameKind _nameKind; bool _namePale;   // the colours follow the ground: set by SetNameGround, kept by Update
         float _textFade = 1f;
         Color _numberBase, _nameBase;
 
@@ -83,21 +89,34 @@ namespace Roguehalla.Client
             HideAll();
         }
 
-        static Material _outlined; static TMP_FontAsset _outlinedFor;
+        static Material _outlined, _outlinedPale; static TMP_FontAsset _outlinedFor, _outlinedPaleFor;
         /// <summary>One shared dark-outlined text material per font (no per-label material instance, so labels batch and nothing leaks).</summary>
-        public static Material OutlinedMaterial(TMP_FontAsset font)
+        public static Material OutlinedMaterial(TMP_FontAsset font) { return OutlinedMaterial(font, false); }
+        /// <summary>
+        /// The shared outlined material for a name over dark ground (dark outline) or pale ground (light outline, <see cref="NamePalette"/>): two materials in all,
+        /// each shared by every label of its kind.
+        /// </summary>
+        public static Material OutlinedMaterial(TMP_FontAsset font, bool pale)
         {
-            if (_outlined != null && _outlinedFor == font) return _outlined;
-            _outlined = new Material(font.material) { name = "Roguehalla / outlined world text" };
-            _outlined.EnableKeyword("OUTLINE_ON");
-            _outlined.SetFloat(ShaderUtilities.ID_OutlineWidth, .1f);
+            if (pale) { if (_outlinedPale != null && _outlinedPaleFor == font) return _outlinedPale; }
+            else if (_outlined != null && _outlinedFor == font) return _outlined;
+            var m = BuildOutlined(font, pale);
+            if (pale) { _outlinedPale = m; _outlinedPaleFor = font; } else { _outlined = m; _outlinedFor = font; }
+            return m;
+        }
+
+        static Material BuildOutlined(TMP_FontAsset font, bool pale)
+        {
+            var mat = new Material(font.material) { name = pale ? "Roguehalla / outlined world text (pale ground)" : "Roguehalla / outlined world text" };
+            mat.EnableKeyword("OUTLINE_ON");
+            mat.SetFloat(ShaderUtilities.ID_OutlineWidth, .1f);
             // Crisp when magnified (2x display): a harder distance-field edge and no softness on the face or the outline.
-            if (_outlined.HasProperty("_Sharpness")) _outlined.SetFloat("_Sharpness", .7f);
-            if (_outlined.HasProperty("_OutlineSoftness")) _outlined.SetFloat("_OutlineSoftness", 0f);
-            if (_outlined.HasProperty("_FaceDilate")) _outlined.SetFloat("_FaceDilate", .04f);
-            _outlined.SetColor(ShaderUtilities.ID_OutlineColor, (Color)UiTheme.Current.OutlineDark);
-            _outlinedFor = font;
-            return _outlined;
+            if (mat.HasProperty("_Sharpness")) mat.SetFloat("_Sharpness", .7f);
+            if (mat.HasProperty("_OutlineSoftness")) mat.SetFloat("_OutlineSoftness", 0f);
+            if (mat.HasProperty("_FaceDilate")) mat.SetFloat("_FaceDilate", .04f);
+            if (pale) { var o = NamePalette.Colours(NameKind.Mob, true).Outline; mat.SetColor(ShaderUtilities.ID_OutlineColor, new Color32((byte)(o >> 16), (byte)(o >> 8), (byte)o, 255)); }
+            else mat.SetColor(ShaderUtilities.ID_OutlineColor, (Color)UiTheme.Current.OutlineDark);
+            return mat;
         }
 
         static SpriteRenderer Sprite(Transform parent, string name, Sprite sprite, int order)
@@ -135,6 +154,28 @@ namespace Roguehalla.Client
         public void NameFullAlpha() { NameFullAlpha(_textFade); }
         /// <summary>As <see cref="NameFullAlpha()"/>, with the vision fade of the pack's most visible drawn member instead of this carrier's own.</summary>
         public void NameFullAlpha(float fade) { _nameBase.a = 1f; var c = _nameBase; c.a *= fade; _name.color = c; }
+        static Color Rgb(uint rgb) { return new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255); }
+
+        /// <summary>
+        /// Gives the name the colours that read on the ground under it: <paramref name="floorLuminance"/> is the relative luminance of the surface at the name's anchor.
+        /// Hysteresis lives in <see cref="NamePalette.IsPale"/> (state kept here), and nothing is touched unless the floor class changes. No allocation.
+        /// </summary>
+        public void SetNameGround(float floorLuminance)
+        {
+            bool pale = NamePalette.IsPale(floorLuminance, _namePale);
+            if (pale == _namePale) return;
+            _namePale = pale; ApplyNameLook();
+        }
+
+        void ApplyNameLook()
+        {
+            var look = NamePalette.Colours(_nameKind, _namePale);
+            var mat = OutlinedMaterial(_name.font, _namePale);
+            if (_name.fontSharedMaterial != mat) _name.fontSharedMaterial = mat;
+            float a = _nameBase.a; _nameBase = Rgb(look.Face); _nameBase.a = a;
+            var c = _nameBase; c.a *= _textFade; _name.color = c;
+        }
+
         /// <summary>The vision fade last applied to this actor's text (1 when fully visible).</summary>
         public float TextFade { get { return _textFade; } }
         /// <summary>Hides the name for this frame (the pack merge); <see cref="Update"/> shows it again next frame.</summary>
@@ -149,6 +190,7 @@ namespace Roguehalla.Client
             _lockDark.enabled = false;
             _number.gameObject.SetActive(false); _name.gameObject.SetActive(false);
             _bounty = -1; _nameText = null; _textFade = 1f;
+            if (_namePale) { _namePale = false; ApplyNameLook(); }
             if (_extras != null) _extras.HideAll();
         }
 
@@ -198,15 +240,15 @@ namespace Roguehalla.Client
                     case OverheadKind.Name:
                     {
                         nameTopPx = e.Y + e.H;
-                        _nameBase = e.Tone == OverheadTone.NameElite ? (Color)theme.Accent : e.Tone == OverheadTone.NameOwn ? (Color)theme.Success : e.Tone == OverheadTone.NameMob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
-                        // MobView.ts:26-27,183-186: an idle, full-health, non-elite mob's name is faint (IDLE_LABEL_ALPHA); hurt, fighting, elite and the dummy read full.
-                        // The presenter raises every drawn mob name to full strength (NameFullAlpha, DEV-024): half alpha is unreadable on pale ground.
-                        _nameBase.a = f.Mob && !f.Elite && !f.Dummy && !f.M.Engaged && f.HpPct >= 100f ? .5f : 1f;
+                        // The colours follow the ground (NamePalette, SetNameGround). Every shown name is at full strength, decided here and nowhere else:
+                        // legacy's idle .5 (MobView.ts:27,182) is unreadable on pale ground (DEV-024). Only the vision fade multiplies it.
+                        _nameKind = e.Tone == OverheadTone.NameElite ? NameKind.Elite : e.Tone == OverheadTone.NameOwn ? NameKind.Local : e.Tone == OverheadTone.NameMob ? NameKind.Mob : NameKind.Fighter;
+                        _nameBase = Rgb(NamePalette.Colours(_nameKind, _namePale).Face);
                         _name.fontSize = f.Mob && f.Elite ? 2.5f * 12f / 11f : 2.5f;   // MobView.ts:247: 12 px elite, 11 px otherwise
                         var nc = _nameBase; nc.a *= _textFade; _name.color = nc;
                         _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;
                         _name.transform.localPosition = new Vector3(cx, cy, 0);
-                        _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + 12;
+                        _name.GetComponent<MeshRenderer>().sortingOrder = f.Order + NameOrderLift;
                         break;
                     }
                     case OverheadKind.WishIcon:
