@@ -754,7 +754,11 @@ fn camp_buffs_themed_mob_state() -> (&'static str, Sim) {
     sim.step();
     // A lone camp always ends on its zone's theme (below nine camps the repair only gains theme), so the checkpoint is
     // restored with the Fire camp paying the Sentenced Pardoner's stat, an off-theme buff `check_world` admits.
-    assert_eq!(sim.camp_buffs(), &[None], "a lone camp rolls on its zone's theme");
+    assert_eq!(
+        sim.camp_buffs(),
+        &[None],
+        "a lone camp rolls on its zone's theme"
+    );
     let mut cp = serde_json::to_value(&sim).unwrap();
     cp["world"]["mob_runtime"]["buffs"][0] = serde_json::json!("pardoner");
     let sim = Sim::restore(&cp).expect("an off-theme buff of another zone is admitted");

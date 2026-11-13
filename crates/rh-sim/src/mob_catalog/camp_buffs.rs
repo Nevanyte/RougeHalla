@@ -342,11 +342,7 @@ fn spill_type(zone_rows: &[Vec<Option<MobTypeId>>], d: &[i32], c: usize, b: usiz
         }
     }
     best.map(|(_, t)| t)
-        .or_else(|| {
-            FactionId::ALL
-                .iter()
-                .find_map(|&z| zone_stat_types(z)[b])
-        })
+        .or_else(|| FactionId::ALL.iter().find_map(|&z| zone_stat_types(z)[b]))
         .expect("every stat kind is on some zone's theme")
 }
 
