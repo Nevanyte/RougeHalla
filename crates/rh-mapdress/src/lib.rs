@@ -143,6 +143,12 @@ struct Grid<'a> {
     /// Landmark mode: per tile of a zone that has an anchor and a `landmark` rule block, `1 + band index`; 0 elsewhere.
     /// Empty when no zone uses the landmark path.
     bands: Vec<u8>,
+    /// P-DRESS-MARSH-1: per tile, the ground variant of the terrain ring it lies in (valid where `ringed`).
+    marsh: Vec<u8>,
+    /// Tiles covered by some terrain ring (plain floor of the zone within the ring's reach).
+    ringed: Vec<bool>,
+    /// Tiles in the nearest terrain ring of their zone: no tall prop stands here.
+    water: Vec<bool>,
 }
 
 impl Grid<'_> {
@@ -159,7 +165,7 @@ impl Grid<'_> {
         self.zone_of(i) == zone.code()
             && !self.clear[i]
             && !self.occupied[i]
-            && !(tall && (self.corridor[i] || self.is_core(i)))
+            && !(tall && (self.corridor[i] || self.is_core(i) || self.water[i]))
             && on.contains(&class_of(self.map, i))
     }
 }
@@ -348,8 +354,86 @@ fn band_plane(map: &GameMapData, rules: &Rules) -> Vec<u8> {
     out
 }
 
+/// Chebyshev distance in tiles from every tile to the nearest source tile, by a two-pass chamfer (exact for the
+/// Chebyshev metric): O(w*h) with 4 neighbours per pass, about 200k steps on a 160x160 map, per (zone, class) pair.
+fn chebyshev_field(w: usize, h: usize, source: &[bool]) -> Vec<u32> {
+    const FAR: u32 = u32::MAX / 2;
+    let mut d: Vec<u32> = source.iter().map(|&s| if s { 0 } else { FAR }).collect();
+    let relax = |d: &mut [u32], i: usize, x: i64, y: i64, dx: i64, dy: i64| {
+        let (nx, ny) = (x + dx, y + dy);
+        if nx >= 0 && ny >= 0 && nx < w as i64 && ny < h as i64 {
+            let v = d[ny as usize * w + nx as usize] + 1;
+            if v < d[i] {
+                d[i] = v;
+            }
+        }
+    };
+    for y in 0..h as i64 {
+        for x in 0..w as i64 {
+            let i = y as usize * w + x as usize;
+            for (dx, dy) in [(-1, 0), (-1, -1), (0, -1), (1, -1)] {
+                relax(&mut d, i, x, y, dx, dy);
+            }
+        }
+    }
+    for y in (0..h as i64).rev() {
+        for x in (0..w as i64).rev() {
+            let i = y as usize * w + x as usize;
+            for (dx, dy) in [(1, 0), (1, 1), (0, 1), (-1, 1)] {
+                relax(&mut d, i, x, y, dx, dy);
+            }
+        }
+    }
+    d
+}
+
+/// The terrain-ring planes `(marsh, ringed, water)` of [`Grid`]: one distance pass per zone and ring class.
+fn terrain_plane(map: &GameMapData, rules: &Rules) -> (Vec<u8>, Vec<bool>, Vec<bool>) {
+    let (w, h) = (map.w as usize, map.h as usize);
+    let mut marsh = vec![0u8; w * h];
+    let mut ringed = vec![false; w * h];
+    let mut water = vec![false; w * h];
+    for z in &rules.zones {
+        if z.terrain_rings.is_empty() {
+            continue;
+        }
+        let zone_of = |i: usize| map.region_grid.get(i).copied().unwrap_or(0);
+        let mut classes: Vec<TileClass> = Vec::new();
+        for r in &z.terrain_rings {
+            if !classes.contains(&r.around) {
+                classes.push(r.around);
+            }
+        }
+        for class in classes {
+            let source: Vec<bool> = (0..w * h)
+                .map(|i| zone_of(i) == z.zone.code() && class_of(map, i) == class)
+                .collect();
+            let dist = chebyshev_field(w, h, &source);
+            for i in 0..w * h {
+                if zone_of(i) != z.zone.code() || class_of(map, i) != TileClass::Floor {
+                    continue;
+                }
+                let mut prev = 0;
+                for (k, r) in z.terrain_rings.iter().enumerate() {
+                    if r.around == class && dist[i] > prev && dist[i] <= r.reach {
+                        marsh[i] = r.ground_variant;
+                        ringed[i] = true;
+                        water[i] = k == 0;
+                        break;
+                    }
+                    if r.around == class {
+                        prev = r.reach;
+                    }
+                }
+            }
+        }
+    }
+    (marsh, ringed, water)
+}
+
 fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
     let (w, h) = (map.w as usize, map.h as usize);
+    let (marsh, ringed, water) = terrain_plane(map, rules);
     Grid {
         map,
         w,
@@ -360,6 +444,9 @@ fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
         moat: vec![false; w * h],
         filler: vec![false; w * h],
         bands: band_plane(map, rules),
+        marsh,
+        ringed,
+        water,
     }
 }
 
@@ -605,6 +692,11 @@ pub fn dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing {
             landmark_rings(&mut g, z, rules, map_hash, &mut ground, &mut props);
         } else {
             rings(&mut g, z, rules, map_hash, &mut ground, &mut props);
+        }
+    }
+    for (i, slot) in ground.iter_mut().enumerate() {
+        if g.ringed[i] {
+            *slot = g.marsh[i];
         }
     }
     let sites = all_sites(&g, map_hash, rules);
