@@ -41,7 +41,8 @@ pub(super) fn place(s: &Site<'_>, rng: &mut Mulberry32) -> Option<Built> {
     let mut sites = Vec::new();
     for i in (0..W * H).filter(|&i| s.zone[i] == s.slot) {
         let (x, y) = ((i % W) as i32, (i / W) as i32);
-        if from_centre(x, y) < need
+        // P-MAPGEN-SIG-RESERVE-1: a reserved site carries the outer-third rule (`Site::floor` confines the tree to it).
+        if (s.inner.is_none() && from_centre(x, y) < need)
             || !trunk
                 .iter()
                 .all(|&(dx, dy)| s.wall(x + dx, y + dy) && s.ground(x + dx, y + dy))

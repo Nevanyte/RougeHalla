@@ -103,6 +103,23 @@ impl<'f> StageContext<'f> {
             &self.support,
         )?;
         let protect = self.protection.landmark_protect(&prefix.layout.camps);
+        // P-MAPGEN-SIG-RESERVE-1: the legacy recipes keep out of every reserved landmark site. Only the recipes (and
+        // their admission) read the sites; `LandmarkStage::protect` stays the camp protection the signature step reads.
+        let recipe_protect: std::borrow::Cow<'_, [u8]> = if prefix.reserved.is_empty() {
+            std::borrow::Cow::Borrowed(&protect)
+        } else {
+            let mut p = protect.clone();
+            for r in &prefix.reserved {
+                for y in r.rect.y..r.rect.y + r.rect.h as i32 {
+                    for x in r.rect.x..r.rect.x + r.rect.w as i32 {
+                        if x >= 0 && y >= 0 && (x as usize) < W && (y as usize) < H {
+                            p[y as usize * W + x as usize] = 1;
+                        }
+                    }
+                }
+            }
+            std::borrow::Cow::Owned(p)
+        };
         let mut state = Stage4State::new(W, H, prefix.tiles.clone(), Vec::new(), vec![0; W * H]);
         let mut zones = Vec::with_capacity(prefix.order.len());
         for (slot, &faction) in prefix.order.iter().enumerate() {
@@ -128,7 +145,7 @@ impl<'f> StageContext<'f> {
                 let mut rt = LandmarkRuntime::new(
                     &mut state,
                     &geometry,
-                    &protect,
+                    &recipe_protect,
                     Some(&prefix.layout.territory_grid),
                     &self.runtime,
                 );
@@ -145,7 +162,7 @@ impl<'f> StageContext<'f> {
             &prefix.tiles,
             &prefix.partition.zone,
             &prefix.order,
-            &protect,
+            &recipe_protect,
             &state,
         ) {
             return Ok(None);

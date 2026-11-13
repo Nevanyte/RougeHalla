@@ -35,10 +35,20 @@ struct Rect {
 /// The cave round the Frost zone's far elite camp, or `None` when the zone has no legal site (the attempt is refused,
 /// G5). The mouth's side: the dominant axis of the front, then the other axis toward the coliseum; first with a
 /// forecourt (the `2 * forecourt + 1` square of Frost just beyond the mouth, room for the styler's lake), then without.
-pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
-    let mut far = None;
+/// `camp`: the camp tile of the zone's reserved site (P-MAPGEN-SIG-RESERVE-1), which the cave stands round; `None`
+/// without a reservation (the far elite camp).
+pub(super) fn place(
+    s: &Site<'_>,
+    camps: &[CampSite],
+    rng: &mut Mulberry32,
+    camp: Option<usize>,
+) -> Option<Built> {
+    let mut far = camp.map(|t| ((t % W) as i32, (t / W) as i32));
     let mut best = -1i64;
-    for c in camps.iter().filter(|c| c.zone == s.slot && c.elite) {
+    for c in camps
+        .iter()
+        .filter(|c| camp.is_none() && c.zone == s.slot && c.elite)
+    {
         let (x, y) = ((c.site % W) as i64, (c.site / W) as i64);
         let r = (2 * x + 1 - W as i64).pow(2) + (2 * y + 1 - H as i64).pow(2);
         if r >= best {

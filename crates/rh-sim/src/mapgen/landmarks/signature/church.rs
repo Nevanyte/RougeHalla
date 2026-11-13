@@ -26,11 +26,21 @@ struct Rect {
     right: (i32, bool),
 }
 
-pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
+/// `camp`: the camp tile of the zone's reserved site (P-MAPGEN-SIG-RESERVE-1), which the church stands round; `None`
+/// without a reservation (the far elite camp).
+pub(super) fn place(
+    s: &Site<'_>,
+    camps: &[CampSite],
+    rng: &mut Mulberry32,
+    camp: Option<usize>,
+) -> Option<Built> {
     let d = &s.ctx.rules;
-    let mut far = None;
+    let mut far = camp.map(|t| ((t % W) as i32, (t / W) as i32));
     let mut best = -1i64;
-    for c in camps.iter().filter(|c| c.zone == s.slot && c.elite) {
+    for c in camps
+        .iter()
+        .filter(|c| camp.is_none() && c.zone == s.slot && c.elite)
+    {
         let (x, y) = ((c.site % W) as i64, (c.site / W) as i64);
         let r = (2 * x + 1 - W as i64).pow(2) + (2 * y + 1 - H as i64).pow(2);
         if r >= best {

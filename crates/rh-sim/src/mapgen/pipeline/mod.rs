@@ -290,8 +290,15 @@ impl<'f> Pipeline<'f> {
         styled: bool,
         observe: &mut impl FnMut(Phase, &Mulberry32, &[usize]),
     ) -> Result<AttemptReport, Error> {
-        let Some(mut frame) =
-            attempt::begin_attempt(&self.prefix, seed, number).map_err(Error::Input)?
+        // P-MAPGEN-SIG-RESERVE-1: with the signature option on a styled attempt, the Prefix reserves each styled zone's
+        // landmark site before its camps; otherwise this is exactly `begin_attempt`.
+        let Some(mut frame) = attempt::begin_attempt_signature(
+            &self.prefix,
+            seed,
+            number,
+            options.signature && styled,
+        )
+        .map_err(Error::Input)?
         else {
             return Ok(AttemptReport::refused(Refusal::Prefix));
         };

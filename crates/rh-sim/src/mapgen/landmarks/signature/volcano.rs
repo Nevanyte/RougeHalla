@@ -23,7 +23,14 @@ use super::super::recipe_support::DIR16;
 
 /// The volcano with its streams and pools for the Fire zone, or `None` when the zone has no legal site (the attempt is
 /// refused, G5).
-pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
+/// `inner`: the Fire zone's reserved site less its apron (x0, y0, x1, y1 inclusive; P-MAPGEN-SIG-RESERVE-1), which
+/// must hold the whole cone (the back-edge test still applies); the streams and pools are not confined.
+pub(super) fn place(
+    s: &Site<'_>,
+    camps: &[CampSite],
+    rng: &mut Mulberry32,
+    inner: Option<(i32, i32, i32, i32)>,
+) -> Option<Built> {
     let d = &s.ctx.rules;
     let from_centre = |x: f64, y: f64| {
         let (dx, dy) = (x - W as f64 / 2.0, y - H as f64 / 2.0);
@@ -56,6 +63,9 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
         if from_centre(f64::from(x) + 0.5, f64::from(y) + 0.5) <= need
             || at(x - apron, y - apron).is_none()
             || at(x + apron, y + apron).is_none()
+            || inner.is_some_and(|r| {
+                x - half < r.0 || x + half > r.2 || y - half < r.1 || y + half > r.3
+            })
             || !cone
                 .iter()
                 .all(|&(dx, dy)| s.wall(x + dx, y + dy) && s.ground(x + dx, y + dy))
