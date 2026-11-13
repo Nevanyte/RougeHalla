@@ -2,9 +2,10 @@
 
 use crate::codec::{DecodeError, EncodeError, Reader, Writer};
 use crate::ground::{
-    context_hash, semantic_hash, semantic_hash_parts, validate_plane_values, GroundMode,
-    PRESENCE_BUSHES, PRESENCE_CAMPS, PRESENCE_COLISEUM, PRESENCE_GROUND_VARIANTS, PRESENCE_KNOWN,
-    PRESENCE_PROPS, PRESENCE_REGIONS, PRESENCE_TERRAIN, SECTION_VERSION,
+    context_hash, section_header, semantic_hash, semantic_hash_parts2, validate_plane_values,
+    GroundMode, PRESENCE2_KNOWN, PRESENCE2_PATIENCE, PRESENCE_BUSHES, PRESENCE_CAMPS,
+    PRESENCE_COLISEUM, PRESENCE_GROUND_VARIANTS, PRESENCE_KNOWN, PRESENCE_PROPS, PRESENCE_REGIONS,
+    PRESENCE_TERRAIN, SECTION_VERSION, SECTION_VERSION_PRESENCE2,
 };
 
 /// Maximum cells in any map plane.
@@ -13,9 +14,10 @@ const MAP_HEAD_LEN: usize = 12;
 const RUN_LEN: usize = 3;
 const EXTENSION_STATIC_HEADER_LEN: usize = 6;
 const EXTENSION_TAIL_LEN: usize = 5;
-/// Five run-length planes may be present: collision, terrain, regions, bushes and ground variants.
-const MAX_CUMULATIVE_RUNS: usize = 5 * MAX_MAP_TILES;
-const MAX_DECODED_PLANES: usize = 5 * MAX_MAP_TILES;
+/// Six run-length planes may be present: collision, terrain, regions, bushes, ground variants and (section version 3)
+/// the camp patience plane.
+const MAX_CUMULATIVE_RUNS: usize = 6 * MAX_MAP_TILES;
+const MAX_DECODED_PLANES: usize = 6 * MAX_MAP_TILES;
 /// Wire bytes of one camp row (`x u16, y u16, r u16, zone u8`) and one prop row (`kind u8, x u16, y u16, variant u8,
 /// flags u8`).
 const CAMP_LEN: usize = 7;
@@ -105,6 +107,10 @@ pub struct MapPublic {
     pub props: Vec<MapProp>,
     /// Row-major ground-variant plane (the server's map dressing; ids `0..=MAX_GROUND_VARIANT`).
     pub ground_variants: Option<Vec<u8>>,
+    /// P-WIRE17-MAP-2: row-major camp patience plane: 0, or the 1-based index (into `camps`) of the camp whose patience
+    /// range covers the tile (legacy `campPatienceOutline`). Present only in a section-version-3 extension (second
+    /// presence byte bit 0x01), after the version-2 sections; every cell is at most `camps.len()`.
+    pub patience: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -251,7 +257,7 @@ impl MapBlob {
         MAP_HEAD_LEN + RUN_LEN * self.runs().count()
     }
     fn extension_static_len(&self) -> usize {
-        EXTENSION_STATIC_HEADER_LEN
+        extension_header_len(&self.public)
             + self.terrain.as_deref().map_or(0, rle_len)
             + self.regions.as_deref().map_or(0, rle_len)
             + public_len(&self.public)
@@ -337,8 +343,8 @@ impl MapBlob {
     fn write_extension_static(&self, w: &mut Writer) {
         let static_len = self.extension_static_len();
         w.u32((static_len + EXTENSION_TAIL_LEN) as u32);
-        w.u8(SECTION_VERSION);
-        w.u8(self.presence());
+        let (header, len) = section_header(self.presence(), public_presence2(&self.public));
+        w.bytes(&header[..len]);
         w.u32(self.semantic_hash);
         write_plane(w, self.terrain.as_deref());
         write_plane(w, self.regions.as_deref());
@@ -421,6 +427,18 @@ fn public_presence(p: &MapPublic) -> u8 {
     }
     flags
 }
+/// Second presence byte (section version 3): 0 when no second-presence section is present (the map is version 2).
+fn public_presence2(p: &MapPublic) -> u8 {
+    if p.patience.is_some() {
+        PRESENCE2_PATIENCE
+    } else {
+        0
+    }
+}
+/// Extension bytes before the first section: version, presence, (version 3) presence2, semantic hash.
+fn extension_header_len(p: &MapPublic) -> usize {
+    EXTENSION_STATIC_HEADER_LEN + usize::from(public_presence2(p) != 0)
+}
 
 fn camps_len(camps: &[MapCamp]) -> usize {
     if camps.is_empty() {
@@ -448,6 +466,7 @@ fn public_len(p: &MapPublic) -> usize {
         + p.bushes.as_deref().map_or(0, rle_len)
         + props_len(&p.props)
         + p.ground_variants.as_deref().map_or(0, rle_len)
+        + p.patience.as_deref().map_or(0, rle_len)
 }
 
 fn write_camps(w: &mut Writer, camps: &[MapCamp]) {
@@ -500,6 +519,7 @@ fn write_public(w: &mut Writer, p: &MapPublic) {
     write_plane(w, p.bushes.as_deref());
     write_props(w, &p.props);
     write_plane(w, p.ground_variants.as_deref());
+    write_plane(w, p.patience.as_deref());
 }
 
 fn section_bytes(len: usize, f: impl FnOnce(&mut Writer)) -> Vec<u8> {
@@ -508,7 +528,8 @@ fn section_bytes(len: usize, f: impl FnOnce(&mut Writer)) -> Vec<u8> {
     w.finish()
 }
 
-/// Version 2 semantic hash: planes hash their decoded cells, list sections their wire bytes (count included).
+/// Version 2 semantic hash: planes hash their decoded cells, list sections their wire bytes (count included). Version 3
+/// hashes `[3, presence, presence2]` instead of `[2, presence]` and the patience cells after the ground-variant cells.
 fn public_semantic_hash(
     w: u16,
     h: u16,
@@ -522,10 +543,11 @@ fn public_semantic_hash(
         write_coliseum(w, p.coliseum.as_ref())
     });
     let props = section_bytes(props_len(&p.props), |w| write_props(w, &p.props));
-    semantic_hash_parts(
+    semantic_hash_parts2(
         w,
         h,
         flags,
+        public_presence2(p),
         [
             terrain.unwrap_or_default(),
             regions.unwrap_or_default(),
@@ -534,6 +556,7 @@ fn public_semantic_hash(
             p.bushes.as_deref().unwrap_or_default(),
             &props,
             p.ground_variants.as_deref().unwrap_or_default(),
+            p.patience.as_deref().unwrap_or_default(),
         ],
     )
 }
@@ -569,9 +592,13 @@ fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
             }
         }
     }
-    for plane in [p.bushes.as_deref(), p.ground_variants.as_deref()]
-        .into_iter()
-        .flatten()
+    for plane in [
+        p.bushes.as_deref(),
+        p.ground_variants.as_deref(),
+        p.patience.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
     {
         if plane.len() != total {
             return Err(EncodeError::BadMap("plane length"));
@@ -590,6 +617,12 @@ fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
         .is_some_and(|g| g.iter().any(|&v| v > MAX_GROUND_VARIANT))
     {
         return Err(EncodeError::BadMap("ground variant"));
+    }
+    if p.patience
+        .as_deref()
+        .is_some_and(|plane| plane.iter().any(|&v| usize::from(v) > p.camps.len()))
+    {
+        return Err(EncodeError::BadMap("patience camp"));
     }
     Ok(())
 }
@@ -631,6 +664,8 @@ struct MapPlan<'a> {
     bushes: Option<PlanePlan<'a>>,
     props: Option<&'a [u8]>,
     ground_variants: Option<PlanePlan<'a>>,
+    /// Section version 3's patience plane.
+    patience: Option<PlanePlan<'a>>,
     mode: GroundMode,
     context_hash: u32,
 }
@@ -664,13 +699,23 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
     let ext = r.bytes(ext_len)?;
     let mut er = Reader::new(ext);
     let version = er.u8()?;
-    if version != SECTION_VERSION {
+    if version != SECTION_VERSION && version != SECTION_VERSION_PRESENCE2 {
         return Err(DecodeError::BadMap("section version"));
     }
     let flags = er.u8()?;
     if flags & !PRESENCE_KNOWN != 0 {
         return Err(DecodeError::BadMap("presence"));
     }
+    // Version 3 carries a second presence byte; without any of its bits the map would have a second encoding.
+    let presence2 = if version == SECTION_VERSION_PRESENCE2 {
+        let presence2 = er.u8()?;
+        if presence2 == 0 || presence2 & !PRESENCE2_KNOWN != 0 {
+            return Err(DecodeError::BadMap("presence"));
+        }
+        presence2
+    } else {
+        0
+    };
     let semantic_hash = er.u32()?;
     let mut cumulative_runs = collision_count;
     let terrain = if flags & PRESENCE_TERRAIN != 0 {
@@ -716,6 +761,21 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
     } else {
         None
     };
+    let patience = if presence2 & PRESENCE2_PATIENCE != 0 {
+        let plan = read_patience_plan(&mut er, total, &mut cumulative_runs)?;
+        // Cells name a camp of this map's camps section (1-based), or 0; no camps section means only 0.
+        let camps_count = camps.map_or(0, |c| c[0]);
+        if plan
+            .runs
+            .chunks_exact(RUN_LEN)
+            .any(|run| run[0] > camps_count)
+        {
+            return Err(DecodeError::BadMap("patience camp"));
+        }
+        Some(plan)
+    } else {
+        None
+    };
     if cumulative_runs > MAX_CUMULATIVE_RUNS {
         return Err(DecodeError::BadMap("run"));
     }
@@ -724,7 +784,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
     if er.remaining() != 0 {
         return Err(DecodeError::BadMap("extension trailing"));
     }
-    if decoded_bytes(total, flags)? > MAX_DECODED_PLANES {
+    if decoded_bytes(total, flags, presence2)? > MAX_DECODED_PLANES {
         return Err(DecodeError::BadMap("decoded size"));
     }
     validate_plane_plan(terrain, regions)?;
@@ -735,6 +795,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         w,
         h,
         flags,
+        presence2,
         [
             Part::Plane(terrain),
             Part::Plane(regions),
@@ -743,6 +804,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
             Part::Plane(bushes),
             Part::Bytes(props),
             Part::Plane(ground_variants),
+            Part::Plane(patience),
         ],
     );
     if semantic_hash != actual_semantic_hash {
@@ -765,6 +827,7 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         bushes,
         props,
         ground_variants,
+        patience,
         mode,
         context_hash,
     })
@@ -872,6 +935,16 @@ fn read_plane_plan<'a>(
     cumulative: &mut usize,
 ) -> Result<PlanePlan<'a>, DecodeError> {
     let count = r.u32()? as usize;
+    read_plane_plan_counted(r, count, total, cumulative)
+}
+
+/// [`read_plane_plan`] after its run count was read.
+fn read_plane_plan_counted<'a>(
+    r: &mut Reader<'a>,
+    count: usize,
+    total: usize,
+    cumulative: &mut usize,
+) -> Result<PlanePlan<'a>, DecodeError> {
     if count == 0 || count > total {
         return Err(DecodeError::BadMap("run"));
     }
@@ -887,6 +960,23 @@ fn read_plane_plan<'a>(
     let runs = r.bytes(bytes)?;
     validate_runs(runs, count, total, u8::MAX, "run")?;
     Ok(PlanePlan { runs, count })
+}
+
+/// The patience plane's runs (section version 3). Unlike the version-2 planes, a run count the extension cannot hold is
+/// `Truncated` before its bounds are checked; the other refusals are the planes' own ("run", "length").
+fn read_patience_plan<'a>(
+    r: &mut Reader<'a>,
+    total: usize,
+    cumulative: &mut usize,
+) -> Result<PlanePlan<'a>, DecodeError> {
+    let count = r.u32()? as usize;
+    if count
+        .checked_mul(RUN_LEN)
+        .is_none_or(|bytes| bytes > r.remaining())
+    {
+        return Err(DecodeError::Truncated);
+    }
+    read_plane_plan_counted(r, count, total, cumulative)
 }
 
 fn validate_runs(
@@ -991,16 +1081,18 @@ impl<'a> RunCursor<'a> {
     }
 }
 
-fn decoded_bytes(total: usize, flags: u8) -> Result<usize, DecodeError> {
-    let planes = 1 + [
-        PRESENCE_TERRAIN,
-        PRESENCE_REGIONS,
-        PRESENCE_BUSHES,
-        PRESENCE_GROUND_VARIANTS,
-    ]
-    .iter()
-    .filter(|&&bit| flags & bit != 0)
-    .count();
+fn decoded_bytes(total: usize, flags: u8, presence2: u8) -> Result<usize, DecodeError> {
+    let planes = 1
+        + [
+            PRESENCE_TERRAIN,
+            PRESENCE_REGIONS,
+            PRESENCE_BUSHES,
+            PRESENCE_GROUND_VARIANTS,
+        ]
+        .iter()
+        .filter(|&&bit| flags & bit != 0)
+        .count()
+        + usize::from(presence2 & PRESENCE2_PATIENCE != 0);
     total
         .checked_mul(planes)
         .ok_or(DecodeError::BadMap("decoded size"))
@@ -1030,7 +1122,13 @@ enum Part<'a> {
     Bytes(Option<&'a [u8]>),
 }
 
-fn hash_semantic<const N: usize>(w: u16, h: u16, flags: u8, parts: [Part<'_>; N]) -> u32 {
+fn hash_semantic<const N: usize>(
+    w: u16,
+    h: u16,
+    flags: u8,
+    presence2: u8,
+    parts: [Part<'_>; N],
+) -> u32 {
     let mut state = 0x811c_9dc5u32;
     let update = |state: &mut u32, bytes: &[u8]| {
         for &b in bytes {
@@ -1040,7 +1138,8 @@ fn hash_semantic<const N: usize>(w: u16, h: u16, flags: u8, parts: [Part<'_>; N]
     update(&mut state, crate::ground::SEMANTIC_DOMAIN);
     update(&mut state, &(w as u32).to_le_bytes());
     update(&mut state, &(h as u32).to_le_bytes());
-    update(&mut state, &[SECTION_VERSION, flags]);
+    let (header, len) = section_header(flags, presence2);
+    update(&mut state, &header[..len]);
     for part in parts {
         match part {
             Part::Plane(Some(plan)) => {
@@ -1090,6 +1189,7 @@ fn decode_plan(frame: &[u8]) -> Result<MapBlob, DecodeError> {
         ground_variants: plan
             .ground_variants
             .map(|p| decode_runs(p.runs, p.count, total)),
+        patience: plan.patience.map(|p| decode_runs(p.runs, p.count, total)),
     };
     Ok(MapBlob {
         w: plan.w,
@@ -1215,7 +1315,7 @@ impl EncodedMap {
         let flags = presence(terrain.is_some(), regions.is_some()) | public_presence(public);
         let semantic_hash = public_semantic_hash(w, h, terrain, regions, public);
         let collision_count = Runs { values: tiles }.count();
-        let ext_static_len = EXTENSION_STATIC_HEADER_LEN
+        let ext_static_len = extension_header_len(public)
             + terrain.map_or(0, rle_len)
             + regions.map_or(0, rle_len)
             + public_len(public);
@@ -1234,8 +1334,8 @@ impl EncodedMap {
         out.u32(collision_count as u32);
         write_runs(&mut out, tiles);
         out.u32((ext_static_len + EXTENSION_TAIL_LEN) as u32);
-        out.u8(SECTION_VERSION);
-        out.u8(flags);
+        let (header, header_len) = section_header(flags, public_presence2(public));
+        out.bytes(&header[..header_len]);
         out.u32(semantic_hash);
         write_plane(&mut out, terrain);
         write_plane(&mut out, regions);
@@ -1313,18 +1413,20 @@ impl EncodedMap {
         let ext_len =
             u32::from_le_bytes(self.body[offset..offset + 4].try_into().unwrap()) as usize;
         offset += 4;
-        if ext_len < EXTENSION_STATIC_HEADER_LEN + EXTENSION_TAIL_LEN
+        let header_len = extension_header_len(public);
+        if ext_len < header_len + EXTENSION_TAIL_LEN
             || offset + ext_len - EXTENSION_TAIL_LEN != self.body.len()
         {
             return false;
         }
-        if self.body[offset] != SECTION_VERSION
-            || self.body[offset + 1]
-                != presence(terrain.is_some(), regions.is_some()) | public_presence(public)
-        {
+        let (header, len) = section_header(
+            presence(terrain.is_some(), regions.is_some()) | public_presence(public),
+            public_presence2(public),
+        );
+        if self.body[offset..offset + len] != header[..len] {
             return false;
         }
-        offset += EXTENSION_STATIC_HEADER_LEN;
+        offset += header_len;
         for values in [terrain, regions].into_iter().flatten() {
             let Some((runs, next)) = encoded_runs(&self.body, offset) else {
                 return false;

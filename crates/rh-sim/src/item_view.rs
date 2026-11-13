@@ -540,6 +540,27 @@ impl ItemObserver {
             })
         });
         crate::actor_refs::project(out, |id| self.actor_refs.map(sim, &actors, id));
+        // P-WIRE17-MAP-2 (C-OBS): a quest row names its carrier's public actor id only when the carrier is the viewer or
+        // one of the actors this observation delivers (after the projection, a player's public id is its own id).
+        if let Some(view) = out.quests.as_mut() {
+            for row in &mut view.rows {
+                row.carrier_actor = row
+                    .carrier
+                    .and_then(|roster| quests.roster_player(roster))
+                    .and_then(|carrier| {
+                        if carrier == self.viewer {
+                            return Some(carrier);
+                        }
+                        out.visible
+                            .iter()
+                            .find(|actor| {
+                                actor.kind == crate::observe::ActorKind::Player
+                                    && actor.id == carrier
+                            })
+                            .map(|actor| actor.id)
+                    });
+            }
+        }
         Ok(PreparedOffer {
             actors,
             rewards,

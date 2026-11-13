@@ -29,6 +29,7 @@ fn view() -> WireQuestView {
                 visited: 1,
             }],
             carrier: None,
+            carrier_actor: None,
             done_by: None,
             can_accept: true,
             owner_accepted: false,

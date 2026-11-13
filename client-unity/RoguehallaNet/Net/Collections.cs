@@ -147,6 +147,9 @@ namespace Roguehalla.Net
         public double ExpiresAt { get; }
         public IReadOnlyList<QuestParticipantView> Participants { get; }
         public RosterId? Carrier { get; }
+        /// <summary>P-WIRE17-MAP-2: the carrier's public actor id (its snapshot actor id) while this viewer is delivered that
+        /// fighter (the local player included); null when unseen or without a carrier.</summary>
+        public uint? CarrierActor { get; }
         public string DoneBy { get; }
         public bool CanAccept { get; }
         public bool OwnerAccepted { get; }
@@ -164,7 +167,7 @@ namespace Roguehalla.Net
             Handle = source.Handle; Def = source.Def; GiverX = source.GiverX; GiverY = source.GiverY; State = source.State; ExpiresAt = source.ExpiresAt;
             var participants = new QuestParticipantView[source.Participants.Length];
             for (int i = 0; i < participants.Length; i++) participants[i] = new QuestParticipantView(source.Participants[i]);
-            Participants = Array.AsReadOnly(participants); Carrier = source.Carrier; DoneBy = source.DoneBy;
+            Participants = Array.AsReadOnly(participants); Carrier = source.Carrier; CarrierActor = source.CarrierActor; DoneBy = source.DoneBy;
             CanAccept = source.CanAccept; OwnerAccepted = source.OwnerAccepted; OwnerCompleted = source.OwnerCompleted; OwnerReady = source.OwnerReady;
             OwnerProgress = source.OwnerProgress; OwnerVisited = source.OwnerVisited;
             Name = source.Name; GiverLabel = source.GiverLabel; Brief = source.Brief; Objective = source.Objective; Reward = source.Reward;

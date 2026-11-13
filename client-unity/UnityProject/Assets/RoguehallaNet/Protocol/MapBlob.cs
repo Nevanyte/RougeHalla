@@ -48,8 +48,13 @@ namespace Roguehalla.Net.Protocol
     /// variants.</summary>
     public sealed class MapBlob
     {
-        /// <summary>Extension layout version: protocol 17 is version 2; version 1 is refused.</summary>
-        const byte GroundVersion = 2;
+        /// <summary>Extension layout version: protocol 17 is version 2; version 1 is refused. Version 3 (P-WIRE17-MAP-2) adds a
+        /// second presence byte after the first, used exactly when a second-presence section (the patience plane) is present.</summary>
+        const byte GroundVersion = 2, GroundVersionPresence2 = 3;
+        const byte Presence2Patience = 0x01, KnownPresence2 = 0x01;
+        /// <summary>Six decodable planes (collision, terrain, regions, bushes, ground variants, patience), as Rust's
+        /// MAX_DECODED_PLANES and MAX_CUMULATIVE_RUNS.</summary>
+        const long MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles, MaxPlaneRuns = 6L * Wire.MaxMapTiles;
         const byte TerrainPresent = 0x01, RegionPresent = 0x02, CampsPresent = 0x04, ColiseumPresent = 0x08,
             BushesPresent = 0x10, PropsPresent = 0x20, GroundVariantsPresent = 0x40, KnownPresence = 0x7f;
         public const int MaxCamps = 64, MaxColiseumGates = 8, MaxGateTiles = 16, MaxProps = 8192;
@@ -89,6 +94,9 @@ namespace Roguehalla.Net.Protocol
         public MapProp[] Props { get; private set; } = NoProps;
         /// <summary>Row-major ground-variant plane (reserved). Null when absent.</summary>
         public byte[] GroundVariants { get; private set; }
+        /// <summary>P-WIRE17-MAP-2: row-major camp patience plane (0, or the 1-based index into Camps of the camp whose patience
+        /// range covers the tile), carried by a section-version-3 extension. Null when absent.</summary>
+        public byte[] Patience { get; private set; }
 
         public const byte Floor = 0, Wall = 1, Low = 2;
         public const byte GroundTerrainOff = 0, GroundTerrainMap = 1, GroundTerrainAll = 2;
@@ -117,18 +125,27 @@ namespace Roguehalla.Net.Protocol
         /// clamps) a section a decoder would refuse.</summary>
         public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants)
         {
+            return WithPublic(camps, coliseum, bushes, props, groundVariants, null);
+        }
+
+        /// <summary>P-WIRE17-MAP-2: <see cref="WithPublic(MapCamp[], MapColiseum, byte[], MapProp[], byte[])"/> plus the camp
+        /// patience plane (null = absent; a present plane makes the extension section version 3). Every cell must be at most
+        /// the camp count.</summary>
+        public MapBlob WithPublic(MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience)
+        {
             var map = new MapBlob
             {
                 W = W, H = H, Tiles = Tiles, LayerHash = LayerHash, Terrain = Terrain, Regions = Regions, TerrainMode = TerrainMode,
                 Camps = camps ?? NoCamps, Coliseum = coliseum, Bushes = bushes, Props = props ?? NoProps, GroundVariants = groundVariants,
+                Patience = patience,
             };
-            CheckPublic(map.W, map.H, map.Camps, map.Coliseum, map.Bushes, map.Props, map.GroundVariants);
+            CheckPublic(map.W, map.H, map.Camps, map.Coliseum, map.Bushes, map.Props, map.GroundVariants, map.Patience);
             map.SemanticHash = map.PublicSemanticHash();
             map.ContextHash = ComputeContextHash(map.LayerHash, map.SemanticHash, map.TerrainMode);
             return map;
         }
 
-        uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants);
+        uint PublicSemanticHash() => ComputeSemanticHash(W, H, Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants, Patience);
 
         /// <summary>FNV-1a 32 over (w u32 LE, h u32 LE, collision tiles), unchanged from protocol 13.</summary>
         public static uint ComputeHash(uint w, uint h, byte[] tiles)
@@ -156,8 +173,16 @@ namespace Roguehalla.Net.Protocol
         public static uint ComputeSemanticHash(ushort w, ushort h, byte[] terrain, byte[] regions,
             MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants)
         {
+            return ComputeSemanticHash(w, h, terrain, regions, camps, coliseum, bushes, props, groundVariants, null);
+        }
+
+        /// <summary>Version 3 (a patience plane present): as version 2 over [3, presence, presence2] instead of [2, presence],
+        /// and the patience cells after the ground-variant cells. A null plane is the version-2 hash.</summary>
+        public static uint ComputeSemanticHash(ushort w, ushort h, byte[] terrain, byte[] regions,
+            MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants, byte[] patience)
+        {
             byte presence = Presence(terrain, regions, camps, coliseum, bushes, props, groundVariants);
-            uint hash = BeginSemanticHash(w, h, presence);
+            uint hash = BeginSemanticHash(w, h, presence, Presence2(patience));
             if (terrain != null) Feed(ref hash, terrain);
             if (regions != null) Feed(ref hash, regions);
             var lists = new Writer();
@@ -171,6 +196,7 @@ namespace Roguehalla.Net.Protocol
             WriteProps(lists, props);
             Feed(ref hash, lists.Finish());
             if (groundVariants != null) Feed(ref hash, groundVariants);
+            if (patience != null) Feed(ref hash, patience);
             return hash;
         }
 
@@ -196,7 +222,7 @@ namespace Roguehalla.Net.Protocol
                 && SameOptionalBytes(Regions, other.Regions)
                 && SameCamps(Camps, other.Camps) && SameColiseum(Coliseum, other.Coliseum)
                 && SameOptionalBytes(Bushes, other.Bushes) && SameProps(Props, other.Props)
-                && SameOptionalBytes(GroundVariants, other.GroundVariants);
+                && SameOptionalBytes(GroundVariants, other.GroundVariants) && SameOptionalBytes(Patience, other.Patience);
         }
 
         static bool SameCamps(MapCamp[] a, MapCamp[] b)
@@ -247,12 +273,13 @@ namespace Roguehalla.Net.Protocol
             return runs;
         }
 
-        /// <summary>Exact size of the collision blob and the version-2 extension (ground planes and public sections).</summary>
+        /// <summary>Exact size of the collision blob and the extension (ground planes and public sections; version 3 adds the
+        /// second presence byte and the patience plane).</summary>
         public int EncodedLength
         {
             get
             {
-                long extension = GroundFixedLength
+                long extension = GroundFixedLength + (Patience == null ? 0 : 1)
                     + (Terrain == null ? 0L : 4L + 3L * RunCount(Terrain))
                     + (Regions == null ? 0L : 4L + 3L * RunCount(Regions))
                     + PublicLength();
@@ -269,7 +296,7 @@ namespace Roguehalla.Net.Protocol
         {
             CheckContent();
             if (terrainMode > GroundTerrainAll) throw new EncodeException("bad map terrain mode");
-            int extensionLength = checked((int)(GroundFixedLength
+            int extensionLength = checked((int)(GroundFixedLength + (Patience == null ? 0 : 1)
                 + (Terrain == null ? 0 : 4 + 3 * RunCount(Terrain))
                 + (Regions == null ? 0 : 4 + 3 * RunCount(Regions))
                 + PublicLength()));
@@ -279,8 +306,10 @@ namespace Roguehalla.Net.Protocol
             w.U16(W); w.U16(H); w.U32(LayerHash);
             WritePlane(w, Tiles);
             w.U32((uint)extensionLength);
-            w.U8(GroundVersion);
+            byte presence2 = Presence2(Patience);
+            w.U8(presence2 == 0 ? GroundVersion : GroundVersionPresence2);
             w.U8(Presence(Terrain, Regions, Camps, Coliseum, Bushes, Props, GroundVariants));
+            if (presence2 != 0) w.U8(presence2);
             w.U32(SemanticHash);
             if (Terrain != null) WritePlane(w, Terrain);
             if (Regions != null) WritePlane(w, Regions);
@@ -289,6 +318,7 @@ namespace Roguehalla.Net.Protocol
             if (Bushes != null) WritePlane(w, Bushes);
             WriteProps(w, Props);
             if (GroundVariants != null) WritePlane(w, GroundVariants);
+            if (Patience != null) WritePlane(w, Patience);
             w.U8(terrainMode);
             w.U32(ComputeContextHash(LayerHash, SemanticHash, terrainMode));
         }
@@ -305,6 +335,7 @@ namespace Roguehalla.Net.Protocol
             if (Bushes != null) n += 4 + 3L * RunCount(Bushes);
             if (Props.Length > 0) n += 2 + (long)PropRowLength * Props.Length;
             if (GroundVariants != null) n += 4 + 3L * RunCount(GroundVariants);
+            if (Patience != null) n += 4 + 3L * RunCount(Patience);
             return n;
         }
 
@@ -335,7 +366,8 @@ namespace Roguehalla.Net.Protocol
             foreach (var p in props) { w.U8(p.Kind); w.U16(p.X); w.U16(p.Y); w.U8(p.Variant); w.U8(p.Flags); }
         }
 
-        static void CheckPublic(ushort w, ushort h, MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants)
+        static void CheckPublic(ushort w, ushort h, MapCamp[] camps, MapColiseum coliseum, byte[] bushes, MapProp[] props, byte[] groundVariants,
+            byte[] patience)
         {
             int total = CheckedTileCount(w, h);
             if (camps.Length > MaxCamps) throw new EncodeException("bad map camp count");
@@ -353,6 +385,7 @@ namespace Roguehalla.Net.Protocol
             }
             if (bushes != null && bushes.Length != total) throw new EncodeException("bad map plane length");
             if (groundVariants != null && groundVariants.Length != total) throw new EncodeException("bad map plane length");
+            if (patience != null && patience.Length != total) throw new EncodeException("bad map plane length");
             if (props.Length > MaxProps) throw new EncodeException("bad map prop count");
             for (int i = 0; i < props.Length; i++)
             {
@@ -361,6 +394,8 @@ namespace Roguehalla.Net.Protocol
             }
             if (groundVariants != null)
                 foreach (var v in groundVariants) if (v > MaxGroundVariant) throw new EncodeException("bad map ground variant");
+            if (patience != null)
+                foreach (var v in patience) if (v > camps.Length) throw new EncodeException("bad map patience camp");
         }
 
         /// <summary>The value checks of one prop row in the wire rules' order (flags, kind, variant, tile, order), shared by the
@@ -444,7 +479,7 @@ namespace Roguehalla.Net.Protocol
             GroundHeader ground = ValidateGroundExtension(extension, collisionStart, collisionRuns, total, countedRuns, collisionHash, w, h);
             scan.End();
 
-            // Only now allocate the decoded planes; total decoded plane storage is explicitly capped at 5 MiB.
+            // Only now allocate the decoded planes; total decoded plane storage is explicitly capped at 6 MiB.
             Reader decode = r;
             byte[] tiles = DecodePlane(ref decode, collisionRuns, total, 2);
             uint decodeExtensionLength = decode.U32();
@@ -452,6 +487,7 @@ namespace Roguehalla.Net.Protocol
             Reader body = decode.TakeReader((int)decodeExtensionLength);
             byte version = body.U8();
             byte presence = body.U8();
+            byte presence2 = version == GroundVersionPresence2 ? body.U8() : (byte)0;
             uint semanticHash = body.U32();
             byte[] terrain = (presence & TerrainPresent) != 0 ? DecodeSemanticPlane(ref body, total, 7) : null;
             byte[] regions = (presence & RegionPresent) != 0 ? DecodeSemanticPlane(ref body, total, 6) : null;
@@ -460,12 +496,13 @@ namespace Roguehalla.Net.Protocol
             byte[] bushes = (presence & BushesPresent) != 0 ? DecodeSemanticPlane(ref body, total, byte.MaxValue) : null;
             MapProp[] props = (presence & PropsPresent) != 0 ? ReadProps(ref body) : NoProps;
             byte[] groundVariants = (presence & GroundVariantsPresent) != 0 ? DecodeSemanticPlane(ref body, total, byte.MaxValue) : null;
+            byte[] patience = (presence2 & Presence2Patience) != 0 ? DecodeSemanticPlane(ref body, total, byte.MaxValue) : null;
             byte terrainMode = body.U8();
             uint contextHash = body.U32();
             body.End();
             r = decode;
 
-            if (version != ground.Version || presence != ground.Presence || semanticHash != ground.SemanticHash
+            if (version != ground.Version || presence != ground.Presence || presence2 != ground.Presence2 || semanticHash != ground.SemanticHash
                 || terrainMode != ground.TerrainMode || contextHash != ground.ContextHash)
                 throw BadMap("ground changed after validation");
             return new MapBlob
@@ -474,6 +511,7 @@ namespace Roguehalla.Net.Protocol
                 Terrain = terrain, Regions = regions, TerrainMode = terrainMode,
                 SemanticHash = semanticHash, ContextHash = contextHash,
                 Camps = camps, Coliseum = coliseum, Bushes = bushes, Props = props, GroundVariants = groundVariants,
+                Patience = patience,
             };
         }
 
@@ -522,7 +560,7 @@ namespace Roguehalla.Net.Protocol
 
         struct GroundHeader
         {
-            public byte Version, Presence, TerrainMode;
+            public byte Version, Presence, Presence2, TerrainMode;
             public uint SemanticHash, ContextHash;
         }
 
@@ -530,11 +568,19 @@ namespace Roguehalla.Net.Protocol
             Reader extension, Reader collisionStart, uint collisionRuns, int total, uint countedRuns, uint collisionHash, ushort w, ushort h)
         {
             byte version = extension.U8();
-            if (version != GroundVersion) throw BadMap("section version");
+            if (version != GroundVersion && version != GroundVersionPresence2) throw BadMap("section version");
             byte presence = extension.U8();
             if ((presence & ~KnownPresence) != 0) throw BadMap("presence");
+            // Version 3 needs a second presence byte with a known bit: no such section means version 2 (one encoding per map).
+            byte presence2 = 0;
+            if (version == GroundVersionPresence2)
+            {
+                presence2 = extension.U8();
+                if (presence2 == 0 || (presence2 & ~KnownPresence2) != 0) throw BadMap("presence");
+            }
             uint expectedSemanticHash = extension.U32();
-            uint actualSemanticHash = BeginSemanticHash(w, h, presence);
+            uint actualSemanticHash = BeginSemanticHash(w, h, presence, presence2);
+            int campCount = 0;
 
             if ((presence & TerrainPresent) != 0)
             {
@@ -555,7 +601,7 @@ namespace Roguehalla.Net.Protocol
             if ((presence & CampsPresent) != 0)
             {
                 Reader start = extension;
-                ValidateCamps(ref extension);
+                campCount = ValidateCamps(ref extension);
                 FeedConsumed(ref actualSemanticHash, start, extension.Remaining);
             }
             if ((presence & ColiseumPresent) != 0)
@@ -584,6 +630,16 @@ namespace Roguehalla.Net.Protocol
                 if (ValidatePublicPlane(ref extension, runs, total, ref actualSemanticHash) > MaxGroundVariant)
                     throw BadMap("ground variant");
             }
+            if ((presence2 & Presence2Patience) != 0)
+            {
+                uint runs = extension.U32();
+                // A run count the extension cannot hold is truncation before its bounds (as Rust and JS), then the plane's
+                // own run checks, then the values: a cell names a camp of the camps section (1-based) or is 0.
+                if ((ulong)runs * 3 > (ulong)extension.Remaining) throw new DecodeException(DecodeError.Truncated);
+                countedRuns = AddRunCount(countedRuns, runs, total, extension.Remaining);
+                if (ValidatePublicPlane(ref extension, runs, total, ref actualSemanticHash) > campCount)
+                    throw BadMap("patience camp");
+            }
             if (actualSemanticHash != expectedSemanticHash) throw BadMap("semantic hash");
 
             byte terrainMode = extension.U8();
@@ -593,12 +649,12 @@ namespace Roguehalla.Net.Protocol
                 throw BadMap("context hash");
             if (extension.Remaining != 0) throw BadMap("extension trailing");
             extension.End();
-            if ((long)total * (1 + CountPresent(presence)) > Wire.MaxMapDecodedBytes)
+            if ((long)total * (1 + CountPresent(presence) + ((presence2 & Presence2Patience) != 0 ? 1 : 0)) > MaxDecodedPlaneBytes)
                 throw BadMap("decoded bytes");
-            if (countedRuns > Wire.MaxMapRuns) throw BadMap("run count");
+            if (countedRuns > MaxPlaneRuns) throw BadMap("run count");
             return new GroundHeader
             {
-                Version = version, Presence = presence, TerrainMode = terrainMode,
+                Version = version, Presence = presence, Presence2 = presence2, TerrainMode = terrainMode,
                 SemanticHash = expectedSemanticHash, ContextHash = contextHash,
             };
         }
@@ -611,7 +667,8 @@ namespace Roguehalla.Net.Protocol
             for (int i = 0; i < consumed; i++) Feed(ref hash, start.U8());
         }
 
-        static void ValidateCamps(ref Reader r)
+        /// <summary>Validates the camps section and returns its camp count.</summary>
+        static int ValidateCamps(ref Reader r)
         {
             int count = r.U8();
             if (count == 0 || count > MaxCamps) throw BadMap("camp count");
@@ -622,6 +679,7 @@ namespace Roguehalla.Net.Protocol
                 byte zone = r.U8();
                 if (zone == 0 || zone > MaxCampZone) throw BadMap("camp zone");
             }
+            return count;
         }
 
         static void ValidateColiseum(ref Reader r, ushort w, ushort h)
@@ -776,7 +834,7 @@ namespace Roguehalla.Net.Protocol
         {
             CheckRunCount(runs, total, available);
             ulong sum = (ulong)accumulated + runs;
-            if (sum > Wire.MaxMapRuns) throw BadMap("run count");
+            if (sum > (ulong)MaxPlaneRuns) throw BadMap("run count");
             return (uint)sum;
         }
 
@@ -802,7 +860,7 @@ namespace Roguehalla.Net.Protocol
             CheckPlaneForWrite(Terrain, total, 7, "terrain");
             CheckPlaneForWrite(Regions, total, 6, "region");
             if (Terrain != null && !CompatibleTerrainArrays(Tiles, Terrain)) throw new EncodeException("bad terrain collision");
-            CheckPublic(W, H, Camps, Coliseum, Bushes, Props, GroundVariants);
+            CheckPublic(W, H, Camps, Coliseum, Bushes, Props, GroundVariants, Patience);
             if (PublicSemanticHash() != SemanticHash) throw new EncodeException("bad semantic hash");
         }
 
@@ -832,6 +890,7 @@ namespace Roguehalla.Net.Protocol
                 | (camps == null || camps.Length == 0 ? 0 : CampsPresent) | (coliseum == null ? 0 : ColiseumPresent)
                 | (bushes == null ? 0 : BushesPresent) | (props == null || props.Length == 0 ? 0 : PropsPresent)
                 | (groundVariants == null ? 0 : GroundVariantsPresent));
+        static byte Presence2(byte[] patience) => patience == null ? (byte)0 : Presence2Patience;
 
         static bool SameOptionalBytes(byte[] a, byte[] b) => a == null ? b == null : b != null && SameBytes(a, b);
         static bool SameBytes(byte[] a, byte[] b)
@@ -852,14 +911,16 @@ namespace Roguehalla.Net.Protocol
             Feed(ref hash, (byte)(value >> 24));
         }
 
-        static uint BeginSemanticHash(ushort w, ushort h, byte presence)
+        /// <summary>Domain, w, h, then [2, presence], or [3, presence, presence2] when presence2 is non-zero.</summary>
+        static uint BeginSemanticHash(ushort w, ushort h, byte presence, byte presence2)
         {
             uint hash = 0x811c9dc5;
             Feed(ref hash, GroundDomain);
             FeedU32(ref hash, w);
             FeedU32(ref hash, h);
-            Feed(ref hash, GroundVersion);
+            Feed(ref hash, presence2 == 0 ? GroundVersion : GroundVersionPresence2);
             Feed(ref hash, presence);
+            if (presence2 != 0) Feed(ref hash, presence2);
             return hash;
         }
 

@@ -440,6 +440,7 @@ fn quest_view_sample() -> WireQuestView {
                 visited: 1,
             }],
             carrier: None,
+            carrier_actor: None,
             done_by: None,
             can_accept: true,
             owner_accepted: false,
@@ -460,6 +461,15 @@ fn quest_view_sample() -> WireQuestView {
     }
 }
 
+/// [`quest_view_sample`] whose row is carried by roster 7, with the carrier's public actor id when the viewer is
+/// delivered that fighter (P-WIRE17-MAP-2).
+fn quest_view_carried(actor: Option<u32>) -> WireQuestView {
+    let mut view = quest_view_sample();
+    view.rows[0].carrier = Some(RosterId::new(7).unwrap());
+    view.rows[0].carrier_actor = actor;
+    view
+}
+
 fn quest_view_at_max_bytes() -> WireQuestView {
     let mut view = WireQuestView {
         unknown_count: 0,
@@ -475,6 +485,7 @@ fn quest_view_at_max_bytes() -> WireQuestView {
                 expires_at: 0.0,
                 participants: vec![],
                 carrier: None,
+                carrier_actor: None,
                 done_by: None,
                 can_accept: false,
                 owner_accepted: false,
@@ -1068,6 +1079,7 @@ fn public_map(all: bool) -> MapBlob {
             Vec::new()
         },
         ground_variants: all.then(|| (0..total).map(|i| (i / 5 % 3) as u8).collect()),
+        patience: None,
     };
     MapBlob::new_with_ground(
         PUBLIC_W,
@@ -1079,6 +1091,19 @@ fn public_map(all: bool) -> MapBlob {
     )
     .and_then(|map| map.with_public(public))
     .expect("the public sample map is valid")
+}
+
+/// [`public_map`] with every section plus a camp patience plane over its three camps: cell `i` carries `i % 4`
+/// (P-WIRE17-MAP-2; section version 3).
+fn public_map_patience() -> MapBlob {
+    let map = public_map(true);
+    let total = usize::from(map.w) * usize::from(map.h);
+    let public = MapPublic {
+        patience: Some((0..total).map(|i| (i % 4) as u8).collect()),
+        ..map.public.clone()
+    };
+    map.with_public(public)
+        .expect("the patience sample map is valid")
 }
 
 /// An 8 x 6 map dressed at the wire's boundaries (P-DRESS-BAKE-1): props in `(y, x, kind)` order covering a tall rule
@@ -1171,6 +1196,22 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     }),
                     StateItem::Quests(Some(quest_view_sample())),
                 ],
+            },
+        ),
+        // P-WIRE17-MAP-2: the carrier roster 7, delivered to this viewer as actor 5, then unseen (no actor id). "No
+        // carrier" is `state_quests_available`.
+        (
+            "state_quests_carrier_visible",
+            ServerMsg::State {
+                tick: 207,
+                items: vec![StateItem::Quests(Some(quest_view_carried(Some(5))))],
+            },
+        ),
+        (
+            "state_quests_carrier_hidden",
+            ServerMsg::State {
+                tick: 208,
+                items: vec![StateItem::Quests(Some(quest_view_carried(None)))],
             },
         ),
         (
@@ -2255,6 +2296,11 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         // Protocol 17 public sections: every section, then what the server ships (camps, coliseum, bushes).
         ("welcome_public_all", welcome_map_msg(public_map(true))),
         ("welcome_public_shipped", welcome_map_msg(public_map(false))),
+        // P-WIRE17-MAP-2: every section plus a camp patience plane (section version 3).
+        (
+            "welcome_public_patience",
+            welcome_map_msg(public_map_patience()),
+        ),
         // P-DRESS-BAKE-1: a dressed map, with and without its ground-variant plane.
         (
             "welcome_dress_props_ground",
@@ -3426,6 +3472,22 @@ fn welcome_public_raw(
     sections: &[RawSection],
     stale_hash: bool,
 ) -> Vec<u8> {
+    welcome_public_raw_with(version, flags, None, sections, stale_hash)
+}
+
+/// [`welcome_public_raw`] for section version 3 (P-WIRE17-MAP-2): `presence2` follows `flags`, the semantic hash covers
+/// `[3, flags, presence2]` (a zero `presence2` hashes as version 2: the decoder refuses it before the hash).
+fn welcome_public_raw3(flags: u8, presence2: u8, sections: &[RawSection]) -> Vec<u8> {
+    welcome_public_raw_with(3, flags, Some(presence2), sections, false)
+}
+
+fn welcome_public_raw_with(
+    version: u8,
+    flags: u8,
+    presence2: Option<u8>,
+    sections: &[RawSection],
+    stale_hash: bool,
+) -> Vec<u8> {
     let tiles = vec![0u8; usize::from(RAW_W) * usize::from(RAW_H)];
     let layer = crate::map::layer_hash(u32::from(RAW_W), u32::from(RAW_H), &tiles);
     let mut b = Writer::default();
@@ -3450,16 +3512,20 @@ fn welcome_public_raw(
     let semantic = if stale_hash {
         crate::ground::semantic_hash_parts(RAW_W, RAW_H, flags, [])
     } else {
-        crate::ground::semantic_hash_parts(
+        crate::ground::semantic_hash_parts2(
             RAW_W,
             RAW_H,
             flags,
+            presence2.unwrap_or(0),
             sections.iter().map(|s| s.hashed.as_slice()),
         )
     };
     let mut ext = Writer::default();
     ext.u8(version);
     ext.u8(flags);
+    if let Some(presence2) = presence2 {
+        ext.u8(presence2);
+    }
     ext.u32(semantic);
     for section in sections {
         ext.bytes(&section.wire);
@@ -3528,6 +3594,12 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
     let props_over = ((crate::map::MAX_MAP_PROPS + 1) as u16)
         .to_le_bytes()
         .to_vec();
+    // P-WIRE17-MAP-2: one camp, and patience planes over the 4 x 3 map.
+    let one_camp = || raw_list(raw_camps(&[(16, 16, 80, 1)]));
+    let patience = |cell: u8| -> Vec<u8> { (0..cells).map(|i| u8::from(i == 5) * cell).collect() };
+    // A run count past the extension (and past the cell count): truncation is checked first.
+    let mut patience_truncated = rle_wire(&patience(1));
+    patience_truncated[0..4].copy_from_slice(&200u32.to_le_bytes());
     vec![
         (
             "map17_section_version_1",
@@ -3746,6 +3818,47 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
             "map17_dress_ground_long",
             welcome_public_raw(2, 0x40, &[raw_plane(&vec![1; cells + 1])], false),
             "run",
+        ),
+        // P-WIRE17-MAP-2: the camp patience plane (section version 3, presence2 0x01).
+        (
+            "map17_patience_camp_over",
+            welcome_public_raw3(0x04, 0x01, &[one_camp(), raw_plane(&patience(2))]),
+            "patience camp",
+        ),
+        (
+            "map17_patience_without_camps",
+            welcome_public_raw3(0x00, 0x01, &[raw_plane(&patience(1))]),
+            "patience camp",
+        ),
+        (
+            "map17_patience_length",
+            welcome_public_raw3(0x04, 0x01, &[one_camp(), raw_plane(&vec![0; cells - 1])]),
+            "length",
+        ),
+        (
+            "map17_patience_truncated",
+            welcome_public_raw3(
+                0x04,
+                0x01,
+                &[
+                    one_camp(),
+                    RawSection {
+                        wire: patience_truncated,
+                        hashed: patience(1),
+                    },
+                ],
+            ),
+            "truncated",
+        ),
+        (
+            "map17_v3_presence_empty",
+            welcome_public_raw3(0x04, 0x00, &[one_camp()]),
+            "presence",
+        ),
+        (
+            "map17_v3_presence_unknown",
+            welcome_public_raw3(0x04, 0x03, &[one_camp(), raw_plane(&patience(1))]),
+            "presence",
         ),
     ]
 }
@@ -7275,9 +7388,10 @@ fn decoded_quest_state_json(m: &ServerMsg) -> String {
                 let roster = view.roster.iter().map(|entry| format!("{{\"id\":{},\"label\":\"{}\"}}", entry.id.get(), escape(&entry.label))).collect::<Vec<_>>().join(",");
                 let rows = view.rows.iter().map(|row| {
                     let participants = row.participants.iter().map(|part| format!("{{\"id\":{},\"accepted\":{},\"progress\":{},\"visited\":{}}}", part.id.get(), part.accepted, part.progress, part.visited)).collect::<Vec<_>>().join(",");
-                    format!("{{\"handle\":{},\"def\":\"{}\",\"giver\":{{\"x\":{},\"y\":{}}},\"state\":{},\"expiresAt\":{},\"participants\":[{}],\"carrier\":{},\"doneBy\":{},\"canAccept\":{},\"ownerAccepted\":{},\"ownerProgress\":{},\"ownerVisited\":{},\"name\":\"{}\",\"giverLabel\":\"{}\",\"brief\":\"{}\",\"objective\":\"{}\",\"reward\":\"{}\",\"ownerCompleted\":{},\"ownerReady\":{}}}",
+                    format!("{{\"handle\":{},\"def\":\"{}\",\"giver\":{{\"x\":{},\"y\":{}}},\"state\":{},\"expiresAt\":{},\"participants\":[{}],\"carrier\":{},\"carrierActor\":{},\"doneBy\":{},\"canAccept\":{},\"ownerAccepted\":{},\"ownerProgress\":{},\"ownerVisited\":{},\"name\":\"{}\",\"giverLabel\":\"{}\",\"brief\":\"{}\",\"objective\":\"{}\",\"reward\":\"{}\",\"ownerCompleted\":{},\"ownerReady\":{}}}",
                         row.handle.get(), escape(&row.def), row.giver.x, row.giver.y, row.state, row.expires_at,
                         participants, row.carrier.map_or("null".to_owned(), |id| id.get().to_string()),
+                        row.carrier_actor.map_or("null".to_owned(), |id| id.to_string()),
                         row.done_by.as_ref().map_or("null".to_owned(), |label| format!("\"{}\"", escape(label))),
                         row.can_accept, row.owner_accepted, row.owner_progress, row.owner_visited,
                         escape(&row.name), escape(&row.giver_label), escape(&row.brief), escape(&row.objective), escape(&row.reward),

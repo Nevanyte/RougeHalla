@@ -30,30 +30,13 @@ pub(crate) fn territory(k: &MatchStatic, p: Vec2) -> u32 {
         })
         .map_or(0, |v| u32::from(*v))
 }
+/// Legacy `leashOk`: the one rule lives in [`crate::mapdata::patience::leash_ok`] (the patience plane shares it); a map
+/// without layers has no camps or territory, so it keeps the `MOB_LEASH_RADIUS` circle.
 fn leash(k: &MatchStatic, camp: u32, home: Vec2, p: Vec2, margin: f64) -> bool {
-    let def = k
-        .arena
-        .map
-        .layers()
-        .and_then(|l| l.data().camps.get(camp as usize));
-    let reach = def
-        .filter(|d| d.area > 0 && territory(k, home) == camp + 1)
-        .map_or(0., |d| d.radius.min(MOB_LEASH_CAP));
-    if reach == 0. {
-        return distance(p, home) <= MOB_LEASH_RADIUS - margin;
+    match k.arena.map.layers() {
+        Some(l) => crate::mapdata::patience::leash_ok(l.data(), camp, home, p, margin),
+        None => distance(p, home) <= MOB_LEASH_RADIUS - margin,
     }
-    if distance(p, home) > reach - margin || territory(k, p) != camp + 1 {
-        return false;
-    }
-    margin <= 0.
-        || [
-            Vec2::new(p.x + margin, p.y),
-            Vec2::new(p.x - margin, p.y),
-            Vec2::new(p.x, p.y + margin),
-            Vec2::new(p.x, p.y - margin),
-        ]
-        .into_iter()
-        .all(|p| territory(k, p) == camp + 1)
 }
 pub(crate) fn targetable(w: &World, id: PlayerId) -> bool {
     w.player(id).is_some_and(|p| {

@@ -63,6 +63,10 @@ pub struct QuestRow {
     pub expires_at: f64,
     pub participants: Vec<Participant>,
     pub carrier: Option<RosterId>,
+    /// P-WIRE17-MAP-2: the carrier's public actor id, present only when the carrier is the viewer or is among this
+    /// observation's delivered actors (`Observation::visible`, after the actor-reference projection); else `None` (C-OBS).
+    /// The quest stage alone always leaves it `None`; `item_view` fills it after the projection.
+    pub carrier_actor: Option<PlayerId>,
     pub done_by: Option<String>,
     /// The current authoritative action checks permit acceptance at this sample.
     pub can_accept: bool,
@@ -376,6 +380,7 @@ impl QuestObserver {
                 expires_at: o.expires_at,
                 participants,
                 carrier,
+                carrier_actor: None,
                 done_by,
                 can_accept,
                 owner_accepted,
@@ -429,6 +434,13 @@ fn checked_label(label: &str) -> Result<String, Error> {
 #[must_use = "commit only after all corresponding publication succeeds; dropping discards staged authority"]
 pub(crate) struct QuestStage(Committed);
 impl QuestStage {
+    /// The player a staged roster id names (P-WIRE17-MAP-2: `item_view` resolves a row's carrier). Allocation-free.
+    pub(crate) fn roster_player(&self, id: RosterId) -> Option<PlayerId> {
+        self.0
+            .roster
+            .iter()
+            .find_map(|(player, roster)| (*roster == id).then_some(*player))
+    }
     pub(crate) fn published_handle(&self, id: u32) -> Option<QuestHandle> {
         self.0
             .actionable
@@ -450,6 +462,9 @@ impl Prepared<'_> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod carrier_actor_tests;
 
 #[cfg(test)]
 mod renewal_tests {

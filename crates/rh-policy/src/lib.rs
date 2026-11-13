@@ -47,7 +47,9 @@ use std::time::{Duration, Instant};
 /// burst, hit multiplier, weapon scaling split); bots do not decide on them.
 /// Version 22 (observation 28, P-WIRE17-HUD-3): the owner's inventory carries its healing-potion and wind-emblem end
 /// times, the arena view the room's minimum players; bots do not decide on them.
-pub const POLICY_CONTRACT_VERSION: u16 = 22;
+/// Version 23 (observation 29, P-WIRE17-MAP-2): the projected quest row carries the carrier's public actor id while the
+/// viewer is delivered that fighter; bots do not decide on it.
+pub const POLICY_CONTRACT_VERSION: u16 = 23;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1893,7 +1895,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 22);
+        assert_eq!(POLICY_CONTRACT_VERSION, 23);
     }
 }
 

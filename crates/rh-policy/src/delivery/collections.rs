@@ -169,6 +169,8 @@ fn quests(observation: &Observation) -> Result<Option<rh_protocol::WireQuestView
                     })
                     .collect(),
                 carrier: row.carrier.map(roster_id),
+                // P-WIRE17-MAP-2: the carrier's public actor id, already filtered by the observation (C-OBS).
+                carrier_actor: row.carrier_actor.map(|id| id.0),
                 done_by: row.done_by.clone(),
                 can_accept: row.can_accept,
                 owner_accepted: row.owner_accepted,

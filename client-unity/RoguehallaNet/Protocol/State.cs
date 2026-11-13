@@ -197,6 +197,9 @@ namespace Roguehalla.Net.Protocol
         public double ExpiresAt;
         public WireQuestParticipant[] Participants = Array.Empty<WireQuestParticipant>();
         public RosterId? Carrier;
+        /// <summary>P-WIRE17-MAP-2: the carrier's public actor id, present only while the viewer is delivered that fighter
+        /// (row flag 0x10, a non-zero varint after the flags byte; only with a carrier).</summary>
+        public uint? CarrierActor;
         public string DoneBy;
         public bool CanAccept, OwnerAccepted, OwnerCompleted, OwnerReady;
         public uint OwnerProgress;
@@ -337,7 +340,15 @@ namespace Roguehalla.Net.Protocol
                 }
                 if (StateItem.QuestFlag(ref r, "quest flag")) row.DoneBy = QuestLabel(ref r);
                 byte flags = r.U8();
-                if ((flags & 0xf0) != 0) throw new DecodeException(DecodeError.BadField, "quest flags");
+                // 0x10: the carrier's actor id follows; without a carrier the flag is as unknown as 0x20..0x80.
+                if ((flags & 0xe0) != 0 || ((flags & 0x10) != 0 && !row.Carrier.HasValue))
+                    throw new DecodeException(DecodeError.BadField, "quest flags");
+                if ((flags & 0x10) != 0)
+                {
+                    uint actor = r.Varint();
+                    if (actor == 0) throw new DecodeException(DecodeError.BadField, "quest carrier actor");
+                    row.CarrierActor = actor;
+                }
                 row.CanAccept = (flags & 1) != 0; row.OwnerAccepted = (flags & 2) != 0;
                 row.OwnerCompleted = (flags & 4) != 0; row.OwnerReady = (flags & 8) != 0;
                 row.OwnerProgress = r.Varint(); row.OwnerVisited = r.U8();
@@ -1135,6 +1146,7 @@ namespace Roguehalla.Net.Protocol
                     && (participant.Visited & 0xe0) == 0, "quest participant");
             }
             StateItem.Require(!row.Carrier.HasValue || (row.Carrier.Value.IsValid && rosterIds.Contains(row.Carrier.Value)), "quest carrier");
+            StateItem.Require(!row.CarrierActor.HasValue || (row.Carrier.HasValue && row.CarrierActor.Value != 0), "quest carrier actor");
             StateItem.Require(row.DoneBy == null || Encoding.UTF8.GetByteCount(row.DoneBy) <= 255, "quest done by");
             StateItem.Require((row.OwnerVisited & 0xe0) == 0, "quest owner visited");
         }
@@ -1168,8 +1180,11 @@ namespace Roguehalla.Net.Protocol
             }
             w.Varint(row.Carrier.HasValue ? row.Carrier.Value.Value : 0);
             w.U8(row.DoneBy == null ? (byte)0 : (byte)1); if (row.DoneBy != null) w.Str(row.DoneBy);
-            byte flags = (byte)((row.CanAccept ? 1 : 0) | (row.OwnerAccepted ? 2 : 0) | (row.OwnerCompleted ? 4 : 0) | (row.OwnerReady ? 8 : 0));
-            w.U8(flags); w.Varint(row.OwnerProgress); w.U8(row.OwnerVisited);
+            byte flags = (byte)((row.CanAccept ? 1 : 0) | (row.OwnerAccepted ? 2 : 0) | (row.OwnerCompleted ? 4 : 0) | (row.OwnerReady ? 8 : 0)
+                | (row.CarrierActor.HasValue ? 0x10 : 0));
+            w.U8(flags);
+            if (row.CarrierActor.HasValue) w.Varint(row.CarrierActor.Value);
+            w.Varint(row.OwnerProgress); w.U8(row.OwnerVisited);
             w.Str(row.Name); w.Str(row.GiverLabel); w.Str(row.Brief); w.Str(row.Objective); w.Str(row.Reward);
         }
         w.Varint((uint)view.Objectives.Length);

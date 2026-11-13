@@ -118,12 +118,17 @@ pub fn public_sections(data: &LayerData) -> Result<MapPublic, EncodeError> {
         })
         .collect();
     let bushes = bushes.iter().any(|&id| id != 0).then_some(bushes);
+    // P-WIRE17-MAP-2: the camp patience plane by the sim's own leash rule (legacy `campPatienceOutline`), computed once
+    // per map here, off the tick; absent when no camp covers a tile (the map stays section version 2).
+    let patience = rh_sim::mapdata::patience::patience_plane(data);
+    let patience = patience.iter().any(|&v| v != 0).then_some(patience);
     Ok(MapPublic {
         camps,
         coliseum: Some(coliseum),
         bushes,
         props: Vec::new(),
         ground_variants: None,
+        patience,
     })
 }
 

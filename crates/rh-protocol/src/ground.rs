@@ -25,6 +25,13 @@ impl GroundMode {
 
 /// Map extension layout version. Protocol 17 is version 2 (public sections); version 1 is refused.
 pub(crate) const SECTION_VERSION: u8 = 2;
+/// P-WIRE17-MAP-2: version 3 is version 2 plus a second presence byte after the first. A map carries version 3 exactly
+/// when a second-presence section is present (one encoding per map: no such section means version 2).
+pub(crate) const SECTION_VERSION_PRESENCE2: u8 = 3;
+/// Second presence byte (version 3): the camp patience plane.
+pub(crate) const PRESENCE2_PATIENCE: u8 = 0x01;
+/// Every second-presence bit a decoder accepts.
+pub(crate) const PRESENCE2_KNOWN: u8 = 0x01;
 pub(crate) const PRESENCE_TERRAIN: u8 = 0x01;
 pub(crate) const PRESENCE_REGIONS: u8 = 0x02;
 pub(crate) const PRESENCE_CAMPS: u8 = 0x04;
@@ -64,13 +71,35 @@ pub(crate) fn semantic_hash_parts<'a>(
     presence: u8,
     parts: impl IntoIterator<Item = &'a [u8]>,
 ) -> u32 {
+    semantic_hash_parts2(w, h, presence, 0, parts)
+}
+
+/// The extension header the semantic hash covers (and the wire carries before the semantic hash): `[2, presence]`, or
+/// `[3, presence, presence2]` when `presence2` is non-zero. Returns the bytes and how many of them are used.
+pub(crate) fn section_header(presence: u8, presence2: u8) -> ([u8; 3], usize) {
+    if presence2 == 0 {
+        ([SECTION_VERSION, presence, 0], 2)
+    } else {
+        ([SECTION_VERSION_PRESENCE2, presence, presence2], 3)
+    }
+}
+
+/// [`semantic_hash_parts`] with a second presence byte: the header is [`section_header`]'s.
+pub(crate) fn semantic_hash_parts2<'a>(
+    w: u16,
+    h: u16,
+    presence: u8,
+    presence2: u8,
+    parts: impl IntoIterator<Item = &'a [u8]>,
+) -> u32 {
+    let (header, len) = section_header(presence, presence2);
     fnv1a(
         SEMANTIC_DOMAIN
             .iter()
             .copied()
             .chain((w as u32).to_le_bytes())
             .chain((h as u32).to_le_bytes())
-            .chain([SECTION_VERSION, presence])
+            .chain(header[..len].iter().copied())
             .chain(parts.into_iter().flatten().copied()),
     )
 }

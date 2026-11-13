@@ -319,7 +319,7 @@ fn another_seat_never_observes_this_seats_new_codes() {
 #[test]
 fn the_observation_identity_moves_for_the_new_codes() {
     assert_eq!(
-        OBSERVATION_VERSION, 28,
+        OBSERVATION_VERSION, 29,
         "Observation.panel gains codes 23-27 (27, P-WIRE17-HUD-2c); 28: P-WIRE17-HUD-3"
     );
 }

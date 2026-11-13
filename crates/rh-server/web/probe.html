@@ -73,10 +73,13 @@ function cursor(view, p = 0, limit = view.byteLength) {
 }
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const MAX_MAP_TILES = 1024 * 1024;
-// Protocol 17: five decodable planes (collision, terrain, regions, bushes, ground variants).
-const MAX_MAP_DECODED_BYTES = 5 * 1024 * 1024;
-const MAX_MAP_RUNS = 5 * 1024 * 1024;
+// Protocol 17: six decodable planes (collision, terrain, regions, bushes, ground variants and, section version 3, the camp
+// patience plane).
+const MAX_MAP_DECODED_BYTES = 6 * 1024 * 1024;
+const MAX_MAP_RUNS = 6 * 1024 * 1024;
 const TERRAIN_MAX = 7, REGION_MAX = 6, GROUND_VERSION = 2;
+// P-WIRE17-MAP-2: section version 3 adds a second presence byte after the first; its bit 1 is the camp patience plane.
+const GROUND_VERSION_PRESENCE2 = 3, PRESENCE2_PATIENCE = 1, PRESENCE2_KNOWN = 1;
 // Protocol 17 public map sections (crates/rh-protocol/src/map.rs): caps and the presence bits after terrain (1) and regions (2).
 const MAX_MAP_CAMPS = 64, MAX_COLISEUM_GATES = 8, MAX_GATE_TILES = 16, MAX_MAP_PROPS = 8192;
 const PRESENCE_CAMPS = 4, PRESENCE_COLISEUM = 8, PRESENCE_BUSHES = 16, PRESENCE_PROPS = 32, PRESENCE_GROUND_VARIANTS = 64;
@@ -126,6 +129,24 @@ function readPublicPlane(r, n, what, maxValue = 255, valueReason = "") {
   }
   if (cells !== n) throw new Error("bad map " + what + " length");
   if (max > maxValue) throw new Error("bad map " + valueReason);
+  return { start, runs, limit: r.limit };
+}
+// P-WIRE17-MAP-2: the camp patience plane. A run count the extension cannot hold is truncated (checked first, unlike the
+// other planes), then zero or overlong runs are "run", a short plane "length", and a cell past the camp count
+// "patience camp", after every run check as in Rust.
+function readPatiencePlane(r, n, campCount) {
+  const start = r.p, runs = r.u32();
+  if (runs * 3 > r.limit - r.p) throw new Error("truncated");
+  if (runs < 1 || runs > n) throw new Error("bad map patience run");
+  let cells = 0, max = 0;
+  for (let i = 0; i < runs; i++) {
+    const value = r.u8(), len = r.u16();
+    if (len === 0 || cells + len > n) throw new Error("bad map patience run");
+    cells += len;
+    if (value > max) max = value;
+  }
+  if (cells !== n) throw new Error("bad map patience length");
+  if (max > campCount) throw new Error("bad map patience camp");
   return { start, runs, limit: r.limit };
 }
 function readMapCamps(r) {
@@ -542,18 +563,24 @@ function decodeBody(r) {
     const extensionLength = p.u32();
     if (extensionLength < 11 || extensionLength > p.v.byteLength - p.p) throw new Error("bad map extension length");
     const extStart = p.p, extEnd = extStart + extensionLength, ext = cursor(p.v, extStart, extEnd);
-    const sectionVersion = ext.u8(), flags = ext.u8(), semanticHash = ext.u32();
-    if (sectionVersion !== GROUND_VERSION) throw new Error("bad ground version");
+    const sectionVersion = ext.u8(), flags = ext.u8();
+    if (sectionVersion !== GROUND_VERSION && sectionVersion !== GROUND_VERSION_PRESENCE2) throw new Error("bad ground version");
     if (flags & ~0x7f) throw new Error("bad ground presence");
+    // Version 3: a second presence byte with at least one known bit (no such section means version 2).
+    const presence2 = sectionVersion === GROUND_VERSION_PRESENCE2 ? ext.u8() : 0;
+    if (sectionVersion === GROUND_VERSION_PRESENCE2 && (presence2 === 0 || (presence2 & ~PRESENCE2_KNOWN))) throw new Error("bad ground presence");
+    const semanticHash = ext.u32();
+    const hasPatience = (presence2 & PRESENCE2_PATIENCE) !== 0;
     const hasTerrain = (flags & 1) !== 0, hasRegions = (flags & 2) !== 0;
     const hasBushes = (flags & PRESENCE_BUSHES) !== 0, hasVariants = (flags & PRESENCE_GROUND_VARIANTS) !== 0;
-    const planes = 1 + Number(hasTerrain) + Number(hasRegions) + Number(hasBushes) + Number(hasVariants);
+    const planes = 1 + Number(hasTerrain) + Number(hasRegions) + Number(hasBushes) + Number(hasVariants) + Number(hasPatience);
     if (n * planes > MAX_MAP_DECODED_BYTES) throw new Error("map decoded data too large");
     const cumulativeRuns = { count: collision.runs };
     let terrain = null, regions = null;
     const semanticStart = fnvText(0x811c9dc5, "rh-ground/1\0");
     let semantic = fnvU32(fnvU32(semanticStart, w), h);
     semantic = fnvByte(semantic, sectionVersion); semantic = fnvByte(semantic, flags);
+    if (sectionVersion === GROUND_VERSION_PRESENCE2) semantic = fnvByte(semantic, presence2);
     if (hasTerrain) {
       terrain = readPlane(ext, n, TERRAIN_MAX, (hasRegions ? 4 + 3 : 0) + 5, "terrain");
       cumulativeRuns.count += terrain.runs;
@@ -567,7 +594,7 @@ function decodeBody(r) {
       const rr = cursor(p.v, regions.start, extEnd); semantic = fnvPlane(semantic, rr, regions);
     }
     // Protocol 17 public sections in presence-bit order; list sections hash their exact wire bytes, planes their cells.
-    let camps = [], mapColiseum = null, bushes = null, props = [], variants = null;
+    let camps = [], mapColiseum = null, bushes = null, props = [], variants = null, patience = null;
     if (flags & PRESENCE_CAMPS) { const at = ext.p; camps = readMapCamps(ext); semantic = fnvSpan(semantic, p.v, at, ext.p); }
     if (flags & PRESENCE_COLISEUM) { const at = ext.p; mapColiseum = readMapColiseum(ext, w, h); semantic = fnvSpan(semantic, p.v, at, ext.p); }
     if (hasBushes) {
@@ -582,6 +609,12 @@ function decodeBody(r) {
       cumulativeRuns.count += variants.runs;
       if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
       semantic = fnvPlane(semantic, cursor(p.v, variants.start, extEnd), variants);
+    }
+    if (hasPatience) {
+      patience = readPatiencePlane(ext, n, camps.length);
+      cumulativeRuns.count += patience.runs;
+      if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
+      semantic = fnvPlane(semantic, cursor(p.v, patience.start, extEnd), patience);
     }
     if (terrain) checkTerrainAgainstCollision(p.v, collision, p.v, terrain, n);
     const terrainMode = ext.u8(), contextHash = ext.u32();
@@ -602,7 +635,7 @@ function decodeBody(r) {
     r.p = mapEnd;
     m.map = { w, h, tiles, hash, terrain: terrainBytes, regions: regionBytes, terrainMode, semanticHash, contextHash,
       camps, coliseum: mapColiseum, bushes: bushes ? fillPlane(p.v, bushes, n) : null, props,
-      groundVariants: variants ? fillPlane(p.v, variants, n) : null };
+      groundVariants: variants ? fillPlane(p.v, variants, n) : null, patience: patience ? fillPlane(p.v, patience, n) : null };
     return m;
   }
   if (tag === 0x82) {
@@ -1064,12 +1097,15 @@ function readQuests(r, strictBool, finite, handle) {
     }
     const carrierRaw = r.varint(), carrier = carrierRaw || null;
     const hasDoneBy = strictBool("quest done-by presence"), doneBy = hasDoneBy ? boundedString(255, true, "quest done-by") : null;
-    const flags = r.u8(); if (flags & ~15) throw new Error("bad quest flags");
+    // Flag 16: the carrier's public actor id follows (non-zero); without a carrier it is as unknown as 32..128.
+    const flags = r.u8(); if ((flags & ~31) || ((flags & 16) && carrier === null)) throw new Error("bad quest flags");
+    let carrierActor = null;
+    if (flags & 16) { carrierActor = r.varint(); if (carrierActor === 0) throw new Error("bad quest carrier actor"); }
     const ownerProgress = r.varint(), ownerVisited = r.u8();
     if (ownerVisited & ~0x1f) throw new Error("bad quest visited mask");
     const name = r.str(), giverLabel = r.str(), brief = r.str(), objective = r.str(), reward = r.str();
     rows.push({
-      handle: rowHandle, def, giver, state, expiresAt, participants, carrier, doneBy,
+      handle: rowHandle, def, giver, state, expiresAt, participants, carrier, carrierActor, doneBy,
       canAccept: (flags & 1) !== 0, ownerAccepted: (flags & 2) !== 0,
       ownerCompleted: (flags & 4) !== 0, ownerReady: (flags & 8) !== 0,
       ownerProgress, ownerVisited, name, giverLabel, brief, objective, reward,
