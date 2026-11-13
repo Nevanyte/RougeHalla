@@ -746,7 +746,7 @@ fn state_all_max_budget() -> ServerMsg {
         gates_locked: true,
         sudden_death_at: f64::MAX,
         started_with: 512,
-        min_players: 0,
+        min_players: crate::state::MAX_MIN_PLAYERS,
     };
     let mut msg = ServerMsg::State {
         tick: u32::MAX,
@@ -757,8 +757,8 @@ fn state_all_max_budget() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 5,
                 potions_healing: 3,
-                healing_until: None,
-                speed_boost_until: None,
+                healing_until: Some(f64::MAX),
+                speed_boost_until: Some(f64::MAX),
             })),
             StateItem::Props(WireProps {
                 rows: props,
@@ -1940,9 +1940,41 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         gates_locked: false,
                         sudden_death_at: 0.,
                         started_with: 7,
-                        min_players: 0,
+                        // Legacy MIN_PLAYERS_TO_START (packages/shared/src/constants.ts:130).
+                        min_players: 2,
                     })),
                 ],
+            },
+        ),
+        // P-WIRE17-HUD-3: the owner's healing-potion and wind-emblem end times on key 1 (server ms).
+        (
+            "state_inventory_clocks",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::Inventory(Some(WireInventory {
+                    active_slot: 1,
+                    slots: [Some(0), Some(2)],
+                    potion_small: 3,
+                    potion_large: 1,
+                    potions_healing: 2,
+                    healing_until: Some(15_050.),
+                    speed_boost_until: Some(17_000.),
+                }))],
+            },
+        ),
+        (
+            "state_inventory_speed_boost",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::Inventory(Some(WireInventory {
+                    active_slot: 1,
+                    slots: [Some(0), Some(2)],
+                    potion_small: 3,
+                    potion_large: 1,
+                    potions_healing: 0,
+                    healing_until: None,
+                    speed_boost_until: Some(17_000.),
+                }))],
             },
         ),
         (
@@ -5037,6 +5069,49 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         (
             "state_bad_potion_count",
             vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0, 0],
+        ),
+        // P-WIRE17-HUD-3: key 1's clocks (finite, non-negative, whole) and key 9's minimum players (at most 32, present).
+        (
+            "state_inventory_healing_nan",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &f64::NAN.to_le_bytes(),
+                &[0],
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_healing_negative",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &(-50f64).to_le_bytes(),
+                &[0],
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_boost_infinite",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1][..],
+                &f64::INFINITY.to_le_bytes(),
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_clock_truncated",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &1f64.to_le_bytes()[..4],
+            ]
+            .concat(),
+        ),
+        (
+            "state_arena_min_players_over",
+            [&[0x88, 0, 1, 9, 1][..], &[0; 36], &[33]].concat(),
+        ),
+        (
+            "state_arena_min_players_missing",
+            [&[0x88, 0, 1, 9, 1][..], &[0; 36]].concat(),
         ),
         ("state_zero_prop_handle", vec![0x88, 0, 1, 2, 1, 0]),
         ("state_missing_focus", vec![0x88, 0, 1, 2, 0, 1, 0]),
