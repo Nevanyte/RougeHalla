@@ -44,23 +44,88 @@ pub fn wall_segment_for(
     length: f64,
     facing: f64,
 ) -> WallSegment {
-    let _ = (from, cursor, range, min_range, length, facing);
-    WallSegment {
-        cx: 0.,
-        cy: 0.,
-        x1: 0.,
-        y1: 0.,
-        x2: 0.,
-        y2: 0.,
+    let mut dx = cursor.x - from.x;
+    let mut dy = cursor.y - from.y;
+    let mut d = crate::math::sqrt(dx * dx + dy * dy);
+    // Legacy `!(d >= 1)`: a NaN distance aims along the facing too.
+    if d.is_nan() || d < 1. {
+        dx = crate::math::cos(facing);
+        dy = crate::math::sin(facing);
+        d = 1.;
     }
+    let ux = dx / d;
+    let uy = dy / d;
+    let at = d.max(min_range).min(range);
+    let cx = from.x + ux * at;
+    let cy = from.y + uy * at;
+    let half = length / 2.;
+    // Square to the aim: (-uy, ux).
+    WallSegment {
+        cx,
+        cy,
+        x1: cx - uy * half,
+        y1: cy + ux * half,
+        x2: cx + uy * half,
+        y2: cy - ux * half,
+    }
+}
+
+/// Legacy `distPointToSegment` (shared/geometry.ts), in its operation order.
+fn dist_point_to_segment(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64 {
+    let abx = bx - ax;
+    let aby = by - ay;
+    let len2 = abx * abx + aby * aby;
+    let mut t = if len2 > 0. {
+        ((px - ax) * abx + (py - ay) * aby) / len2
+    } else {
+        0.
+    };
+    if t < 0. {
+        t = 0.;
+    } else if t > 1. {
+        t = 1.;
+    }
+    let ex = px - (ax + abx * t);
+    let ey = py - (ay + aby * t);
+    crate::math::sqrt(ex * ex + ey * ey)
 }
 
 /// The FLOOR tiles of `map` under the wall (legacy `wallCells`), as row-major indices in ascending order, written to
 /// `out` (cleared first): a tile centre within [`WALL_CELL_REACH`] of the wall's line and no further than
 /// [`WALL_END_SLACK`] past either end along it.
 pub fn wall_cells(map: &TileMap, seg: &WallSegment, out: &mut Vec<u32>) {
-    let _ = (map, seg);
     out.clear();
+    let reach = WALL_CELL_REACH;
+    let ex = seg.x2 - seg.x1;
+    let ey = seg.y2 - seg.y1;
+    let len = crate::math::sqrt(ex * ex + ey * ey);
+    let (ux, uy) = if len > 0. {
+        (ex / len, ey / len)
+    } else {
+        (0., 0.)
+    };
+    let tile_floor = |v: f64| crate::math::floor_i64(v / TILE);
+    let min_x = tile_floor(seg.x1.min(seg.x2) - reach).max(0);
+    let max_x = tile_floor(seg.x1.max(seg.x2) + reach).min(i64::from(map.w) - 1);
+    let min_y = tile_floor(seg.y1.min(seg.y2) - reach).max(0);
+    let max_y = tile_floor(seg.y1.max(seg.y2) + reach).min(i64::from(map.h) - 1);
+    for ty in min_y..=max_y {
+        for tx in min_x..=max_x {
+            let i = ty * i64::from(map.w) + tx;
+            if map.tiles[i as usize] != TILE_FLOOR {
+                continue;
+            }
+            let px = tx as f64 * TILE + TILE / 2.;
+            let py = ty as f64 * TILE + TILE / 2.;
+            let along = (px - seg.x1) * ux + (py - seg.y1) * uy;
+            if along < -WALL_END_SLACK || along > len + WALL_END_SLACK {
+                continue;
+            }
+            if dist_point_to_segment(px, py, seg.x1, seg.y1, seg.x2, seg.y2) <= reach {
+                out.push(i as u32);
+            }
+        }
+    }
 }
 
 /// One standing barrier: the wall field it belongs to and its tiles (ascending row-major indices, FLOOR on the open map).
@@ -124,7 +189,33 @@ pub struct OverlayMap {
 /// Rebuilds the overlay when the standing walls or the gate state changed since it was built; drops it when no wall
 /// stands. Allocation-free when nothing changed.
 pub(crate) fn sync(k: &MatchStatic, w: &mut World) {
-    let _ = (k, w);
+    let locked = w.rt.gates_locked;
+    let Some(a) = w.abilities.as_mut() else {
+        return;
+    };
+    if a.barriers.0.is_empty() {
+        a.overlay.0 = None;
+        return;
+    }
+    let current = a.overlay.0.as_ref().is_some_and(|o| {
+        o.locked == locked
+            && o.fields.len() == a.barriers.0.len()
+            && o.fields
+                .iter()
+                .zip(&a.barriers.0)
+                .all(|(f, b)| *f == b.field)
+    });
+    if current {
+        return;
+    }
+    let map = k
+        .collision_map(locked)
+        .with_low(a.barriers.0.iter().flat_map(|b| b.cells.iter().copied()));
+    a.overlay.0 = Some(Arc::new(OverlayMap {
+        locked,
+        fields: a.barriers.0.iter().map(|b| b.field).collect(),
+        map,
+    }));
 }
 
 /// The overlay to read this step, held by an `Arc` clone so the caller may mutate the world while it reads the map.
@@ -146,7 +237,37 @@ pub(crate) fn body_map<'a>(
 
 /// `check_world`'s barrier rules.
 pub(crate) fn check(k: &MatchStatic, w: &World) -> Result<(), String> {
-    let _ = (k, w);
+    let Some(a) = &w.abilities else {
+        return Ok(());
+    };
+    let mut walls = a
+        .fields
+        .iter()
+        .filter(|f| f.kind == crate::status_runtime::FieldKind::Wall);
+    if k.config.frost_wish != crate::FrostWish::Wall
+        && (walls.clone().next().is_some() || !a.barriers.0.is_empty())
+    {
+        return Err("a barrier stands only under frost_wish = Wall".into());
+    }
+    let map = &k.arena.map;
+    let tiles = u64::from(map.w) * u64::from(map.h);
+    for b in &a.barriers.0 {
+        // One row per wall field, in field order.
+        if walls.next().map(|f| f.id) != Some(b.field) {
+            return Err("a barrier row does not match the wall fields".into());
+        }
+        if b.cells.is_empty()
+            || !b.cells.windows(2).all(|p| p[0] < p[1])
+            || b.cells
+                .iter()
+                .any(|&i| u64::from(i) >= tiles || map.tiles[i as usize] != TILE_FLOOR)
+        {
+            return Err("a barrier's tiles are not ascending floor tiles".into());
+        }
+    }
+    if walls.next().is_some() {
+        return Err("a wall field has no barrier row".into());
+    }
     Ok(())
 }
 

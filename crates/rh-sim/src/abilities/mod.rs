@@ -392,8 +392,11 @@ pub fn definition(id: AbilityId) -> Definition {
 /// The definition row a world casts for an id: the catalog's, except that under `SimConfig::frost_wish = Wall` Frost's
 /// Wish (staged under Freeze's id until P-FROST-WALL-2 gives it its own) is Frost Wall.
 pub fn definition_for(config: &crate::SimConfig, id: AbilityId) -> Definition {
-    let _ = config;
-    definition(id)
+    if id == AbilityId::Freeze && config.frost_wish == crate::FrostWish::Wall {
+        frost_wall_definition()
+    } else {
+        definition(id)
+    }
 }
 
 /// The Frost Wall row (legacy 78dd8bd4 `frostWall`, rank 1).
