@@ -418,7 +418,7 @@ fn version_3_needs_a_known_second_presence_byte() {
         DecodeError::BadMap("presence"),
         "presence2 0",
     );
-    for bit in [0x02u8, 0x80] {
+    for bit in [0x04u8, 0x80] {
         refused(
             Spec {
                 presence2: 0x01 | bit,
