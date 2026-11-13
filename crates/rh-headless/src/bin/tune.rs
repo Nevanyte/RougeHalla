@@ -17,6 +17,7 @@ const USAGE: &str = "usage: cargo run --release -p rh-headless --bin tune -- [op
   --games N         tournament games per scored table (default 24)
   --lineup L        E(asy) N(ormal) H(ard) per seat (default E,E,N,N,H,H)
   --tournament-seed N  the scoring tournament's seed (default 1; every table plays the same games)
+  --held-out-tournament-seed N  re-score the best table against the shipped tables on this seed (never a search seed)
   --policy P        brain (default) or human
   --workers N       worker threads per tournament (default 1; results fold in plan order)
   --max-minutes M   --patience S   --sudden S   the scoring games' timers (tournament defaults)
@@ -92,6 +93,10 @@ fn run(argv: &[String]) -> Result<(), String> {
             "--games" => config.plan.games = number(&value(&mut args, flag)?, flag)?,
             "--lineup" => config.plan.tiers = parse_lineup(&value(&mut args, flag)?)?,
             "--tournament-seed" => config.plan.seed = number(&value(&mut args, flag)?, flag)?,
+            "--held-out-tournament-seed" => {
+                // P-BOT-TUNER-2 stub: parsed and ignored.
+                let _held_out: u32 = number(&value(&mut args, flag)?, flag)?;
+            }
             "--workers" => {
                 config.plan.workers = number::<u32>(&value(&mut args, flag)?, flag)?.max(1)
             }

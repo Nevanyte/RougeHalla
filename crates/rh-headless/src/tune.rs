@@ -10,11 +10,12 @@
 //! A patched table is installed per thread with [`with_tables`] around each game, so games may run on any worker count
 //! and are folded in plan order. Each installed table is leaked once (`'static`, as the Brain holds its tables): a
 //! search leaks one small table per proposal, which an offline run can afford.
-use crate::tournament::{aggregate, play_each, win_band, GameSummary, TournamentPlan};
+use crate::tournament::{aggregate, play_each, win_band, GameSummary, Proportion, TournamentPlan};
 use crate::tournament_cli::lineup_text;
 use crate::tournament_learning::{run_learning_game, SeatPolicy};
 use rh_policy::bots::learning::LearnedBias;
 use rh_policy::bots::types::{with_tables, BrainTables, PersonaParams, TierParams};
+use rh_policy::bots::TierId;
 use rh_sim::rng::Mulberry32;
 use rh_sim::{Arena, SimConfig};
 use serde_json::{json, Map, Value};
@@ -875,4 +876,92 @@ pub fn search_file(config: &SearchConfig, result: &SearchResult) -> Value {
         })).collect::<Vec<_>>(),
         "table": table_file(&result.best),
     })
+}
+
+/// P-BOT-TUNER-2 stub: how a table's per-tier win interval compares with the baseline's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Verdict {
+    Better,
+    Worse,
+    NotDistinguishable,
+}
+
+impl Verdict {
+    /// "better", "worse" or "not distinguishable".
+    pub fn as_str(self) -> &'static str {
+        "not distinguishable"
+    }
+}
+
+/// Stub: always `NotDistinguishable`.
+pub fn verdict(_best: &Proportion, _baseline: &Proportion) -> Verdict {
+    Verdict::NotDistinguishable
+}
+
+/// One tier's win proportions for the baseline and a candidate table over the same games, and the verdict.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TierComparison {
+    pub tier: TierId,
+    pub baseline: Proportion,
+    pub best: Proportion,
+    pub verdict: Verdict,
+}
+
+/// Stub: plays nothing, returns no tiers.
+pub fn compare_tables(
+    _plan: &TournamentPlan,
+    _arena: &Arena,
+    _sim: &SimConfig,
+    _policy: SeatPolicy,
+    _baseline: &BrainTables,
+    _candidate: &BrainTables,
+) -> Vec<TierComparison> {
+    Vec::new()
+}
+
+/// The held-out re-score: the seed and the per-tier comparison (shipped tables against the best table).
+#[derive(Clone, Debug, PartialEq)]
+pub struct HeldOut {
+    pub seed: u32,
+    pub tiers: Vec<TierComparison>,
+}
+
+/// What a search's output file adds in P-BOT-TUNER-2.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Evidence {
+    pub baseline_spread: f64,
+    pub best_spread: f64,
+    /// Baseline against best on the search's own plan (the seeds the search used: optimistic).
+    pub search: Vec<TierComparison>,
+    pub held_out: Option<HeldOut>,
+}
+
+/// Stub: accepts every seed.
+pub fn check_held_out_seed(_config: &SearchConfig, _seed: u32) -> Result<(), String> {
+    Ok(())
+}
+
+/// Stub: an empty evidence block.
+pub fn evidence(
+    _config: &SearchConfig,
+    _result: &SearchResult,
+    _arena: &Arena,
+    _sim: &SimConfig,
+    _held_out_seed: Option<u32>,
+) -> Result<Evidence, String> {
+    Ok(Evidence {
+        baseline_spread: 0.,
+        best_spread: 0.,
+        search: Vec::new(),
+        held_out: None,
+    })
+}
+
+/// Stub: the existing file, unchanged.
+pub fn search_file_with_evidence(
+    config: &SearchConfig,
+    result: &SearchResult,
+    _evidence: &Evidence,
+) -> Value {
+    search_file(config, result)
 }

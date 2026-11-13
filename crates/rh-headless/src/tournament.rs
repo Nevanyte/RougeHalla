@@ -1083,6 +1083,15 @@ const SCALED_KINDS: [&str; 5] = [
 ];
 
 /// Aggregate every game into the report (source report.ts aggregate).
+/// P-BOT-TUNER-2 stub: `aggregate` with the reaction and APM columns read from `tables` (the plan's tables) instead of
+/// the compiled ones. Not implemented yet: reads the compiled tables.
+pub fn aggregate_with(
+    games: &[GameSummary],
+    _tables: &rh_policy::bots::types::BrainTables,
+) -> Report {
+    aggregate(games)
+}
+
 pub fn aggregate(games: &[GameSummary]) -> Report {
     let all: Vec<&BotSummary> = games.iter().flat_map(|g| g.bots.iter()).collect();
     let total_wins = all.iter().filter(|b| b.outcome == GameOutcome::Won).count() as f64;
