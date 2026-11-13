@@ -1107,6 +1107,10 @@ namespace Roguehalla.Net.Tests
                 case "state_build_summary_panel_code_unknown": case "state_build_summary_panel_order": want = DecodeError.BadField; break;
                 case "state_camp_ward_missing_expiry": case "state_build_summary_gains_short": want = DecodeError.Truncated; break;
                 case "state_build_summary_panel_count_over": want = DecodeError.TooMany; break;
+                // P-WIRE17-HUD-3: the owner's inventory clocks (key 1) and the room's minimum players (key 9).
+                case "state_inventory_healing_nan": case "state_inventory_healing_negative": case "state_inventory_boost_infinite":
+                case "state_arena_min_players_over": want = DecodeError.BadField; break;
+                case "state_inventory_clock_truncated": case "state_arena_min_players_missing": want = DecodeError.Truncated; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);
