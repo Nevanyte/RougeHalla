@@ -276,3 +276,6 @@ pub(crate) fn forget(a: &mut crate::status_runtime::AbilityRuntime, field: u32) 
 #[cfg(test)]
 #[path = "barriers_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "barriers_gate_tests.rs"]
+mod gate_tests;
