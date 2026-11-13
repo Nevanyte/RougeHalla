@@ -44,6 +44,7 @@ namespace Roguehalla.Client
         public bool WeaponRangeSuppressed;
         WorldMarks _worldMarks; CampRespawnLabels _campLabels; System.Func<float, float, bool> _markVisible;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
+        CampPatienceOutlines _patience; QuestCarrierFlags _carrierFlags; ActorPoint _carrierActorPoint; readonly List<CarrierFlagRow> _carrierRows = new List<CarrierFlagRow>();
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
         public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
         /// <summary>Scenario probe counters (diagnostics): Windup fx received and drawn, critical hits, remote fighters carrying a top-stat mark.</summary>
@@ -139,6 +140,9 @@ namespace Roguehalla.Client
             _worldMarks = new WorldMarks(Child("World markers"), _catalog); _campLabels = new CampRespawnLabels(Child("Camp respawn labels"));
             _campLabels.NameRectSource = into => { if (_actors != null) _actors.FighterNameRects(into); };
             _worldIndicators = new WorldIndicators(Child("World indicators")); _vignette = new HurtVignette();
+            _patience = new CampPatienceOutlines(Child("Camp patience outlines")); _carrierFlags = new QuestCarrierFlags(Child("Quest carrier flags"));
+            // the drawn actors: the presenter that Present()s every observed fighter, the local player included
+            _carrierActorPoint = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
             _sparks = new CombatSparks(Child("Combat sparks"));
@@ -578,6 +582,10 @@ namespace Roguehalla.Client
             _markVisible = _markVisible ?? MarkVisible;
             _worldMarks.Update(collections, _markVisible); _campLabels.Update(_visionSession, _markVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
+            var vs = _visionSession;
+            _patience.Update(vs != null ? vs.Map : null, vs != null ? vs.Collections.Camps : null, vs != null ? vs.Phase : (MatchPhase?)null, vs != null && vs.Training);
+            QuestCarrierFlag.Rows(vs != null ? vs.Collections.Quests : null, vs != null ? vs.ServerTimeMs : 0, _carrierRows);
+            _carrierFlags.Update(_carrierRows, _carrierActorPoint, _markVisible);
             PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
         }
         /// <summary>The own Wish beside the name: 0 none (no faction Wish, or in the lobby), 1 ready, 2 recharging (legacy PlayerView.setWishIcon).</summary>
@@ -677,7 +685,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
-            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear();
+            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear(); _patience?.Update(null, null, null, false); _carrierFlags?.Update(null, null, null);
             _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
