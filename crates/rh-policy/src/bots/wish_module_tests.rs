@@ -77,6 +77,8 @@ fn observation(
         potion_large: 0,
         potions_healing: 0,
         slots: [None, None],
+        healing_until: None,
+        speed_boost_until: None,
     });
     o.owner_combat = Some(rh_sim::OwnerCombatView {
         lock: rh_sim::OwnerLockView::Clear,

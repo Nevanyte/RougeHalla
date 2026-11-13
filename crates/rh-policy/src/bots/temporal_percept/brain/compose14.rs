@@ -2188,6 +2188,7 @@ mod live2a_tests {
             gates_locked: false,
             sudden_death_at: 0.,
             started_with: 2,
+            min_players: 0,
         });
         obs
     }

@@ -95,6 +95,7 @@ fn observation(f: &Value, spec: &Value) -> Observation {
         gates_locked: false,
         sudden_death_at: 0.,
         started_with: 1,
+        min_players: 0,
     });
     obs
 }

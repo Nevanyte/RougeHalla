@@ -30,6 +30,8 @@ fn state() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 4,
                 potions_healing: 3,
+                healing_until: None,
+                speed_boost_until: None,
             })),
             StateItem::Props(WireProps {
                 rows: vec![

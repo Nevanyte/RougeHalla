@@ -899,7 +899,11 @@ function readState(r) {
   for (let i = 0; i < n; i++) {
     const key = r.varint(); if (key <= previous || key > 13) throw new Error("bad state key"); previous = key;
     let value;
-    if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
+    // Key 1: the counts are read (and checked) before the owner's clocks (P-WIRE17-HUD-3: server ms, finite, >= 0).
+    if (key === 1) {
+      const clock = () => r.opt(() => { const t = r.f64(); if (!Number.isFinite(t) || t < 0) throw new Error("bad inventory clock"); return t; });
+      value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count"), healingUntil: clock(), speedBoostUntil: clock() }));
+    }
     else if (key === 2) {
       const rows = []; let last = 0;
       for (let j = 0, k = count(); j < k; j++) {
@@ -981,9 +985,10 @@ function readState(r) {
         const a = {
           lobbyEndsAt: finite(r.f64()), planEndsAt: finite(r.f64()), raidStartedAt: finite(r.f64()),
           patienceEndsAt: r.opt(() => finite(r.f64())), inColiseum: flag(), gatesLocked: flag(),
-          suddenDeathAt: finite(r.f64()), startedWith: r.varintU16("started_with"),
+          suddenDeathAt: finite(r.f64()), startedWith: r.varintU16("started_with"), minPlayers: r.u8(),
         };
         if (a.startedWith > 512) throw new Error("bad started_with");
+        if (a.minPlayers > 32) throw new Error("bad min players");
         return a;
       });
     } else if (key === 10) value = readQuests(r, strictBool, finite, handle);
