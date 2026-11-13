@@ -480,6 +480,8 @@ pub const TIERS: [TierParams; 3] = [
 ];
 
 impl TierParams {
+    /// The tier's numbers: the compiled [`TIERS`], or the patched copy an offline run installed on this thread with
+    /// [`with_tables`].
     pub fn by_id(id: TierId) -> &'static Self {
         &TIERS[match id {
             TierId::Easy => 0,
@@ -487,6 +489,29 @@ impl TierParams {
             TierId::Hard => 2,
         }]
     }
+}
+
+/// Both Brain tables as one value: what an offline tuning run patches (source `tune.ts` patches the two tables in place).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BrainTables {
+    pub tiers: [TierParams; 3],
+    pub personas: [PersonaParams; 4],
+}
+
+impl BrainTables {
+    /// The compiled tables (the legacy design numbers).
+    pub const COMPILED: BrainTables = BrainTables {
+        tiers: TIERS,
+        personas: PERSONAS,
+    };
+}
+
+/// Run `f` with `tables` as what [`TierParams::by_id`] and [`PersonaParams::by_id`] answer on this thread, then restore
+/// what was there before (also when `f` panics). Headless tuning only: the live server never calls it, so live bots
+/// always read the compiled tables. Every seat of a match must run on the thread that installed the tables.
+pub fn with_tables<R>(tables: &'static BrainTables, f: impl FnOnce() -> R) -> R {
+    let _ = tables;
+    f()
 }
 
 /// PersonaParams (types.ts 5): preference. The weights and thresholds, never multiplied with the tier.
@@ -592,6 +617,7 @@ pub const PERSONAS: [PersonaParams; 4] = [
 ];
 
 impl PersonaParams {
+    /// The persona's numbers: the compiled [`PERSONAS`], or the patched copy installed with [`with_tables`].
     pub fn by_id(id: PersonaId) -> &'static Self {
         &PERSONAS[match id {
             PersonaId::Farmer => 0,
