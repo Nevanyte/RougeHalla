@@ -3,6 +3,7 @@ import datetime as dt
 import hashlib
 import io
 import json
+import re
 from pathlib import Path
 import tarfile
 import tempfile
@@ -253,6 +254,87 @@ class Offline(unittest.TestCase):
             self.assertNotIn('password', unit)
             # Owner approval 2026-11-11: the learner runs on Source only; rh-server refuses it in training.
             self.assertIn('--bot-learning off ' if training else '--bot-learning single-writer ', unit)
+
+
+# Today's rendered Source and training units for C (captured before P-HOST-FLAGS-1). The default render must match.
+GOLDEN_SOURCE_UNIT = '[Unit]\nRequires=rh-demo-pg.service rh-demo-expiry.timer\nAfter=rh-demo-pg.service rh-demo-expiry.timer\nOnFailure=rh-demo-poweroff.service\n[Service]\nUser=rougehalla\nGroup=rougehalla\nExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard\nExecStart=/opt/rougehalla-demo/rh-server --runtime source-arena --bind 127.0.0.1:7777 --instance-id demo-1-source-arena --map /opt/rougehalla-demo/source-map.json --result-spool /var/lib/rougehalla-demo/spool --min-players 1 --fill-bots 8 --max-rooms 1 --lobby-seconds 10 --fill-seconds 3 --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning single-writer --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1\nRestart=no\nNoNewPrivileges=yes\nPrivateTmp=yes\nProtectSystem=strict\nProtectHome=yes\nReadWritePaths=/var/lib/rougehalla-demo /run/rh-demo-pg\nUMask=0077\nStandardOutput=null\nStandardError=null\n[Install]\nWantedBy=multi-user.target\n'
+GOLDEN_TRAINING_UNIT = '[Unit]\nRequires=rh-demo-pg.service rh-demo-expiry.timer\nAfter=rh-demo-pg.service rh-demo-expiry.timer\nOnFailure=rh-demo-poweroff.service\n[Service]\nUser=rougehalla\nGroup=rougehalla\nExecStartPre=+/usr/bin/python3 -I /usr/local/lib/rh-demo/bootstrap.py guard\nExecStart=/opt/rougehalla-demo/rh-server --runtime training --bind 127.0.0.1:7779 --instance-id demo-1-training --min-players 1 --fill-bots 0 --max-rooms 1 --lobby-seconds 0 --fill-seconds 0 --database-url postgresql://rougehalla@localhost/roguehalla?host=/run/rh-demo-pg --bot-learning off --api-cors-origins https://play.rougehalla.com --client-ip-header x-forwarded-for --trusted-proxies 127.0.0.1\nRestart=no\nNoNewPrivileges=yes\nPrivateTmp=yes\nProtectSystem=strict\nProtectHome=yes\nReadWritePaths=/var/lib/rougehalla-demo /run/rh-demo-pg\nUMask=0077\nStandardOutput=null\nStandardError=null\n[Install]\nWantedBy=multi-user.target\n'
+ON = dict(map_pool=True, signature_landmarks=True, lobby_timing='matchmaking')
+
+
+def exec_line(c, training):
+    return next(l for l in app_unit(c, training).splitlines() if l.startswith('ExecStart='))
+
+
+class LaunchFlags(unittest.TestCase):
+    def test_default_render_is_byte_identical_to_today(self):
+        self.assertEqual(app_unit(C, False), GOLDEN_SOURCE_UNIT)
+        self.assertEqual(app_unit(C, True), GOLDEN_TRAINING_UNIT)
+        explicit = dict(C, map_pool=False, signature_landmarks=False, lobby_timing='legacy')
+        config(json.dumps(explicit), NOW)
+        self.assertEqual(app_unit(explicit, False), GOLDEN_SOURCE_UNIT)
+        self.assertEqual(app_unit(explicit, True), GOLDEN_TRAINING_UNIT)
+
+    def test_map_pool_alone(self):
+        line = exec_line(dict(C, map_pool=True), False)
+        self.assertIn(' --map /opt/rougehalla-demo/source-map.json ', line)
+        self.assertIn(' --map-pool ', line)
+        self.assertNotIn('--signature-landmarks', line)
+        self.assertNotIn('--lobby-timing', line)
+        self.assertIn('--lobby-seconds 10 --fill-seconds 3', line)
+
+    def test_map_pool_with_landmarks(self):
+        line = exec_line(dict(C, map_pool=True, signature_landmarks=True), False)
+        self.assertIn(' --map-pool ', line)
+        self.assertIn(' --signature-landmarks ', line)
+
+    def test_matchmaking_alone_drops_explicit_lobby_pair(self):
+        line = exec_line(dict(C, lobby_timing='matchmaking'), False)
+        self.assertIn(' --lobby-timing matchmaking ', line)
+        self.assertNotIn('--lobby-seconds', line)
+        self.assertNotIn('--fill-seconds', line)
+        self.assertNotIn('--map-pool', line)
+        self.assertIn('--min-players 1 --fill-bots 8 --max-rooms 1', line)
+
+    def test_all_three_on_source_only(self):
+        c = dict(C, **ON)
+        config(json.dumps(c), NOW)
+        line = exec_line(c, False)
+        for flag in (' --map-pool ', ' --signature-landmarks ', ' --lobby-timing matchmaking '):
+            self.assertIn(flag, line)
+        self.assertIn('--bot-learning single-writer', line)
+        self.assertEqual(app_unit(c, True), GOLDEN_TRAINING_UNIT)
+
+    def test_rendered_flags_are_ones_the_server_accepts(self):
+        # The accepted list is the flags rh-server's own parsers define (runtime.rs, main.rs typo-guard test).
+        accepted = {'--runtime', '--bind', '--instance-id', '--map', '--result-spool', '--min-players', '--fill-bots',
+                    '--max-rooms', '--lobby-seconds', '--fill-seconds', '--database-url', '--bot-learning',
+                    '--api-cors-origins', '--client-ip-header', '--trusted-proxies', '--map-pool',
+                    '--signature-landmarks', '--lobby-timing'}
+        for c in (C, dict(C, **ON)):
+            for training in (False, True):
+                flags = set(re.findall(r'(?<= )--[a-z-]+', exec_line(c, training)))
+                self.assertLessEqual(flags, accepted)
+        self.assertTrue({'--map-pool', '--signature-landmarks', '--lobby-timing'} <= set(re.findall(r'--[a-z-]+', exec_line(dict(C, **ON), False))))
+
+    def test_config_validation(self):
+        config(json.dumps(dict(C, map_pool=True, signature_landmarks=True)), NOW)
+        with self.assertRaisesRegex(ValueError, 'signature_landmarks'):
+            config(json.dumps(dict(C, signature_landmarks=True)), NOW)
+        with self.assertRaisesRegex(ValueError, 'signature_landmarks'):
+            config(json.dumps(dict(C, map_pool=False, signature_landmarks=True)), NOW)
+        for key, value in [('lobby_timing', 'fast'), ('lobby_timing', ''), ('lobby_timing', True), ('map_pool', 'yes'), ('map_pool', 1), ('signature_landmarks', None)]:
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                config(json.dumps(dict(C, **{key: value})), NOW)
+        with self.assertRaises(ValueError):
+            config(json.dumps(dict(C, unknown_flag=True)), NOW)
+
+    def test_config_example_documents_the_settings(self):
+        example = json.loads(Path(__file__).with_name('config.example.json').read_text())
+        self.assertEqual((example.get('map_pool'), example.get('signature_landmarks'), example.get('lobby_timing')), (False, False, 'legacy'))
+        readme = Path(__file__).with_name('README.md').read_text()
+        for word in ('map_pool', 'signature_landmarks', 'lobby_timing'):
+            self.assertIn(word, readme)
 
 
 if __name__ == '__main__':
