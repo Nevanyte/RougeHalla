@@ -49,5 +49,24 @@ namespace Roguehalla.Net.Ui
         {
             return untilMs > serverMs ? "Active " + Int((int)System.Math.Ceiling((untilMs - serverMs) / 1000d)) + "s" : "";
         }
+        /// <summary>
+        /// P-UNITY-HUD-STATUS-2: the healing slot's status for the owner's inventory against the server clock (weaponBar.ts:147). With
+        /// <see cref="InventoryView.HealingUntil"/> delivered: "Healing" + " xN" when N &gt; 1 + " Ns" (rounded up) while the end is after
+        /// <paramref name="serverMs"/>, otherwise "". With no clock delivered: the count-only text of <see cref="HealingStatus"/>.
+        /// </summary>
+        public static string HealingSlot(InventoryView? inventory, double serverMs)
+        {
+            return inventory.HasValue ? HealingStatus(inventory.Value.PotionsHealing, inventory.Value.HealingUntil, serverMs) : "";
+        }
+        /// <summary>
+        /// P-UNITY-HUD-STATUS-2: the wind-emblem slot's text (weaponBar.ts:146,148): "+50% speed · Active Ns" (rounded up) while
+        /// <see cref="InventoryView.SpeedBoostUntil"/> is after <paramref name="serverMs"/>, otherwise "Walk over emblems".
+        /// </summary>
+        public static string WindEmblem(InventoryView? inventory, double serverMs)
+        {
+            if (inventory.HasValue && inventory.Value.SpeedBoostUntil.HasValue && inventory.Value.SpeedBoostUntil.Value > serverMs)
+                return "+50% speed \u00b7 " + SpeedStatus(inventory.Value.SpeedBoostUntil.Value, serverMs);
+            return "Walk over emblems";
+        }
     }
 }
