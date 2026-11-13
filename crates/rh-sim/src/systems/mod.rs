@@ -122,6 +122,10 @@ mod fighter_churn_tests;
 #[cfg(test)]
 mod holy_demon_blood_tests;
 
+/// P-MECHANICS-SALVAGE-3 oracle: camp-clear mirror, armWishes effect refresh, resetAll DoT crit memory.
+#[cfg(test)]
+mod mechanics_salvage3_tests;
+
 #[cfg(test)]
 mod loot_world_tests;
 
