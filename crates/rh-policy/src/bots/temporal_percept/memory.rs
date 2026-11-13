@@ -272,6 +272,10 @@ struct ObsState {
 }
 
 pub(crate) struct Memory {
+    /// P-BOT-BRAIN-LIVE-1: the live composer's mob ids are sample-scoped references (a reference never recurs in a later
+    /// sample), so a record whose id the current percept does not carry can never be refreshed again and is dropped.
+    /// Off (the source rule: records are kept for the run) for every source-shaped caller.
+    sample_scoped_mobs: bool,
     self_id: String,
     tier: &'static TierParams,
     features: Features,
@@ -434,6 +438,7 @@ impl Memory {
             })
             .collect();
         Ok(Self {
+            sample_scoped_mobs: false,
             self_id: config.self_id,
             tier: config.tier,
             features: config.features,
@@ -1130,6 +1135,11 @@ impl Memory {
         let _ = out;
     }
 
+    /// See [`Memory::sample_scoped_mobs`]; set once, by the live seat composer.
+    pub(crate) fn set_sample_scoped_mobs(&mut self, on: bool) {
+        self.sample_scoped_mobs = on;
+    }
+
     fn fold_mobs(&mut self, p: &MemoryPercept, o: &mut ObsState, now: ServerMs) {
         if p.minimap.t != self.last_minimap_t {
             self.last_minimap_t = p.minimap.t;
@@ -1185,6 +1195,11 @@ impl Memory {
                     self.mobs[idx].1.alive = false;
                 }
             }
+        }
+        if self.sample_scoped_mobs {
+            let current = |id: &str| p.mobs.iter().any(|v| v.id == id);
+            self.mobs.retain(|(id, _)| current(id));
+            self.m_aux.retain(|(id, _)| current(id));
         }
         for v in &p.mobs {
             if !is_regional_kind(&v.kind) {
@@ -1385,7 +1400,14 @@ impl Memory {
         }
         let ux = pr.vx / speed;
         let uy = pr.vy / speed;
-        let left = (pr.range - hypot(pr.x - pr.x0, pr.y - pr.y0)).max(0.);
+        // JS `Math.max(0, NaN)` is NaN (an unpublished course leaves `range`/`x0` undefined), where `f64::max` would
+        // answer 0; every finite value reads as before.
+        let raw_left = pr.range - hypot(pr.x - pr.x0, pr.y - pr.y0);
+        let left = if raw_left.is_nan() {
+            raw_left
+        } else {
+            raw_left.max(0.)
+        };
         let dx = me.x - pr.x;
         let dy = me.y - pr.y;
         let along = dx * ux + dy * uy;

@@ -1,4 +1,5 @@
-//! The accepted-frame composer (P-BOT-BRAIN-LIVE-1, piece 1): `Frame14` -> the source `Percept`.
+//! The accepted-frame composer (P-BOT-BRAIN-LIVE-1, reconciled in P-BOT-BRAIN-RECONCILE-1): `Frame14` -> the source
+//! `Percept`, and the seat-side fence ([`SeatComposer14`]) a `BrainBot` drives it through.
 //!
 //! The composer sees only an accepted `Frame14` (the bytes a human client gets), its own retained ring of earlier
 //! accepted samples and the static setup. It never sees `Sim`, `World` or any server-only state. A fact the seat cannot
@@ -7,9 +8,14 @@
 //! Source: `packages/server/src/bots/brain/perception.ts` (`perceive`, `selfView`, `fighterSeen`, `mobSeen`,
 //! `seeContainers`, `seeChests`, `seeCamps`, `seeFields`) and `frames.ts` (`FrameRing.compose`: `viewT`, interpolation at
 //! the view time, `velocity`, `isCentral`, `tintNearestFoe`, `deliver`, `windowExtras`). Degraded fair profile
-//! (owner-approved 2026-11-11), as P-BOT-BRAIN-LIVE-1 section 6 names it:
-//! - always `undefined`: `self.mobKills`, `self.immuneUntil`, `hud.alive`, `hud.minPlayers`, `hud.winner`, `minimap.t`,
+//! (owner-approved 2026-11-11; docs/DEVIATIONS.md DEV-026), as P-BOT-BRAIN-LIVE-1 section 6 names it:
+//! - always `undefined`: `self.immuneUntil`, `hud.alive`, `hud.minPlayers`, `hud.winner`, `minimap.t`,
 //!   `fighters[].drawStartedAt`, `mobs[].drawStartedAt`, `projectiles[].{id,vx,vy,x0,y0,t0,range}`;
+//! - derived, not unpublished (DEV-026, owner confirmation pending): `self.mobKills` counts this seat's own accepted
+//!   `Death` events of regional mobs (and elites) credited to it while the dead row was delivered (an under-count when a
+//!   credited death is out of sight; `undefined` would make every farm score NaN);
+//! - the private plan deal (`kind: "private"`, `type: "plan"`) is an immediate event when the delivered plan group
+//!   changes (source `input.privates`, perception.ts:672-679);
 //! - `undefined` when its own condition holds: `self.attackTarget` (a held lock whose target is redacted), `self.name`
 //!   and `fighters[].{name,bot}` (no roster row), `mobs[].type` (no type code), `mobs[].name` (a quest giver or a
 //!   zombie: the name or the zombie's owner is not on the wire), `containers[].weapon` (contents unknown, the source's own
@@ -26,14 +32,18 @@
 //! cut, which needs the pre-cut scene retained (not done; both are proposed deviations for piece 3).
 
 use super::percept::Percept;
+use super::room_paths::with_gates;
 use super::trace::BVal;
+use crate::bots::fair_percept14::{FairPerceptRing14, Refusal14 as FenceRefusal, Required14};
+use crate::bots::memory_prefix::MAX_RECORDS;
 use crate::bots::perception::{npc_key, player_key, reward_option_id, CHEST_PANEL_RANGE};
-use crate::bots::types::{BOT_VIEW_HALF_H, BOT_VIEW_HALF_W};
+use crate::bots::types::{TierId, BOT_VIEW_HALF_H, BOT_VIEW_HALF_W};
 use crate::bots::view::Features;
 use crate::bots::view::{field_in_view, in_view, FieldInView};
 use crate::delivery::frame::{status as wire_status, weapon as wire_weapon};
-use crate::delivery::Frame14;
-use rh_protocol::{WireActor, WireEvent, WireFx, WireOwnerLock, WirePropKind, WireSelf};
+use crate::delivery::{AcceptedFrame14, Frame14};
+use crate::InputRefusal;
+use rh_protocol::{WireActor, WireEvent, WireFx, WireOwnerLock, WirePlan, WirePropKind, WireSelf};
 use rh_sim::mapgen::certify::source_hypot as hypot;
 use rh_sim::math::js_round;
 use rh_sim::mob_catalog::{mob_name, mob_type_by_id, MobTypeId};
@@ -143,6 +153,39 @@ pub(crate) struct Composed14 {
     /// (frames.ts:131): with a world delay the ring has to fill first. The sample is still pushed; a caller must not
     /// tick the Brain on an uncovered composition.
     pub(crate) covered: bool,
+    /// The references a command decided from this composition may name: only what this accepted frame delivered.
+    pub(crate) refs: Refs,
+}
+
+/// The references one composition's commands may resolve (`emit_command`): the delivered actor rows, and the container
+/// and reward-chest keys of this frame mapped to the handles this frame delivered for those rows. A key not here (an
+/// older frame's, a remembered one) resolves to nothing, never to a guess.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Refs {
+    pub(crate) actors: Vec<(String, PlayerId)>,
+    pub(crate) pickups: Vec<(String, u32)>,
+    pub(crate) chests: Vec<(String, u32)>,
+}
+
+impl crate::bots::bot::CommandRefs for Refs {
+    fn actor(&self, id: &str) -> Option<PlayerId> {
+        self.actors
+            .iter()
+            .find(|(key, _)| key == id)
+            .map(|(_, actor)| *actor)
+    }
+    fn pickup(&self, id: &str) -> Option<u32> {
+        self.pickups
+            .iter()
+            .find(|(key, _)| key == id)
+            .map(|(_, handle)| *handle)
+    }
+    fn chest(&self, id: &str) -> Option<u32> {
+        self.chests
+            .iter()
+            .find(|(key, _)| key == id)
+            .map(|(_, handle)| *handle)
+    }
 }
 
 /// One retained accepted sample: only what the ring needs (positions of the owner and of the delivered player rows,
@@ -197,24 +240,39 @@ struct Seen {
 
 pub(crate) struct Composer14 {
     setup: Setup14,
-    /// The map with the coliseum gates closed (`withGates`), when the map has gates.
-    locked: Option<TileMap>,
+    /// The map with the coliseum gates closed (`withGates`; the open map when it has no gates).
+    locked: TileMap,
     samples: Vec<Sample>,
     world: Vec<Queued>,
     /// Immediate events (toasts, results) of compositions the ring did not cover yet: source `takeImmediate` runs only
     /// when `compose` returns a percept (frames.ts:131 returns before it), so they wait for the first covered one.
     held: Vec<BVal>,
+    /// `self.mobKills`, derived: this seat's own accepted regional-mob deaths credited to it (DEV-026).
+    mob_kills: u32,
+    /// The last delivered plan group: the private plan deal is sent when it changes.
+    last_plan: Option<WirePlan>,
+}
+
+/// The groups a composition reads, all present (the composer's preflight).
+struct Groups<'f> {
+    me: &'f WireSelf,
+    inventory: &'f rh_protocol::WireInventory,
+    combat: &'f rh_protocol::WireOwnerCombat,
+    build: &'f rh_protocol::WireBuild,
+    arena: &'f rh_protocol::WireArena,
 }
 
 impl Composer14 {
     pub(crate) fn new(setup: Setup14) -> Self {
-        let locked = closed_gates(&setup.arena.map);
+        let locked = with_gates(&setup.arena.map);
         Self {
             setup,
             locked,
             samples: Vec::new(),
             world: Vec::new(),
             held: Vec::new(),
+            mob_kills: 0,
+            last_plan: None,
         }
     }
 
@@ -223,10 +281,17 @@ impl Composer14 {
         self.samples.clear();
         self.world.clear();
         self.held.clear();
+        self.mob_kills = 0;
+        self.last_plan = None;
     }
 
-    pub(crate) fn compose(&mut self, frame: &Frame14) -> Result<Composed14, Refusal14> {
-        // Preflight: every required group, then the clock. Nothing below may fail, so a refusal changes nothing.
+    /// The composer's whole refusal set, without changing anything (the seat's `check_input`).
+    pub(crate) fn check(&self, frame: &Frame14) -> Result<(), Refusal14> {
+        self.preflight(frame).map(drop)
+    }
+
+    /// Every required group, then the clock. Nothing after it may fail, so a refusal changes nothing.
+    fn preflight<'f>(&self, frame: &'f Frame14) -> Result<Groups<'f>, Refusal14> {
         let me = frame.owner.as_ref().ok_or(Refusal14::OwnerMissing)?;
         let inventory = frame
             .collections
@@ -247,10 +312,31 @@ impl Composer14 {
             .arena
             .as_ref()
             .ok_or(Refusal14::ArenaMissing)?;
-        let now = frame.source_time;
-        if self.samples.last().is_some_and(|s| now <= s.time) {
+        if self
+            .samples
+            .last()
+            .is_some_and(|s| frame.source_time <= s.time)
+        {
             return Err(Refusal14::Clock);
         }
+        Ok(Groups {
+            me,
+            inventory,
+            combat,
+            build,
+            arena,
+        })
+    }
+
+    pub(crate) fn compose(&mut self, frame: &Frame14) -> Result<Composed14, Refusal14> {
+        let Groups {
+            me,
+            inventory,
+            combat,
+            build,
+            arena,
+        } = self.preflight(frame)?;
+        let now = frame.source_time;
 
         let features = &self.setup.features;
         let status_bits = features.status_effects;
@@ -333,7 +419,7 @@ impl Composer14 {
         let latest = self.samples.len() - 1;
         let eye = me_at;
         let sight = if arena.gates_locked {
-            self.locked.as_ref().unwrap_or(&self.setup.arena.map)
+            &self.locked
         } else {
             &self.setup.arena.map
         };
@@ -557,6 +643,15 @@ impl Composer14 {
         };
 
         // ---- containers (seeContainers as the server's focus draws it), by key.
+        // ---- the references this composition's commands may name (every delivered actor row, drawn or not).
+        let mut refs = Refs {
+            actors: frame
+                .actors
+                .iter()
+                .map(|a| (actor_key(a), PlayerId(a.id)))
+                .collect(),
+            ..Refs::default()
+        };
         let focus = frame.collections.props.focus.as_ref();
         let mut containers: Vec<(String, BVal)> = Vec::new();
         for prop in &frame.collections.props.rows {
@@ -574,6 +669,7 @@ impl Composer14 {
                 continue;
             }
             let key = format!("c{}_{}_{tag}", prop.x, prop.y);
+            refs.pickups.push((key.clone(), prop.handle.get()));
             let interactable = focus.is_some_and(|f| f.handle == prop.handle);
             let named = |code: u8| opt_name(in_hand(code).map(WeaponId::as_str));
             let (closed, weapon) = if interactable {
@@ -668,6 +764,13 @@ impl Composer14 {
             }
         }
         let mut immediate = immediate;
+        // The private plan deal, once per change of the delivered plan group (source `input.privates`).
+        if frame.collections.plan != self.last_plan {
+            if let Some(plan) = frame.collections.plan.as_ref() {
+                immediate.push(plan_event(plan, now));
+            }
+            self.last_plan.clone_from(&frame.collections.plan);
+        }
         if !self.held.is_empty() {
             immediate.splice(0..0, std::mem::take(&mut self.held));
         }
@@ -700,6 +803,7 @@ impl Composer14 {
                 .map(|c| {
                     let at = Vec2::new(f64::from(c.x) / 8., f64::from(c.y) / 8.);
                     let key = format!("r{}_{}_{}", c.x, c.y, c.expires_at.to_bits());
+                    refs.chests.push((key.clone(), c.handle.get()));
                     // perception.ts:790: the panel opens within range AND in sight of the chest.
                     let open = me_alive
                         && c.can_choose
@@ -856,6 +960,15 @@ impl Composer14 {
             })
             .collect();
 
+        // ---- self.mobKills, derived (DEV-026): the seat's own accepted deaths of delivered regional mobs credited to it.
+        for event in frame.events.iter().flat_map(|b| &b.events) {
+            if let WireEvent::Death { id, by } = event {
+                if *by == Some(me.id) && frame.actors.iter().any(|a| a.id == *id && a.kind == 1) {
+                    self.mob_kills = self.mob_kills.saturating_add(1);
+                }
+            }
+        }
+
         // ---- self (selfView) and hud.
         let attack_target = match combat.lock {
             WireOwnerLock::Clear => BVal::Null,
@@ -873,6 +986,7 @@ impl Composer14 {
             &my_weapons,
             my_slot,
             attack_target.clone(),
+            f64::from(self.mob_kills),
             combat,
             build,
         );
@@ -967,6 +1081,7 @@ impl Composer14 {
             percept,
             wards,
             covered,
+            refs,
         })
     }
 }
@@ -1372,7 +1487,8 @@ struct FighterRow {
 /// The first id of the NPC namespace (`Frame14` refuses a player at or above it).
 const NPC_BASE: u32 = 1 << 31;
 
-fn key_of(id: u32) -> String {
+/// The rendered key of a delivered actor id: players `p<id>`, sample-scoped NPC references `n<id>`.
+pub(crate) fn key_of(id: u32) -> String {
     if id < NPC_BASE {
         player_key(PlayerId(id))
     } else {
@@ -1627,6 +1743,7 @@ fn self_record(
     weapons: &[Option<WeaponId>; 2],
     slot: usize,
     attack_target: BVal,
+    mob_kills: f64,
     combat: &rh_protocol::WireOwnerCombat,
     build: &rh_protocol::WireBuild,
 ) -> BVal {
@@ -1681,7 +1798,7 @@ fn self_record(
             BVal::num(rh_sim::stat_fold::decode_mult(combat.speed_milli)),
         ),
         ("kills", BVal::num(f64::from(me.kills))),
-        ("mobKills", BVal::Undefined),
+        ("mobKills", BVal::num(mob_kills)),
         ("gv", BVal::num(f64::from(me.gv))),
         ("bounty", BVal::num(f64::from(me.bounty))),
         ("moveSeq", BVal::num(f64::from(me.move_seq))),
@@ -1689,23 +1806,296 @@ fn self_record(
     ])
 }
 
-/// shared `withGates`: the map with every coliseum gate tile closed (rh-sim's own `closed_gates` is crate-private).
-fn closed_gates(map: &TileMap) -> Option<TileMap> {
-    let gates = &map.layers()?.coliseum().gates;
-    if gates.iter().all(|g| g.tiles.is_empty()) {
-        return None;
+/// perception.ts:672-679: the private plan deal as the source's immediate `private` event (`type: "plan"`), from the
+/// delivered plan group (shared messages.ts `PlanDeal` keys).
+fn plan_event(plan: &WirePlan, now: f64) -> BVal {
+    let opt = |v: Option<f64>| v.map_or(BVal::Null, BVal::num);
+    let msg = BVal::obj([
+        ("endsAt", BVal::num(plan.ends_at)),
+        (
+            "spawns",
+            BVal::arr(plan.spawns.iter().map(|s| opt(s.map(f64::from)))),
+        ),
+        ("taken", BVal::arr(plan.taken.iter().map(|t| BVal::flag(*t)))),
+        ("pick", opt(plan.pick.map(f64::from))),
+        (
+            "boons",
+            BVal::arr(plan.boons.iter().map(|b| BVal::text(b.clone()))),
+        ),
+        ("boon", opt(plan.boon.map(f64::from))),
+    ]);
+    BVal::obj([
+        ("kind", BVal::text("private")),
+        ("t", BVal::num(now)),
+        ("at", BVal::Null),
+        ("type", BVal::text("plan")),
+        ("msg", msg),
+    ])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The seat side: the accepted-history fence a `BrainBot` composes through.
+
+/// One seat's composer behind the accepted-history fence (`FairPerceptRing14`: protocol, epoch, viewer, local session,
+/// consecutive sample ids, clock, the player-memory prefix). The fence and the composer are checked together before
+/// either changes, so a refused or stale frame leaves both untouched.
+pub(crate) struct SeatComposer14 {
+    me: PlayerId,
+    tier: TierId,
+    fence: Option<FairPerceptRing14>,
+    composer: Composer14,
+}
+
+/// The fence's required owner groups (the planning screen carries the owner without its combat groups).
+fn required(frame: &Frame14) -> &'static [Required14] {
+    if frame.owner.is_some() && frame.phase != 3 {
+        &[Required14::InventoryPresent, Required14::OwnerCombat]
+    } else {
+        &[]
     }
-    let mut tiles = map.tiles.clone();
-    for at in gates.iter().flat_map(|g| &g.tiles) {
-        let (Ok(x), Ok(y)) = (usize::try_from(at.x), usize::try_from(at.y)) else {
-            continue;
-        };
-        if let Some(t) = tiles.get_mut(y * map.w as usize + x) {
-            *t = rh_sim::map::TILE_WALL;
+}
+
+fn fence_refusal(error: FenceRefusal) -> InputRefusal {
+    match error {
+        FenceRefusal::Missing(Required14::InventoryPresent) => InputRefusal::InventoryUnavailable,
+        FenceRefusal::Missing(Required14::OwnerCombat) => InputRefusal::OwnerCombatUnavailable,
+        FenceRefusal::Viewer | FenceRefusal::Missing(Required14::OwnerPresent) => {
+            InputRefusal::InvalidOwner
+        }
+        FenceRefusal::Memory(_) => InputRefusal::MemoryUnavailable,
+        _ => InputRefusal::ClockResetRequired,
+    }
+}
+
+fn composer_refusal(error: Refusal14) -> InputRefusal {
+    match error {
+        Refusal14::OwnerMissing => InputRefusal::InvalidOwner,
+        Refusal14::InventoryMissing => InputRefusal::InventoryUnavailable,
+        Refusal14::OwnerCombatMissing => InputRefusal::OwnerCombatUnavailable,
+        Refusal14::BuildMissing => InputRefusal::MemoryUnavailable,
+        // The source HUD (phase clocks, gates, coliseum) is the Arena group: a runtime without the source lifecycle cannot
+        // host the Brain, so the seat's fallback plays instead of a Brain that sees no HUD.
+        Refusal14::ArenaMissing => InputRefusal::ArenaUnavailable,
+        Refusal14::Clock => InputRefusal::ClockResetRequired,
+    }
+}
+
+impl SeatComposer14 {
+    pub(crate) fn new(me: PlayerId, tier: TierId, setup: Setup14) -> Self {
+        Self {
+            me,
+            tier,
+            fence: None,
+            composer: Composer14::new(setup),
         }
     }
-    TileMap::new(map.w, map.h, tiles).ok()
+
+    #[cfg(test)]
+    pub(crate) fn setup(&self) -> &Setup14 {
+        &self.composer.setup
+    }
+
+    fn fresh_fence(frame: &Frame14, tier: TierId) -> Result<FairPerceptRing14, InputRefusal> {
+        let context = frame.context();
+        FairPerceptRing14::new(context.epoch, context.viewer, tier, 2, MAX_RECORDS)
+            .map_err(fence_refusal)
+    }
+
+    /// Immutable preflight (`Policy::check_input`): the viewer, the fence and the composer's refusals.
+    pub(crate) fn check(&self, frame: &Frame14) -> Result<(), InputRefusal> {
+        if frame.context().viewer.get() != self.me.0 {
+            return Err(InputRefusal::InvalidOwner);
+        }
+        if let Some(owner) = frame.owner.as_ref() {
+            if owner.id != self.me.0 {
+                return Err(InputRefusal::InvalidOwner);
+            }
+            self.composer.check(frame).map_err(composer_refusal)?;
+        }
+        match &self.fence {
+            Some(fence) => fence.check_preview(frame, required(frame)),
+            None => Self::fresh_fence(frame, self.tier)?.check_preview(frame, required(frame)),
+        }
+        .map_err(fence_refusal)
+    }
+
+    /// Accept one frame into the fence and compose it. `Ok(None)`: an accepted sample without an owner row (nothing for
+    /// the Brain to see), which advances the fence but asks no decision.
+    pub(crate) fn compose(
+        &mut self,
+        accepted: &AcceptedFrame14,
+    ) -> Result<Option<Composed14>, InputRefusal> {
+        let frame = accepted.frame();
+        self.check(frame)?;
+        if self.fence.is_none() {
+            self.fence = Some(Self::fresh_fence(frame, self.tier)?);
+        }
+        let fence = self.fence.as_mut().expect("created above");
+        fence
+            .accept(accepted, required(frame))
+            .map_err(fence_refusal)?;
+        // The fence keeps the newest sample only: the composer retains its own history.
+        if fence.len() > 1 {
+            let oldest = fence.retained()[0].context().sample;
+            let _ = fence.release_through(oldest);
+        }
+        if frame.owner.is_none() {
+            return Ok(None);
+        }
+        self.composer
+            .compose(frame)
+            .map(Some)
+            .map_err(composer_refusal)
+    }
 }
+
+/// The source feature verdicts a server configuration offers a seat: the client message set the Brain may send, and
+/// which runtime parts exist (abilities, the planning phase, chests and camps with mobs, statuses, areas, floor hazards).
+pub(crate) fn configured_features(sim: &rh_sim::SimConfig, map: &TileMap) -> Features {
+    /// The client messages the Brain may send on this server (the source feature grammar's set).
+    const FEATURE_MESSAGES: [&str; 11] = [
+        "move",
+        "stop",
+        "target",
+        "attack",
+        "release",
+        "swap",
+        "pickup",
+        "cast",
+        "plan",
+        "choose",
+        "useConsumable",
+    ];
+    let abilities = sim.abilities != rh_sim::abilities::Mode::Off;
+    let planning = matches!(sim.lifecycle, rh_sim::ArenaMode::Source(_));
+    let camps = sim.mob_mode != rh_sim::mob_runtime::MobMode::Off;
+    let hazards = sim.hazards != rh_sim::terrain::Mode::Off
+        && map
+            .layers()
+            .is_some_and(|layers| layers.data().terrain.iter().any(|t| (4..=7).contains(t)));
+    Features {
+        message_types: FEATURE_MESSAGES.iter().map(|m| m.to_string()).collect(),
+        wishes: abilities,
+        status_effects: true,
+        fields: abilities,
+        planning,
+        chests: true,
+        skills: false,
+        relics: true,
+        camps,
+        hazards,
+    }
+}
+
+/// The Brain's map record and projections over the match's public static map (`Arena` layers; a hand-built map has
+/// none, so its camps, coliseum and regions are empty). Called with the seat's public setup arena (no spawn points).
+pub(crate) fn brain_map(arena: &Arena) -> super::config::BrainMap {
+    use super::super::memory::{CampGeom, MemoryMap};
+    use super::super::strategy::types::{CampDef, ColiseumDef, StrategyMap};
+    use super::super::tactics::types::TacticsMap;
+    let open = arena.map.clone();
+    let locked = with_gates(&open);
+    let data = open.layers().map(|layers| layers.data());
+    let zone = |z: rh_sim::mapdata::Zone| FactionId::parse(z.as_str());
+    let mut memory_camps = Vec::new();
+    let mut strategy_camps = Vec::new();
+    if let Some(data) = data {
+        for camp in &data.camps {
+            let Some(zone) = zone(camp.zone) else {
+                continue;
+            };
+            let spots: Vec<Vec2> = camp.spots.iter().map(|s| Vec2::new(s.x, s.y)).collect();
+            memory_camps.push(CampGeom {
+                id: camp.id.clone(),
+                zone,
+                elite: camp.elite_spot >= 0,
+                x: camp.x,
+                y: camp.y,
+                radius: if camp.radius > 0. {
+                    camp.radius
+                } else {
+                    camp.r
+                },
+                spots: spots.clone(),
+            });
+            strategy_camps.push(CampDef {
+                id: camp.id.clone(),
+                zone,
+                x: camp.x,
+                y: camp.y,
+                r: camp.r,
+                spots,
+                elite_spot: f64::from(camp.elite_spot),
+                chest: Vec2::new(camp.chest.x, camp.chest.y),
+                area: f64::from(camp.area),
+                radius: camp.radius,
+            });
+        }
+    }
+    let centre = data.map_or(arena.centre(), |d| {
+        Vec2::new(d.coliseum.centre.x, d.coliseum.centre.y)
+    });
+    let inner = data.map_or(Vec::new(), |d| {
+        d.coliseum
+            .inner_spawns
+            .iter()
+            .map(|s| Vec2::new(s.x, s.y))
+            .collect()
+    });
+    let cells = (open.w * open.h) as usize;
+    let region_grid = data.map_or(vec![0; cells], |d| d.region_grid.clone());
+    let terrain = data.map_or(vec![0; cells], |d| d.terrain.clone());
+    super::config::BrainMap {
+        raw: BVal::obj([
+            ("w", BVal::num(f64::from(open.w))),
+            ("h", BVal::num(f64::from(open.h))),
+        ]),
+        strategy: StrategyMap {
+            camps: strategy_camps,
+            coliseum: ColiseumDef {
+                centre,
+                inner_spawns: inner,
+            },
+            width: f64::from(open.w),
+            height: f64::from(open.h),
+        },
+        tactics: TacticsMap {
+            tile_map: open.clone(),
+            width: open.w,
+            height: open.h,
+            region_grid,
+            coliseum_centre: centre,
+            camps: memory_camps.clone(),
+        },
+        memory: MemoryMap {
+            camps: memory_camps,
+        },
+        plan: crate::bots::planning::PlanMap::from_arena(arena),
+        terrain,
+        open,
+        locked,
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    /// The admitted full gameplay map the source-arena profile runs on.
+    pub(crate) fn seed1_arena() -> rh_sim::Arena {
+        let file: rh_sim::mapdata::MapExport = serde_json::from_str(include_str!(
+            "../../../../../rh-sim/src/mapdata/fixtures/seed1.map.json"
+        ))
+        .expect("seed1 map");
+        file.validate()
+            .expect("valid map")
+            .into_arena()
+            .expect("arena")
+    }
+}
+
+/// The cloud session's composer oracles (P-BOT-BRAIN-LIVE-1, `compose14/tests.rs`): source grammar over whole Brain
+/// matches, the hidden-state twin through `BrainBot`, and the seat profiling diagnostic.
+#[cfg(test)]
+mod tests;
 
 #[cfg(test)]
 mod live2a_tests {
@@ -1813,8 +2203,9 @@ mod live2a_tests {
         assert_eq!(module.self_.attack_target, held);
         let hand = adapters::hand_percept(&p).expect("hand");
         assert_eq!(hand.self_view.attack_target, held);
-        // The always-undefined numbers read as NaN (`+undefined`), never as a plausible 0.
-        assert!(strategy.self_.mob_kills.is_nan() && tactic.self_.immune_until.is_nan());
+        // The always-undefined numbers read as NaN (`+undefined`), never as a plausible 0. `self.mobKills` is derived
+        // (P-BOT-BRAIN-RECONCILE-1, brief 6.4, DEV-026): no credited death seen yet is a count of 0.
+        assert!(strategy.self_.mob_kills == 0. && tactic.self_.immune_until.is_nan());
         assert!(memory.minimap.t.is_nan() && tactic.hud.min_players.is_nan());
     }
 

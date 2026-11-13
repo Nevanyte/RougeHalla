@@ -448,7 +448,7 @@ fn each_degraded_leaf_is_undefined_and_none_is_a_default() {
     let s = at(&raw, "self");
     // not on the wire: the owner's total mob kills (build-summary stacks exclude elites and are capped), the deadline of
     // its immunity, the whole-room alive count, min players, winner.
-    assert_eq!(at(s, "mobKills"), &BVal::Undefined, "self.mobKills");
+    assert_eq!(at(s, "mobKills"), &BVal::num(0.), "self.mobKills: derived, no credited death seen (DEV-026)");
     assert_eq!(at(s, "immuneUntil"), &BVal::Undefined, "self.immuneUntil");
     let hud = at(&raw, "hud");
     assert_eq!(at(hud, "alive"), &BVal::Undefined, "hud.alive");
