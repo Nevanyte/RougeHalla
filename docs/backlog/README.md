@@ -450,6 +450,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-ALLOC-CLONE-WARM-1 | the first step after a clone or a restore allocates nothing, and the test that says so runs under the gate | P-TRAINING-CAMPS-1 | Brief ([spec](packets/P-ALLOC-CLONE-WARM-1.md)); needs oracle | none |
 | P-UNITY-DRESS-1 | the client draws the decoration the server sends and rolls none of its own | P-DRESS-BAKE-1 | Brief ([spec](packets/P-UNITY-DRESS-1.md)); oracle being written | none |
 | P-SIM-REPLAY-LONG-1 | a replay steps exactly as the live room does, so a long recording verifies (stale events in an uncleared buffer wake shield mobs) | none | Brief ([spec](packets/P-SIM-REPLAY-LONG-1.md)); needs oracle | none |
+| P-MAPGEN-STYLE-REFUSE-1 | a styler that cannot build round its landmark refuses the attempt; it does not fail generation | P-LAND-SENTENCED-1 | Brief ([spec](packets/P-MAPGEN-STYLE-REFUSE-1.md)); needs oracle; before P-MAPGEN-SIG-SCALE-2 | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
