@@ -357,6 +357,15 @@ impl<'f> Pipeline<'f> {
             feature_owner: landmark.state.feature_owner,
             features: landmark.state.features,
         };
+        // P-MAPGEN-SIG-SCALE-1: a reserved site with an inside camp is that camp's territory before the stylers and
+        // repair read the grid. Option-on attempts only (`placed`); no draw.
+        if placed.is_some() {
+            crate::mapgen::landmarks::signature::relabel_sites(
+                &prefix.reserved,
+                &prefix.layout.camps,
+                &mut state.territory_grid,
+            );
+        }
         let picked = spawns::prepare_and_pick(
             &self.spawns,
             &spawns::PoolInput {

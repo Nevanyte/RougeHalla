@@ -1,19 +1,27 @@
-//! Frost: the cave (P-MAPGEN-SIG-FROST-1; no legacy counterpart, DEV-020). A rectangular wall chamber on the Frost zone's
-//! back edge round the zone's far elite camp (the elite camp farthest from the map centre; with a reserved site,
-//! P-MAPGEN-SIG-RESERVE-1: the site's camp, the zone's first elite, wholly inside the site's inner rect), its interior
-//! holding the camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
-//! map border, so the chamber may be off-centre. It is closed except for one mouth (`2 * mouth + 1` floor tiles) in the
-//! wall toward the coliseum (the dominant axis of DIR16 toward it, else the other axis), nearer the coliseum than the
-//! camp, its axis up to `door_shift` tiles off the camp's, with `doorway` tiles of free Frost floor beyond it. The cave
-//! owns its walls and its ice: every interior tile with interior floor on all eight sides (so never against a wall or
-//! the mouth row) outside every camp halo and the open map corners; at least `cave_ice_min`.
+//! Frost: the cave (P-MAPGEN-SIG-FROST-1; no legacy counterpart, DEV-020).
 //!
-//! Choice: the mouth axis nearest the camp that admits any chamber; among those chambers one uniform draw (redrawn while
-//! a choice would split the zone's floor or leave a wall piece under `piece_min`).
+//! With a reserved site (P-MAPGEN-SIG-RESERVE-1, every option-on attempt) the cave IS the owner-approved blueprint
+//! (P-MAPGEN-SIG-SCALE-1; ADR 0028 G9, decision 11): `Definition::cave_grid`, a 29 x 29 drawing parsed once per
+//! context (`Blueprint`), its `E` on the site's camp tile, its mouth toward the coliseum (the dominant axis of DIR16 from
+//! the camp tile toward it), mirrored or not by one draw of the Frost stream. `#` and `R` are the cave's walls, `=` its
+//! ice; `.`, `E` and the mouth `D` stay unwritten floor. A site that cannot hold the drawing refuses the attempt; the
+//! drawing is never served smaller.
+//!
+//! Without a reserved site (a `begin_attempt` prefix, which only tests feed the step: the option-on Prefix always
+//! reserves) the older rule-drawn chamber stands: a rectangular wall chamber on the Frost zone's back edge round the
+//! zone's far elite camp (the elite camp farthest from the map centre), its interior holding the camp's whole halo. As
+//! the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the map border, so the
+//! chamber may be off-centre. It is closed except for one mouth (`2 * mouth + 1` floor tiles) in the wall toward the
+//! coliseum (the dominant axis of DIR16 toward it, else the other axis), nearer the coliseum than the camp, its axis up
+//! to `door_shift` tiles off the camp's, with `doorway` tiles of free Frost floor beyond it. The cave owns its walls and
+//! its ice: every interior tile with interior floor on all eight sides (so never against a wall or the mouth row)
+//! outside every camp halo and the open map corners; at least `cave_ice_min`. Choice: the mouth axis nearest the camp
+//! that admits any chamber; among those chambers one uniform draw (redrawn while a choice would split the zone's floor
+//! or leave a wall piece under `piece_min`).
 use super::church::smallest_piece;
-use super::{at, front, pick, Built, Definition, Piece, Site};
+use super::{at, axis, front, pick, Built, Definition, Piece, Site};
 use crate::map::{TILE_FLOOR, TILE_WALL};
-use crate::mapdata::{FeatureJob, FeatureKind, GameMapData, TilePt, Zone, ZoneAnchor};
+use crate::mapdata::{FeatureJob, FeatureKind, GameMapData, TilePt, TileRect, Zone, ZoneAnchor};
 use crate::mapgen::certify::rules::R;
 use crate::mapgen::coliseum::{CX, CY, H, W};
 use crate::mapgen::spawns;
@@ -33,23 +41,23 @@ struct Rect {
     right: (i32, bool),
 }
 
-/// The cave round the Frost zone's far elite camp, or `None` when the zone has no legal site (the attempt is refused,
-/// G5). The mouth's side: the dominant axis of the front, then the other axis toward the coliseum; first with a
-/// forecourt (the `2 * forecourt + 1` square of Frost just beyond the mouth, room for the styler's lake), then without.
-/// `camp`: the camp tile of the zone's reserved site (P-MAPGEN-SIG-RESERVE-1), which the cave stands round; `None`
-/// without a reservation (the far elite camp).
+/// The cave, or `None` when the zone cannot hold it (the attempt is refused, G5). `camp`: the camp tile of the zone's
+/// reserved site (P-MAPGEN-SIG-RESERVE-1): the blueprint stands round it (`blueprint`). `None` without a reservation:
+/// the rule-drawn chamber round the far elite camp, its mouth's side the dominant axis of the front, then the other
+/// axis toward the coliseum; first with a forecourt (the `2 * forecourt + 1` square of Frost just beyond the mouth,
+/// room for the styler's lake), then without.
 pub(super) fn place(
     s: &Site<'_>,
     camps: &[CampSite],
     rng: &mut Mulberry32,
     camp: Option<usize>,
 ) -> Option<Built> {
-    let mut far = camp.map(|t| ((t % W) as i32, (t / W) as i32));
+    if let Some(t) = camp {
+        return blueprint(s, rng, ((t % W) as i32, (t / W) as i32));
+    }
+    let mut far = None;
     let mut best = -1i64;
-    for c in camps
-        .iter()
-        .filter(|c| camp.is_none() && c.zone == s.slot && c.elite)
-    {
+    for c in camps.iter().filter(|c| c.zone == s.slot && c.elite) {
         let (x, y) = ((c.site % W) as i64, (c.site / W) as i64);
         let r = (2 * x + 1 - W as i64).pow(2) + (2 * y + 1 - H as i64).pow(2);
         if r >= best {
@@ -76,6 +84,147 @@ pub(super) fn place(
         }
     }
     None
+}
+
+/// The cave's approved drawing (`Definition::cave_grid`), parsed once per context (`SignatureContext::from_definition`).
+/// Grid tile (gx, gy) is character gx of the gy-th line that neither starts with `;` nor is empty; the front (the mouth's
+/// side, toward the coliseum) is +gy. `#` wall, `R` rock (a wall), `=` ice floor, `.` plain floor, `E` the elite camp's
+/// tile, `D` the mouth.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Blueprint {
+    /// Side (tiles) of the square grid.
+    side: i32,
+    /// Row-major characters, `side * side`.
+    cells: Vec<u8>,
+    /// The `E` tile.
+    camp: (i32, i32),
+    /// The `D` tiles, in grid order.
+    mouth: Vec<(i32, i32)>,
+}
+
+impl Blueprint {
+    /// The drawing in `text`, or `None` unless it is a square grid of the six characters with one `E` and
+    /// `2 * mouth + 1` `D` tiles in one run on the front row.
+    pub(super) fn parse(text: &str, mouth: i32) -> Option<Self> {
+        let rows: Vec<&[u8]> = text
+            .lines()
+            .filter(|l| !l.starts_with(';') && !l.is_empty())
+            .map(str::as_bytes)
+            .collect();
+        let side = i32::try_from(rows.len()).ok().filter(|&n| n > 0)?;
+        if rows.iter().any(|r| r.len() != rows.len()) {
+            return None;
+        }
+        let cells: Vec<u8> = rows.concat();
+        if !cells.iter().all(|c| b"#R=.ED".contains(c)) {
+            return None;
+        }
+        let of = |ch: u8| -> Vec<(i32, i32)> {
+            (0..cells.len())
+                .filter(|&k| cells[k] == ch)
+                .map(|k| (k as i32 % side, k as i32 / side))
+                .collect()
+        };
+        let camps = of(b'E');
+        let doors = of(b'D');
+        let run = doors.len() == usize::try_from(2 * mouth + 1).ok()?
+            && doors.iter().all(|&(_, gy)| gy == side - 1)
+            && doors.windows(2).all(|w| w[1].0 == w[0].0 + 1);
+        if camps.len() != 1 || !run {
+            return None;
+        }
+        Some(Self {
+            side,
+            cells,
+            camp: camps[0],
+            mouth: doors,
+        })
+    }
+
+    /// Where grid tile (gx, gy) lands with `E` on camp tile `t`, the front toward unit axis `u`, mirrored or not:
+    /// unmirrored the drawing's +gx goes to r = (u.1, -u.0), mirrored to -r.
+    fn land(&self, t: (i32, i32), u: (i32, i32), mirrored: bool, g: (i32, i32)) -> (i32, i32) {
+        let s = if mirrored { -1 } else { 1 };
+        let r = (u.1 * s, -u.0 * s);
+        let (a, c) = (g.1 - self.camp.1, g.0 - self.camp.0);
+        (t.0 + a * u.0 + c * r.0, t.1 + a * u.1 + c * r.1)
+    }
+}
+
+/// The blueprint cave round camp tile `t` (P-MAPGEN-SIG-SCALE-1), or `None` (the attempt is refused) when the site
+/// cannot hold it: a wall or rock tile not `Site::wall`, any other tile not `Site::floor`, a tile of the `doorway` beyond
+/// a mouth tile not `Site::open` (the doorway lies in the site's apron, outside `inner`), a wall piece under
+/// `R.piece_min`, or the zone's floor split. The orientation: the front is `axis(front(t))`; the mirror is the cave's
+/// one draw on the Frost stream, taken first. Cells: the walls (wall, terrain 0) and the ice (floor, `ice`), owned by
+/// the cave; plain floor, `E` and the mouth are not written. Anchor: centre `t`, footprint the drawing's box, entrance
+/// the mouth.
+fn blueprint(s: &Site<'_>, rng: &mut Mulberry32, t: (i32, i32)) -> Option<Built> {
+    let d = &s.ctx.rules;
+    let mirrored = pick(rng, 2) == 1;
+    let bp = s.ctx.cave.as_ref()?;
+    let f = front(t.0, t.1);
+    let u = axis(f);
+    let mut walls = Vec::new();
+    let mut cells = Vec::new();
+    let (mut x0, mut y0, mut x1, mut y1) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
+    for gy in 0..bp.side {
+        for gx in 0..bp.side {
+            let (x, y) = bp.land(t, u, mirrored, (gx, gy));
+            (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+            let ch = bp.cells[(gy * bp.side + gx) as usize];
+            let wall = matches!(ch, b'#' | b'R');
+            let legal = if wall { s.wall(x, y) } else { s.floor(x, y) };
+            if !legal {
+                return None;
+            }
+            let i = at(x, y)?;
+            if wall {
+                walls.push(i);
+                cells.push((i, TILE_WALL, 0));
+            } else if ch == b'=' {
+                cells.push((i, TILE_FLOOR, d.ice));
+            }
+        }
+    }
+    let mouth: Vec<TilePt> = bp
+        .mouth
+        .iter()
+        .map(|&g| {
+            let (x, y) = bp.land(t, u, mirrored, g);
+            TilePt { x, y }
+        })
+        .collect();
+    let doorway = mouth
+        .iter()
+        .all(|p| (1..=d.doorway).all(|a| s.open(p.x + a * u.0, p.y + a * u.1)));
+    if !doorway
+        || smallest_piece(&walls) < R.piece_min
+        || s.floor_pieces(&walls) > s.floor_pieces(&[])
+    {
+        return None;
+    }
+    cells.sort_unstable_by_key(|c| c.0);
+    Some(Built {
+        anchor: ZoneAnchor {
+            zone: Zone::Frost,
+            kind: FeatureKind::Cave,
+            centre: TilePt { x: t.0, y: t.1 },
+            footprint: TileRect {
+                x: x0,
+                y: y0,
+                w: (x1 - x0 + 1) as u32,
+                h: (y1 - y0 + 1) as u32,
+            },
+            front: f,
+            entrance: mouth,
+        },
+        pieces: vec![Piece {
+            kind: FeatureKind::Cave,
+            job: FeatureJob::Landmark,
+            anchor: t,
+            cells,
+        }],
+    })
 }
 
 /// The end-of-attempt lake rule on a finished map (P-MAPGEN-SIG-FROST-2; owner decision 4: the mouth faces the lake).
@@ -431,6 +580,31 @@ mod tests {
 
     fn ok(m: &GameMapData) -> bool {
         lake_at_mouth(m, &DEFAULT_DEFINITION)
+    }
+
+    #[test]
+    fn the_default_blueprint_parses_and_malformed_grids_do_not() {
+        let d = DEFAULT_DEFINITION;
+        let bp = Blueprint::parse(d.cave_grid, d.mouth).expect("the approved drawing parses");
+        assert_eq!((bp.side, bp.camp), (29, (14, 7)));
+        assert_eq!(bp.mouth, vec![(13, 28), (14, 28), (15, 28)]);
+        // Unmirrored with the front +y the drawing lands as drawn; mirrored, flipped across E's column.
+        assert_eq!(bp.land((50, 50), (0, 1), false, (0, 0)), (36, 43));
+        assert_eq!(bp.land((50, 50), (0, 1), true, (0, 0)), (64, 43));
+        let ok = ";legend\n#####\n#.E.#\n#...#\n#...#\n#DDD#\n";
+        assert!(Blueprint::parse(ok, 1).is_some());
+        for bad in [
+            "",
+            ";only a legend\n",
+            "#####\n#.E.#\n#...#\n#DDD#\n",        // not square
+            "#####\n#.E.#\n#.E.#\n#...#\n#DDD#\n", // two camps
+            "#####\n#.E.#\n#...#\n#...#\n#DD.#\n", // short mouth
+            "#####\n#.E.#\n#...#\n#DDD#\n#####\n", // mouth off the front row
+            "#####\n#.E.#\n#...#\n#...#\n#D.DD\n", // mouth not one run
+            "#####\n#.E.#\n#.x.#\n#...#\n#DDD#\n", // unknown character
+        ] {
+            assert!(Blueprint::parse(bad, 1).is_none(), "{bad:?}");
+        }
     }
 
     #[test]
