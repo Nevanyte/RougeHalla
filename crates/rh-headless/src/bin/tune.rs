@@ -5,7 +5,9 @@
 use rh_headless::tournament::{parse_lineup, sim_config_for, TournamentPlan};
 use rh_headless::tournament_cli::default_arena;
 use rh_headless::tournament_learning::SeatPolicy;
-use rh_headless::tune::{search, search_file, table_file, SearchConfig};
+use rh_headless::tune::{
+    check_held_out_seed, evidence, search, search_file_with_evidence, table_file, SearchConfig,
+};
 use rh_policy::bots::types::BrainTables;
 
 const USAGE: &str = "usage: cargo run --release -p rh-headless --bin tune -- [options]
@@ -68,6 +70,7 @@ fn run(argv: &[String]) -> Result<(), String> {
     };
     let mut out = "brain-search.json".to_owned();
     let mut commit_given = None;
+    let mut held_out: Option<u32> = None;
     let mut args = argv.iter();
     while let Some(flag) = args.next() {
         match flag.as_str() {
@@ -94,8 +97,7 @@ fn run(argv: &[String]) -> Result<(), String> {
             "--lineup" => config.plan.tiers = parse_lineup(&value(&mut args, flag)?)?,
             "--tournament-seed" => config.plan.seed = number(&value(&mut args, flag)?, flag)?,
             "--held-out-tournament-seed" => {
-                // P-BOT-TUNER-2 stub: parsed and ignored.
-                let _held_out: u32 = number(&value(&mut args, flag)?, flag)?;
+                held_out = Some(number(&value(&mut args, flag)?, flag)?);
             }
             "--workers" => {
                 config.plan.workers = number::<u32>(&value(&mut args, flag)?, flag)?.max(1)
@@ -126,10 +128,14 @@ fn run(argv: &[String]) -> Result<(), String> {
         return Err("--population, --changes and --games need at least 1".into());
     }
     config.commit = commit_given.unwrap_or_else(commit);
+    if let Some(seed) = held_out {
+        check_held_out_seed(&config, seed)?;
+    }
     let arena = default_arena();
     let sim = sim_config_for(&config.plan);
     let result = search(&config, &arena, &sim);
-    let text = serde_json::to_string_pretty(&search_file(&config, &result))
+    let ev = evidence(&config, &result, &arena, &sim, held_out)?;
+    let text = serde_json::to_string_pretty(&search_file_with_evidence(&config, &result, &ev))
         .map_err(|e| e.to_string())?
         + "\n";
     std::fs::write(&out, text).map_err(|e| format!("cannot write {out}: {e}"))?;
@@ -139,6 +145,22 @@ fn run(argv: &[String]) -> Result<(), String> {
         result.best_score,
         result.candidates.len()
     );
+    // The held-out verdict when a seed was given, the in-sample one otherwise.
+    let (rows, basis) = match &ev.held_out {
+        Some(h) => (&h.tiers, format!("held-out seed {}", h.seed)),
+        None => (&ev.search, "search seeds, in sample".to_owned()),
+    };
+    for row in rows {
+        println!(
+            "{}: {} ({basis}; best {}/{} vs shipped {}/{} wins)",
+            row.tier.as_str(),
+            row.verdict.as_str(),
+            row.best.k,
+            row.best.n,
+            row.baseline.k,
+            row.baseline.n
+        );
+    }
     Ok(())
 }
 

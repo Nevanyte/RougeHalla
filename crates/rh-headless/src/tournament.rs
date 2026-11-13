@@ -15,6 +15,7 @@
 //! values; play_measured adds worker durations outside simulation and never feeds clocks to policies.
 
 use crate::{Agent, AgentSpec, Env, EnvConfig};
+use rh_policy::bots::types::{BrainTables, TierParams};
 use rh_policy::bots::{HumanBot, PersonaId, TierId};
 
 use rh_sim::constants::{MAX_PLAYERS, TICK_MS};
@@ -932,7 +933,12 @@ const READING_KINDS: [&str; 3] = ["announcement", "chestUp", "planOffer"];
 
 /// The mean the tier table promises for a stimulus kind, before attention (source report.ts tableReactionMean).
 pub fn table_reaction_mean(tier: TierId, kind: &str) -> f64 {
-    let t = tier_params(tier);
+    table_reaction_mean_in(&BrainTables::COMPILED, tier, kind)
+}
+
+/// [`table_reaction_mean`] for the given tables (the plan's, under `--tune`).
+pub fn table_reaction_mean_in(tables: &BrainTables, tier: TierId, kind: &str) -> f64 {
+    let t = tier_params(tables, tier);
     if kind == "teleport" {
         return t.daze.mu + t.daze.tau;
     }
@@ -944,8 +950,9 @@ pub fn table_reaction_mean(tier: TierId, kind: &str) -> f64 {
     }
 }
 
-fn tier_params(id: TierId) -> &'static rh_policy::bots::TierParams {
-    rh_policy::bots::TIERS
+fn tier_params(tables: &BrainTables, id: TierId) -> &TierParams {
+    tables
+        .tiers
         .iter()
         .find(|t| t.id == id)
         .expect("a known tier")
@@ -1082,17 +1089,14 @@ const SCALED_KINDS: [&str; 5] = [
     "planOffer",
 ];
 
-/// Aggregate every game into the report (source report.ts aggregate).
-/// P-BOT-TUNER-2 stub: `aggregate` with the reaction and APM columns read from `tables` (the plan's tables) instead of
-/// the compiled ones. Not implemented yet: reads the compiled tables.
-pub fn aggregate_with(
-    games: &[GameSummary],
-    _tables: &rh_policy::bots::types::BrainTables,
-) -> Report {
-    aggregate(games)
+/// Aggregate every game into the report (source report.ts aggregate), the reaction and APM columns read from the
+/// compiled tables.
+pub fn aggregate(games: &[GameSummary]) -> Report {
+    aggregate_with(games, &BrainTables::COMPILED)
 }
 
-pub fn aggregate(games: &[GameSummary]) -> Report {
+/// [`aggregate`] with the reaction and APM columns read from `tables` (the plan's tables) instead of the compiled ones.
+pub fn aggregate_with(games: &[GameSummary], tables: &BrainTables) -> Report {
     let all: Vec<&BotSummary> = games.iter().flat_map(|g| g.bots.iter()).collect();
     let total_wins = all.iter().filter(|b| b.outcome == GameOutcome::Won).count() as f64;
     let mut secs: Vec<f64> = games.iter().map(|g| g.duration_ms / 1000.).collect();
@@ -1113,7 +1117,7 @@ pub fn aggregate(games: &[GameSummary]) -> Report {
     let tiers = TIER_IDS
         .into_iter()
         .filter(|t| present(*t))
-        .map(|t| tier_agg(t, games, total_wins))
+        .map(|t| tier_agg(t, games, total_wins, tables))
         .collect();
     let personas: Vec<GroupAgg> = PERSONA_IDS
         .iter()
@@ -1162,8 +1166,8 @@ pub fn aggregate(games: &[GameSummary]) -> Report {
     }
 }
 
-fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
-    let params = tier_params(tier);
+fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64, tables: &BrainTables) -> TierAgg {
+    let params = tier_params(tables, tier);
     let mut rows: Vec<&BotSummary> = Vec::new();
     let mut per_game_place: Vec<f64> = Vec::new();
     for game in games {
@@ -1208,7 +1212,7 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
             p50: percentile(&xs, 0.5),
             p90: percentile(&xs, 0.9),
             mean: mean(&xs),
-            table: table_reaction_mean(tier, &kind),
+            table: table_reaction_mean_in(tables, tier, &kind),
         });
         if !SCALED_KINDS.contains(&kind.as_str()) {
             pool.extend(xs);

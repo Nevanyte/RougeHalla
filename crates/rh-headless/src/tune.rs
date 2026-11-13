@@ -10,7 +10,9 @@
 //! A patched table is installed per thread with [`with_tables`] around each game, so games may run on any worker count
 //! and are folded in plan order. Each installed table is leaked once (`'static`, as the Brain holds its tables): a
 //! search leaks one small table per proposal, which an offline run can afford.
-use crate::tournament::{aggregate, play_each, win_band, GameSummary, Proportion, TournamentPlan};
+use crate::tournament::{
+    aggregate, aggregate_with, play_each, win_band, GameSummary, Proportion, TournamentPlan,
+};
 use crate::tournament_cli::lineup_text;
 use crate::tournament_learning::{run_learning_game, SeatPolicy};
 use rh_policy::bots::learning::LearnedBias;
@@ -878,7 +880,7 @@ pub fn search_file(config: &SearchConfig, result: &SearchResult) -> Value {
     })
 }
 
-/// P-BOT-TUNER-2 stub: how a table's per-tier win interval compares with the baseline's.
+/// How a table's per-tier win interval compares with the baseline's (both over the same games).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Verdict {
     Better,
@@ -889,13 +891,25 @@ pub enum Verdict {
 impl Verdict {
     /// "better", "worse" or "not distinguishable".
     pub fn as_str(self) -> &'static str {
-        "not distinguishable"
+        match self {
+            Verdict::Better => "better",
+            Verdict::Worse => "worse",
+            Verdict::NotDistinguishable => "not distinguishable",
+        }
     }
 }
 
-/// Stub: always `NotDistinguishable`.
-pub fn verdict(_best: &Proportion, _baseline: &Proportion) -> Verdict {
-    Verdict::NotDistinguishable
+/// Better when the best table's lower bound is strictly above the baseline's upper bound, worse when its upper bound is
+/// strictly below the baseline's lower bound, otherwise (and for an empty tier, whose bounds are NaN) not
+/// distinguishable.
+pub fn verdict(best: &Proportion, baseline: &Proportion) -> Verdict {
+    if best.lo > baseline.hi {
+        Verdict::Better
+    } else if best.hi < baseline.lo {
+        Verdict::Worse
+    } else {
+        Verdict::NotDistinguishable
+    }
 }
 
 /// One tier's win proportions for the baseline and a candidate table over the same games, and the verdict.
@@ -907,16 +921,34 @@ pub struct TierComparison {
     pub verdict: Verdict,
 }
 
-/// Stub: plays nothing, returns no tiers.
+/// Play `plan` once with `baseline` and once with `candidate` (the same games) and compare per tier, in tier order.
 pub fn compare_tables(
-    _plan: &TournamentPlan,
-    _arena: &Arena,
-    _sim: &SimConfig,
-    _policy: SeatPolicy,
-    _baseline: &BrainTables,
-    _candidate: &BrainTables,
+    plan: &TournamentPlan,
+    arena: &Arena,
+    sim: &SimConfig,
+    policy: SeatPolicy,
+    baseline: &BrainTables,
+    candidate: &BrainTables,
 ) -> Vec<TierComparison> {
-    Vec::new()
+    let play = |tables: &BrainTables| {
+        let installed: &'static BrainTables = Box::leak(Box::new(*tables));
+        let games = play_tuned(plan, arena, sim, policy, installed);
+        aggregate_with(&games, tables)
+    };
+    let base = play(baseline);
+    let best = play(candidate);
+    base.tiers
+        .iter()
+        .filter_map(|b| {
+            let c = best.tiers.iter().find(|c| c.tier == b.tier)?;
+            Some(TierComparison {
+                tier: b.tier,
+                baseline: b.win_rate,
+                best: c.win_rate,
+                verdict: verdict(&c.win_rate, &b.win_rate),
+            })
+        })
+        .collect()
 }
 
 /// The held-out re-score: the seed and the per-tier comparison (shipped tables against the best table).
@@ -936,32 +968,95 @@ pub struct Evidence {
     pub held_out: Option<HeldOut>,
 }
 
-/// Stub: accepts every seed.
-pub fn check_held_out_seed(_config: &SearchConfig, _seed: u32) -> Result<(), String> {
+/// A held-out seed must differ from the search's own seeds (`--seed`, `--tournament-seed`).
+pub fn check_held_out_seed(config: &SearchConfig, seed: u32) -> Result<(), String> {
+    if seed == config.plan.seed {
+        return Err(format!(
+            "held-out seed {seed} equals --tournament-seed: the held-out seed must differ from every search seed"
+        ));
+    }
+    if seed == config.seed {
+        return Err(format!(
+            "held-out seed {seed} equals --seed: the held-out seed must differ from every search seed"
+        ));
+    }
     Ok(())
 }
 
-/// Stub: an empty evidence block.
+/// Compare the best table with the shipped tables on the search's plan and, given a seed, on a held-out seed.
 pub fn evidence(
-    _config: &SearchConfig,
-    _result: &SearchResult,
-    _arena: &Arena,
-    _sim: &SimConfig,
-    _held_out_seed: Option<u32>,
+    config: &SearchConfig,
+    result: &SearchResult,
+    arena: &Arena,
+    sim: &SimConfig,
+    held_out_seed: Option<u32>,
 ) -> Result<Evidence, String> {
+    if let Some(seed) = held_out_seed {
+        check_held_out_seed(config, seed)?;
+    }
+    let baseline = BrainTables::COMPILED;
+    let search = compare_tables(
+        &config.plan,
+        arena,
+        sim,
+        config.policy,
+        &baseline,
+        &result.best,
+    );
+    let held_out = held_out_seed.map(|seed| {
+        let plan = TournamentPlan {
+            seed,
+            ..config.plan.clone()
+        };
+        HeldOut {
+            seed,
+            tiers: compare_tables(&plan, arena, sim, config.policy, &baseline, &result.best),
+        }
+    });
     Ok(Evidence {
-        baseline_spread: 0.,
-        best_spread: 0.,
-        search: Vec::new(),
-        held_out: None,
+        baseline_spread: persona_spread(&baseline),
+        best_spread: persona_spread(&result.best),
+        search,
+        held_out,
     })
 }
 
-/// Stub: the existing file, unchanged.
+fn proportion_json(p: &Proportion) -> Value {
+    json!({"wins": p.k, "games": p.n, "p": p.p, "lo": p.lo, "hi": p.hi})
+}
+
+fn tiers_json(rows: &[TierComparison]) -> Value {
+    let tiers: Map<String, Value> = rows
+        .iter()
+        .map(|r| {
+            (
+                r.tier.as_str().to_owned(),
+                json!({
+                    "baseline": proportion_json(&r.baseline),
+                    "best": proportion_json(&r.best),
+                    "verdict": r.verdict.as_str(),
+                }),
+            )
+        })
+        .collect();
+    Value::Object(tiers)
+}
+
+/// [`search_file`] plus one top-level `evidence` object.
 pub fn search_file_with_evidence(
     config: &SearchConfig,
     result: &SearchResult,
-    _evidence: &Evidence,
+    evidence: &Evidence,
 ) -> Value {
-    search_file(config, result)
+    let mut file = search_file(config, result);
+    file["evidence"] = json!({
+        "interval": "wilson 95% (z = 1.96) of per-bot wins",
+        "spread": {"baseline": evidence.baseline_spread, "best": evidence.best_spread},
+        "search": {"tiers": tiers_json(&evidence.search)},
+        "heldOut": evidence.held_out.as_ref().map(|h| json!({
+            "seed": h.seed,
+            "tiers": tiers_json(&h.tiers),
+        })),
+    });
+    file
 }
