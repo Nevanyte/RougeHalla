@@ -911,6 +911,8 @@ fn apply_victim(
                     by: e.by,
                     amount: amounts[j] * landed_share,
                     race: races[k],
+                    passive: e.passive,
+                    derived: e.derived,
                 });
             }
             if let Some(sig) = e.sig.filter(|sig| !sig.is_dot()) {

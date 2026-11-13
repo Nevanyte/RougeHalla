@@ -826,6 +826,8 @@ mod tests {
             by: Some(PlayerId(by)),
             amount: 100.,
             race: 1.,
+            passive: false,
+            derived: false,
         }
     }
     /// Source updateChill: the victim's folded slow_resist (Iron Will 0.4) weakens the attack chill and the combined

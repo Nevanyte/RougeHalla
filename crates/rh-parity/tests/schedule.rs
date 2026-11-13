@@ -453,6 +453,18 @@ fn what_the_slice_has_ported_stays_ported() {
         .unwrap();
     assert_eq!(reset.pending, Some("P-ABIL-1"));
     assert_eq!(reset.completed, Some("status and field reset"));
+    // P-MECHANICS-SALVAGE-2: Tank Engine, Pocket Sand, Best Offense's block hit and its pending note (every world).
+    let blocked = t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::Blocked)
+        .unwrap()
+        .1
+        .iter()
+        .find(|e| e.legacy == "cardHooks.onBlocked")
+        .unwrap();
+    assert_eq!(blocked.pending, None);
+    assert_eq!(blocked.completed, None);
     assert!(ported(&t.systems).contains(&"feed.flushAnnouncements"));
     assert!(ported(&t.systems).contains(&"mods.updateMods"));
     assert!(ported(&t.systems).contains(&"walkHint.updateWalkHints"));

@@ -1873,12 +1873,10 @@ static HIT_LANDED: [Link; 4] = [
     ),
 ];
 static BLOCKED: [Link; 2] = [
-    partial_link(
+    ported_link(
         "cardHooks.onBlocked",
         Mode::Append,
         Gate::Always,
-        "Pocket Sand block status",
-        "P-CARDS-1",
         crate::cards::on_blocked,
     ),
     ported_link(
