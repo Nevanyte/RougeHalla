@@ -75,16 +75,13 @@ fn dist_point_to_segment(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -
     let abx = bx - ax;
     let aby = by - ay;
     let len2 = abx * abx + aby * aby;
-    let mut t = if len2 > 0. {
+    let t = if len2 > 0. {
         ((px - ax) * abx + (py - ay) * aby) / len2
     } else {
         0.
     };
-    if t < 0. {
-        t = 0.;
-    } else if t > 1. {
-        t = 1.;
-    }
+    // Legacy clamps with two ifs; `clamp` gives the same result, NaN included.
+    let t = t.clamp(0., 1.);
     let ex = px - (ax + abx * t);
     let ey = py - (ay + aby * t);
     crate::math::sqrt(ex * ex + ey * ey)
