@@ -9,7 +9,8 @@
 //!   (largest dot product, first on a tie), as in `mapgen_signature_core.rs`.
 //! * cave: the one feature of kind `Cave` (zone Frost). Its footprint: the feature's bbox, which is the Frost anchor's
 //!   `footprint`. Its mouth: the Frost anchor's `entrance` tiles.
-//! * far elite camp: the Frost camp with `elite_spot >= 0` farthest from the map centre (first on a tie). Its tile:
+//! * far elite camp: the Frost camp with `elite_spot >= 0` at the Frost anchor's centre (amended by
+//!   P-MAPGEN-SIG-RESERVE-1; was: farthest from the map centre, first on a tie). Its tile:
 //!   the camp point's tile; its clearing: every tile whose point is within `r` of the camp point.
 //! * interior: the floor tiles reached by a 4-connected flood over floor from the far elite camp's tile, with the mouth
 //!   tiles treated as blocked.
@@ -204,19 +205,27 @@ fn anchor(seed: i64, m: &GameMapData, zone: Zone) -> &ZoneAnchor {
         })
 }
 
-/// The far elite camp's tile and its clearing (camp point and radius, tiles).
+/// The far elite camp's tile and its clearing (camp point and radius, tiles). Amended by P-MAPGEN-SIG-RESERVE-1: the
+/// cave's camp is the Frost elite camp at the Frost anchor's centre (drawn inside the cave's reserved site, it need not
+/// be the elite farthest from the map centre); a map without a Frost anchor falls back to the farthest elite.
 fn far_elite(seed: i64, m: &GameMapData) -> (Cell, (f64, f64, f64)) {
     let centre = map_centre(m);
+    let anchored = m
+        .anchors
+        .iter()
+        .find(|a| a.zone == Zone::Frost)
+        .map(|a| (a.centre.x, a.centre.y));
     let c = m
         .camps
         .iter()
         .filter(|c| c.zone == Zone::Frost && c.elite_spot >= 0)
+        .filter(|c| anchored.is_none_or(|t| world_cell(c.x, c.y) == t))
         .max_by(|a, b| {
             let da = dist(point(world_cell(a.x, a.y)), centre);
             let db = dist(point(world_cell(b.x, b.y)), centre);
             da.total_cmp(&db)
         })
-        .unwrap_or_else(|| panic!("seed {seed}: no Frost elite camp"));
+        .unwrap_or_else(|| panic!("seed {seed}: no Frost elite camp at the cave's centre"));
     (world_cell(c.x, c.y), (c.x / TILE, c.y / TILE, c.r / TILE))
 }
 

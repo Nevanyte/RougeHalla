@@ -4,8 +4,9 @@ Status: **Proposed.** Owner beta-follow-up decisions 5 and 6 (MIGRATION, 2026-11
 generation order and the core rules G1-G8 below). Packets P-SIGNATURE-1, P-SIGNATURE-1-fix (the server post-pass) and
 P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator),
 P-MAPGEN-SIG-FIRE-2 (craters sized by band, streams two tiles wide), P-MAPGEN-SIG-FROST-1 (the Frost cave in the
-generator; the server post-pass deleted). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner
-signs.
+generator; the server post-pass deleted), P-MAPGEN-SIG-RESERVE-1 (each landmark's site reserved in the Prefix before
+the camps; decision 12). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner signs. DEV-028
+(proposed, unsigned) is the elite rule under the option (decision 12).
 
 **Per-operation checklist.** D1: new terrain with no legacy counterpart, an intentional difference (DEV-020); with the
 option off every map is byte-identical (G8). D2: n/a. No sim tick, wire or protocol change; the map export format stays
@@ -40,7 +41,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    runs it right after the legacy landmark stage and before the spawn preparation, only when
    `pipeline::Options::signature` (serde default `false`) and the attempt is styled. Zones in order Fire, Sentenced,
    Plague, Frost; the volcano and the bog tree keep out of the aprons marked before them, and the end-of-attempt
-   discard keeps every landmark out of every other's apron (decision 6). All four landmarks are generator-placed; nothing is
+   discard keeps every landmark out of every other's apron (decision 6). Each landmark's site is reserved earlier, in
+   the Prefix before the camps (decision 12); the step builds inside it. All four landmarks are generator-placed; nothing is
    added after generation. Not a landmark recipe: the legacy
    stage admits only floor-to-wall writes owned by `FeatureKind::Landmark`, whose certifier rules and `map.buildings`
    records belong to the legacy buildings.
@@ -51,15 +53,22 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    diagonal, so its keep mask is its own tiles and its apron those tiles grown by the core band. Its terrain (the bog,
    the lava and ember, the cave's ice) is the attempt's starting terrain layer.
 3. **Randomness.** One stream per zone: `Mulberry32(hash_seed(seed, attempt, zone slot, 5))` (0-2 stylers, 3 recipes,
-   4 bushes). The attempt's main stream and every styler stream draw exactly what they drew before.
+   4 bushes). The attempt's main stream and every styler stream draw exactly what they drew before. The stream's first
+   draws are the Prefix's site choices (decision 12, one per prefix round that reaches the zone); the Landmarks phase
+   continues the stream after them (`ReservedSite::stream`), never re-using a draw. With the option on the main stream
+   draws what the Prefix's own steps draw (its camps are placed round the sites, so later draws move with them).
 4. **Plague, the bog tree** (`FeatureKind::BogTree`, job landmark): a 13-tile trunk (wall, squared distance <= 4 from
    the centre tile) with dry ground to squared distance 10, and bog floor in the bands 13-21 and 36-56; the centre stands
    at least 2 tiles beyond the start of the outer third of the Plague zone's radial extent from the map centre, at least
    60 bog tiles survive, with bog in all four quadrants. Trunk and bog stay out of every apron marked before the step
    (`masks.near1`: the legacy buildings grown by one tile, and the volcano's). The site is a uniform draw over every
-   legal centre.
+   legal centre. With a reserved site (decision 12) the tree stands wholly in the site's inner rect and the site
+   carries the outer-third rule: a Plague site lies beyond the outer-third line + 2 where one fits (20 of seeds 1-64 at
+   34 tiles, on each seed's accepted attempt), else it is the zone's deepest free square (the other 44), its centre still beyond the zone's centroid (coordinator
+   decision 2026-11-12: keep the 34-tile site rather than a smaller one or the outer half).
 5. **Sentenced, the church and graveyard** (`Church`, job landmark; `Graveyard`, job cover). Around the far elite camp
-   (the zone's elite camp farthest from the map centre). A rectangular wall ring: each wall line 4-7 tiles from the camp
+   (the zone's elite camp farthest from the map centre; with a reserved site, decision 12, the site's camp, the zone's
+   first elite, the church and graveyard wholly inside the site's inner rect). A rectangular wall ring: each wall line 4-7 tiles from the camp
    tile (the certifier's camp halo reaches 3), or the side leans on the map border when the border is at most 9 away; a
    side whose own wall would leave under 2 tiles to the border must lean on it. So the church may be off-centre. The
    3-tile door is on the side of the dominant axis of the front (DIR16 toward the coliseum), its axis up to 5 tiles off
@@ -110,7 +119,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    nearer the coliseum than the volcano centre. Streams and pools keep 3 tiles from each other except beside the cone.
    Ember floor edges every stream and pool, owned by it. A site is used only with at least two streams, total lava
    (crater, streams, pools) within 80-150 tiles (the legacy river held 107-158), and the zone's floor unsplit. Site
-   choice: the back-edge centres whose cone fits, in tiers by the cone's distance from every Fire camp (at least 12,
+   choice: the back-edge centres whose cone fits (with a reserved site, decision 12, a cone wholly in the site's inner
+   rect; the streams and pools are not confined), in tiers by the cone's distance from every Fire camp (at least 12,
    9, 6 tiles), 24 uniform draws per tier. The Fire styler (`style_scorch`) learns signature mode from the `Volcano`
    feature in its zone (no new styler input): it places no lava river, and a crater (a camp's pen; it cannot move)
    takes its size from its camp's band, fixed before any pen is drawn (P-MAPGEN-SIG-FIRE-2): the band of
@@ -120,7 +130,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    tile out of the core band. Legacy's freer-share choice is skipped. A camp whose band's option the route-stretch,
    rim or core checks refuse has no crater. No crater bowl claims floor in a stream's or pool's apron.
 11. **Frost, the cave** (`Cave`, job landmark; certifier row in `SIGNATURE_KINDS`: wall, no LOW). Around the far elite
-   camp, as the church: a rectangular wall ring whose interior holds the camp's halo, each wall line 4-7 tiles from the
+   camp (with a reserved site, decision 12, the site's camp, the zone's first elite, the chamber and its mouth's
+   doorway wholly inside the site's inner rect), as the church: a rectangular wall ring whose interior holds the camp's halo, each wall line 4-7 tiles from the
    camp tile or the side leaning on the map border (within 9 tiles; a side whose own wall would leave under 2 tiles to
    the border must lean). Closed except for one 3-tile mouth in the wall facing the coliseum (the dominant axis of the
    front, else the other axis toward the coliseum), its axis up to 5 tiles off the camp's, nearer the coliseum than the
@@ -140,6 +151,28 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    10) walked floor steps of the mouth (any floor, any zone, from the Frost anchor's `entrance`), else the attempt is
    discarded (`Refusal::SignatureDiscarded`) and the next one is tried; the styler is not changed. A Frost zone with no
    ice outside the cave is kept (the styler may place none).
+12. **Sites reserved before the camps** (P-MAPGEN-SIG-RESERVE-1; G1: zones, then each zone's landmark place, then
+   everything round it). With the option on a styled attempt, the Prefix (`attempt::begin_attempt_signature`) reserves,
+   in every round after the partition and before the camps, one square site per zone (Fire, Sentenced, Plague, Frost;
+   `AttemptState::reserved`), `site_side` 34 tiles: the SCALE packets' landmark target (30) plus the apron on each
+   side. Candidates: the squares wholly of the zone's tiles, off the border, coliseum, road and lanes and off the open
+   map corners, whose centre lies beyond the zone's line (Fire, Sentenced, Frost: the centroid's distance + 2; Plague:
+   decision 4). One uniform draw on the zone's signature stream; a zone without a square fails the round as a camp
+   failure does, and the next round redraws the partition (a zone never loses a camp). The Sentenced and Frost sites
+   carry their camp: on the site's centre line along the door axis, `site_depth` 9 tiles from the far edge. A square
+   whose camp tile would turn the door axis is refused, a guard only: moving the camp deeper along the axis that already
+   dominates cannot turn it, and at these numbers it refuses 0 of the 16,129 square positions on the 160x160 map
+   (reviewer's model), so it is not a filter on where sites go. Camp placement (`place_camps_reserving`) then refuses
+   every candidate and Lloyd pole whose halo meets a site; a site's camp is placed first in its zone, counts in the
+   spacing of the others, keeps its own territory label in every Lloyd step, never moves, and is the zone's first
+   elite; the zone's other 9 camps follow the legacy process. **The elite rule (coordinator decision put to the owner, not yet ruled on; DEV-028, proposed):**
+   legacy makes the camp farthest from the coliseum the first elite (`packages/shared/src/zones.ts:38-41, 869-879`);
+   under the option the Sentenced and Frost first elite is the camp the church or cave stands round, the second the
+   legacy rule against it, and the certifier's `elite-selection` reads the Church or Cave anchor's centre (a map
+   without one, every option-off map, keeps the legacy rule). Keeping legacy's rule would crowd those zones' camps
+   toward the coliseum (spread 27 against 30-32). The legacy landmark recipes treat every site tile as protected
+   (`LandmarkStage::protect` itself is unchanged: the signature step reads it). The sites are generator working state
+   only: not on `LayerData`, not exported, not hashed. Option off: the Prefix is `begin_attempt`'s, draw for draw.
 
 ## Measurements (seeds 1-16, `decor: false`, debug test build, macOS arm64)
 

@@ -209,6 +209,9 @@ fn first_candidate(
 }
 struct PoleSearch<'a> {
     context: &'a CampContext<'a, 'a>,
+    /// The tiles a camp may stand on: `CampContext::halo_ok`, less every tile whose halo meets a reserved site
+    /// (`place_camps_reserving`).
+    halo_ok: &'a [bool],
     zone: &'a [u8],
     terr: &'a [u8],
     dt: &'a [i32],
@@ -232,7 +235,7 @@ impl PoleSearch<'_> {
         };
         let mut best_v = -1;
         for &t in &self.members[n] {
-            if !self.context.halo_ok[t]
+            if !self.halo_ok[t]
                 || self.dt[t] < best_v
                 || (self.dt[t] == best_v && best.is_some_and(|b| t > b))
             {
@@ -383,6 +386,7 @@ pub fn place_camps(
                 let hulls: Vec<Vec<usize>> = members.iter().map(|m| hull(m)).collect();
                 let poles = PoleSearch {
                     context,
+                    halo_ok: &context.halo_ok,
                     zone,
                     terr: &terr,
                     dt: &dt,
@@ -449,6 +453,285 @@ pub fn place_camps(
                         >= d.elite_min_sep * d.elite_min_sep
                 })
                 .unwrap_or(by_far[1]);
+            for &elite in [first, second].iter().take(d.elites_per_zone) {
+                camps[elite].elite = true;
+            }
+            for &t in zt {
+                territory_grid[t] = base as u8 + terr[t];
+            }
+        }
+        if ok {
+            return Some(CampLayout {
+                camps,
+                territory_grid,
+            });
+        }
+    }
+    None
+}
+/// A reserved landmark site as camp placement reads it (P-MAPGEN-SIG-RESERVE-1): the zone label, the site's tiles
+/// (inclusive x0, y0, x1, y1) and the tile of the camp placed inside it (the church's and the cave's), if any.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Reserve {
+    pub zone: u8,
+    pub x0: usize,
+    pub y0: usize,
+    pub x1: usize,
+    pub y1: usize,
+    pub camp: Option<usize>,
+}
+/// `place_camps` round reserved landmark sites (P-MAPGEN-SIG-RESERVE-1; the signature option only: with the option off
+/// the Prefix calls `place_camps`, whose draws stay today's). Every candidate and every Lloyd pole whose halo meets a
+/// site is refused. A zone whose site carries a camp places it first: it counts in the spacing of every later camp,
+/// seeds its own territory label in every Lloyd step, never moves, and is the zone's first elite (the second follows
+/// today's rule against it); the zone's other `camps_per_zone - 1` camps follow today's process. `None` (the round
+/// fails and the partition is redrawn) as `place_camps`, or when a site's camp is not a legal camp tile.
+pub fn place_camps_reserving(
+    context: &CampContext<'_, '_>,
+    rng: &mut impl FnMut() -> f64,
+    part: &ZonePartition,
+    reserved: &[Reserve],
+) -> Option<CampLayout> {
+    let d = &context.rules;
+    let f = context.zones.fixed;
+    let zone = &part.zone;
+    let cost = &part.cost;
+    let mut site_tile = vec![false; N];
+    for r in reserved {
+        for y in r.y0..=r.y1.min(H - 1) {
+            for x in r.x0..=r.x1.min(W - 1) {
+                site_tile[y * W + x] = true;
+            }
+        }
+    }
+    // The generator's halo (`halo_offsets`: the clearing grown by one tile) is the certifier's camp halo.
+    let halo_ok: Vec<bool> = (0..N)
+        .map(|t| {
+            context.halo_ok[t]
+                && context.halo_offsets.iter().all(|&off| {
+                    !site_tile
+                        .get((t as i32 + off) as usize)
+                        .copied()
+                        .unwrap_or(false)
+                })
+        })
+        .collect();
+    let inside_of = |z: usize| {
+        reserved
+            .iter()
+            .find(|r| usize::from(r.zone) == z)
+            .and_then(|r| r.camp)
+    };
+    if (1..=ZONES)
+        .any(|z| inside_of(z).is_some_and(|c| !context.halo_ok.get(c).copied().unwrap_or(false)))
+    {
+        return None;
+    }
+    let zone_tiles: Vec<Vec<usize>> = (1..=ZONES)
+        .map(|z| {
+            f.painted
+                .iter()
+                .copied()
+                .filter(|&t| zone[t] as usize == z)
+                .collect()
+        })
+        .collect();
+    let gap2 = d.camp_gap * d.camp_gap;
+    let radius2 = d.territory_radius_max * d.territory_radius_max;
+    let mut terr = vec![0u8; N];
+    let mut tm = vec![0; N];
+    let mut zmask = vec![0; N];
+    let mut dt = vec![0; N];
+    let mut zdt = vec![0; N];
+    let mut territory_grid = vec![0; N];
+    for _ in 0..d.tries {
+        let mut camps = Vec::new();
+        territory_grid.fill(0);
+        let mut placed: Vec<usize> = Vec::new();
+        let mut ok = true;
+        for z in 1..=ZONES {
+            if !ok {
+                break;
+            }
+            let pinned = inside_of(z);
+            if pinned.is_some_and(|c| placed.iter().any(|&o| f64::from(d2i(o, c)) < gap2)) {
+                ok = false;
+                break;
+            }
+            let zt = &zone_tiles[z - 1];
+            zmask.fill(0);
+            for &t in zt {
+                zmask[t] = 1;
+            }
+            chamfer(&zmask, &mut zdt);
+            let sites: Vec<usize> = zt
+                .iter()
+                .copied()
+                .filter(|&t| halo_ok[t] && zdt[t] >= d.halo_dt)
+                .collect();
+            let clear: Vec<bool> = sites
+                .iter()
+                .map(|&site| placed.iter().all(|&o| f64::from(d2i(o, site)) >= gap2))
+                .collect();
+            let k = d.camps_per_zone;
+            let avoid: Vec<usize> = placed.iter().copied().chain(pinned).collect();
+            let first = first_candidate(rng, &sites, d.candidates, &avoid, gap2);
+            if first.is_empty() {
+                ok = false;
+                break;
+            }
+            // The pinned camp is label 1 (index 0) and is processed as a placed site for coverage and spacing.
+            let mut at: Vec<usize> = pinned.into_iter().chain(first).collect();
+            let mut min_d = vec![1 << 30; zt.len()];
+            let mut spaced = clear;
+            let mut seen = 0;
+            while at.len() < k {
+                while seen < at.len() {
+                    let o = at[seen];
+                    seen += 1;
+                    for (q, &t) in zt.iter().enumerate() {
+                        min_d[q] = min_d[q].min(d2i(o, t));
+                    }
+                    for (q, &t) in sites.iter().enumerate() {
+                        if spaced[q] && f64::from(d2i(o, t)) < gap2 {
+                            spaced[q] = false;
+                        }
+                    }
+                }
+                let mut far = None;
+                let mut far_d = -1;
+                for (q, &t) in zt.iter().enumerate() {
+                    if min_d[q] > far_d {
+                        far_d = min_d[q];
+                        far = Some(t);
+                    }
+                }
+                let far = far.expect("seeded zone has tiles");
+                let mut next = None;
+                let mut next_d = 1 << 30;
+                for (q, &c) in sites.iter().enumerate() {
+                    if !spaced[q] {
+                        continue;
+                    }
+                    let dist = d2i(c, far);
+                    if dist < next_d {
+                        next_d = dist;
+                        next = Some(c);
+                    }
+                }
+                let Some(next) = next else {
+                    break;
+                };
+                at.push(next);
+            }
+            if at.len() < k {
+                ok = false;
+                break;
+            }
+            let fixed_label = |n: usize| pinned.is_some() && n == 1;
+            let mut final_sites = None;
+            for step in 0..d.lloyd_steps {
+                for &t in zt {
+                    terr[t] = 0;
+                }
+                for (n, &site) in at.iter().enumerate() {
+                    for &off in &context.halo_offsets {
+                        if let Some(v) = terr.get_mut((site as i32 + off) as usize) {
+                            *v = (n + 1) as u8;
+                        }
+                    }
+                }
+                voronoi(&zmask, zt, &mut terr, cost);
+                tm.fill(0);
+                for &t in zt {
+                    tm[t] = terr[t];
+                }
+                chamfer_labels(&tm, &mut dt);
+                let mut members = vec![Vec::new(); k + 1];
+                for &t in zt {
+                    members[terr[t] as usize].push(t);
+                }
+                let hulls: Vec<Vec<usize>> = members.iter().map(|m| hull(m)).collect();
+                let poles = PoleSearch {
+                    context,
+                    halo_ok: &halo_ok,
+                    zone,
+                    terr: &terr,
+                    dt: &dt,
+                    members: &members,
+                    hulls: &hulls,
+                    z: z as u8,
+                    gap2,
+                    radius2,
+                };
+                if step >= d.final_from_step {
+                    let mut sites = at.clone();
+                    let mut fixed = placed.clone();
+                    let mut all = true;
+                    for n in 1..=k {
+                        let site = if fixed_label(n) {
+                            Some(at[0])
+                        } else {
+                            poles.pole(n, &sites, &fixed, true)
+                        };
+                        let Some(site) = site else {
+                            all = false;
+                            break;
+                        };
+                        fixed.push(site);
+                        sites[n - 1] = site;
+                    }
+                    if all {
+                        final_sites = Some(sites);
+                        break;
+                    }
+                }
+                let mut moved = Vec::new();
+                for n in 1..=k {
+                    if fixed_label(n) {
+                        moved.push(at[0]);
+                        continue;
+                    }
+                    let fixed: Vec<usize> = placed.iter().chain(&moved).copied().collect();
+                    let near = poles
+                        .pole(n, &at, &fixed, true)
+                        .or_else(|| poles.pole(n, &at, &fixed, false));
+                    moved.push(near.expect("unrestricted pole retains its old-site fallback"));
+                }
+                at = moved;
+            }
+            let Some(final_sites) = final_sites else {
+                ok = false;
+                break;
+            };
+            let base = camps.len();
+            for site in final_sites {
+                placed.push(site);
+                camps.push(CampSite {
+                    zone: z as u8,
+                    site,
+                    elite: false,
+                    spots: Vec::new(),
+                });
+            }
+            let mut by_far: Vec<usize> = (base..camps.len()).collect();
+            let centre = CY as usize * W + CX as usize;
+            by_far.sort_by(|&a, &b| {
+                d2i(camps[b].site, centre)
+                    .cmp(&d2i(camps[a].site, centre))
+                    .then(a.cmp(&b))
+            });
+            // The pinned camp is the first elite; otherwise today's (the camp farthest from the centre).
+            let first = if pinned.is_some() { base } else { by_far[0] };
+            let rest: Vec<usize> = by_far.iter().copied().filter(|&c| c != first).collect();
+            let second = rest
+                .iter()
+                .copied()
+                .find(|&c| {
+                    f64::from(d2i(camps[c].site, camps[first].site))
+                        >= d.elite_min_sep * d.elite_min_sep
+                })
+                .unwrap_or(rest[0]);
             for &elite in [first, second].iter().take(d.elites_per_zone) {
                 camps[elite].elite = true;
             }
