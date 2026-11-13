@@ -441,8 +441,12 @@ impl<'f> SignatureContext<'f> {
 
     /// The camp tile of the church's or the cave's site with top-left (x, y): on the site's centre line along the door
     /// axis (`axis` of DIR16 from the site's centre tile toward the coliseum), `site_depth` tiles from the far edge.
-    /// `None` when the camp tile's own door axis (the church's and the cave's rule) differs, so that the door always
-    /// faces the site's near half.
+    /// Offsets from (x, y) at side 34 and depth 9: (9, 17) with the coliseum toward +x, (24, 17) toward -x, (17, 9)
+    /// toward +y, (17, 24) toward -y.
+    ///
+    /// `None` when the camp tile's own door axis (the church's and the cave's rule) differs. A guard only, not a filter
+    /// on where sites go: the camp moves deeper along the axis that already dominates, which cannot turn it, and at these
+    /// numbers it refuses none of the 16,129 square positions on the 160x160 map (P-MAPGEN-SIG-RESERVE-1 review).
     fn inside_camp(&self, x: i32, y: i32) -> Option<usize> {
         let (side, depth) = (self.rules.site_side, self.rules.site_depth);
         let (mx, my) = (x + side / 2, y + side / 2);

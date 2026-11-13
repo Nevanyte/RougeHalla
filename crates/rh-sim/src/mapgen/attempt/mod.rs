@@ -69,6 +69,16 @@ impl<'f> AttemptContext<'f> {
             sites: SignatureContext::new(fixed),
         }
     }
+    /// The reservation's site rules from `d`: the pipeline passes the one signature definition its Landmarks phase
+    /// builds with, so the sites and the landmarks never read different numbers (P-MAPGEN-SIG-RESERVE-1).
+    pub fn with_signature(mut self, d: &crate::mapgen::landmarks::signature::Definition) -> Self {
+        self.sites = SignatureContext::from_definition(self.fixed, d);
+        self
+    }
+    /// The signature definition the reservation reads.
+    pub fn signature_definition(&self) -> &crate::mapgen::landmarks::signature::Definition {
+        self.sites.definition()
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttemptInputError {

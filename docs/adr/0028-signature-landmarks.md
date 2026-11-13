@@ -61,8 +61,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    60 bog tiles survive, with bog in all four quadrants. Trunk and bog stay out of every apron marked before the step
    (`masks.near1`: the legacy buildings grown by one tile, and the volcano's). The site is a uniform draw over every
    legal centre. With a reserved site (decision 12) the tree stands wholly in the site's inner rect and the site
-   carries the outer-third rule: a Plague site lies beyond the outer-third line + 2 where one fits (24 of seeds 1-64 at
-   34 tiles), else it is the zone's deepest free square, its centre still beyond the zone's centroid (coordinator
+   carries the outer-third rule: a Plague site lies beyond the outer-third line + 2 where one fits (20 of seeds 1-64 at
+   34 tiles, on each seed's accepted attempt), else it is the zone's deepest free square (the other 44), its centre still beyond the zone's centroid (coordinator
    decision 2026-11-12: keep the 34-tile site rather than a smaller one or the outer half).
 5. **Sentenced, the church and graveyard** (`Church`, job landmark; `Graveyard`, job cover). Around the far elite camp
    (the zone's elite camp farthest from the map centre; with a reserved site, decision 12, the site's camp, the zone's
@@ -157,11 +157,13 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    map corners, whose centre lies beyond the zone's line (Fire, Sentenced, Frost: the centroid's distance + 2; Plague:
    decision 4). One uniform draw on the zone's signature stream; a zone without a square fails the round as a camp
    failure does, and the next round redraws the partition (a zone never loses a camp). The Sentenced and Frost sites
-   carry their camp: on the site's centre line along the door axis, `site_depth` 9 tiles from the far edge (a square
-   whose camp tile would turn the door axis is not a candidate). Camp placement (`place_camps_reserving`) then refuses
+   carry their camp: on the site's centre line along the door axis, `site_depth` 9 tiles from the far edge. A square
+   whose camp tile would turn the door axis is refused, a guard only: moving the camp deeper along the axis that already
+   dominates cannot turn it, and at these numbers it refuses 0 of the 16,129 square positions on the 160x160 map
+   (reviewer's model), so it is not a filter on where sites go. Camp placement (`place_camps_reserving`) then refuses
    every candidate and Lloyd pole whose halo meets a site; a site's camp is placed first in its zone, counts in the
    spacing of the others, keeps its own territory label in every Lloyd step, never moves, and is the zone's first
-   elite; the zone's other 9 camps follow the legacy process. **The elite rule (owner decision, DEV-028, proposed):**
+   elite; the zone's other 9 camps follow the legacy process. **The elite rule (coordinator decision put to the owner, not yet ruled on; DEV-028, proposed):**
    legacy makes the camp farthest from the coliseum the first elite (`packages/shared/src/zones.ts:38-41, 869-879`);
    under the option the Sentenced and Frost first elite is the camp the church or cave stands round, the second the
    legacy rule against it, and the certifier's `elite-selection` reads the Church or Cave anchor's centre (a map

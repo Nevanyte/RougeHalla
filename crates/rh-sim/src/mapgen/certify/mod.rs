@@ -806,7 +806,7 @@ fn camps(m: &GameMapData, ring: &[u8], out: &mut Certificate) {
             .filter(|(_, c)| c.elite_spot >= 0)
             .map(|(i, _)| i)
             .collect();
-        // P-MAPGEN-SIG-RESERVE-1 (owner decision, DEV-028): on a signature map the zone's church or cave stands round
+        // P-MAPGEN-SIG-RESERVE-1 (coordinator decision put to the owner, DEV-028 proposed): on a signature map the zone's church or cave stands round
         // its first elite camp (the anchor's centre), which need not be the farthest; the second follows the rule
         // against it. Maps without a church or cave anchor (every option-off map) keep legacy's rule.
         let anchored = m
