@@ -4,6 +4,47 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integrations 9 to 12 (2026-11-12, evening): current checkpoint
+
+Integration branch `feature/unity-rework` @ `038f83c8`, pushed. Identities: protocol 17 (protocol 18 is stamped on the
+build that is next deployed: until then a client and server built from different commits refuse each other's frames),
+observation 27, policy contract 21, checkpoint 31, replay 25, content hash `4674a176a28e3c7a`. Last full gate with
+Postgres: PASS 22:06 to 22:40 on integration 12 (EditMode 793); the Unity-only merge after it passed the quick gate
+(EditMode 876). Every attempt is in `.agent-runs/log.csv`.
+
+| # | Gate | Landed |
+|---|---|---|
+| 9 | full PASS 17:08 | P-UNITY-NAME-GROUP-2, P-UNITY-HUD-VISUAL-FIX-3, P-WIRE17-HUD-2b (Welcome HUD block: weapon scaling, Wish terms), P-MAPGEN-SIG-FIRE-2 (crater size by band) |
+| 10 | full PASS 17:42 | P-MAPGEN-SIG-FROST-1 (cave; the rh-server landmark post-pass deleted, owner approval), P-BOT-BRAIN-LIVE-1 piece 1 (composer), the gate's reload-proof step (owner approval). Not pushable: see below |
+| 11 | full PASS 20:30 | P-UNITY-HUD-VISUAL-FIX-4, P-MECHANICS-SALVAGE-2, P-WIRE17-HUD-2c (panel codes 23 to 27, terms 19 to 22; observation 27, policy 21), P-CAMP-BUFF-THEMES-1 (live profiles pay zone-themed camp buffs; content hash carried; DEV-027 proposed) |
+| 12 | full PASS 22:06 | P-MAPGEN-SIG-FROST-2 (lake at the mouth; landmark aprons apart, both by discard), P-DRESS-ANCHOR-1 (decoration rings in the landmark's bands), P-UNITY-HUD-BUILD-3 (panel and slots draw the delivered numbers), P-BOT-BRAIN-RECONCILE-1. Quick: P-UNITY-NAME-LEGIBLE-1 |
+
+**The remote divergence (17:43 to 22:40).** A cloud session (`claude/festive-babbage-dkwvrm`) put its own complete
+P-BOT-BRAIN-LIVE-1 on `origin/feature/unity-rework` while this session's composer was in review, so pushes were
+refused. Nothing was force-pushed or reverted. By owner decision the two lines were reconciled
+(P-BOT-BRAIN-RECONCILE-1: this session's reviewed composer as the base, the cloud line's seat policy, server flag,
+headless selection and learning hand-off; reviewed by `reviewer-opus`), which brought the remote's commits into the
+local history, and the branch was pushed as a fast-forward. Rule for outside sessions since then:
+`docs/coordination/prompts/WORKER_RULES.md` (own branches only; never the integration branch).
+
+**Farmed out (owner request; prompts in `docs/coordination/prompts/`):** P-FROST-WALL-1 (sim), P-BOT-BRAIN-CONTINUITY-1
+(Brain seats are passive until it lands: `--bot-brain full` stays off any host), P-BOT-LEARN-ON-1 then P-BOT-TUNER-1
+(R-ML narrow exception worded in REQUIREMENTS and AGENTS.md under owner approval 5), P-HOST-FLAGS-1. Each comes back
+as `packet/<ID>` and `agent/<tool>/<ID>` with a hand-off note; the coordinator reviews and merges.
+
+**In flight here:** P-MECHANICS-SALVAGE-3 (implementer), P-MAPGEN-SIG-RESERVE-1 (oracle: landmark sites reserved
+before camps, the only way the owner's landmark size fits; then P-MAPGEN-SIG-SCALE-1 to -4, P-MAPGEN-SIG-SENTENCED-1,
+-PLAGUE-1, -HOLY-1). **Not started:** marsh rings, decoration baked into served maps and drawn in Unity, per-zone
+landmark art, the visual review and the owner's close and wide pictures, P-WIRE17-HUD-3 and -MAP-2 with their Unity
+packets, Frost Wall on the wire and in Unity, the Brain reading themed camp buffs, practice camps counting as
+clears, the final combined review, the protocol 18 build, browser proof, the beta host and the pull request.
+
+**Unsigned by the owner:** DEV-022 to DEV-027. **Known flake:** `GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage`
+fails in about one whole-suite run in five on any branch (measured on base and branch); fixing it edits an existing
+test and waits for the owner. **Not established:** no screenshot round has yet shown a cleared camp (respawn and
+ward plates, the open drawer's mob rows), the home-ground note, or P-UNITY-NAME-LEGIBLE-1 in the running client; no
+map with the landmark option on has been seen in the Unity client or played.
+
 ## Owner direction 2026-11-12 (chat, late): landmarks larger
 
 After seeing text and picture previews of the five landmarks as the generator builds them (seeds 1 to 3): "All of
