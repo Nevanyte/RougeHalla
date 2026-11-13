@@ -7,8 +7,8 @@
 - **Implementer:** none. The packet is one guard test, written by the land-generation lane's main session; it passes
   on the tree it is written on and is expected to stay green.
 - **Reviewer:** the coordinator's merge review.
-- **Integration base:** written on `agent/fable/P-LAND-SENTENCED-1-fix` @ `ca598cf01`; rebased onto
-  `feature/unity-rework` once the lanes and P-MAPGEN-SIG-SCALE-1 are on it, and gated there.
+- **Integration base:** `feature/unity-rework` @ `2e51457dd` (the lanes and P-MAPGEN-SIG-SCALE-1 merged). Written on
+  `agent/fable/P-LAND-SENTENCED-1-fix` @ `ca598cf01`, then rebased and gated on the merged tree.
 - **D-rules touched:** none. A test only: no map, sim, wire, save, state-hash or content-hash change.
 
 ## 1. ID and outcome
@@ -63,7 +63,8 @@ Low. Cost: one more generator sweep in the rh-sim suite (section 11 gives the me
 - **Measured** on `ca598cf01` (debug build, macOS arm64, machine shared with other builds): 41 attempts over seeds
   1 to 32, 9 refused, no error, every seed made; the test took 46.6 s. A temporary sweep of the same shape on the same
   commit (not committed) ran seeds 1 to 64 with decor (101 attempts) and seeds 1 to 400 without (709 attempts) with no
-  error. The figures move with every landmark packet; the test prints its own line under `--nocapture`.
+  error. On the merged tree (`2e51457dd`, the fixed cave): 59 attempts, 27 refused, no error, every seed made; 29.8 s
+  in the full gate. The figures move with every landmark packet; the test prints its own line under `--nocapture`.
 
 ## Oracle files (read-only for implementers)
 - `crates/rh-sim/tests/mapgen_land_decor_attempts.rs`, this brief
