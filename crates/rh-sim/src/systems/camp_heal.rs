@@ -233,6 +233,92 @@ mod practice_tests {
         assert!(sim.w.practice.as_ref().unwrap().contributors.is_empty());
     }
 
+    /// The contributor list never allocates after the room's first note (review note on P-TRAINING-CAMPS-1). The first note
+    /// reserves the room's whole bound (`TRAIN_MAX_MOBS` camps x seated players); later notes, the clear payout (taken and
+    /// put back) and the console's clear keep that one buffer; a clone keeps its capacity and a restore reserves the bound,
+    /// so their first note is no allocation either. Checked on the buffer itself: the crate's global allocator cannot be
+    /// instrumented from a unit test, and a whole practice fight allocates elsewhere today (`tests/no_alloc_training.rs`).
+    #[test]
+    fn the_contributor_list_keeps_one_buffer_through_notes_clears_clones_and_restores() {
+        let bound = |sim: &Sim| crate::constants::TRAIN_MAX_MOBS as usize * sim.w.players.len();
+        let run = |sim: &Sim| sim.w.practice.as_ref().unwrap().contributors.clone();
+        let (mut sim, camp) = room_with_camp();
+        let mut ev = Vec::new();
+        let ids = alive(&sim, camp);
+        hit(&mut sim, ids[0], 1., &mut ev);
+        let list = &sim.w.practice.as_ref().unwrap().contributors;
+        assert_eq!(list.len(), 1);
+        assert!(
+            list.capacity() >= bound(&sim),
+            "the first note reserves the bound"
+        );
+        let buffer = list.as_ptr();
+        let same = |sim: &Sim| {
+            let list = &sim.w.practice.as_ref().unwrap().contributors;
+            list.as_ptr() == buffer && list.capacity() >= bound(sim)
+        };
+        for id in &ids {
+            hit(&mut sim, *id, 1.0e6, &mut ev);
+        }
+        assert!(run(&sim).is_empty(), "the clear forgot the pair");
+        assert!(same(&sim), "the clear payout put the same buffer back");
+        // A clone and a restore, taken with the list empty: each already holds the bound for its first note.
+        let mut cloned = sim.clone();
+        let mut restored = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+        for copy in [&mut cloned, &mut restored] {
+            let cap = copy.w.practice.as_ref().unwrap().contributors.capacity();
+            assert!(cap >= bound(copy), "prepared before the first note: {cap}");
+            let before = copy.w.practice.as_ref().unwrap().contributors.as_ptr();
+            let raw = TrainRaw {
+                command: 3,
+                id: crate::mob_catalog::MobTypeId::EmberImp as u32,
+                count: 0,
+                options: [0; 3],
+                option_count: 0,
+            };
+            for _ in 0..6 {
+                copy.step();
+            }
+            let cmd = crate::input::validate(RawCommand::Train(raw)).unwrap();
+            let pid = copy.w.players[0].id;
+            copy.submit(pid, cmd).unwrap();
+            copy.step();
+            let next = copy
+                .w
+                .mobs
+                .iter()
+                .filter(|m| m.kind == MobKind::Practice && m.status == Status::Alive)
+                .map(|m| m.core.id)
+                .next()
+                .expect("a second camp");
+            hit(copy, next, 1., &mut ev);
+            let list = &copy.w.practice.as_ref().unwrap().contributors;
+            assert_eq!(list.len(), 1, "the copy noted its contributor");
+            assert_eq!(
+                list.as_ptr(),
+                before,
+                "the copy's first note reused its buffer"
+            );
+        }
+        // The console's clear empties the list in place.
+        let raw = TrainRaw {
+            command: 5,
+            id: 0,
+            count: 0,
+            options: [0; 3],
+            option_count: 0,
+        };
+        let pid = cloned.w.players[0].id;
+        let before = cloned.w.practice.as_ref().unwrap().contributors.as_ptr();
+        cloned
+            .submit(pid, crate::input::validate(RawCommand::Train(raw)).unwrap())
+            .unwrap();
+        cloned.step();
+        let list = &cloned.w.practice.as_ref().unwrap().contributors;
+        assert!(list.is_empty(), "the console's clear forgot every pair");
+        assert_eq!(list.as_ptr(), before, "the console's clear kept the buffer");
+    }
+
     /// Legacy `payCampHeal`: a contributor who finished the camp from beyond `CAMP_HEAL_RANGE` still stores the potion but
     /// does not count the clear.
     #[test]
