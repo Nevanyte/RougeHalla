@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 export const CLIENT_SOURCE = '57e166f46b35fb703e5f3c76914fcc4e8bf3191c';
 export const NATIVE_REFERENCE = 'c52e41a633c91f8402e3f68724e9202351d1cdb3';
 export const BROWSER_ORIGIN = 'http://localhost:8888';
-export const CONTENT = 'b35f23ed00df75b3';
+export const CONTENT = '4674a176a28e3c7a';
 export const CASES = ['arena-reload', 'training-reload', 'stale-owner', 'stale-mode-config', 'expired-seat'];
 const HEX64 = /^[a-f0-9]{64}$/, HEX40 = /^[a-f0-9]{40}$/, ID = /^[A-Za-z0-9_-]{1,100}$/;
 const STEP_NAMES = new Set(['mode-verified', 'reload-request', 'load-current-owner', 'resume-arena',

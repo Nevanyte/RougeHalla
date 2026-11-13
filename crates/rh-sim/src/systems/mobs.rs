@@ -112,6 +112,9 @@ fn initialize_body(
     // The roster roll, the last reward-stream consumer at construction: legacy camps.ts `rollRosters`, the bag
     // (`rollCampTypes`, nine draws a zone) or, under `Themed`, a7b5c4ce `rollCampRosters` (2n - 1 draws) at the same
     // position. Both draw only from the reward stream (C-RNG).
+    // Reward-stream cost: the legacy roll draws nine per zone, the themed roll 2n - 1 (a shuffle, then one weighted
+    // draw per camp), so under `Themed` every later reward-stream roll for the same salt (the planning deal, chests,
+    // traders) differs from `Legacy`, as the legacy patch a7b5c4ce states. The sim stream is untouched.
     let (types, buffs): (Vec<_>, Vec<_>) = match k.config.camp_buffs {
         crate::CampBuffRule::Legacy => (
             rosters::roll_camp_types(&zones, &mut || w.reward_rng.next_f64()),
