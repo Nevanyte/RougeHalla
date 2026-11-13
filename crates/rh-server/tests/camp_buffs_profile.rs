@@ -16,7 +16,9 @@ fn settings(args: &str) -> Settings {
 
 const SEED1: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../parity/maps/seed1.map.json"
+    // The certified full map (camps, zones): `parity/maps/seed1.map.json` is the collision-only `rh-map/1` file the
+    // source-arena runtime refuses (coordinator amendment 2026-11-12).
+    "/../rh-sim/src/mapdata/fixtures/seed1.map.json"
 );
 
 #[test]
