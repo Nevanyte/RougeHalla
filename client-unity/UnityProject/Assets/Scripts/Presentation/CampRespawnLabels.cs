@@ -194,7 +194,7 @@ namespace Roguehalla.Client
 
         void DrawRows()
         {
-            Used = _rows.Count;
+            Used = WorldLabelVisibility.Hidden ? 0 : _rows.Count;   // the Tab map is open: no world label behind its panels
             for (int i = 0; i < Used; i++)
             {
                 var label = Get(i);
@@ -255,8 +255,8 @@ namespace Roguehalla.Client
 
         void DrawBeacons()
         {
-            BeaconsUsed = _wards.Count;
-            for (int i = 0; i < _wards.Count; i++)
+            BeaconsUsed = WorldLabelVisibility.Hidden ? 0 : _wards.Count;
+            for (int i = 0; i < BeaconsUsed; i++)
             {
                 var w = _wards[i];
                 Place(Icon(_beacons, i, "Camp ward beacon", Order - 1), Beacon(), Rgb(w.BeaconRgb), ArenaView.WorldPoint((float)w.WorldX, (float)w.WorldY), 1f);

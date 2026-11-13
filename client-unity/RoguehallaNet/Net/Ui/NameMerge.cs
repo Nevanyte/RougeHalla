@@ -138,8 +138,12 @@ namespace Roguehalla.Net.Ui
                 for (int j = i + 1; j < count; j++)
                 {
                     if (!Packs(items[j]) || items[i].Text != items[j].Text) continue;
-                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
-                    if (dx * dx + dy * dy >= d2) continue;
+                    if (items[i].Camp != items[j].Camp) continue;
+                    if (items[i].Camp == 0)
+                    {
+                        float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                        if (dx * dx + dy * dy >= d2) continue;
+                    }
                     int ri = Root(scratch, i), rj = Root(scratch, j);
                     if (ri != rj) scratch[rj] = ri;
                 }
@@ -188,11 +192,21 @@ namespace Roguehalla.Net.Ui
         /// with <paramref name="camps"/>; a camp with no row is skipped) whose normal <c>MobType</c> equals <paramref name="type"/> and whose
         /// centre is within <c>camp.R + CampReachPx</c> of (x, y) (inclusive; legacy pixels, Euclidean), the nearest centre wins (lowest index on a
         /// tie). A mob that is only the camp's elite type belongs to no camp. Returns the camp index, or -1 when none qualifies (null or empty
-        /// inputs included). Stub: the implementer fills the body.
+        /// inputs included).
         /// </summary>
         public static int CampOfMob(MapCamp[] camps, IReadOnlyList<CampView> rows, MobTypeId type, double x, double y)
         {
-            return -1;
+            if (camps == null || rows == null) return -1;
+            int best = -1; double bestD2 = 0;
+            for (int i = 0; i < camps.Length && i < rows.Count; i++)
+            {
+                if (rows[i].MobType != type) continue;
+                double dx = x - camps[i].X, dy = y - camps[i].Y, reach = camps[i].R + (double)CampReachPx;
+                double d2 = dx * dx + dy * dy;
+                if (d2 > reach * reach) continue;
+                if (best < 0 || d2 < bestD2) { best = i; bestD2 = d2; }
+            }
+            return best;
         }
 
         static bool Packs(NameMergeItem it) { return !it.Elite && !string.IsNullOrEmpty(it.Text); }

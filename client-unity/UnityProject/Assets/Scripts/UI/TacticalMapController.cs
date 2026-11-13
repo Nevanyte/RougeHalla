@@ -366,7 +366,7 @@ namespace Roguehalla.Client
         {
             if (open) _mapKeys.OpenMap(MapContext(false, false)); else _mapKeys.CloseMap();
             _mapOpen = _mapKeys.MapHeld;
-            _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            _panel.gameObject.SetActive(IsPlanning || _mapOpen); WorldLabelVisibility.Hidden = _panel.gameObject.activeSelf;
             ApplyLayout();
             RefreshMinimapVisibility();
             if (open) ReleaseMinimap();
@@ -396,7 +396,7 @@ namespace Roguehalla.Client
                 }
             }
             _mapOpen = _mapKeys.MapHeld;
-            _panel.gameObject.SetActive(IsPlanning || _mapOpen);
+            _panel.gameObject.SetActive(IsPlanning || _mapOpen); WorldLabelVisibility.Hidden = _panel.gameObject.activeSelf;
             if (_panel.gameObject.activeSelf) ApplyLayout();
             RefreshMinimapVisibility();
         }
@@ -411,7 +411,7 @@ namespace Roguehalla.Client
                 if (_storageKey != key) { _storageKey = key; _route.Clear(); _route.SetStart(null); LoadRoute(); }
             }
             if (_bound.State != SessionState.InMatch || _bound.LastResult != null) ReleaseTransient();
-            _panel.gameObject.SetActive(_bound.LastResult == null && (IsPlanning || _mapOpen));
+            _panel.gameObject.SetActive(_bound.LastResult == null && (IsPlanning || _mapOpen)); WorldLabelVisibility.Hidden = _panel.gameObject.activeSelf;
             if (_panel.gameObject.activeSelf) ApplyLayout();
             UpdateMinimapRing();
             RefreshMinimapVisibility();
@@ -644,7 +644,7 @@ namespace Roguehalla.Client
             if (motion != null && motion.Initialized && _client.Cam != null && _client.Arena != null)
                 _client.Arena.Follow(_client.Cam, motion.DrawnX, motion.DrawnY);
         }
-        public void ReleaseTransient() { _mapOpen = false; _mapKeys.WindowBlur(); ReleaseMinimap(); if (_panel != null) _panel.gameObject.SetActive(false); UiBrowserStorage.CaptureTab(false); }
+        public void ReleaseTransient() { _mapOpen = false; WorldLabelVisibility.Hidden = false; _mapKeys.WindowBlur(); ReleaseMinimap(); if (_panel != null) _panel.gameObject.SetActive(false); UiBrowserStorage.CaptureTab(false); }
         void OnApplicationFocus(bool focused) { if (!focused) ReleaseTransient(); }
         void OnDisable() => ReleaseTransient();
         [Serializable] sealed class SavedRoute { public int version = 1; public double[] x, y; }

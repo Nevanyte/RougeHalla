@@ -132,7 +132,11 @@ namespace Roguehalla.Client
         /// <summary>Raises the name label by dy world units for this frame (stacking).</summary>
         public void LiftName(float dy) { _name.transform.position += new Vector3(0f, dy, 0f); }
         /// <summary>A pack's one name, or a hovered or locked mob's, reads at full strength instead of the legacy idle .5.</summary>
-        public void NameFullAlpha() { _nameBase.a = 1f; var c = _nameBase; c.a *= _textFade; _name.color = c; }
+        public void NameFullAlpha() { NameFullAlpha(_textFade); }
+        /// <summary>As <see cref="NameFullAlpha()"/>, with the vision fade of the pack's most visible drawn member instead of this carrier's own.</summary>
+        public void NameFullAlpha(float fade) { _nameBase.a = 1f; var c = _nameBase; c.a *= fade; _name.color = c; }
+        /// <summary>The vision fade last applied to this actor's text (1 when fully visible).</summary>
+        public float TextFade { get { return _textFade; } }
         /// <summary>Hides the name for this frame (the pack merge); <see cref="Update"/> shows it again next frame.</summary>
         public void HideName() { _name.gameObject.SetActive(false); }
         /// <summary>True while the name label is drawn (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
@@ -195,8 +199,8 @@ namespace Roguehalla.Client
                     {
                         nameTopPx = e.Y + e.H;
                         _nameBase = e.Tone == OverheadTone.NameElite ? (Color)theme.Accent : e.Tone == OverheadTone.NameOwn ? (Color)theme.Success : e.Tone == OverheadTone.NameMob ? (Color)theme.TextSecondary : (Color)theme.TextPrimary;
-                        // MobView.ts:26-27,183-186: an idle, full-health, non-elite mob's name is faint (IDLE_LABEL_ALPHA); hurt, fighting, elite and the dummy read full.
-                        _nameBase.a = f.Mob && !f.Elite && !f.Dummy && !f.M.Engaged && f.HpPct >= 100f ? .5f : 1f;
+                        // MobView.ts:26-27,183-186 draws an idle mob's name at half alpha (IDLE_LABEL_ALPHA); on pale ground that is unreadable (DEV-024), so every name is fully opaque.
+                        _nameBase.a = 1f;
                         _name.fontSize = f.Mob && f.Elite ? 2.5f * 12f / 11f : 2.5f;   // MobView.ts:247: 12 px elite, 11 px otherwise
                         var nc = _nameBase; nc.a *= _textFade; _name.color = nc;
                         _name.fontStyle = f.Elite ? FontStyles.Bold : FontStyles.Normal;

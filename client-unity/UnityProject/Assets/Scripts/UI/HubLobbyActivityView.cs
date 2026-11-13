@@ -35,6 +35,8 @@ namespace Roguehalla.Client
             _transport = gameObject.GetComponent<LobbyActivityTransport>() ?? gameObject.AddComponent<LobbyActivityTransport>();
             _panel = MythicUi.Panel(root, "HubLobbyActivityPanel", new Vector2(.76f, .06f), new Vector2(.99f, .46f), ShowcasePalette.Panel, false);
             _body = MythicUi.Text(_panel, "LobbyActivityBody", "", new Vector2(.02f, .02f), new Vector2(.98f, .98f), 15, ShowcasePalette.Text, TextAlignmentOptions.TopLeft);
+            // The unavailable state is nine lines; it shrinks to fit the card (never below 11) instead of running off its bottom edge.
+            _body.enableAutoSizing = true; _body.fontSizeMin = 11f; _body.fontSizeMax = 15f;
             _panel.gameObject.SetActive(false);
         }
 

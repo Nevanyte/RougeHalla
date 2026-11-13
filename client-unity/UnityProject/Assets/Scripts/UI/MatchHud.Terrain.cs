@@ -13,7 +13,7 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed partial class MatchHud
     {
-        const float TerrainTile = 32f, TerrainWidth = 294f;
+        const float TerrainTile = 32f, TerrainWidth = 294f, ChipPad = 6f;
         const float TerrainLine = 18f;
         RectTransform _terrainRow;
         TMP_Text _terrainNoteText;
@@ -59,7 +59,8 @@ namespace Roguehalla.Client
                 var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
                 image.color = new Color(10f / 255f, 12f / 255f, 16f / 255f, .8f);
                 var outline = rect.gameObject.AddComponent<UnityEngine.UI.Outline>(); outline.effectDistance = new Vector2(1f, 1f); outline.useGraphicAlpha = false;
-                var label = HudUi.Label(rect, "Label", "", theme.SizeSmall, theme.Warning, TextAlignmentOptions.TopLeft, bold: true);
+                var label = HudUi.Label(rect, "Label", "", theme.SizeSmall, theme.Warning, TextAlignmentOptions.Center, bold: true);
+                label.enableWordWrapping = false;
                 var button = rect.gameObject.AddComponent<UnityEngine.UI.Button>();
                 button.targetGraphic = image;
                 button.navigation = new UnityEngine.UI.Navigation { mode = UnityEngine.UI.Navigation.Mode.None };
@@ -139,7 +140,7 @@ namespace Roguehalla.Client
                 float top = PlateTop + _vitalsPanel.sizeDelta.y + 4f;
                 if (!Mathf.Approximately(top, _terrainTop)) { _terrainTop = top; HudUi.Place(_terrainRow, HudAnchor.TopLeft, PlateLeft, top, TerrainWidth, _terrainHeight); }
             }
-            if (key == _terrainKey) return;
+            if (key == _terrainKey) { PlaceHuntPanel(); return; }
             _terrainKey = key;
             var chips = visible ? TerrainChips.For(terrain, terrainMode, faction) : null;
             string note = visible ? TerrainChips.HomeNote(terrain, terrainMode, faction) : null;
@@ -151,6 +152,9 @@ namespace Roguehalla.Client
                 var tone = ChipColor(chips[i].Id);   // legacy terrainChips.css --c
                 chip.Label.color = tone; chip.Rect.GetComponent<UnityEngine.UI.Outline>().effectColor = tone;
                 chip.Label.text = chips[i].Glyph + " " + chips[i].Label;
+                // A pill sized to its text (P-UNITY-HUD-VISUAL-FIX-4), not a full-width bar.
+                float pill = Mathf.Ceil(chip.Label.GetPreferredValues(chip.Label.text, 1000f, 0f).x) + ChipPad * 2f;
+                HudUi.Place(chip.Rect, HudAnchor.TopLeft, 0, i * TerrainLine, pill, TerrainLine);
                 chip.Hint.Text = chips[i].Explanation;
                 chip.Rect.gameObject.SetActive(true);
             }
@@ -161,6 +165,16 @@ namespace Roguehalla.Client
             _terrainNoteText.transform.parent.GetComponent<UnityEngine.UI.Image>().enabled = note != null;
             LayoutTerrainNote();
             _terrainRow.gameObject.SetActive(count > 0 || note != null);
+            PlaceHuntPanel();
+        }
+
+        /// <summary>The Hunt card sits below the plate, and below the chip row (and home-ground note) when one is shown.</summary>
+        void PlaceHuntPanel()
+        {
+            if (_huntPanel == null) return;
+            float top = PlateTop + (_vitalsPanel != null ? _vitalsPanel.sizeDelta.y : 148f) + 4f;
+            if (_terrainRow != null && _terrainRow.gameObject.activeSelf && _terrainTop >= 0f) top = _terrainTop + _terrainHeight + 4f;
+            _huntPanel.SetTop(top);
         }
     }
 }
