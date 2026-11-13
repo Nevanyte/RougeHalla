@@ -34,6 +34,7 @@ namespace Roguehalla.Client
         RewardChestHandle _shownChest;
         bool _dirty, _rewardsDirty;
         SessionState _bannerState = (SessionState)(-1);
+        bool _bannerPractice;
         int _bannerPhase = -1, _bannerAttempt = -1;
         float _lastHp = float.NaN, _lastMaxHp;
         WishView? _lastWish;
@@ -252,7 +253,8 @@ namespace Roguehalla.Client
             _dirty = false;
             int phase = _session.Snapshots.Newest == null ? -1 : _session.Snapshots.Newest.Phase;
             string banner = _banner.text;
-            if (_bannerState != _session.State || _bannerPhase != phase || _bannerAttempt != _session.ReconnectAttempt)
+            bool practiceBanner = _session.State == SessionState.InMatch && _client != null && _client.ConfirmedPractice && !_client.LaunchPending;
+            if (_bannerPractice != practiceBanner || _bannerState != _session.State || _bannerPhase != phase || _bannerAttempt != _session.ReconnectAttempt)
             {
             if (_session.State == SessionState.InMatch)
             {
@@ -267,7 +269,7 @@ namespace Roguehalla.Client
             else if (_session.State == SessionState.Rejected) banner = "Join rejected: " + _session.RejectReason;
             else if (_session.State == SessionState.Failed) banner = "Connection failed: " + _session.Error;
             else banner = _session.State.ToString();
-            Set(_banner, banner); Set(_plateStatus, _session.State == SessionState.InMatch && _client != null && _client.ConfirmedPractice && !_client.LaunchPending ? TrainingBanner : banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
+            Set(_banner, banner); Set(_plateStatus, practiceBanner ? TrainingBanner : banner); _bannerPractice = practiceBanner; _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
             }
             if (_client != null && _client.LaunchPending) return;
             var pmOwner = PerfMarks.Begin();

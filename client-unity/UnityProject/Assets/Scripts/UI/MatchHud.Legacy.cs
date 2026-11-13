@@ -235,11 +235,11 @@ namespace Roguehalla.Client
             SetPlateMode(_plateActive);
         }
 
-        /// <summary>Active: health row, build strip and extras. Otherwise: status, vitals and kills lines (legacy hud-status / hud-vitals).</summary>
         /// <summary>Legacy hud.ts:21, the first line of the practice HUD block (no Kills or GV line is shown beside it).</summary>
         internal const string TrainingBanner = "TRAINING — nothing here is recorded: no GV, no stats";
         bool _platePractice;
 
+        /// <summary>Active: health row, build strip and extras. Otherwise: status, vitals and kills lines (legacy hud-status / hud-vitals).</summary>
         void SetPlateMode(bool active)
         {
             _plateActive = active;
