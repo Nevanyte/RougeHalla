@@ -285,6 +285,8 @@ pub(crate) fn spawn_training(hx: &mut Hx, _: &HookArgs) {
 }
 
 #[cfg(test)]
+mod camps_tests;
+#[cfg(test)]
 mod corpus_tests;
 #[cfg(test)]
 mod tests;

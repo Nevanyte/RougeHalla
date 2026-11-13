@@ -427,6 +427,17 @@ fn chest(
     toast(ev, pid, format!("Chest: {}", names.join(", ")));
 }
 
+/// The practice camps' contributors (legacy `world.campContrib` for the console's camps, `campHeal.ts:13-27`): every
+/// (camp ref, player) pair, the camp ref being `Mob::camp` (101..=255), each player once per camp in first-hit order.
+/// A practice camp's clear forgets its own pairs (`campHeal.ts:97`); the console's clear forgets them all
+/// (`training.ts:345`).
+// STUB (P-TRAINING-CAMPS-1): the implementer replaces this body (and may drop the allow once a non-test caller exists).
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn practice_contributors(w: &World) -> Vec<(u32, PlayerId)> {
+    let _ = w;
+    Vec::new()
+}
+
 /// Legacy \`trainClear\`: removes every card, practice mob, chest and projectile the practice console placed, and what the
 /// cards left in the player's memory; a cleared practice player is the one that joined.
 fn clear(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx) {
