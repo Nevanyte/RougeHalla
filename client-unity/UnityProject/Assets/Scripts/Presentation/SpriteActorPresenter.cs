@@ -186,7 +186,24 @@ namespace Roguehalla.Client
         readonly List<uint> _packNameIds = new List<uint>();
         readonly List<Rect> _nameRects = new List<Rect>();
         /// <summary>World rects of the fighter names drawn this frame (after stacking), for the camp labels to keep clear of.</summary>
-        public void FighterNameRects(List<Rect> into) { into.AddRange(_nameRects); }
+        public void FighterNameRects(List<Rect> into)
+        {
+            // The elite names step clear of other mobs' bars here, the seam the camp labels read after the frame's actors are placed, then every fighter, elite and pack name is reported.
+            _nameRects.Clear();
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                var f = art.IndFacts;
+                if (f.Dead || !art.Ind.NameActive) continue;
+                bool elite = f.Mob && f.Elite;
+                if (elite) ClearOfBars(art);
+                if (f.Mob && !elite && !_packNameIds.Contains(pair.Key)) continue;
+                var nb = art.Ind.NameDrawnBounds;
+                _nameRects.Add(new Rect(nb.min.x - .03f, nb.min.y, nb.size.x + .06f, nb.size.y));
+            }
+            into.AddRange(_nameRects);
+        }
 
         // Luminance of what a player sees on each surface (the averages measured for P-UNITY-NAME-LEGIBLE-1, see NamePalette); the kinds with no
         // measurement (lava, ember, bog, water, grass, none) are counted dark, the palette of today.
@@ -204,22 +221,16 @@ namespace Roguehalla.Client
 
         const float BarClearance = .15f;
 
-        // Last step of the name pass, once every name is placed: an elite's name steps above the health bars of other mobs beside it, each name takes the
-        // colours that read on the ground under its anchor, and the names the camp labels must keep clear of (fighters, elites, packs) are published.
+        // Last step of the name pass, once every name is placed: each name takes the colours that read on the ground under its anchor.
         void FinishNames()
         {
+            if (Surfaces == null) return;
             foreach (var pair in _active)
             {
                 var art = pair.Value;
                 if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
-                var f = art.IndFacts;
-                if (f.Dead || !art.Ind.NameActive) continue;
-                bool elite = f.Mob && f.Elite;
-                if (elite) ClearOfBars(art);
-                if (Surfaces != null) art.Ind.SetNameGround(FloorLuminance[(int)Surfaces.SurfaceAt(art.Ind.NameWorldPosition)]);
-                if (f.Mob && !elite && !_packNameIds.Contains(pair.Key)) continue;
-                var nb = art.Ind.NameDrawnBounds;
-                _nameRects.Add(new Rect(nb.min.x - .03f, nb.min.y, nb.size.x + .06f, nb.size.y));
+                if (art.IndFacts.Dead || !art.Ind.NameActive) continue;
+                art.Ind.SetNameGround(FloorLuminance[(int)Surfaces.SurfaceAt(art.Ind.NameWorldPosition)]);
             }
         }
 

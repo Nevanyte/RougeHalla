@@ -239,12 +239,12 @@ namespace Roguehalla.Client
         // Legacy CampBuffs.ts places the badge over the living mobs' centroid; actor rows carry no camp index, so it stays over the camp position.
         // The badge steps up, a name's height at a time, until its plaque is clear of every drawn fighter, elite and pack name (the rule: the badge yields, the
         // name stays; an elite's name sits where its camp's badge lands). Returns the lift in world units.
-        float BadgeLiftClearOfNames(Vector3 centre, float width)
+        float BadgeLiftClearOfNames(Bounds plaque)
         {
             float total = 0f;
             for (int pass = 0; pass < 6 && _names.Count > 0; pass++)
             {
-                var rect = new Rect(centre.x - width * .5f, centre.y + total - PlaqueHeight * .5f, width, PlaqueHeight);
+                var rect = new Rect(plaque.min.x, plaque.min.y + total, plaque.size.x, plaque.size.y);
                 float lift = 0f;
                 for (int i = 0; i < _names.Count; i++)
                     if (rect.Overlaps(_names[i])) lift = Mathf.Max(lift, _names[i].yMax - rect.yMin + .04f);
@@ -263,7 +263,7 @@ namespace Roguehalla.Client
                 int n = (b.IconKey != null ? 1 : 0) + (b.EliteIconKey != null ? 1 : 0);
                 if (n == 0) continue;
                 var centre = ArenaView.WorldPoint((float)b.WorldX, (float)b.WorldY + BadgeOffsetUnits);
-                centre.y += BadgeLiftClearOfNames(centre, n * BadgeStep + .3f);
+                int first = used;
                 var back = Icon(_plaques, plaques++, "Camp reward plaque", Order - 1);
                 back.drawMode = SpriteDrawMode.Sliced; back.size = new Vector2(n * BadgeStep + .3f, PlaqueHeight);
                 Place(back, Plaque(), Color.white, centre, 1f);
@@ -272,6 +272,13 @@ namespace Roguehalla.Client
                     Place(Icon(_badgeIcons, used++, "Camp reward badge", Order), Art(b.IconKey), Rgb(b.IconRgb), centre + new Vector3((k++ - (n - 1) * .5f) * BadgeStep, 0f, 0f), BadgeScale);
                 if (b.EliteIconKey != null)
                     Place(Icon(_badgeIcons, used++, "Camp reward badge", Order), Art(b.EliteIconKey), Rgb(b.EliteIconRgb), centre + new Vector3((k++ - (n - 1) * .5f) * BadgeStep, 0f, 0f), BadgeScale);
+                // Step clear of the names (measured on the drawn plaque), moving the plaque and its icons together.
+                float lift = BadgeLiftClearOfNames(back.bounds);
+                if (lift > 0f)
+                {
+                    back.transform.position += new Vector3(0f, lift, 0f);
+                    for (int j = first; j < used; j++) _badgeIcons[j].transform.position += new Vector3(0f, lift, 0f);
+                }
             }
             BadgesUsed = used;
             for (int i = used; i < _badgeIcons.Count; i++) if (_badgeIcons[i].gameObject.activeSelf) _badgeIcons[i].gameObject.SetActive(false);
