@@ -59,6 +59,12 @@ namespace Roguehalla.Client
         /// </summary>
         public void SetCamps(MapCamp[] camps, IReadOnlyList<CampView> rows) { _camps = camps; _campRows = rows; }
         MapCamp[] _camps; IReadOnlyList<CampView> _campRows;
+        /// <summary>
+        /// The room's surface lookup (region and terrain plane plus decorative layers), set by the owning ArenaView. A world name asks it what lies under
+        /// the name's anchor so its face and outline colours read on that ground (P-UNITY-NAME-LEGIBLE-1, <see cref="Roguehalla.Net.Ui.NamePalette"/>).
+        /// Null (no map, tests): every name keeps the dark-ground colours it has today. Stub: nothing reads it yet.
+        /// </summary>
+        public SurfaceMap Surfaces;
         public int ActiveCount { get { return _active.Count; } }
         /// <summary>True when the actor's overhead name label is drawn this frame (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         public bool NameShown(uint id) { return _active.TryGetValue(id, out var art) && art.Ind.NameActive; }

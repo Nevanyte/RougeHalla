@@ -136,12 +136,19 @@ namespace Roguehalla.Client
         /// P-UNITY-NAME-GROUP-2 seam for tests: draws the respawn labels and the ward beacons with their labels from ready rows, without a
         /// Session. <see cref="Update(Session, Func{float, float, bool})"/> does the same from the session's rows.
         /// </summary>
-        public void Draw(List<CampWorldLabel> rows, List<CampWardRow> wards)
+        public void Draw(List<CampWorldLabel> rows, List<CampWardRow> wards) { Draw(rows, wards, new List<CampBadgeRow>()); }
+
+        /// <summary>
+        /// As above, and the world reward badges (plaque and icons) from ready rows (P-UNITY-NAME-LEGIBLE-1 seam: the badge of an elite's camp must not
+        /// cover the elite's name). <see cref="Update(Session, Func{float, float, bool})"/> draws the badges from the session's rows the same way.
+        /// </summary>
+        public void Draw(List<CampWorldLabel> rows, List<CampWardRow> wards, List<CampBadgeRow> badges)
         {
             _rows.Clear(); _rows.AddRange(rows);
             _wards.Clear(); _wards.AddRange(wards);
+            _badges.Clear(); _badges.AddRange(badges);
             FetchNames();
-            DrawBeacons(); DrawRows();
+            DrawBadges(); DrawBeacons(); DrawRows();
         }
 
         readonly List<Rect> _names = new List<Rect>();
