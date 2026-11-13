@@ -12,8 +12,14 @@ use crate::mob_runtime::MobMode;
 use crate::reward_chests::OptionId;
 use crate::{Arena, FactionId, FactionMode, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
 
-const HOLY: PlayerId = PlayerId(1);
-const KILLER: PlayerId = PlayerId(2);
+/// The Holy seat (first placement).
+fn holy() -> PlayerId {
+    PlayerId(1)
+}
+/// The killer seat (second placement).
+fn killer() -> PlayerId {
+    PlayerId(2)
+}
 
 /// The captured PvE map (`tests/fixtures/mob-pve-map.json`, as `systems/holy_demon_blood_tests.rs`): one Fire camp,
 /// admitted by both profiles below.
@@ -75,7 +81,7 @@ fn world(faction_mode: FactionMode, installer: bool, clears: u16) -> Sim {
         installer,
         "{faction_mode:?}: the Bruiser installer gate"
     );
-    let i = sim.w.idx(HOLY).unwrap();
+    let i = sim.w.idx(holy()).unwrap();
     sim.w.players[i].camps_cleared = clears;
     sim
 }
@@ -92,8 +98,8 @@ fn with_installer(clears: u16) -> Sim {
 
 /// The Holy seat's camp figures on the owner HUD: summary life steal, panel lifesteal, camp clears and camp leech.
 fn hud(sim: &Sim) -> (f64, f64, f64, f64) {
-    let s = build_summary(sim, HOLY).expect("seated");
-    let p = champion_panel(sim, HOLY).expect("seated");
+    let s = build_summary(sim, holy()).expect("seated");
+    let p = champion_panel(sim, holy()).expect("seated");
     (
         s.life_steal,
         p.get(PanelCode::HolyLifeSteal).expect("Holy lifesteal row"),
@@ -117,15 +123,15 @@ fn trophy_options(mut sim: Sim) -> Vec<OptionId> {
             fx: None,
         },
         crate::hooks::HookArgs::PlayerKilled {
-            by: KILLER,
-            victim: HOLY,
+            by: killer(),
+            victim: holy(),
             outcome: crate::results::Outcome::Died,
         },
     );
     sim.w
         .reward_chests
         .iter()
-        .filter(|c| c.owner == Some(KILLER))
+        .filter(|c| c.owner == Some(killer()))
         .flat_map(|c| c.options.iter().flatten().copied())
         .collect()
 }
@@ -184,7 +190,7 @@ fn guard_with_the_installer_the_camp_readers_are_unchanged() {
         "{leech} {leech0}"
     );
 
-    let canonical: Vec<OptionId> = crate::kill_augments::roll(sim.player(HOLY).unwrap())
+    let canonical: Vec<OptionId> = crate::kill_augments::roll(sim.player(holy()).unwrap())
         .into_iter()
         .map(OptionId::Kill)
         .collect();
