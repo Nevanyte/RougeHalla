@@ -32,7 +32,8 @@ pub struct Row {
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-/// The gallows square, between base rows `k` and `k + 1` at offset `s` along today's rows. `s` counts from the `s_lo`
+/// The gallows square, between base rows `k` and `k + 1`. `s` is the start of the square's window along today's rows
+/// (the 3x3 itself sits at `s` plus an `offsets_s` entry). `s` counts from the `s_lo`
 /// of today's grid (the centroid orientation). In signature mode `Plan::s_lo` is the lanes' grid, so when the two
 /// orientations differ the plan does not carry the origin `s` counts from; `Plan::gallows` holds the tiles it wrote.
 pub struct Square {
@@ -187,7 +188,8 @@ impl<'a> Callbacks<'a> {
         // Signature mode (P-LAND-SENTENCED-1): the rows are lanes in the door orientation (`plan.axis`), while the
         // base rows and the square keep today's orientation; option off both are `plan.axis`, as today.
         // The door is read again here, from the props-time map: nothing between `shape` and `props` writes the church's
-        // tiles or ownership, so it reads as it did in `shape`; if it did not, the plan is refused as `Error::Feature`.
+        // tiles or ownership, so it reads as it did in `shape`; if it did not, the styler stops with `Error::Feature` (the generation call fails:
+        // a styler error is not a refused attempt).
         let lanes = lanes::frame(c)?;
         let base_axis = if lanes.is_some() {
             u8::from(!shape::legacy_horizontal(c))
