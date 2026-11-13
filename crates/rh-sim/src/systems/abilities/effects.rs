@@ -72,14 +72,17 @@ fn field(
     }
 }
 pub(super) fn self_effects(cx: &mut Cx, l: Landing) {
-    self_pass(cx, l, a::definition(l.cast.ability));
+    self_pass(cx, l, a::definition_for(&cx.k.config, l.cast.ability));
 }
 
 pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
-    let Some(target) = l.cast.producer.unwrap().target else {
+    let def = a::definition_for(&cx.k.config, l.cast.ability);
+    let target = l.cast.producer.unwrap().target;
+    // A placed effect's target pass has no unit (legacy effectSide "target" for a wall).
+    if target.is_none() && !matches!(def.target, a::Target::Placed { .. }) {
         return;
-    };
-    target_pass(cx, l, a::definition(l.cast.ability), target);
+    }
+    target_pass(cx, l, def, target);
 }
 
 fn self_pass(cx: &mut Cx, l: Landing, def: a::Definition) {
@@ -90,10 +93,10 @@ fn self_pass(cx: &mut Cx, l: Landing, def: a::Definition) {
     }
 }
 
-fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: PlayerId) {
+fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: Option<PlayerId>) {
     for e in def.effects.iter().copied() {
         if a::effect_side(e) == a::Side::Target {
-            run(cx, l, Some(target), e);
+            run(cx, l, target, e);
         }
     }
 }
@@ -103,7 +106,7 @@ fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: PlayerId) {
 pub(crate) fn run_row(cx: &mut Cx, l: Landing, def: a::Definition) {
     self_pass(cx, l, def);
     if let Some(target) = l.cast.producer.and_then(|p| p.target) {
-        target_pass(cx, l, def, target);
+        target_pass(cx, l, def, Some(target));
     }
 }
 
@@ -239,6 +242,7 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
                 super::super::displace::apply(cx.k, cx.w, cx.pf, l.id, to);
             }
         }
+        a::Effect::Wall { ms, length } => raise_wall(cx, l, src, ms, length),
         a::Effect::Trail { ms, half_width } => {
             if let Some(to) = l.to {
                 let mut f = field(
@@ -256,6 +260,61 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
             }
         }
     }
+}
+
+/// Raises a barrier (legacy 78dd8bd4 `raiseWall`) square to the line from where the caster stood as its effects began
+/// to its (cast-time clamped) aim point, measured again with the range slack. Its tiles are the FLOOR tiles under it on
+/// the map bodies read now (gates, and any wall already standing, excluded). The wall outlives its caster and falls at
+/// its time, the teleport or the run's end. Setting down fighters it lands on and re-planning walks already under way
+/// are P-FROST-WALL-1b.
+fn raise_wall(cx: &mut Cx, l: Landing, src: StatusSource, ms: f64, length: f64) {
+    let a::Target::Placed { range, min_range } =
+        a::definition_for(&cx.k.config, l.cast.ability).target
+    else {
+        return;
+    };
+    let Some(point) = l.cast.producer.map(|p| p.point) else {
+        return;
+    };
+    let facing =
+        cx.w.fighter_idx(l.id)
+            .map_or(0., |ix| cx.w.core(ix).body.facing);
+    let seg = crate::barriers::wall_segment_for(
+        l.origin,
+        point,
+        range + a::RANGE_SLACK,
+        min_range,
+        length,
+        facing,
+    );
+    let mut cells = Vec::new();
+    {
+        let held = crate::barriers::held(cx.w);
+        let before = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
+        crate::barriers::wall_cells(before, &seg, &mut cells);
+    }
+    if cells.is_empty() {
+        return;
+    }
+    let now = cx.w.server_time;
+    let mut f = field(
+        src,
+        l.cast.ability,
+        FieldKind::Wall,
+        Vec2::new(seg.x1, seg.y1),
+        now,
+        ms,
+        0.,
+    );
+    f.x2 = seg.x2;
+    f.y2 = seg.y2;
+    let id = super::super::fields::add(cx.w, f);
+    if let Some(a) = cx.w.abilities.as_mut() {
+        a.barriers
+            .0
+            .push(crate::barriers::Barrier { field: id, cells });
+    }
+    crate::barriers::sync(cx.k, cx.w);
 }
 
 #[cfg(test)]

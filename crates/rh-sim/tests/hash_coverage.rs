@@ -689,6 +689,58 @@ fn regen_in_combat_off_state() -> (&'static str, Sim) {
     ("regen in combat off (live profiles)", sim)
 }
 
+/// `SimConfig::frost_wish = Wall` (P-FROST-WALL-1) with a Frost Wall standing on the practice arena: the world carries
+/// a `Wall` field and its barrier row (`world.abilities.barriers`), so the campaign perturbs every barrier leaf.
+fn frost_wall_state() -> (&'static str, Sim) {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            abilities: rh_sim::abilities::Mode::Full,
+            wish_lock_ms: 0.,
+            frost_wish: rh_sim::FrostWish::Wall,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(81),
+        &[Placement {
+            profile: "hash-frost-wall".into(),
+            faction: FactionId::Frost,
+            bot: false,
+            at: Vec2::new(320., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    let id = sim.players()[0].id;
+    sim.submit(
+        id,
+        cmd(RawCommand::Cast {
+            slot: rh_sim::abilities::Slot::Wish,
+            x: 520.,
+            y: 320.,
+            id: None,
+            t: None,
+            seq: None,
+        }),
+    )
+    .unwrap();
+    for _ in 0..8 {
+        sim.step();
+    }
+    let v = serde_json::to_value(&sim).unwrap();
+    assert_eq!(
+        v["statics"]["config"]["frost_wish"],
+        serde_json::json!("wall")
+    );
+    assert!(
+        v["world"]["abilities"]["barriers"].is_array(),
+        "a wall stands: {}",
+        v["world"]["abilities"]["barriers"]
+    );
+    ("frost wall standing (switch on)", sim)
+}
+
 /// `SimConfig::camp_buffs = Themed` (P-CAMP-BUFF-THEMES-1, the live profiles), config only (no camps on the practice
 /// arena): serializes as `"themed"`; restoring it as `null` (`Legacy`) must change the hash.
 fn camp_buffs_themed_state() -> (&'static str, Sim) {
@@ -998,6 +1050,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     states.push(regen_in_combat_off_state());
     states.push(camp_buffs_themed_state());
     states.push(camp_buffs_themed_mob_state());
+    states.push(frost_wall_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
@@ -1453,6 +1506,10 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.mob_runtime.combat", "supported PvE runtime requires combat enabled"),
     ("world.mob_runtime.buffs", "check_world ties the camp buff row to statics.config.camp_buffs: Legacy carries none (null), Themed one entry per camp"),
     ("world.mob_runtime.buffs.#len", "check_world ties the camp buff row to statics.config.camp_buffs: Themed carries one entry per camp, no fewer"),
+    ("statics.config.frost_wish", "a closed null/\"wall\" domain that must be Wall while a wall stands (barriers::check via check_world): flipping it on a world with a wall is refused; other scenarios hold it null"),
+    ("world.abilities.barriers", "barriers::check ties the barrier row to the Wall fields: no wall carries none (null), a standing wall one row; a row added to a world with no wall is refused"),
+    ("world.abilities.barriers.#len", "barriers::check ties the barrier row to the Wall fields one to one, in field order: one row more or fewer is refused"),
+    ("world.abilities.barriers.*.field", "barriers::check: each barrier row names the id of the Wall field at its position; any other id is refused"),
     ("statics.config.camp_buffs", "a closed null/\"themed\" domain whose value must match the world's camp buff row (check_world): flipping it alone on a world with camps is refused; the config-only scenario perturbs it"),
     ("world.mob_runtime.life.#len", "mob runtime camp and life arrays must match admitted map camp count"),
     ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
@@ -2261,6 +2318,11 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
             "systems/signatures.rs",
             2,
             "LandedHit (per-tick scratch and the derived fx report, never World state): the source's passive/derived flags, read only by the card weapon-hit test inside the tick that recorded them",
+        ),
+        (
+            "status_runtime/fields.rs",
+            1,
+            "AbilityRuntime::overlay: the collision map with the standing barriers' tiles LOW (P-FROST-WALL-1), derived from the serialized barrier rows and the gate state by barriers::sync on every raise, fall, clear and restore",
         ),
         (
             "systems/card_bleed_feedback.rs",

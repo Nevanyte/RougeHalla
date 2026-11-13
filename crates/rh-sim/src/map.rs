@@ -149,6 +149,21 @@ impl TileMap {
         Ok(self)
     }
 
+    /// Runtime-only derived geometry (P-FROST-WALL-1, legacy 78dd8bd4 `withBarriers`): this map with every FLOOR tile of
+    /// `cells` turned LOW; layers shared, derived tables rebuilt. Out-of-range or non-floor indices are left alone.
+    pub(crate) fn with_low(&self, cells: impl Iterator<Item = u32>) -> Self {
+        let mut tiles = self.tiles.clone();
+        for i in cells {
+            if let Some(t) = tiles.get_mut(i as usize).filter(|t| **t == TILE_FLOOR) {
+                *t = TILE_LOW;
+            }
+        }
+        let mut map =
+            Self::new(self.w, self.h, tiles).expect("derived geometry has unchanged dimensions");
+        map.layers = self.layers.clone();
+        map
+    }
+
     /// Runtime-only derived geometry. Canonical layer admission remains against the open map.
     pub(crate) fn closed_gates(&self) -> Option<Self> {
         let layers = self.layers.as_ref()?;

@@ -92,7 +92,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let Some(ability) = a::ability_in_slot(slot, p.faction()) else {
         return;
     };
-    let def = a::definition(ability);
+    let def = a::definition_for(&cx.k.config, ability);
     if cx
         .w
         .abilities
@@ -105,7 +105,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     {
         return;
     }
-    let point = Vec2::new(x, y);
+    let mut point = Vec2::new(x, y);
     let target = match def.target {
         Target::Unit(range) => {
             let Some(id) = id.filter(|id| unit_valid(cx, ix, *id, range)) else {
@@ -117,6 +117,20 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
             if blink(cx, p.pos(), point).is_none() {
                 return;
             }
+            None
+        }
+        // A placed ability lands at the cursor clamped to its range, measured from where the caster stands now (legacy
+        // 78dd8bd4 handleCast): the landing reads that one point.
+        Target::Placed { range, min_range } => {
+            let seg = crate::barriers::wall_segment_for(
+                p.pos(),
+                point,
+                range,
+                min_range,
+                0.,
+                p.body.facing,
+            );
+            point = Vec2::new(seg.cx, seg.cy);
             None
         }
         Target::Self_ => None,
@@ -132,7 +146,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let face = target
         .and_then(|id| cx.w.fighter_idx(id))
         .map(|j| cx.w.core(j).pos())
-        .or_else(|| matches!(def.target, Target::Point).then_some(point));
+        .or_else(|| matches!(def.target, Target::Point | Target::Placed { .. }).then_some(point));
     let p = &mut cx.w.players[ix.slot()];
     let previous_ready_at = p.stocks.ready_at(slot);
     let previous_full_at = p.stocks.wish_full_at;
@@ -230,7 +244,7 @@ pub(crate) fn land(cx: &mut Cx) {
             continue;
         };
         let detail = cast.producer.unwrap();
-        let def = a::definition(cast.ability);
+        let def = a::definition_for(&cx.k.config, cast.ability);
         let id = cx.w.core(ix).id;
         let mut ok =
             cx.w.standing(ix) && !rt::cast_blocked(&cx.w.core(ix).statuses, now, a::CANCELLED_BY);
@@ -274,8 +288,11 @@ pub(crate) fn land(cx: &mut Cx) {
     for i in 0..cx.s.cast_landings.len() {
         let l = cx.s.cast_landings[i];
         let target = l.cast.producer.unwrap().target;
+        let placed = placed_at(cx, l);
         let at = if l.to.is_some() {
             l.origin
+        } else if let Some(at) = placed {
+            at
         } else {
             target
                 .and_then(|id| cx.w.fighter_idx(id))
@@ -302,5 +319,24 @@ pub(crate) fn land(cx: &mut Cx) {
         );
     }
     cx.s.cast_landings.clear();
+}
+/// Where a placed effect (a wall) stood up: the cast-landed fx is drawn there (legacy 78dd8bd4 `Landing.at`).
+fn placed_at(cx: &Cx, l: Landing) -> Option<Vec2> {
+    let def = a::definition_for(&cx.k.config, l.cast.ability);
+    let Target::Placed { range, min_range } = def.target else {
+        return None;
+    };
+    let facing =
+        cx.w.fighter_idx(l.id)
+            .map_or(0., |ix| cx.w.core(ix).body.facing);
+    let seg = crate::barriers::wall_segment_for(
+        l.origin,
+        l.cast.producer?.point,
+        range + a::RANGE_SLACK,
+        min_range,
+        0.,
+        facing,
+    );
+    Some(Vec2::new(seg.cx, seg.cy))
 }
 mod effects;

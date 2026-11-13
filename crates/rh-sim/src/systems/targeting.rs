@@ -89,9 +89,10 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
 }
 
 fn plan(cx: &mut Cx, i: usize, goal: Vec2) -> bool {
+    let held = crate::barriers::held(cx.w);
     plan_foot_path_into(
         cx.pf,
-        cx.k.collision_map(cx.w.rt.gates_locked),
+        crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked),
         cx.w.players[i].pos(),
         goal,
         cx.w.players[i].foot(),
@@ -240,7 +241,7 @@ fn chase(cx: &mut Cx, i: usize, goal: Vec2, seen: bool) -> bool {
         cx.w.players[i].motion.path.set_from(&cx.s.path);
     } else if !seen
         || sealed(
-            cx.k.collision_map(cx.w.rt.gates_locked),
+            crate::barriers::body_map(cx.k, &crate::barriers::held(cx.w), cx.w.rt.gates_locked),
             cx.w.players[i].pos(),
             goal,
         )

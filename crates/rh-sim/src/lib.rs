@@ -11,6 +11,7 @@ pub mod abilities;
 mod actor_refs;
 pub mod archetype;
 pub mod arenas;
+pub mod barriers;
 pub mod build_summary;
 pub mod checkpoint;
 mod collision;
@@ -86,7 +87,7 @@ pub use state::{
 };
 pub mod terrain;
 pub mod traders;
-pub use statics::{CampBuffRule, FactionMode, RegenInCombat};
+pub use statics::{CampBuffRule, FactionMode, FrostWish, RegenInCombat};
 pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;

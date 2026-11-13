@@ -39,6 +39,12 @@ pub enum Target {
     Unit(f64),
     Self_,
     Point,
+    /// A placed effect (Frost Wall, legacy `{ kind: "point", range, minRange }` without a blink): the aim point is
+    /// clamped to `[min_range, range]` from the caster at the cast, and again (with [`RANGE_SLACK`]) at the landing.
+    Placed {
+        range: f64,
+        min_range: f64,
+    },
 }
 /// Which pass of a landing applies an effect (legacy `effectSide`): all self effects of the tick's due casts run first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,13 +87,19 @@ pub enum Effect {
         ms: f64,
         half_width: f64,
     },
+    /// At the (clamped) aim point: a barrier square to the aim, `length` long, standing `ms` (`crate::barriers`). Its
+    /// tiles stop bodies and melee swings, not sight or shots.
+    Wall {
+        ms: f64,
+        length: f64,
+    },
 }
 
 /// The pass an effect belongs to (legacy `effectSide`); the interpreter filters on it, not on the ability.
 pub const fn effect_side(e: Effect) -> Side {
     match e {
         Effect::Status { to, .. } => to,
-        Effect::Zone { .. } => Side::Target,
+        Effect::Zone { .. } | Effect::Wall { .. } => Side::Target,
         Effect::DeathFloor { .. } | Effect::Cloud { .. } | Effect::Blink | Effect::Trail { .. } => {
             Side::Self_
         }
@@ -142,7 +154,15 @@ pub(crate) fn validate_row(def: Definition) -> Result<(), &'static str> {
     }
     match def.target {
         Target::Unit(range) if !range.is_finite() || range <= 0. => Err("row unit range"),
-        Target::Self_ | Target::Point | Target::Unit(_) => Ok(()),
+        Target::Placed { range, min_range }
+            if !range.is_finite()
+                || !min_range.is_finite()
+                || min_range < 0.
+                || range < min_range =>
+        {
+            Err("row placed range")
+        }
+        Target::Self_ | Target::Point | Target::Unit(_) | Target::Placed { .. } => Ok(()),
     }?;
     for e in def.effects {
         match *e {
@@ -198,6 +218,11 @@ pub(crate) fn validate_row(def: Definition) -> Result<(), &'static str> {
                     return Err("row trail numbers");
                 }
             }
+            Effect::Wall { ms, length } => {
+                if !ms.is_finite() || ms < 0. || !length.is_finite() || length <= 0. {
+                    return Err("row wall numbers");
+                }
+            }
         }
     }
     Ok(())
@@ -242,6 +267,15 @@ pub const LAST_STAND_MS: f64 = 5000.;
 pub const LAST_STAND_FLOOR: f64 = 1.;
 pub const LAST_STAND_HASTE: f64 = 0.3;
 pub const LAST_STAND_HEAL: f64 = 0.3;
+// Frost Wall (unreleased legacy 78dd8bd4 `shared/src/abilities.ts`, `constants.ts`; P-FROST-WALL-1). Read only under
+// `SimConfig::frost_wish = Wall`; folded into content_hash with the frostWall id in P-FROST-WALL-2.
+pub const FROST_WALL_RANGE: f64 = 450.;
+pub const FROST_WALL_MIN_RANGE: f64 = 64.;
+/// Seven tiles.
+pub const FROST_WALL_LENGTH: f64 = 224.;
+pub const FROST_WALL_MS: f64 = 4000.;
+pub const FROST_WALL_CAST_MS: f64 = 250.;
+pub const FROST_WALL_COOLDOWN_MS: f64 = 45000.;
 pub const fn wish(faction: FactionId) -> AbilityId {
     match faction {
         FactionId::Frost => AbilityId::Freeze,
@@ -352,6 +386,37 @@ pub fn definition(id: AbilityId) -> Definition {
         own_order,
         drops_lock,
         effects,
+    }
+}
+
+/// The definition row a world casts for an id: the catalog's, except that under `SimConfig::frost_wish = Wall` Frost's
+/// Wish (staged under Freeze's id until P-FROST-WALL-2 gives it its own) is Frost Wall.
+pub fn definition_for(config: &crate::SimConfig, id: AbilityId) -> Definition {
+    if id == AbilityId::Freeze && config.frost_wish == crate::FrostWish::Wall {
+        frost_wall_definition()
+    } else {
+        definition(id)
+    }
+}
+
+/// The Frost Wall row (legacy 78dd8bd4 `frostWall`, rank 1).
+pub fn frost_wall_definition() -> Definition {
+    Definition {
+        id: AbilityId::Freeze,
+        slot: Slot::Wish,
+        cast_ms: FROST_WALL_CAST_MS,
+        cooldown_ms: FROST_WALL_COOLDOWN_MS,
+        charges: 1,
+        target: Target::Placed {
+            range: FROST_WALL_RANGE,
+            min_range: FROST_WALL_MIN_RANGE,
+        },
+        own_order: false,
+        drops_lock: false,
+        effects: &[Effect::Wall {
+            ms: FROST_WALL_MS,
+            length: FROST_WALL_LENGTH,
+        }],
     }
 }
 
@@ -484,6 +549,12 @@ pub fn visit_content(mut word: impl FnMut(u64)) {
             }
             Target::Self_ => word(1),
             Target::Point => word(2),
+            // No catalog row is placed until P-FROST-WALL-2 (the wall row is config-selected and not folded yet).
+            Target::Placed { range, min_range } => {
+                word(3);
+                word(range.to_bits());
+                word(min_range.to_bits());
+            }
         }
     }
     for v in [

@@ -71,7 +71,7 @@ Read with `git show 78dd8bd4:<path>` (not in this branch's `packages/`; do not m
 - `cargo run -p rh-parity --bin parity-report` all MATCH; `scripts/gate.sh --oracle packet/P-FROST-WALL-1` passes.
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-FROST-WALL-1`
+- `crates/rh-sim/src/barriers_tests.rs` (11 tests: three pure, five sim, three switch/save/hash)
 
 ## 9. Validation commands
 - `cargo test -p rh-sim frost_wall`, `cargo test -p rh-sim barriers`, `cargo test -p rh-sim --test hash_coverage`,
@@ -100,3 +100,24 @@ zones land in `crates/rh-sim/src/systems/abilities/effects.rs:386-476` (Trial) t
 (`:201-255`), with the field-kind checkpoint mapping in `abilities/effect_checkpoint.rs:35`. No oracle is written
 yet. The champion panel's Welcome terms pin Freeze's numbers (P-WIRE17-HUD-2b, codes 0 and 1): the wall's own terms
 are appended by P-FROST-WALL-2, not here.
+
+2026-11-12 (worker, oracle author): verified against the code; the packet is CUT and STAGED (owner answers in the
+worker session, 2026-11-12):
+- **No new ability id here.** Appending `frostWall` to `AbilityId::ALL` moves the content hash `4674a176a28e3c7a`
+  (`abilities::visit_content`, `status_runtime::rules::visit_extra_content`'s id loop) pinned in
+  `parity/abilities/hash-tape.json` and `protocol/fixtures/*`, and breaks exhaustive matches in rh-policy
+  (`delivery/projection.rs:183`, `tests/hud_content.rs`) and rh-server tests. Owner chose: under
+  `SimConfig::frost_wish = Wall` Frost's Wish keeps id `Freeze` and casts the wall row (`abilities::definition_for`,
+  `frost_wall_definition`); the wall's numbers are listed in `tests/content.rs` NON_GAMEPLAY and enter the content hash
+  with the `frostWall` id, its wire code and the client in P-FROST-WALL-2.
+- **The switch** is `SimConfig::frost_wish: FrostWish { Freeze (default, unit), Wall }` (`statics.rs`, hasher tag
+  `"frost_wish=wall"`). SimConfig is built with full literals in ~30 places outside rh-sim (rh-server src and tests,
+  rh-headless, rh-load): the owner approved adding only `frost_wish: rh_sim::FrostWish::Freeze,` there.
+- **Storage:** a field of kind `FieldKind::Wall` (appended; not in the content field list yet) plus a barrier row in
+  `AbilityRuntime::barriers` (unit when empty, like `MobRuntime::buffs`), and a derived `AbilityRuntime::overlay`
+  (`#[serde(skip)]`) rebuilt by `barriers::sync`. `Field` itself is unchanged (rh-parity and rh-headless build it by
+  literal). Walls are filtered out of `status_runtime/observe.rs` projections until P-FROST-WALL-2.
+- **Cut** (WORKER_RULES, the sim packet is over ~450 lines): this packet = switch, cast and clamp, the wall's tiles,
+  the collision overlay for walk planning (move orders, chase plans, displacement re-plans, slips) and swings, expiry,
+  teleport/run-end clears, save/restore/hash. `P-FROST-WALL-1b` = setting down fighters it lands on (push-out, gap
+  rule), re-planning walks already under way, mob AI and spacing, blink landings.

@@ -263,6 +263,52 @@ pub struct SimConfig {
     /// own (see [`CampBuffRule`]).
     #[serde(default)]
     pub camp_buffs: CampBuffRule,
+    /// What Frost's Wish is (P-FROST-WALL-1): `Freeze` (the default: the in-repo legacy oracle's point-and-click stun) or
+    /// `Wall` (unreleased legacy 78dd8bd4, owner decision 2026-11-10: Frost Wall, a placed barrier whose floor tiles are
+    /// LOW while it stands). `Freeze` adds nothing to any hash; `Wall` folds a tag of its own (see [`FrostWish`]). No
+    /// live profile selects `Wall` until clients can see the barrier (P-FROST-WALL-2).
+    #[serde(default)]
+    pub frost_wish: FrostWish,
+}
+
+/// `SimConfig::frost_wish`. `Freeze` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
+/// unit), so a config that leaves it alone has the statics digest, state hashes, checkpoints and replays it had before
+/// the field existed. `Wall` is the string `"wall"` in a human-readable format (the JSON config, checkpoint and replay)
+/// and the string `"frost_wish=wall"` (length 15) in any other (the state hasher): a value no other config field writes,
+/// for the reason [`RegenInCombat`] documents (this field follows three others whose default also folds nothing).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FrostWish {
+    #[default]
+    Freeze,
+    Wall,
+}
+
+/// What `FrostWish::Wall` writes to a serializer that is not human-readable (the state hasher). JSON keeps `"wall"`.
+const FROST_WISH_WALL_TAG: &str = "frost_wish=wall";
+
+impl serde::Serialize for FrostWish {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Freeze => s.serialize_unit(),
+            Self::Wall if s.is_human_readable() => s.serialize_str("wall"),
+            Self::Wall => s.serialize_str(FROST_WISH_WALL_TAG),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for FrostWish {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // Each format reads back exactly what it writes; JSON refuses the tag as it refuses any other unknown value.
+        let human = d.is_human_readable();
+        match Option::<String>::deserialize(d)?.as_deref() {
+            None => Ok(Self::Freeze),
+            Some("wall") if human => Ok(Self::Wall),
+            Some(FROST_WISH_WALL_TAG) if !human => Ok(Self::Wall),
+            Some(other) => Err(serde::de::Error::custom(format!(
+                "frost_wish must be null or \"wall\", not {other:?}"
+            ))),
+        }
+    }
 }
 
 /// `SimConfig::camp_buffs`. `Legacy` serializes as nothing (JSON `null`; the hashing serializer folds no word for a
@@ -390,6 +436,7 @@ impl Default for SimConfig {
             mob_spacing: crate::archetype::MobSpacing::Auto,
             regen_in_combat: RegenInCombat::Legacy,
             camp_buffs: CampBuffRule::Legacy,
+            frost_wish: FrostWish::Freeze,
         }
     }
 }
