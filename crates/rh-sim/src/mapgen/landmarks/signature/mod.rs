@@ -991,3 +991,54 @@ fn mark_halo(out: &mut [u8], site: usize) {
 fn pick(rng: &mut Mulberry32, n: usize) -> usize {
     (rng.next_u32() % n as u32) as usize
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn camp(zone: u8, x: usize, y: usize) -> CampSite {
+        CampSite {
+            zone,
+            site: y * W + x,
+            elite: true,
+            spots: Vec::new(),
+        }
+    }
+
+    fn site(zone: Zone, x: i32, y: i32, camp: Option<usize>) -> ReservedSite {
+        ReservedSite {
+            zone,
+            rect: TileRect { x, y, w: 4, h: 3 },
+            camp,
+            stream: Mulberry32::new(1),
+        }
+    }
+
+    /// P-MAPGEN-SIG-SCALE-1: the Frost site (whole rect) takes its camp's label (index + 1); a Sentenced site, a site
+    /// without a camp and no sites at all leave the grid as it was.
+    #[test]
+    fn only_the_frost_sites_tiles_take_its_camps_label() {
+        let camps = vec![camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
+        let before = vec![7u8; W * H];
+        let mut grid = before.clone();
+        relabel_sites(&[], &camps, &mut grid);
+        assert_eq!(grid, before, "no sites");
+        let others = [
+            site(Zone::Sentenced, 29, 30, Some(camps[1].site)),
+            site(Zone::Plague, 10, 10, None),
+            site(Zone::Frost, 40, 40, None),
+        ];
+        relabel_sites(&others, &camps, &mut grid);
+        assert_eq!(grid, before, "no Frost site with a camp");
+        relabel_sites(
+            &[site(Zone::Frost, 60, 60, Some(camps[2].site))],
+            &camps,
+            &mut grid,
+        );
+        for i in 0..W * H {
+            let (x, y) = ((i % W) as i32, (i / W) as i32);
+            let inside = (60..64).contains(&x) && (60..63).contains(&y);
+            assert_eq!(grid[i], if inside { 3 } else { 7 }, "({x}, {y})");
+        }
+    }
+}
