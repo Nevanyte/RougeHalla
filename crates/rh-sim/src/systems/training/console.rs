@@ -21,7 +21,7 @@ use crate::mob_catalog::{mob_type_by_id, MobTypeId};
 use crate::modifiers::farm_text::{mob_name, stat_text};
 use crate::pathfind::{self, Pathfinder};
 use crate::reward_chests::{self, is_interactive, OptionId};
-use crate::state::{PracticeRuntime, Status, World};
+use crate::state::{Status, World};
 use crate::statics::MatchStatic;
 use crate::systems::{mobs, Cx};
 use crate::{PlayerId, Vec2};
@@ -266,7 +266,8 @@ fn camp_spots(map: &crate::TileMap, from: Vec2, taken: &mut Vec<i64>, count: usi
 }
 
 /// The practice camp ref for the next camp (legacy \`nextCampRef\`): the next free one of 101..=255, wrapping.
-fn next_camp_ref(w: &World, run: PracticeRuntime) -> (u32, PracticeRuntime) {
+/// Returns the ref and the console's next `next_camp`.
+fn next_camp_ref(w: &World, next_camp: u32) -> (u32, u32) {
     let mut used = Vec::new();
     for m in w.mobs.iter() {
         if m.camp >= PRACTICE_CAMP_FIRST {
@@ -274,19 +275,18 @@ fn next_camp_ref(w: &World, run: PracticeRuntime) -> (u32, PracticeRuntime) {
         }
     }
     let span = PRACTICE_CAMP_LAST - PRACTICE_CAMP_FIRST + 1;
-    let mut run = run;
     for i in 0..span {
-        let camp = PRACTICE_CAMP_FIRST + ((run.next_camp - PRACTICE_CAMP_FIRST + i) % span);
+        let camp = PRACTICE_CAMP_FIRST + ((next_camp - PRACTICE_CAMP_FIRST + i) % span);
         if !used.contains(&camp) {
-            run.next_camp = if camp + 1 > PRACTICE_CAMP_LAST {
+            let next = if camp + 1 > PRACTICE_CAMP_LAST {
                 PRACTICE_CAMP_FIRST
             } else {
                 camp + 1
             };
-            return (camp, run);
+            return (camp, next);
         }
     }
-    (PRACTICE_CAMP_FIRST, run)
+    (PRACTICE_CAMP_FIRST, next_camp)
 }
 
 /// Legacy \`trainCamp\`: a practice camp of the type (a lone elite for an elite type), near the player.
@@ -296,10 +296,14 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     };
     let pid = w.players[ix.slot()].core.id;
     let from = w.players[ix.slot()].core.pos();
-    let Some(run) = w.practice else {
+    let Some((spawned, last_camp_at, next_camp)) = w
+        .practice
+        .as_ref()
+        .map(|run| (run.spawned, run.last_camp_at, run.next_camp))
+    else {
         return;
     };
-    if !drop_allowed(w, ev, pid, run.last_camp_at) {
+    if !drop_allowed(w, ev, pid, last_camp_at) {
         return;
     }
     let size = if ty.elite { 1 } else { TRAIN_CAMP_SIZE };
@@ -316,7 +320,7 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
         );
         return;
     }
-    if run.spawned + size > TRAIN_MAX_MOBS_SPAWNED {
+    if spawned + size > TRAIN_MAX_MOBS_SPAWNED {
         toast(
             ev,
             pid,
@@ -331,7 +335,7 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
         toast(ev, pid, "No free floor near you for a camp".into());
         return;
     }
-    let (camp_ref, next) = next_camp_ref(w, run);
+    let (camp_ref, next) = next_camp_ref(w, next_camp);
     for at in &spots {
         let facing = atan2(from.y - at.y, from.x - at.x);
         // placeMob writes `camp + 1` to MobState.camp; the console passes `ref - 1`, so the mob's camp is the ref itself.
@@ -340,7 +344,7 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     if let Some(run) = w.practice.as_mut() {
         run.spawned += spots.len() as u32;
         run.last_camp_at = Some(w.server_time);
-        run.next_camp = next.next_camp;
+        run.next_camp = next;
     }
     let elite = if ty.elite { " (elite)" } else { "" };
     toast(
@@ -361,10 +365,10 @@ fn chest(
 ) {
     let pid = w.players[ix.slot()].core.id;
     let from = w.players[ix.slot()].core.pos();
-    let Some(run) = w.practice else {
+    let Some(last_chest_at) = w.practice.as_ref().map(|run| run.last_chest_at) else {
         return;
     };
-    if !drop_allowed(w, ev, pid, run.last_chest_at) {
+    if !drop_allowed(w, ev, pid, last_chest_at) {
         return;
     }
     if w.reward_chests.len() >= TRAIN_MAX_CHESTS as usize {
@@ -427,6 +431,18 @@ fn chest(
     toast(ev, pid, format!("Chest: {}", names.join(", ")));
 }
 
+/// The practice camps' contributors (legacy `world.campContrib` for the console's camps, `campHeal.ts:13-27`): every
+/// (camp ref, player) pair, the camp ref being `Mob::camp` (101..=255), each player once per camp in first-hit order.
+/// A practice camp's clear forgets its own pairs (`campHeal.ts:97`); the console's clear forgets them all
+/// (`training.ts:345`).
+// Read by the training tests; the sim itself reads `PracticeRuntime::contributors` in place.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn practice_contributors(w: &World) -> Vec<(u32, PlayerId)> {
+    w.practice
+        .as_ref()
+        .map_or_else(Vec::new, |run| run.contributors.clone())
+}
+
 /// Legacy \`trainClear\`: removes every card, practice mob, chest and projectile the practice console placed, and what the
 /// cards left in the player's memory; a cleared practice player is the one that joined.
 fn clear(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx) {
@@ -441,6 +457,12 @@ fn clear(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx) {
         p.barrier_decays = false;
         p.card_tank_hp = 0.;
         p.card_prevented = 0.;
+        // The camps counted go too, before the re-fold as in the source (Pack Leader reads the count), and so does every
+        // practice camp's contributor list (legacy `training.ts:344-345`). Potions are left alone.
+        p.camps_cleared = 0;
+    }
+    if let Some(run) = w.practice.as_mut() {
+        run.contributors.clear();
     }
     crate::modifiers::recompute(k, w, ix);
     let p = &mut w.players[ix.slot()];

@@ -829,8 +829,9 @@ impl Projectile {
     }
 }
 
-/// The training practice console's counters (legacy world.practice WeakMap): None outside a training world.
-#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+/// The training practice console's counters (legacy world.practice WeakMap): None outside a training world. Not `Copy`
+/// since it holds the contributor list; its `Clone` keeps that list's spare capacity (see [`PracticeRuntime::prepare`]).
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PracticeRuntime {
     /// Practice mobs placed so far (bounded by TRAIN_MAX_MOBS_SPAWNED).
@@ -840,6 +841,38 @@ pub(crate) struct PracticeRuntime {
     pub(crate) last_chest_at: Option<f64>,
     /// The camp ref the next practice camp takes (101..=255, wrapping, skipping refs still in use).
     pub(crate) next_camp: u32,
+    /// The practice camps' contributors (legacy `world.campContrib` for the console's camps, `campHeal.ts:13-27`): every
+    /// (camp ref = `Mob::camp`, player) pair, each player once per camp, in first-hit order. A practice camp's clear
+    /// forgets its own pairs (`campHeal.ts:97`), the console's clear all of them (`training.ts:345`). Hashed state: it
+    /// outlives the tick and cannot be derived from the mobs.
+    pub(crate) contributors: Vec<(u32, PlayerId)>,
+}
+
+impl PracticeRuntime {
+    /// Reserves room for every contributor pair the room can hold: a camp keeps pairs only while one of its mobs lives
+    /// (its last death pays and forgets them), so at most `TRAIN_MAX_MOBS` camps, times the seated players. A warm,
+    /// cloned or restored room then notes contributors without allocating inside a step (capacity is not state).
+    pub(crate) fn prepare(&mut self, players: usize) {
+        let bound = crate::constants::TRAIN_MAX_MOBS as usize * players;
+        self.contributors
+            .reserve(bound.saturating_sub(self.contributors.len()));
+    }
+}
+
+impl Clone for PracticeRuntime {
+    /// `Vec::clone` keeps the values, not the spare capacity: a cloned room keeps the original's, so it allocates exactly
+    /// when the original would.
+    fn clone(&self) -> Self {
+        let mut contributors = Vec::with_capacity(self.contributors.capacity());
+        contributors.extend_from_slice(&self.contributors);
+        Self {
+            spawned: self.spawned,
+            last_camp_at: self.last_camp_at,
+            last_chest_at: self.last_chest_at,
+            next_camp: self.next_camp,
+            contributors,
+        }
+    }
 }
 
 /// The evolving match state: everything a later tick can depend on. With [`crate::statics::MatchStatic`] it is the whole

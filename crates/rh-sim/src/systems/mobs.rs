@@ -78,6 +78,7 @@ fn initialize_body(
             last_camp_at: None,
             last_chest_at: None,
             next_camp: crate::constants::PRACTICE_CAMP_FIRST,
+            contributors: Vec::new(),
         });
         return Ok(());
     }
