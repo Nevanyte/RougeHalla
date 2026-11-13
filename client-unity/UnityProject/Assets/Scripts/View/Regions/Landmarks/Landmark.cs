@@ -1,0 +1,131 @@
+using System.Collections.Generic;
+using UnityEngine;
+using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
+
+namespace Roguehalla.Client
+{
+    /// <summary>
+    /// P-UNITY-LANDMARK-1: one landmark of the map as the client draws it. Everything here is derived from the delivered tiles inside
+    /// the anchor's footprint plus the anchor's kind, front and entrance, never from a copy of a blueprint grid (the generator places a
+    /// blueprint in one of eight orientations and does not say which). The framework classifies; a kind's art (LandmarkArts) only draws.
+    /// World space below is ArenaView.WorldPoint space (parent-local: x = tile x, y = -tile y * GroundSquash); tiles are map tile coordinates.
+    /// </summary>
+    public sealed class Landmark
+    {
+        public MapAnchor Anchor { get; private set; }
+        /// <summary>The landmark's root object (child of the view's parent); every renderer of the landmark is below it.</summary>
+        public GameObject Root { get; private set; }
+        /// <summary>Wall tiles of the collision plane inside the footprint.</summary>
+        public int WallCount { get; private set; }
+        /// <summary>Floor tiles inside the footprint whose terrain code is Ice (the cave's special terrain).</summary>
+        public int IceCount { get; private set; }
+        /// <summary>Interior floor tiles (LandmarkInterior.Find), excluding the entrance tiles.</summary>
+        public int InteriorCount { get; private set; }
+        /// <summary>The roof layer's renderers (sprites), one per roof piece; each one's colour alpha equals <see cref="RoofAlpha"/>.</summary>
+        public SpriteRenderer[] RoofRenderers { get { return _roofArray; } }
+        /// <summary>Sorting order of every roof renderer: at the footprint's south edge on the walls' rule (2000 + 16 x (footprint y + h)),
+        /// so an actor inside the footprint draws under it and one south of it draws over it; always under the vision fog.</summary>
+        public int RoofOrder { get; private set; }
+        /// <summary>Current alpha of the roof layer (LandmarkView.RoofOpaqueAlpha .. LandmarkView.RoofFadedAlpha).</summary>
+        public float RoofAlpha { get; private set; }
+        /// <summary>The entrance tiles the arch stands on (the anchor's).</summary>
+        public MapTile[] ArchTiles { get; private set; }
+        /// <summary>Centre of the arch in world space (on the ground, the middle of the entrance tiles).</summary>
+        public Vector3 ArchCentre { get; private set; }
+        /// <summary>The anchor's front as a unit vector in tile space (x east, y south), from the DIR16 index.</summary>
+        public Vector2 FrontVector { get; private set; }
+
+        // ---- what a kind's art reads ------------------------------------------------------------------------------------------
+        public int FootX { get; private set; }
+        public int FootY { get; private set; }
+        public int FootW { get; private set; }
+        public int FootH { get; private set; }
+        /// <summary>The material sprites of this landmark share (sun-lit like the region props).</summary>
+        public Material Material { get; private set; }
+
+        bool[] _wall, _interior, _roofMask;
+        readonly List<SpriteRenderer> _roof = new List<SpriteRenderer>();
+        SpriteRenderer[] _roofArray = new SpriteRenderer[0];
+        readonly List<Object> _owned = new List<Object>();
+        /// <summary>Set by LandmarkView.NoteActor for the frame; cleared by Tick.</summary>
+        internal bool ActorInside;
+
+        /// <summary>True for a wall tile (collision plane) inside the footprint; false anywhere else.</summary>
+        public bool IsWall(int x, int y) { return Local(x, y, out int i) && _wall[i]; }
+        /// <summary>True for an interior floor tile (enclosed floor, doorway tiles excluded).</summary>
+        public bool IsInterior(int x, int y) { return Local(x, y, out int i) && _interior[i]; }
+        /// <summary>Whether the roof layer covers tile (x, y): every interior tile and the landmark's own wall tiles (the rock the roof
+        /// joins); false outside the footprint and on the mouth.</summary>
+        public bool RoofCovers(int x, int y) { return Local(x, y, out int i) && _roofMask[i]; }
+
+        bool Local(int x, int y, out int i)
+        {
+            int lx = x - FootX, ly = y - FootY; i = ly * FootW + lx;
+            return lx >= 0 && ly >= 0 && lx < FootW && ly < FootH;
+        }
+
+        /// <summary>Registers a texture, sprite, material or object the landmark made, destroyed with it.</summary>
+        public void Own(Object o) { if (o != null) _owned.Add(o); }
+
+        /// <summary>Adds a roof piece: it takes the landmark's roof order and the current roof alpha, and fades with the roof.</summary>
+        public void AddRoofRenderer(SpriteRenderer r)
+        {
+            r.sortingOrder = RoofOrder; Tint(r, RoofAlpha);
+            _roof.Add(r); _roofArray = _roof.ToArray();
+        }
+
+        internal void SetRoofAlpha(float a)
+        {
+            if (a == RoofAlpha) return;
+            RoofAlpha = a;
+            for (int i = 0; i < _roofArray.Length; i++) Tint(_roofArray[i], a);
+        }
+
+        static void Tint(SpriteRenderer r, float a) { var c = r.color; c.a = a; r.color = c; }
+
+        /// <summary>Classifies the footprint's tiles and makes the root; null when the footprint is empty or off the map.</summary>
+        internal static Landmark Create(Transform parent, MapBlob map, MapAnchor anchor)
+        {
+            var f = anchor.Footprint;
+            if (f.W == 0 || f.H == 0 || f.X + f.W > map.W || f.Y + f.H > map.H) return null;
+            var lm = new Landmark
+            {
+                Anchor = anchor, FootX = f.X, FootY = f.Y, FootW = f.W, FootH = f.H, RoofAlpha = LandmarkView.RoofOpaqueAlpha,
+                RoofOrder = 2000 + 16 * (f.Y + f.H), ArchTiles = anchor.Entrance,
+                FrontVector = new Vector2(Mathf.Cos(anchor.Front * Mathf.PI / 8f), Mathf.Sin(anchor.Front * Mathf.PI / 8f)),
+            };
+            int n = f.W * f.H; lm._wall = new bool[n]; lm._roofMask = new bool[n];
+            for (int y = 0; y < f.H; y++) for (int x = 0; x < f.W; x++)
+            {
+                int i = y * f.W + x, m = (f.Y + y) * map.W + f.X + x;
+                if (map.Tiles[m] == MapBlob.Wall) { lm._wall[i] = true; lm.WallCount++; }
+                else if (map.Tiles[m] == MapBlob.Floor && map.Terrain != null && map.Terrain[m] == (byte)TerrainKind.Ice) lm.IceCount++;
+            }
+            lm._interior = LandmarkInterior.Find(map.Tiles, map.W, map.H, f, anchor.Entrance);
+            lm.InteriorCount = LandmarkInterior.Count(lm._interior);
+            for (int i = 0; i < n; i++) lm._roofMask[i] = lm._interior[i] || lm._wall[i];
+            if (anchor.Entrance.Length > 0)
+            {
+                float sx = 0, sy = 0;
+                foreach (var t in anchor.Entrance) { sx += t.X + .5f; sy += t.Y + .5f; }
+                lm.ArchCentre = new Vector3(sx / anchor.Entrance.Length, -sy / anchor.Entrance.Length * ArenaView.GroundSquash, 0);
+            }
+            else lm.ArchCentre = new Vector3(anchor.Centre.X + .5f, -(anchor.Centre.Y + .5f) * ArenaView.GroundSquash, 0);
+            var shader = Resources.Load<Shader>("Regions/RegionSpriteLit");
+            if (shader != null) { lm.Material = new Material(shader) { name = "Roguehalla / landmark (sun lit)" }; lm.Own(lm.Material); }
+            else lm.Material = ShowcaseSprites.Lit;
+            lm.Root = new GameObject("Landmark kind " + anchor.Kind + " zone " + anchor.Zone);
+            lm.Root.transform.SetParent(parent, false);
+            return lm;
+        }
+
+        internal void Dispose()
+        {
+            foreach (var o in _owned) RegionUtil.Kill(o);
+            _owned.Clear(); _roof.Clear(); _roofArray = new SpriteRenderer[0];
+            if (Root != null) RegionUtil.Kill(Root);
+            Root = null;
+        }
+    }
+}

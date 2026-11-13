@@ -4,11 +4,11 @@ using System.Text;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using Roguehalla.Net.Ui;
-using MapRect = Roguehalla.Net.Ui.MapRect;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using MapRect = Roguehalla.Net.Ui.MapRect;   // Net.Protocol gained a MapRect (P-WIRE17-MAP-3): the map screen's is meant here
 using UnityEngine.UI;
 
 namespace Roguehalla.Client
