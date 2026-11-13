@@ -1,8 +1,9 @@
-# P-MAPGEN-SIG-FROST-2: a Frost map whose main lake is not at the cave's mouth is discarded
+# P-MAPGEN-SIG-FROST-2: a Frost map whose main lake is not at the cave's mouth, or whose landmarks crowd each other's aprons, is discarded
 
 - **Serves:** owner decision 4 (2026-11-10: "Frost frozen lake with an enterable frozen cave at the back with the elite
   camp inside", mouth facing the lake); core rule G5 (failing maps are discarded, not patched); reviewer-opus note 1 on
-  P-MAPGEN-SIG-FROST-1 (2026-11-12, REAL)
+  P-MAPGEN-SIG-FROST-1 (2026-11-12, REAL); amendment (coordinator, 2026-11-12): the landmark-apron finding of
+  P-MAPGEN-SIG-SENTENCED-1's oracle author is folded in (second outcome below)
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the end-of-attempt signature check)
 - **Reviewer:** reviewer-opus
 - **Integration base:** feature/unity-rework after P-MAPGEN-SIG-FROST-1 lands
@@ -21,6 +22,20 @@ fails a rule is discarded. When this lands, the end-of-attempt signature check (
 lies within `lake_reach + 2` (10) floor steps of the cave's mouth. A Frost zone with no ice outside the cave is kept
 (the styler may legitimately place none). The generator then tries the next attempt, as for any other discard.
 
+**Second outcome (amendment, 2026-11-12; G5, G1):** an attempt in which one signature landmark's tiles lie in another
+landmark's apron is discarded. The landmarks are placed in order (volcano, church, bog tree, cave; the Holy hall by its
+styler), and each keeps its own walls out of the aprons marked before it (`Site::ground`, `landmarks/signature/mod.rs`),
+but nothing keeps an earlier landmark's tiles out of a later one's apron: the rule is one-sided. Today's generator
+accepts attempts where it breaks (seeds 1-40, every accepted attempt up to the certifying one and at least 0-3):
+- seed 34 attempt 0 (its certifying attempt today): bog tree in the cave's apron (3 tiles, first (26, 13)) and the cave
+  in the bog tree's apron (6 tiles, first (28, 10));
+- seed 7 attempt 2: bog tree in the cave's apron (3 tiles, first (147, 10)), cave in the bog tree's apron (8 tiles);
+- seed 23 attempt 2: church in the bog tree's apron (7 tiles, first (11, 147)).
+When this lands, `intact` also refuses a map where, for any ordered pair of the five landmarks (definitions at the top
+of `mapgen_signature_aprons.rs`), a tile of one lies in the other's box grown by the core band (`bands[0]`); the check is
+symmetric, so the placement order no longer decides which side is guarded. The rule holds on every attempt by
+construction (the attempt is discarded), not by the luck of which attempt certifies.
+
 ## 2. Dependencies
 - P-MAPGEN-SIG-FROST-1 merged.
 
@@ -37,6 +52,10 @@ lies within `lake_reach + 2` (10) floor steps of the cave's mouth. A Frost zone 
   `region_grid` and `terrain`. No change to `pipeline/`, `style_rime/` or `cave.rs` is needed. The FROST-1 brief's
   `style_rime/**` allowance is withdrawn: the styler must not change (every unchanged seed's map is pinned).
 - Not `tests/`, not `style_rime/`, not `pipeline/`.
+- Amendment: the apron check also lives in `intact` (`mod.rs`), so the scope stays `signature/{mod.rs,cave.rs}`.
+  `bog_tree.rs` (and `cave.rs`'s site rule) only if the implementer moves the guard to placement as well; that is
+  allowed only if every pinned map of `mapgen_signature_frost_lake.rs` stays as pinned (a placement rule changes
+  site choices; the discard changes only breaching attempts).
 
 ## 7. Behaviour to preserve
 - Option off: byte-identical. Option on: every seed 1-32 still certifies within the attempt limit with all five
@@ -95,6 +114,17 @@ arm64; a throwaway probe and a throwaway local patch of the rule, both reverted.
    `mapgen_signature_core.rs` (8 cases), `mapgen_signature_fire.rs` (11), `mapgen_signature_fire_bands.rs` (5) and
    `mapgen_signature_frost.rs` (7) all pass.
 
+## Amendment measurements (SENTENCED-1's oracle author, 2026-11-12; today's generator at ce2db7a8's base)
+- `mapgen_signature_aprons.rs` checks 108 accepted attempts of seeds 1-40 (list printed by the test); 5 ordered pairs
+  breach on 3 attempts (above). Seeds 7 and 23 certify on attempt 0, which is clean: their breaching attempt 2 is
+  reached today only by calling `styled_attempt` directly (the test does; `certified_styled` does not).
+- Effect on landing attempts: seed 34 lands on attempt 1 (clean; map hash `7826ac63`), the same attempt the lake rule
+  already sends it to (measurement 4). No seed of 1-32 lands on a breaching attempt under either rule: the pinned
+  landings of `mapgen_signature_frost_lake.rs` (`unchanged()`, and `moved()`: 17 at attempt 1, 18 at attempt 3) are all
+  among the clean accepted attempts, so **no pinned seed or map hash moves** and that file is not amended.
+- FIRE-1's `note1_bog_tree_tiles_stay_out_of_other_landmarks_aprons` (seeds 1-16, certifying attempts) is green today
+  and stays green: its pairs are repeated as a guard in the new file.
+
 ## Other oracles whose seeds move
 - `mapgen_signature_fire.rs`: seeds 1-16 (and `note2_...`, seeds 6-10, attempts 0-3): no seed changes attempt.
 - `mapgen_signature_fire_bands.rs`, seeds 1-32: **17 and 18** change map, so its pooled statistics move
@@ -120,6 +150,16 @@ arm64; a throwaway probe and a throwaway local patch of the rule, both reverted.
     3 + 2 = 5 over seeds 1-32).
   - `report_seeds_33_to_64` (`#[ignore]`, run with `--ignored --nocapture`): every seed 33-64 certifies and meets the
     rule; fails today on seed 34.
+- `crates/rh-sim/tests/mapgen_signature_aprons.rs` (amendment; new target, seeds 1-40 option on, every accepted
+  attempt up to the certifying one and at least attempts 0-3, generated once per binary, about 65 s in a debug build):
+  - fails on an assertion today: `no_landmark_lies_in_another_landmarks_apron_on_any_accepted_attempt` (`5 landmark
+    pairs breach an apron`: seed 7 attempt 2 bog tree/cave both ways, seed 23 attempt 2 church in the bog tree's apron,
+    seed 34 attempt 0 bog tree/cave both ways);
+  - passes today and must keep passing: `the_bog_tree_keeps_out_of_buildings_and_signature_aprons_on_certified_maps`
+    (FIRE-1 note 1's pairs, seeds 1-16).
+  - How it reaches per-attempt maps: no hook exposes a map before `intact`, and a refused attempt yields no map, so it
+    calls `Pipeline::styled_attempt(seed, n)` for each attempt and checks every map the generator accepts (the
+    attempt a seed would land on if an earlier one were discarded).
 - This brief.
 - No stub: the rule needs no new signature (the implementer edits `intact`'s body and may add private helpers).
 
@@ -130,7 +170,7 @@ Landmarks phase, crater-count floor, near/far ratio) are re-run and reported.
 ## 9. Validation commands
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_frost_lake` (and
   `-- --ignored --nocapture report_seeds_33_to_64`), `--test mapgen_signature_frost`, `--test mapgen_signature_fire`,
-  `--test mapgen_signature_fire_bands`, `--test mapgen_signature_core`, `--test content`, `--lib mapgen::`;
+  `--test mapgen_signature_fire_bands`, `--test mapgen_signature_core`, `--test mapgen_signature_aprons`, `--test content`, `--lib mapgen::`;
   `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-FROST-2`.
 
 ## What the oracle does not prove
@@ -140,6 +180,9 @@ Landmarks phase, crater-count floor, near/far ratio) are re-run and reported.
 - That the lake is in front of the mouth in a shape sense (only the walked distance to its nearest tile).
 
 ## 11. Known traps
+- Apron check (amendment): measure from the finished map (boxes of the renumbered features, `feature_grid` ownership),
+  both directions of every pair; the volcano's apron is its cone's box (streams and pools keep their by-tile apron), its
+  streams and pools count as its tiles; the hall is the Holy `Hall` on the Holy anchor's footprint.
 - "Floor steps" are walked steps over floor, as FROST-1's oracle measures them, not straight-line distance. The walk
   crosses any floor (ice, other zones, owned tiles), not only Frost or unowned floor, and starts on the mouth tiles.
 - The cave's own interior ice is owned and never counts as the lake. Ownership is the finished map's `feature_grid`
