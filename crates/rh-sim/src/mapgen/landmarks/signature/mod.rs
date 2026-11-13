@@ -132,6 +132,12 @@ pub struct Definition {
     /// coliseum) at the bottom. Parsed once per context (`bog_tree::Drawing`); a grid that does not parse refuses every
     /// option-on attempt at the tree (`Refusal::Signature`).
     pub bog_grid: &'static str,
+    /// P-MAPGEN-SIG-SCALE-2: the Sentenced church's approved blueprint with its graveyard and churchyard (owner decision
+    /// 2026-11-13; ADR 0028 G9), the text of `church.txt` beside this file, a byte-equal copy of
+    /// `docs/landmarks/blueprints/church.txt` (as `cave_grid`). Lines starting `;` are its legend; the rest is the 29 x 29
+    /// grid, front (toward the coliseum) at the bottom. STUB: empty until the packet's implementation reads it
+    /// (`include_str!("church.txt")`).
+    pub church_grid: &'static str,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -192,6 +198,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     site_depth: 9,
     cave_grid: include_str!("cave.txt"),
     bog_grid: include_str!("bog.txt"),
+    church_grid: "",
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
@@ -215,8 +222,9 @@ pub fn reserved_zones() -> [Zone; 4] {
 }
 
 /// P-MAPGEN-SIG-SCALE-1: the zones whose reserved site is relabelled to its inside camp's territory (`relabel_sites`):
-/// the Frost site, round which the blueprint cave stands. P-MAPGEN-SIG-SCALE-2 adds the Sentenced site with its church.
-fn relabelled_zones() -> [Zone; 1] {
+/// the Frost site, round which the blueprint cave stands. P-MAPGEN-SIG-SCALE-2 adds the Sentenced site with its church
+/// (public so that its oracle, `tests/mapgen_signature_church.rs`, can read the list).
+pub fn relabelled_zones() -> [Zone; 1] {
     [Zone::Frost]
 }
 

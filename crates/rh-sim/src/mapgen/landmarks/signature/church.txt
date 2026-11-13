@@ -1,0 +1,38 @@
+; SENTENCED CHURCH, GRAVEYARD AND CHURCHYARD blueprint, 29 x 29 tiles. FRONT (toward the coliseum) is the BOTTOM edge.
+; #  church wall     P  pillar     G  headstone      (all walls to the generator)
+; +  fence (a low obstacle: walkers cannot cross, shots can): the churchyard fence on the box's outer rows, and a fence round each plot
+; .  plain floor     D  the church door (3 floor tiles, columns 13-15, on the building's front wall, row 16)
+; E  elite camp centre (x=14, y=7; its 7x7 halo, corners cut, is plain floor)     *  lantern post mark (decoration on a floor tile, 2 beside every gate)
+; Church building: columns 3-25, rows 3-16 (23 x 14). Graveyard: rows 17-27 (11 deep). Churchyard fence: rows 0 and 28, columns 0 and 28.
+; Main gate: 5 wide, columns 12-16 of row 28 (the front row), 12 rows below the door line (row 16). All other gates are 3 wide.
+; Everything is mirrored about column 14. Fence runs are at most 5 tiles; no corner arm is longer than 5.
+;
++++++...+++++...+++++...+++++
++...*...*...*...*...*...*...+
++...........................+
++..#######################..+
++*.#.....................#.*+
+...#.....................#...
+...#PP..PP.........PP..PP#...
+...#PP..PP....E....PP..PP#...
++*.#PP..PP.........PP..PP#.*+
++..#.....................#..+
++..#.....................#..+
++..#PP..PP.........PP..PP#..+
++*.#PP..PP.........PP..PP#.*+
+...#PP..PP.........PP..PP#...
+...#.....................#...
+...#.....................#...
++*.##########DDD##########.*+
++...........................+
++...........................+
++..+++...+++.....+++...+++..+
++*.+.......+.....+.......+.*+
+.....GG.GG.........GG.GG.....
+.....GG.GG.........GG.GG.....
+.....GG.GG.........GG.GG.....
++*.+.......+.....+.......+.*+
++..+++...+++.....+++...+++..+
++...........................+
++...*...*..*.....*..*...*...+
++++++...++++.....++++...+++++
