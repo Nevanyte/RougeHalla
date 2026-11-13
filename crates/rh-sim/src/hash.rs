@@ -18,20 +18,24 @@
 //! `skip_serializing_if` or `flatten` (a missing or map-shaped field would be ambiguous), and may not hold a non-finite
 //! float (JSON would write it as `null`, so a checkpoint could not restore it): represent a sentinel as an `Option`.
 //!
-//! Two deliberate exceptions, both in the config, not the World: `SimConfig.mob_spacing = Auto` and
-//! `SimConfig.regen_in_combat = Legacy` serialize as a unit and so add no word of their own to the digest (the digest folds
+//! Three deliberate exceptions in the config: `SimConfig.mob_spacing = Auto`, `SimConfig.regen_in_combat = Legacy` and
+//! `SimConfig.camp_buffs = Legacy` serialize as a unit and so add no word of their own to the digest (the digest folds
 //! `(&config, &*arena)`, see `statics.rs`). That is what keeps every pre-existing match hash unchanged when the fields were
-//! added. Their other values must still change the digest, and must not be confusable with each other: the two fields
-//! are adjacent (the last two of `SimConfig`), field names are not hashed, and either may be absent from the word stream,
+//! added. Their other values must still change the digest, and must not be confusable with each other: the three fields
+//! are adjacent (the last three of `SimConfig`), field names are not hashed, and any may be absent from the word stream,
 //! so a non-default value is only safe if it folds words that no neighbouring field (or the arena that follows) can
 //! write in its place. `MobSpacing::Off` folds the string "off" (length 3); `RegenInCombat::Off` folds the string
-//! "regen_in_combat=off" (length 19) when the serializer is not human-readable, while JSON keeps "off"
-//! (P-REGEN-COMBAT-1-fix: with "off" for both, spacing off with legacy regen and spacing on with regen off shared a
-//! digest). The
-//! World rules above do not cover config. Do not copy this for a new field: a new World field must be tagged (an
-//! `Option`, or a variant index), and a new config field must say in its own doc whether its default adds a word to
-//! the digest; one whose default adds none needs a non-default encoding of its own, checked in
-//! `tests/hash_coverage.rs` against every other such field.
+//! "regen_in_combat=off" (length 19) and `CampBuffRule::Themed` the string "camp_buffs=themed" (length 17) when the
+//! serializer is not human-readable, while JSON keeps "off" and "themed" (P-REGEN-COMBAT-1-fix: with "off" for both,
+//! spacing off with legacy regen and spacing on with regen off shared a digest). The World rules above do not cover
+//! config. Do not copy this for a new field: a new World field must be tagged (an `Option`, or a variant index), and a
+//! new config field must say in its own doc whether its default adds a word to the digest; one whose default adds none
+//! needs a non-default encoding of its own, checked in `tests/hash_coverage.rs` against every other such field.
+//!
+//! One World exception (P-CAMP-BUFF-THEMES-1, coordinator decision): `MobRuntime::buffs` writes its empty row as a unit
+//! (no word) so every `CampBuffRule::Legacy` world keeps its hash and checkpoint; it is safe only because `check_world`
+//! admits that untagged shape exactly when the digest holds `Legacy` (or the world has no camps) and a row of one entry
+//! per camp exactly when it holds `Themed`, so two states under one digest never differ by its presence alone.
 //!
 //! Mixer: one `(h ^ word) * K` and a rotate per word (a bijection of the running state for every word, so a single changed
 //! word always changes the result), then a splitmix64 finalizer.

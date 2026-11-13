@@ -717,6 +717,51 @@ fn camp_buffs_themed_state() -> (&'static str, Sim) {
     ("camp buffs themed (live profiles, config only)", sim)
 }
 
+/// `SimConfig::camp_buffs = Themed` on the one-camp PvE fixture (P-CAMP-BUFF-THEMES-1): the world carries
+/// `world.mob_runtime.buffs`, one entry per camp, stepped into the active raid, here with an off-theme buff (a `Some`
+/// leaf) so the campaign perturbs an entry.
+fn camp_buffs_themed_mob_state() -> (&'static str, Sim) {
+    let data = serde_json::from_str(include_str!("fixtures/mob-pve-map.json")).unwrap();
+    let arena = rh_sim::mapdata::MapExport {
+        format: "rh-map/2".into(),
+        legacy_map_hash_u32: 0,
+        map: data,
+    }
+    .validate()
+    .unwrap()
+    .into_arena()
+    .unwrap();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            quests: false,
+            consumables: true,
+            mob_mode: rh_sim::mob_runtime::MobMode::Pve,
+            camp_buffs: rh_sim::CampBuffRule::Themed,
+            ..Default::default()
+        },
+        arena,
+        Secrets::from_seed(79),
+        &[Placement {
+            profile: "hash-camp-buffs-mob".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    // A lone camp always ends on its zone's theme (below nine camps the repair only gains theme), so the checkpoint is
+    // restored with the Fire camp paying the Sentenced Pardoner's stat, an off-theme buff `check_world` admits.
+    assert_eq!(sim.camp_buffs(), &[None], "a lone camp rolls on its zone's theme");
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    cp["world"]["mob_runtime"]["buffs"][0] = serde_json::json!("pardoner");
+    let sim = Sim::restore(&cp).expect("an off-theme buff of another zone is admitted");
+    assert!(sim.camp_buffs()[0].is_some());
+    ("camp buffs themed (one PvE camp, off theme)", sim)
+}
+
 /// Admitted Training worlds produce their hints through ordinary validated movement.
 /// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
 fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
@@ -929,6 +974,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     states.push(mob_spacing_off_state());
     states.push(regen_in_combat_off_state());
     states.push(camp_buffs_themed_state());
+    states.push(camp_buffs_themed_mob_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
@@ -1374,6 +1420,9 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.mob_runtime.camps.*.mob_type", "published roster must match camp faction/elite spot and every retained typed birth"),
     ("world.mob_runtime.camps.*.respawn_at", "uncleared camp clocks are zero; cleared camp expiry equals cleared_at plus CAMP_RESPAWN_MS"),
     ("world.mob_runtime.combat", "supported PvE runtime requires combat enabled"),
+    ("world.mob_runtime.buffs", "check_world ties the camp buff row to statics.config.camp_buffs: Legacy carries none (null), Themed one entry per camp"),
+    ("world.mob_runtime.buffs.#len", "check_world ties the camp buff row to statics.config.camp_buffs: Themed carries one entry per camp, no fewer"),
+    ("statics.config.camp_buffs", "a closed null/\"themed\" domain whose value must match the world's camp buff row (check_world): flipping it alone on a world with camps is refused; the config-only scenario perturbs it"),
     ("world.mob_runtime.life.#len", "mob runtime camp and life arrays must match admitted map camp count"),
     ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
     ("world.mob_runtime.life.*.ward_expires_at", "ward expiry is zero without owner, otherwise cleared_at plus CAMP_WARD_MS"),

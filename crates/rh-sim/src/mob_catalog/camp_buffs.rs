@@ -33,24 +33,16 @@ pub struct CampRoll {
     pub buff: Option<MobTypeId>,
 }
 
-/// Legacy `MOB_STAT_KEYS.length`.
-const B: usize = 9;
-/// Legacy `FAR` (rosters.ts:58): the distance to a buff no camp pays.
-const FAR: i32 = 1 << 28;
-
 /// The stat kind of every normal type's farm reward, in catalog order of first type (legacy `MOB_STAT_KEYS`,
 /// a7b5c4ce mobStats.ts:112: `[...new Set(MOB_STAT_REWARDS.map(mobStatKey))]`; `FARM.rows` is `MOB_STAT_REWARDS`'
-/// order).
-fn stat_keys() -> [RewardStat; B] {
-    let mut keys = [FARM.rows[0].stat; B];
-    let mut len = 0;
+/// order). Nine kinds; their count is legacy `B` (rosters.ts:57).
+fn stat_keys() -> Vec<RewardStat> {
+    let mut keys: Vec<RewardStat> = Vec::new();
     for row in FARM.rows.iter() {
-        if !keys[..len].contains(&row.stat) {
-            keys[len] = row.stat;
-            len += 1;
+        if !keys.contains(&row.stat) {
+            keys.push(row.stat);
         }
     }
-    debug_assert_eq!(len, B, "the nine legacy stat kinds");
     keys
 }
 
@@ -62,14 +54,14 @@ pub(crate) fn stat_index(t: MobTypeId) -> Option<usize> {
 
 /// By stat index, the zone's normal type that pays it, `None` off its theme (legacy `zoneStatTypes`, rosters.ts:273-281:
 /// the first of the zone's normal types in catalog order).
-pub(crate) fn zone_stat_types(zone: FactionId) -> [Option<MobTypeId>; B] {
-    let mut row = [None; B];
-    for (b, slot) in row.iter_mut().enumerate() {
-        *slot = normal_types_of(zone)
-            .map(|t| t.id)
-            .find(|&t| stat_index(t) == Some(b));
-    }
-    row
+pub(crate) fn zone_stat_types(zone: FactionId) -> Vec<Option<MobTypeId>> {
+    (0..stat_keys().len())
+        .map(|b| {
+            normal_types_of(zone)
+                .map(|t| t.id)
+                .find(|&t| stat_index(t) == Some(b))
+        })
+        .collect()
 }
 
 /// One draw of the source Rng contract (finite in [0, 1)), as [`super::rosters::roll_zone_types`] checks it.
@@ -100,9 +92,9 @@ fn distances(camps: &[CampSite]) -> Vec<i32> {
 
 /// Legacy `boundsOf` (rosters.ts:75-87): CAMP_BUFF_MAX_DISTANCE_TILES, or the camp's ninth-nearest camp (itself first)
 /// where that is farther.
-fn bounds_of(d: &[i32], n: usize) -> Vec<i32> {
+fn bounds_of(d: &[i32], n: usize, b_len: usize) -> Vec<i32> {
     let floor = crate::math::js_round(CAMP_BUFF_MAX_DISTANCE_TILES * TILE) as i32;
-    let k = B.min(n) - 1;
+    let k = b_len.min(n) - 1;
     let mut row = vec![0i32; n];
     (0..n)
         .map(|c| {
@@ -114,31 +106,37 @@ fn bounds_of(d: &[i32], n: usize) -> Vec<i32> {
 }
 
 /// Phase 1, the weighted draw (legacy `drawBuffs`, rosters.ts:113-148): each camp's stat index. Draws `2n - 1`.
-fn draw_buffs(n: usize, d: &[i32], theme: &[bool], rng: &mut impl FnMut() -> f64) -> Vec<usize> {
+fn draw_buffs(
+    n: usize,
+    b_len: usize,
+    d: &[i32],
+    theme: &[bool],
+    rng: &mut impl FnMut() -> f64,
+) -> Vec<usize> {
     let mut stat = vec![usize::MAX; n];
-    let mut count = [0u32; B];
+    let mut count = vec![0u32; b_len];
     let cap = CAMP_BUFF_NEED_CAP_TILES * TILE;
     let reference = CAMP_BUFF_NEED_REF_TILES * TILE;
-    // near[c * B + b]: distance from camp c to the nearest camp given b so far, capped.
-    let mut near = vec![cap; n * B];
-    let share = n as f64 / B as f64;
+    // near[c * b_len + b]: distance from camp c to the nearest camp given b so far, capped.
+    let mut near = vec![cap; n * b_len];
+    let share = n as f64 / b_len as f64;
     // Legacy `shuffle` (rng.ts:47-55): Fisher-Yates from the end, `randInt(rng, 0, i + 1)`.
     let mut order: Vec<usize> = (0..n).collect();
     for i in (1..n).rev() {
         let j = (draw(rng) * (i + 1) as f64).floor() as usize;
         order.swap(i, j);
     }
-    let mut w = [0f64; B];
+    let mut w = vec![0f64; b_len];
     for c in order {
         let mut total = 0.;
-        for b in 0..B {
-            let r = near[c * B + b] / reference;
+        for b in 0..b_len {
+            let r = near[c * b_len + b] / reference;
             let bal = share / (count[b] + 1) as f64;
             let mut balance = 1.;
             for _ in 0..CAMP_BUFF_BALANCE_POWER {
                 balance *= bal;
             }
-            let v = (if theme[c * B + b] {
+            let v = (if theme[c * b_len + b] {
                 1.
             } else {
                 CAMP_BUFF_OFF_THEME_WEIGHT
@@ -148,7 +146,7 @@ fn draw_buffs(n: usize, d: &[i32], theme: &[bool], rng: &mut impl FnMut() -> f64
             total += v;
         }
         let mut x = draw(rng) * total;
-        let mut pick = B - 1;
+        let mut pick = b_len - 1;
         for (b, wb) in w.iter().enumerate() {
             x -= wb;
             if x < 0. {
@@ -160,8 +158,8 @@ fn draw_buffs(n: usize, d: &[i32], theme: &[bool], rng: &mut impl FnMut() -> f64
         count[pick] += 1;
         for j in 0..n {
             let v = f64::from(d[j * n + c]);
-            if v < near[j * B + pick] {
-                near[j * B + pick] = v;
+            if v < near[j * b_len + pick] {
+                near[j * b_len + pick] = v;
             }
         }
     }
@@ -178,15 +176,17 @@ struct Repair<'a> {
     near_i: Vec<i32>,
     d1: Vec<i32>,
     d2: Vec<i32>,
-    ex: [i64; B],
+    ex: Vec<i64>,
 }
 
 impl Repair<'_> {
     fn rebuild(&mut self, stat: &[usize], b: usize) {
         let n = self.n;
+        // Legacy `FAR` (rosters.ts:58): the distance to a buff no camp pays.
+        let far = 1i32 << 28;
         let mut sum = 0i64;
         for c in 0..n {
-            let (mut bi, mut bd, mut sd) = (-1i32, FAR, FAR);
+            let (mut bi, mut bd, mut sd) = (-1i32, far, far);
             for (j, &s) in stat.iter().enumerate() {
                 if s != b {
                     continue;
@@ -237,10 +237,10 @@ impl Repair<'_> {
 }
 
 /// Phase 2, the repair (legacy `repairBuffs`, rosters.ts:151-226): at most CAMP_BUFF_REPAIR_STEPS best moves, no draws.
-fn repair_buffs(n: usize, d: &[i32], theme: &[bool], stat: &mut [usize]) {
-    let th = |c: usize, b: usize| i64::from(theme[c * B + b]);
-    let (lo, hi) = ((n / B) as i64, n.div_ceil(B) as i64);
-    let mut count = [0i64; B];
+fn repair_buffs(n: usize, b_len: usize, d: &[i32], theme: &[bool], stat: &mut [usize]) {
+    let th = |c: usize, b: usize| i64::from(theme[c * b_len + b]);
+    let (lo, hi) = ((n / b_len) as i64, n.div_ceil(b_len) as i64);
+    let mut count = vec![0i64; b_len];
     for &s in stat.iter() {
         count[s] += 1;
     }
@@ -248,14 +248,14 @@ fn repair_buffs(n: usize, d: &[i32], theme: &[bool], stat: &mut [usize]) {
         n,
         d,
         // With fewer camps than buffs some buff is missing whatever the roll: only the counts and theme count.
-        cover: n >= B,
-        bound: bounds_of(d, n),
-        near_i: vec![0; B * n],
-        d1: vec![0; B * n],
-        d2: vec![0; B * n],
-        ex: [0; B],
+        cover: n >= b_len,
+        bound: bounds_of(d, n, b_len),
+        near_i: vec![0; b_len * n],
+        d1: vec![0; b_len * n],
+        d2: vec![0; b_len * n],
+        ex: vec![0; b_len],
     };
-    for b in 0..B {
+    for b in 0..b_len {
         r.rebuild(stat, b);
     }
     let band = |k: i64| {
@@ -276,7 +276,7 @@ fn repair_buffs(n: usize, d: &[i32], theme: &[bool], stat: &mut [usize]) {
             let a = stat[k];
             let th_a = th(k, a);
             let mut ex_left: Option<i64> = None;
-            for b in 0..B {
+            for b in 0..b_len {
                 if b == a {
                     continue;
                 }
@@ -331,11 +331,11 @@ fn repair_buffs(n: usize, d: &[i32], theme: &[bool], stat: &mut [usize]) {
 
 /// The type that pays stat `b` in the zone of the nearest camp (camp order on a tie) whose zone has it on theme; with
 /// none on this map, the first zone's in `FactionId::ALL` order (legacy `spillType`, rosters.ts:284-295).
-fn spill_type(camps: &[CampSite], d: &[i32], c: usize, b: usize) -> MobTypeId {
-    let n = camps.len();
+fn spill_type(zone_rows: &[Vec<Option<MobTypeId>>], d: &[i32], c: usize, b: usize) -> MobTypeId {
+    let n = zone_rows.len();
     let mut best: Option<(i32, MobTypeId)> = None;
-    for (j, camp) in camps.iter().enumerate() {
-        if let Some(t) = zone_stat_types(camp.zone)[b] {
+    for (j, row) in zone_rows.iter().enumerate() {
+        if let Some(t) = row[b] {
             if best.is_none_or(|(bd, _)| d[c * n + j] < bd) {
                 best = Some((d[c * n + j], t));
             }
@@ -359,14 +359,15 @@ pub fn roll_camp_rosters(camps: &[CampSite], rng: &mut impl FnMut() -> f64) -> V
         return Vec::new();
     }
     let d = distances(camps);
-    let zone_rows: Vec<[Option<MobTypeId>; B]> =
+    let b_len = stat_keys().len();
+    let zone_rows: Vec<Vec<Option<MobTypeId>>> =
         camps.iter().map(|c| zone_stat_types(c.zone)).collect();
     let theme: Vec<bool> = zone_rows
         .iter()
         .flat_map(|row| row.iter().map(Option::is_some))
         .collect();
-    let mut stat = draw_buffs(n, &d, &theme, rng);
-    repair_buffs(n, &d, &theme, &mut stat);
+    let mut stat = draw_buffs(n, b_len, &d, &theme, rng);
+    repair_buffs(n, b_len, &d, &theme, &mut stat);
 
     // Phase 3 (rosters.ts:244-266): on theme, the zone's type that pays the buff; off theme, the zone's least used type
     // and the buff from the nearest zone that has it on theme.
@@ -399,7 +400,7 @@ pub fn roll_camp_rosters(camps: &[CampSite], rng: &mut impl FnMut() -> f64) -> V
         used[t as usize] = least + 1;
         out[c] = Some(CampRoll {
             mob_type: t,
-            buff: Some(spill_type(camps, &d, c, stat[c])),
+            buff: Some(spill_type(&zone_rows, &d, c, stat[c])),
         });
     }
     out.into_iter()
