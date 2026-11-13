@@ -79,7 +79,18 @@ namespace Roguehalla.Client
             layout.childControlWidth = true; layout.childControlHeight = true;
             layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
             content.gameObject.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+            viewport.offsetMax = new Vector2(-14, 0);
+            var barRoot = MythicUi.Panel(scrollRoot, "Scrollbar", new Vector2(1, 0), Vector2.one, ShowcasePalette.PanelRaised);
+            barRoot.pivot = new Vector2(1, .5f); barRoot.sizeDelta = new Vector2(12, 0); barRoot.anchoredPosition = Vector2.zero;
+            var slide = MythicUi.Rect(barRoot, "Sliding Area", Vector2.zero, Vector2.one);
+            var handle = MythicUi.Panel(slide, "Handle", Vector2.zero, Vector2.one, ShowcasePalette.Gold);
+            handle.offsetMin = handle.offsetMax = Vector2.zero;
+            var bar = barRoot.gameObject.AddComponent<UnityEngine.UI.Scrollbar>();
+            bar.handleRect = handle; bar.direction = UnityEngine.UI.Scrollbar.Direction.BottomToTop;
+            bar.targetGraphic = handle.GetComponent<UnityEngine.UI.Image>();
             scroll.viewport = viewport; scroll.content = content;
+            scroll.verticalScrollbar = bar;
+            scroll.verticalScrollbarVisibility = UnityEngine.UI.ScrollRect.ScrollbarVisibility.Permanent;
             scrollRoot.gameObject.AddComponent<KeyboardScrollPane>().Initialize(scroll);
 
             var mobRow = Row(content, "MobChoice", 90);

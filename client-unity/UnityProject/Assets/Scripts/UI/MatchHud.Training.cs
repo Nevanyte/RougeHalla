@@ -20,7 +20,8 @@ namespace Roguehalla.Client
         // Input edges and this ownership token share the Input System's update clock.
         // Closing/releasing a control must not reclassify the same edge as world input.
         bool TrainingInputConsumed => _trainingConsumed && _trainingConsumedUpdate == InputState.updateCount;
-        bool TrainingOwnsKeyboard => _trainingConsole?.ContainsFocus == true || ExpandedTrainingDropdown() != null ||
+        bool TrainingOwnsKeyboard => TrainingOwnsKeyboardCore(true);
+        bool TrainingOwnsKeyboardCore(bool consoleFocus) => consoleFocus && _trainingConsole?.ContainsFocus == true || ExpandedTrainingDropdown() != null ||
             !_trainingWindowFocused && _client != null && _client.ConfirmedPractice;
         bool TrainingHigherPanelVisible => _menu == null || _menu.gameObject.activeSelf ||
             _results.gameObject.activeSelf || _settings.gameObject.activeSelf ||
