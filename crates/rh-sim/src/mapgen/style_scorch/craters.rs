@@ -77,10 +77,27 @@ fn crossing_beam(rim: &[i32], band: &[i32], camp: &CampInfo, w: usize, near: i32
     ];
     (b[0] != 0.0 || b[1] != 0.0).then_some(b)
 }
+/// Signature mode (P-MAPGEN-SIG-FIRE-2): the band a camp's crater belongs to, fixed before any pen is drawn: the band
+/// of `dc - ceil(r4 / 4)`, where `dc` is the camp tile's Chebyshev distance to the anchor's footprint and `r4` its
+/// largest radius option (quarter tiles), i.e. how far its largest pen nominally reaches toward the landmark. Measured
+/// with `signature::band` against the footprint grown by that reach (Chebyshev distance to a rectangle grown by `g` is
+/// `max(0, dc - g)`, and every distance `<= 0` is core either way).
+fn camp_band(anchor: &ZoneAnchor, camp: &CampInfo, r4: i32) -> Band {
+    let g = (r4 + 3).div_euclid(4).max(0);
+    let mut grown = anchor.clone();
+    let f = &mut grown.footprint;
+    f.x -= g;
+    f.y -= g;
+    f.w += 2 * g as u32;
+    f.h += 2 * g as u32;
+    signature::band(&grown, camp.x, camp.y)
+}
 impl Callbacks<'_> {
-    /// One crater per camp, centred on it (a pen). With a Fire anchor (signature mode, P-MAPGEN-SIG-FIRE-1) a crater
-    /// that would reach the anchor's core band is shrunk a quarter tile at a time, or dropped when even the smallest
-    /// does; without one every crater is drawn and placed as before (G8).
+    /// One crater per camp, centred on it (a pen). Without a Fire anchor every crater is drawn and placed as before
+    /// (G8). With one (signature mode) the camp's band round the volcano (`camp_band`) chooses the size among its radius
+    /// options: near the largest, mid the second (the smallest when there is one), far the smallest; a core-band camp
+    /// takes the largest option that keeps every tile out of the core. The camp has no crater when the route-stretch,
+    /// rim or core checks refuse its band's option (P-MAPGEN-SIG-FIRE-2).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn place_craters(
         &self,
@@ -115,6 +132,49 @@ impl Callbacks<'_> {
                     candidates.push(r4 - shrink);
                 }
             }
+            if let Some(anchor) = anchor {
+                // Signature mode (P-MAPGEN-SIG-FIRE-2): the size comes from the camp's band, not legacy's freer share.
+                let w = c.base().w as i32;
+                let tries: &[i32] = match camp_band(anchor, camp, r4) {
+                    Band::Core => &candidates,
+                    Band::Near => &candidates[..1],
+                    Band::Mid => &candidates[1.min(candidates.len() - 1)..][..1],
+                    Band::Far => &candidates[candidates.len() - 1..],
+                };
+                for &size in tries {
+                    let mut trial = stretch;
+                    let Some((mut spec, dirs)) = self.crater(
+                        c,
+                        camp,
+                        k,
+                        size,
+                        nodes,
+                        edges,
+                        &bands,
+                        has_members,
+                        &mut trial,
+                    ) else {
+                        continue;
+                    };
+                    // The bowl claims no floor in a stream's or pool's apron (its rim already keeps out: `no_block`).
+                    if let Some(floor) = spec.floor.as_mut() {
+                        floor.retain(|&i| !lava_apron[i as usize]);
+                    }
+                    let core = spec
+                        .blocks
+                        .iter()
+                        .map(|b| b.0)
+                        .chain(spec.floor.iter().flatten().copied())
+                        .any(|i| signature::band(anchor, i % w, i / w) == Band::Core);
+                    if !core {
+                        stretch = trial;
+                        r4s[k] = size;
+                        self.commit(c, camp, size, dirs, &spec, plan)?;
+                        break;
+                    }
+                }
+                continue;
+            }
             if candidates.len() > 1 {
                 let base = raster::blocked(self, c, camp, candidates[0]);
                 let mut best_share = base;
@@ -127,56 +187,18 @@ impl Callbacks<'_> {
                 }
             }
             r4s[k] = r4;
-            let Some(anchor) = anchor else {
-                if let Some((spec, dirs)) = self.crater(
-                    c,
-                    camp,
-                    k,
-                    r4,
-                    nodes,
-                    edges,
-                    &bands,
-                    has_members,
-                    &mut stretch,
-                ) {
-                    self.commit(c, camp, r4, dirs, &spec, plan)?;
-                }
-                continue;
-            };
-            let w = c.base().w as i32;
-            let mut size = r4;
-            while f64::from(size) >= self.forge.radius_min4 {
-                let mut trial = stretch;
-                let Some((mut spec, dirs)) = self.crater(
-                    c,
-                    camp,
-                    k,
-                    size,
-                    nodes,
-                    edges,
-                    &bands,
-                    has_members,
-                    &mut trial,
-                ) else {
-                    break;
-                };
-                // The bowl claims no floor in a stream's or pool's apron (its rim already keeps out: `no_block`).
-                if let Some(floor) = spec.floor.as_mut() {
-                    floor.retain(|&i| !lava_apron[i as usize]);
-                }
-                let core = spec
-                    .blocks
-                    .iter()
-                    .map(|b| b.0)
-                    .chain(spec.floor.iter().flatten().copied())
-                    .any(|i| signature::band(anchor, i % w, i / w) == Band::Core);
-                if !core {
-                    stretch = trial;
-                    r4s[k] = size;
-                    self.commit(c, camp, size, dirs, &spec, plan)?;
-                    break;
-                }
-                size -= 1;
+            if let Some((spec, dirs)) = self.crater(
+                c,
+                camp,
+                k,
+                r4,
+                nodes,
+                edges,
+                &bands,
+                has_members,
+                &mut stretch,
+            ) {
+                self.commit(c, camp, r4, dirs, &spec, plan)?;
             }
         }
         Ok(())

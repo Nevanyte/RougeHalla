@@ -31,14 +31,15 @@ function helloReader(resume = true, length = resume ? 46 : 30, protocol = 17) {
 // Protocol 16 Welcome: 60-byte header (encode.rs WELCOME_HEADER_LEN), archetype table 60..78 (count u8 + row0 6 bytes
 // [id,keylen=1,key,hull=0,r,chest] + row1 11 bytes [id,keylen=1,key,hull=1,fx,fy,bx,by,ox,oy,chest]), vision 78..113
 // (34 bytes + coliseum flag 0 at 112; vision.rs VISION_BLOCK_LEN = 35), weapon table 113..148 (count 1 + one 34-byte
-// row; weapon.rs WEAPON_ROW_LEN), then the old map block shifted by 88: width/height 148/150, collision hash 152..156,
-// runs 156, pair 160..163, extension length 163, version 167, flags 168, semantic hash 169..173, mode 173, context 174..178.
-const WELCOME_LEN = 178;
+// row; weapon.rs WEAPON_ROW_LEN), an empty HUD content block 148..150 (scaling count 0, term count 0; hud_content.rs),
+// then the old map block shifted by 90: width/height 150/152, collision hash 154..158, runs 158, pair 162..165, extension
+// length 165, version 169, flags 170, semantic hash 171..175, mode 175, context 176..180.
+const WELCOME_LEN = 180;
 function welcomeReader(length = WELCOME_LEN, protocol = 17) {
   return guarded(length,new Map([[0,0x81],[1,protocol],[3,BigInt('0x'+CONTENT)],[11,match],[27,7],
-    [60,2],[62,1],[64,0],[68,1],[70,1],[112,0],[113,1],
-    [148,2],[150,2],[156,1],[163,11],[167,2],[168,0],[173,0]]),
-    [[31,60],[61,62],[63,64],[65,68],[69,70],[71,78],[78,112],[114,148],[152,156],[160,163],[169,173],[174,178]]);
+    [60,2],[62,1],[64,0],[68,1],[70,1],[112,0],[113,1],[148,0],[149,0],
+    [150,2],[152,2],[158,1],[165,11],[169,2],[170,0],[175,0]]),
+    [[31,60],[61,62],[63,64],[65,68],[69,70],[71,78],[78,112],[114,148],[154,158],[162,165],[171,175],[176,180]]);
 }
 function syntheticHello() {
   // Private ranges remain zero-filled, have no real capability/credential, and are never inspected.
@@ -51,8 +52,9 @@ function syntheticWelcome() {
   bytes[0]=0x81;view.setUint16(1,17,true);view.setBigUint64(3,BigInt('0x'+CONTENT),true);
   for(let i=0;i<16;i++)bytes[11+i]=parseInt(match.slice(i*2,i*2+2),16);
   view.setUint32(27,7,true);bytes[60]=2;bytes[62]=1;bytes[64]=0;bytes[68]=1;bytes[70]=1;bytes[113]=1;
-  view.setUint16(148,2,true);view.setUint16(150,2,true);
-  view.setUint32(156,1,true);view.setUint32(163,11,true);bytes[167]=2;
+  // bytes[148] and bytes[149] stay 0: the empty HUD content block.
+  view.setUint16(150,2,true);view.setUint16(152,2,true);
+  view.setUint32(158,1,true);view.setUint32(165,11,true);bytes[169]=2;
   return bytes; // RLE payload intentionally unvalidated: a prefix is not an accepted map.
 }
 
@@ -69,7 +71,7 @@ test('Welcome reads exact public identity/structural headers and skips session p
   assert.equal(got.status,'public-prefix');assert.equal(got.matchId,match);assert.equal(got.playerId,7);
   assert.equal(got.contentHash,CONTENT);assert.equal(got.mapPayloadValidated,false);assert.equal(got.wholeFrameValidated,false);
   assert.equal(r.denied,0);assert.equal(r.offset,WELCOME_LEN);
-  assert.deepEqual(r.reads,[[0,1],[1,2],[3,8],[11,16],[27,4],[60,1],[62,1],[64,1],[68,1],[70,1],[112,1],[113,1],[148,2],[150,2],[156,4],[163,4],[167,1],[168,1],[173,1]]);
+  assert.deepEqual(r.reads,[[0,1],[1,2],[3,8],[11,16],[27,4],[60,1],[62,1],[64,1],[68,1],[70,1],[112,1],[113,1],[148,1],[149,1],[150,2],[152,2],[158,4],[165,4],[169,1],[170,1],[175,1]]);
 });
 test('All structural prefixes refuse; unknown versions do not inspect later fields',()=>{
   for(let n=0;n<46;n++)assert.equal(parseClientHello(helloReader(true,n)).status,'unavailable');

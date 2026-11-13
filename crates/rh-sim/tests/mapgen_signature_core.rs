@@ -315,13 +315,17 @@ fn g1_g2_one_bog_tree_and_one_church_placed_before_the_stylers() {
         single(seed, m, FeatureKind::BogTree, Zone::Plague);
         single(seed, m, FeatureKind::Church, Zone::Sentenced);
         single(seed, m, FeatureKind::Graveyard, Zone::Sentenced);
-        // The Fire volcano, streams and pools (P-MAPGEN-SIG-FIRE-1) are Landmarks-phase features, not later ones.
+        // The Fire volcano, streams and pools (P-MAPGEN-SIG-FIRE-1) and the Frost cave (P-MAPGEN-SIG-FROST-1) are
+        // Landmarks-phase features, not later ones.
         let later = |f: &MapFeature| {
             f.kind != FeatureKind::Landmark
                 && !SIGNATURE.contains(&f.kind)
                 && !matches!(
                     f.kind,
-                    FeatureKind::Volcano | FeatureKind::LavaStream | FeatureKind::LavaPool
+                    FeatureKind::Volcano
+                        | FeatureKind::LavaStream
+                        | FeatureKind::LavaPool
+                        | FeatureKind::Cave
                 )
         };
         for (i, f) in m.features.iter().enumerate() {
@@ -659,12 +663,13 @@ fn shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap() {
 #[test]
 fn g3_the_finished_map_carries_the_zone_anchors() {
     for (seed, m) in maps() {
-        // Fire's anchor (the volcano) is P-MAPGEN-SIG-FIRE-1's, checked by `mapgen_signature_fire.rs`.
+        // Fire's anchor (the volcano) is P-MAPGEN-SIG-FIRE-1's, checked by `mapgen_signature_fire.rs`; Frost's (the cave)
+        // is P-MAPGEN-SIG-FROST-1's, checked by `mapgen_signature_frost.rs`.
         let zones: Vec<Zone> = m
             .anchors
             .iter()
             .map(|a| a.zone)
-            .filter(|&z| z != Zone::Fire)
+            .filter(|&z| z != Zone::Fire && z != Zone::Frost)
             .collect();
         assert_eq!(
             zones,

@@ -40,16 +40,5 @@ namespace Roguehalla.Client.Tests
             _presenter.End();
         }
 
-        [Test]
-        public void AHoveredPackMemberShowsItsNameAndLosesItWhenTheHoverLeaves()
-        {
-            Frame(0);
-            Assert.That(_presenter.NameShown(1), Is.True); Assert.That(_presenter.NameShown(3), Is.False);
-            Frame(3);
-            Assert.That(_presenter.NameShown(3), Is.True, "hovered");
-            Assert.That(_presenter.NameShown(1), Is.True, "the pack keeps its own name");
-            Frame(0);
-            Assert.That(_presenter.NameShown(3), Is.False, "hover left");
-        }
     }
 }

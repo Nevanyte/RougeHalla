@@ -370,6 +370,7 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         archetypes,
         vision,
         weapons,
+        hud,
         map,
     } = ServerMsg::decode(room_welcome).expect("a Welcome")
     else {
@@ -385,6 +386,7 @@ fn legacy_welcome(room_welcome: &[u8], arena: &Arena) -> Vec<u8> {
         archetypes,
         vision,
         weapons,
+        hud,
         protocol,
         content_hash,
         match_id,

@@ -198,6 +198,9 @@ pub enum FeatureKind {
     LavaStream,
     /// Signature landmark: the lava pool a stream ends in (LOW, terrain lava), its ember edge owned as floor.
     LavaPool,
+    /// Signature landmark (P-MAPGEN-SIG-FROST-1, no legacy counterpart): the Frost cave, a wall chamber round the far
+    /// elite camp, closed except for one mouth (the anchor's `entrance`), owning its ice floor. Frost's anchor.
+    Cave,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -242,7 +245,7 @@ pub struct MapProp {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ZoneAnchor {
     pub zone: Zone,
-    /// The landmark's feature kind (`Volcano`, `BogTree`, `Church`, `Hall`).
+    /// The landmark's feature kind (`Volcano`, `BogTree`, `Church`, `Cave`, `Hall`).
     pub kind: FeatureKind,
     /// The landmark's centre tile.
     pub centre: TilePt,
@@ -250,7 +253,7 @@ pub struct ZoneAnchor {
     pub footprint: TileRect,
     /// DIR16 index (0 = +x, 4 = +y, `landmarks::recipe_support::DIR16`) from the centre toward the coliseum centre.
     pub front: u8,
-    /// The way in (the church door), on the footprint's edge facing `front`; empty for a landmark without one.
+    /// The way in (the church door, the cave mouth), on the footprint's edge facing `front`; empty for a landmark without one.
     pub entrance: Vec<TilePt>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

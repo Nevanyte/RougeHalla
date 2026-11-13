@@ -1096,6 +1096,12 @@ namespace Roguehalla.Net.Tests
                 case "welcome_weapon_reach_over_max": case "welcome_weapon_arc_half_arc_over_pi": case "welcome_weapon_arc_half_arc_zero":
                 case "welcome_weapon_arc_reach_zero": case "welcome_weapon_arc_speed": case "welcome_weapon_projectile_speed_zero":
                 case "welcome_weapon_projectile_half_arc": case "welcome_weapon_none_values": want = DecodeError.BadField; break;
+                // P-WIRE17-HUD-2b: the Welcome's HUD content block.
+                case "welcome_hud_scaling_count": case "welcome_hud_scaling_dominant": case "welcome_hud_scaling_nan":
+                case "welcome_hud_scaling_negative": case "welcome_hud_scaling_order": case "welcome_hud_term_count":
+                case "welcome_hud_term_code": case "welcome_hud_term_infinite": case "welcome_hud_term_over_max":
+                case "welcome_hud_term_order": want = DecodeError.BadField; break;
+                case "welcome_hud_truncated": want = DecodeError.Truncated; break;
                 // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
                 case "state_camp_reward_stat_10": case "state_camp_ward_verdict_3": case "state_build_summary_mob_stat_9":
                 case "state_build_summary_panel_code_23": case "state_build_summary_panel_order": want = DecodeError.BadField; break;

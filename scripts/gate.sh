@@ -174,6 +174,9 @@ jsvectors() {
   run "JS decoder vs golden vectors" node tools/protocol-js/check-vectors.mjs
   run "JS first-playable checks" node tools/protocol-js/check-first-playable.mjs
 }
+reload_proof_tests() { # hand-written Welcome/Hello parsers of the browser reload proof: CI runs them (rust.yml, the JS step)
+  run "browser reload-proof tests (node --test)" node --test tools/unity-browser-reload-proof/*.test.mjs
+}
 unity_editmode() { # exit 3 from editmode.sh = no Editor / project open: a named skip, never a pass
   local rc=0
   echo "== Unity EditMode suite"
@@ -225,6 +228,7 @@ if [[ "$MODE" == quick ]]; then
   done
   if has '^crates/(rh-sim|rh-parity|rh-policy)/|^parity/'; then run "parity report" cargo run -q --locked -p rh-parity --bin parity-report; fi
   if has '^crates/rh-protocol/|^protocol/fixtures/|^tools/protocol-js/'; then jsvectors; fi
+  if has '^crates/rh-protocol/|^protocol/fixtures/|^crates/rh-server/web/|^tools/unity-browser-reload-proof/'; then reload_proof_tests; fi
   if has '^client-unity/RoguehallaNet|^protocol/fixtures/'; then csharp; fi
   if has '^client-unity/UnityProject/Assets/'; then unity_editmode; fi
   if has '^client-unity/UnityProject/Tools/'; then unity_tool_tests; fi
@@ -247,6 +251,7 @@ else
 fi
 run "parity report (Rust vs captured legacy)" cargo run -q --locked -p rh-parity --bin parity-report
 jsvectors
+reload_proof_tests
 csharp
 unity_editmode
 unity_tool_tests

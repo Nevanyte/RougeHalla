@@ -38,6 +38,20 @@ namespace Roguehalla.Client
             _panel.gameObject.SetActive(false);
         }
 
+        /// <summary>Card size and right/top inset in HUD units (legacy stage): the empty top-right floor of the hub room.</summary>
+        public const float CardWidth = 300f, CardHeight = 150f, InsetRight = 12f, InsetTop = 122f;
+
+        /// <summary>Places the card for the stage <paramref name="viewport"/> (HUD units) clear of the hub room's tiles, top right under the wordmark row.</summary>
+        public void ApplyViewport(HudViewport viewport)
+        {
+            if (_panel == null) return;
+            float w = Mathf.Max(viewport.UiWidth, 320f), h = Mathf.Max(viewport.UiHeight, 320f);
+            float width = Mathf.Min(CardWidth, w - 2f * InsetRight), height = Mathf.Min(CardHeight, h - InsetTop - InsetRight);
+            _panel.anchorMin = new Vector2(1f - (InsetRight + width) / w, 1f - (InsetTop + height) / h);
+            _panel.anchorMax = new Vector2(1f - InsetRight / w, 1f - InsetTop / h);
+            _panel.offsetMin = _panel.offsetMax = Vector2.zero;
+        }
+
         /// <summary>Called every frame by the hub: <paramref name="inHub"/> while the join menu is up, <paramref name="shown"/> when no other hub panel covers the card.</summary>
         public void SetHub(bool inHub, bool shown)
         {

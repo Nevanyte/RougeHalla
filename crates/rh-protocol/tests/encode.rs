@@ -361,6 +361,7 @@ fn welcome(map: MapBlob) -> ServerMsg {
         archetypes: rh_protocol::samples::sample_archetypes(),
         vision: rh_protocol::WireVision::default(),
         weapons: rh_protocol::samples::sample_weapons(),
+        hud: rh_protocol::samples::sample_hud(),
         map,
     }
 }
@@ -405,6 +406,7 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
             &rh_protocol::samples::sample_archetypes(),
             &rh_protocol::WireVision::default(),
             &rh_protocol::samples::sample_weapons(),
+            &rh_protocol::samples::sample_hud(),
             &pre,
             mode,
         );
@@ -417,6 +419,7 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
                 &rh_protocol::samples::sample_archetypes(),
                 &rh_protocol::WireVision::default(),
                 &rh_protocol::samples::sample_weapons(),
+                &rh_protocol::samples::sample_hud(),
                 &pre,
                 mode,
                 &mut out
@@ -443,6 +446,7 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
         &[],
         &rh_protocol::WireVision::default(),
         &[],
+        &Default::default(),
         &cached,
         GroundMode::Off,
     );
@@ -451,6 +455,7 @@ fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
         &[],
         &rh_protocol::WireVision::default(),
         &[],
+        &Default::default(),
         &cached,
         GroundMode::All,
     );
@@ -623,6 +628,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
         &good,
         &rh_protocol::WireVision::default(),
         &[],
+        &Default::default(),
         &pre,
         GroundMode::Off,
     );
@@ -658,6 +664,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
             &bad,
             &rh_protocol::WireVision::default(),
             &[],
+            &Default::default(),
             &pre,
             GroundMode::Off,
             &mut out
@@ -669,6 +676,7 @@ fn a_welcome_refuses_a_malformed_archetype_table() {
             &[],
             &rh_protocol::WireVision::default(),
             &[],
+            &Default::default(),
             &pre,
             GroundMode::Off,
         );
@@ -699,7 +707,15 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
         }),
         ..WireVision::default()
     };
-    let bytes = encode_welcome(&welcome_header(), &[], &good, &[], &pre, GroundMode::Off);
+    let bytes = encode_welcome(
+        &welcome_header(),
+        &[],
+        &good,
+        &[],
+        &Default::default(),
+        &pre,
+        GroundMode::Off,
+    );
     let ServerMsg::Welcome { vision, .. } = ServerMsg::decode(&bytes).unwrap() else {
         panic!("welcome")
     };
@@ -742,6 +758,7 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
                 &[],
                 &bad,
                 &[],
+                &Default::default(),
                 &pre,
                 GroundMode::Off,
                 &mut out
@@ -761,11 +778,20 @@ fn a_welcome_carries_the_vision_block_and_refuses_a_malformed_one() {
             archetypes: Vec::new(),
             vision: bad,
             weapons: Vec::new(),
+            hud: Default::default(),
             map: map.clone(),
         };
         assert!(msg.try_encode().is_err(), "{bad:?}");
         // Forge the frame: the decoder refuses it too.
-        let mut forged = encode_welcome(&welcome_header(), &[], &d, &[], &pre, GroundMode::Off);
+        let mut forged = encode_welcome(
+            &welcome_header(),
+            &[],
+            &d,
+            &[],
+            &Default::default(),
+            &pre,
+            GroundMode::Off,
+        );
         let mut block = Writer::default();
         rh_protocol::vision::write_vision_for_tests(&mut block, &bad);
         let at = rh_protocol::WELCOME_HEADER_LEN + 1;
@@ -789,7 +815,15 @@ fn a_welcome_carries_the_weapon_table_and_refuses_a_malformed_one() {
     assert_eq!(table_fault(&good), None);
     assert_eq!(table_len(&good), 1 + good.len() * WEAPON_ROW_LEN);
     let d = WireVision::default();
-    let bytes = encode_welcome(&welcome_header(), &[], &d, &good, &pre, GroundMode::Off);
+    let bytes = encode_welcome(
+        &welcome_header(),
+        &[],
+        &d,
+        &good,
+        &Default::default(),
+        &pre,
+        GroundMode::Off,
+    );
     let ServerMsg::Welcome { weapons, .. } = ServerMsg::decode(&bytes).unwrap() else {
         panic!("welcome")
     };
@@ -948,6 +982,7 @@ fn a_welcome_carries_the_weapon_table_and_refuses_a_malformed_one() {
                 &[],
                 &d,
                 &bad,
+                &Default::default(),
                 &pre,
                 GroundMode::Off,
                 &mut out
@@ -968,11 +1003,20 @@ fn a_welcome_carries_the_weapon_table_and_refuses_a_malformed_one() {
             archetypes: Vec::new(),
             vision: d,
             weapons: bad.clone(),
+            hud: Default::default(),
             map: map.clone(),
         };
         assert!(msg.try_encode().is_err(), "{bad:?}");
         // Forge the frame: the decoder refuses it too, for the same reason.
-        let mut forged = encode_welcome(&welcome_header(), &[], &d, &[], &pre, GroundMode::Off);
+        let mut forged = encode_welcome(
+            &welcome_header(),
+            &[],
+            &d,
+            &[],
+            &Default::default(),
+            &pre,
+            GroundMode::Off,
+        );
         let mut table = Writer::default();
         rh_protocol::samples::write_weapon_table_for_tests(&mut table, &bad);
         let at = rh_protocol::WELCOME_HEADER_LEN + 1 + rh_protocol::vision::VISION_BLOCK_LEN;

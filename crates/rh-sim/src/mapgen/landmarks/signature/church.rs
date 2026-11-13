@@ -216,7 +216,7 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
 }
 
 /// The size of the smallest 8-connected piece of `cells` (the shape gate's and the certifier's wall-piece rule).
-fn smallest_piece(cells: &[usize]) -> usize {
+pub(super) fn smallest_piece(cells: &[usize]) -> usize {
     let mut seen = vec![false; cells.len()];
     let mut smallest = usize::MAX;
     for start in 0..cells.len() {

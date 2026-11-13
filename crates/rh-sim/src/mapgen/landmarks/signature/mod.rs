@@ -10,8 +10,9 @@
 //! draws only from its own per-zone stream, `hash_seed(seed, attempt, zone index, Definition::stream)`; the attempt's
 //! main stream and the stylers' streams are untouched (G6).
 //!
-//! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church).
+//! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church, the cave).
 mod bog_tree;
+mod cave;
 mod church;
 mod volcano;
 
@@ -91,6 +92,23 @@ pub struct Definition {
     pub pool_d2: &'static [i32],
     /// Volcano: the zone's total lava (crater, streams and pools; inclusive), inside the legacy river's 107-158.
     pub lava_budget: (usize, usize),
+    /// Cave: the distance from the camp tile of each wall line (inclusive range; a side may lean on the border as the
+    /// church's), the mouth's half-width (tiles each side of its axis), the free Frost floor beyond the mouth (tiles),
+    /// the fewest ice tiles inside, and the terrain code of that ice (`terrain_gate` kind `ice`, home Frost). A mouth is
+    /// first sought with a forecourt: the square of Frost `2 * forecourt + 1` tiles wide just beyond it.
+    pub cave_side: (i32, i32),
+    pub mouth: i32,
+    pub doorway: i32,
+    pub forecourt: i32,
+    pub cave_ice_min: usize,
+    pub ice: u8,
+    /// Frost styler in signature mode: the mere's seed is an allowed tile at most `lake_reach` floor steps from the
+    /// cave's mouth; the first of `lake_tries` candidates that grows a lake is kept. It is regrown off the spawn routes
+    /// at most `lake_rounds` times. The second lake grows to at most `second_share` percent of the mere's area.
+    pub lake_reach: usize,
+    pub lake_tries: usize,
+    pub lake_rounds: usize,
+    pub second_share: usize,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -136,6 +154,16 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     start_d2: 20,
     pool_d2: &[4, 2],
     lava_budget: (80, 150),
+    cave_side: (4, 7),
+    mouth: 1,
+    doorway: 2,
+    forecourt: 4,
+    cave_ice_min: 8,
+    ice: 6,
+    lake_reach: 8,
+    lake_tries: 8,
+    lake_rounds: 3,
+    second_share: 75,
 };
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.
@@ -227,9 +255,9 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
-    /// graveyard; Plague: the bog tree) into the stage's layers and masks, in that order, each keeping out of the aprons
-    /// marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is never
-    /// built without it; the pipeline tries the next attempt).
+    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order, each keeping
+    /// out of the aprons marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
+    /// never built without it; the pipeline tries the next attempt).
     pub fn apply(
         &self,
         frame: &AttemptFrame,
@@ -242,7 +270,7 @@ impl<'f> SignatureContext<'f> {
         }
         let mut terrain = vec![0u8; W * H];
         let mut anchors = Vec::new();
-        for zone in [Zone::Fire, Zone::Sentenced, Zone::Plague] {
+        for zone in [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost] {
             let Some(slot) = prefix
                 .order
                 .iter()
@@ -270,7 +298,8 @@ impl<'f> SignatureContext<'f> {
             let built = match zone {
                 Zone::Fire => volcano::place(&site, &prefix.layout.camps, &mut rng),
                 Zone::Sentenced => church::place(&site, &prefix.layout.camps, &mut rng),
-                _ => bog_tree::place(&site, &mut rng),
+                Zone::Plague => bog_tree::place(&site, &mut rng),
+                _ => cave::place(&site, &prefix.layout.camps, &mut rng),
             };
             let Some(built) = built else {
                 return Ok(None);
@@ -393,6 +422,10 @@ impl<'f> SignatureContext<'f> {
                         && ((t == TILE_LOW && k == self.rules.lava)
                             || (t == TILE_FLOOR && k == self.rules.ember))
                 }
+                FeatureKind::Cave => {
+                    zone_ok
+                        && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.ice))
+                }
                 _ => true,
             }
         });
@@ -458,6 +491,7 @@ fn is_signature(k: FeatureKind) -> bool {
             | FeatureKind::Volcano
             | FeatureKind::LavaStream
             | FeatureKind::LavaPool
+            | FeatureKind::Cave
     )
 }
 
