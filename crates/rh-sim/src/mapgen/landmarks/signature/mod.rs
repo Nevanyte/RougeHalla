@@ -25,6 +25,7 @@ use crate::mapgen::attempt::{AttemptFrame, AttemptInputError};
 use crate::mapgen::certify::rules::R;
 use crate::mapgen::coliseum::{FixedLayout, CX, CY, H, W};
 use crate::mapgen::spawns;
+use crate::mapgen::zones::camps::CampSite;
 use crate::rng::{hash_seed, Mulberry32};
 
 use super::recipe_support::DIR16;
@@ -119,6 +120,12 @@ pub struct Definition {
     /// wall stay inside the site's inner rect).
     pub site_side: i32,
     pub site_depth: i32,
+    /// P-MAPGEN-SIG-SCALE-1: the Frost cave's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text of
+    /// `cave.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/cave.txt` (the docs are not in the
+    /// server image's build context, so the crate carries its own copy). Lines starting `;` are its legend; the rest is
+    /// the 29 x 29 grid, front (toward the coliseum) at the bottom. Parsed once per context (`cave::Blueprint`); a grid
+    /// that does not parse refuses every option-on attempt at the cave (`Refusal::Signature`).
+    pub cave_grid: &'static str,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -177,6 +184,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     lake_slack: 2,
     site_side: 34,
     site_depth: 9,
+    cave_grid: include_str!("cave.txt"),
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
@@ -197,6 +205,61 @@ pub struct ReservedSite {
 /// const: `tests/content.rs` reads consts as tunables.
 pub fn reserved_zones() -> [Zone; 4] {
     [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost]
+}
+
+/// P-MAPGEN-SIG-SCALE-1: the zones whose reserved site is relabelled to its inside camp's territory (`relabel_sites`):
+/// the Frost site, round which the blueprint cave stands. P-MAPGEN-SIG-SCALE-2 adds the Sentenced site with its church.
+fn relabelled_zones() -> [Zone; 1] {
+    [Zone::Frost]
+}
+
+/// P-MAPGEN-SIG-SCALE-1 (coordinator decision 2026-11-13): before repair runs, no tile of a reserved site with an inside
+/// camp belongs to another camp's territory. Every tile of such a site (the whole `rect`, apron included) of a
+/// `relabelled_zones` zone takes the inside camp's label, its index in `camps` (the prefix's) + 1. The reservation keeps
+/// the other camps' halos out of the site, not their territories: without this the blueprint's walls cut those
+/// territories and repair hands the pieces to camps beyond the territory radius (`Repair(RadiusPost)`). Called by the
+/// pipeline on repair's copy of the territory grid on option-on attempts only (no sites otherwise: nothing changes). A
+/// pure write: no draw.
+pub(crate) fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], territory: &mut [u8]) {
+    for r in reserved
+        .iter()
+        .filter(|r| relabelled_zones().contains(&r.zone))
+    {
+        let Some(inside) = r.camp.and_then(|t| camps.iter().position(|c| c.site == t)) else {
+            continue;
+        };
+        let Ok(label) = u8::try_from(inside + 1) else {
+            continue;
+        };
+        // `place_camps_reserving` keeps every other camp's halo, so its site tile, out of the rect; a camp left inside
+        // would lose its own tile's territory here and fail far away (repair's safety nets admission).
+        debug_assert!(
+            stray_camp(r, camps, inside).is_none(),
+            "relabel_sites: camp {:?} (zone {}) lies in the {:?} site {:?} of camp {inside}",
+            stray_camp(r, camps, inside),
+            stray_camp(r, camps, inside).map_or(0, |k| camps[k].zone),
+            r.zone,
+            r.rect
+        );
+        for y in r.rect.y..r.rect.y + r.rect.h as i32 {
+            for x in r.rect.x..r.rect.x + r.rect.w as i32 {
+                if let Some(i) = at(x, y) {
+                    territory[i] = label;
+                }
+            }
+        }
+    }
+}
+
+/// The first camp other than `inside` (indices into `camps`) whose site tile lies in site `r`'s rect; `None` when there is
+/// none, as `place_camps_reserving` guarantees (`relabel_sites`'s precondition).
+fn stray_camp(r: &ReservedSite, camps: &[CampSite], inside: usize) -> Option<usize> {
+    let (x0, y0) = (r.rect.x, r.rect.y);
+    let (x1, y1) = (x0 + r.rect.w as i32, y0 + r.rect.h as i32);
+    camps.iter().enumerate().position(|(k, c)| {
+        let (x, y) = ((c.site % W) as i32, (c.site / W) as i32);
+        k != inside && x >= x0 && x < x1 && y >= y0 && y < y1
+    })
 }
 
 /// The zone's one-based slot in the attempt's faction order.
@@ -263,6 +326,8 @@ pub struct SignatureContext<'f> {
     rules: Definition,
     /// Tiles no landmark wall may take: the border, the coliseum, its road (with the legacy landmark margin) and lanes.
     hard: Vec<u8>,
+    /// The cave's drawing (`Definition::cave_grid`), parsed once; `None` when it does not parse.
+    cave: Option<cave::Blueprint>,
 }
 
 impl<'f> SignatureContext<'f> {
@@ -298,6 +363,7 @@ impl<'f> SignatureContext<'f> {
             _fixed: core::marker::PhantomData,
             rules: *d,
             hard,
+            cave: cave::Blueprint::parse(d.cave_grid, d.mouth),
         }
     }
 
@@ -944,4 +1010,101 @@ fn mark_halo(out: &mut [u8], site: usize) {
 /// A uniform pick from `n > 0` choices.
 fn pick(rng: &mut Mulberry32, n: usize) -> usize {
     (rng.next_u32() % n as u32) as usize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn camp(zone: u8, x: usize, y: usize) -> CampSite {
+        CampSite {
+            zone,
+            site: y * W + x,
+            elite: true,
+            spots: Vec::new(),
+        }
+    }
+
+    fn site(zone: Zone, x: i32, y: i32, camp: Option<usize>) -> ReservedSite {
+        ReservedSite {
+            zone,
+            rect: TileRect { x, y, w: 4, h: 3 },
+            camp,
+            stream: Mulberry32::new(1),
+        }
+    }
+
+    /// P-MAPGEN-SIG-SCALE-1: the Frost site (whole rect) takes its camp's label (index + 1); a Sentenced site, a site
+    /// without a camp and no sites at all leave the grid as it was.
+    #[test]
+    fn only_the_frost_sites_tiles_take_its_camps_label() {
+        let camps = vec![camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
+        let before = vec![7u8; W * H];
+        let mut grid = before.clone();
+        relabel_sites(&[], &camps, &mut grid);
+        assert_eq!(grid, before, "no sites");
+        let others = [
+            site(Zone::Sentenced, 29, 30, Some(camps[1].site)),
+            site(Zone::Plague, 10, 10, None),
+            site(Zone::Frost, 40, 40, None),
+        ];
+        relabel_sites(&others, &camps, &mut grid);
+        assert_eq!(grid, before, "no Frost site with a camp");
+        relabel_sites(
+            &[site(Zone::Frost, 60, 60, Some(camps[2].site))],
+            &camps,
+            &mut grid,
+        );
+        for (i, &label) in grid.iter().enumerate() {
+            let (x, y) = ((i % W) as i32, (i / W) as i32);
+            let inside = (60..64).contains(&x) && (60..63).contains(&y);
+            assert_eq!(label, if inside { 3 } else { 7 }, "({x}, {y})");
+        }
+        // The precondition's predicate: a second camp in the rect is found; one just outside it is not.
+        let frost = site(Zone::Frost, 60, 60, Some(camps[2].site));
+        let crowded = [camp(4, 61, 61), camp(4, 63, 62), camp(4, 64, 62)];
+        assert_eq!(stray_camp(&frost, &crowded, 0), Some(1));
+        assert_eq!(
+            stray_camp(&frost, &[crowded[0].clone(), crowded[2].clone()], 0),
+            None
+        );
+    }
+
+    /// `relabel_sites`'s precondition (its `debug_assert!`) on real reserving prefixes, seeds 1-8, attempts 0-1: no
+    /// camp but the inside camp has its site tile in a relabelled site, and the inside camp is one of the prefix's.
+    #[test]
+    fn no_other_camp_stands_in_a_relabelled_site_on_real_prefixes() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let context = crate::mapgen::attempt::AttemptContext::new(&fixed);
+        let mut checked = 0;
+        for seed in 1..=8 {
+            for n in 0..2 {
+                let Some(frame) =
+                    crate::mapgen::attempt::begin_attempt_signature(&context, seed, n, true)
+                        .expect("prefix input")
+                else {
+                    continue;
+                };
+                let (reserved, camps) = (&frame.state.reserved, &frame.state.layout.camps);
+                for r in reserved
+                    .iter()
+                    .filter(|r| relabelled_zones().contains(&r.zone))
+                {
+                    let t = r.camp.expect("a relabelled site carries its camp");
+                    let inside = camps
+                        .iter()
+                        .position(|c| c.site == t)
+                        .unwrap_or_else(|| panic!("seed {seed} attempt {n}: no camp on {t}"));
+                    assert_eq!(
+                        stray_camp(r, camps, inside),
+                        None,
+                        "seed {seed} attempt {n}: a camp in the {:?} site",
+                        r.zone
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 8, "only {checked} relabelled sites checked");
+    }
 }

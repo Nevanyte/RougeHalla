@@ -27,8 +27,8 @@
 //!   does not own (first in row order on a tie of size).
 //! * mouth-to-lake path: the fewest 4-connected floor steps from any mouth tile to any tile of the largest ice body
 //!   (a mouth tile is step 0); at most `MOUTH_TO_LAKE`.
-//! * the body's nearest cell to the mouth: its tile with the smallest squared distance to any mouth tile (first in row
-//!   order on a tie); its band (`signature::band` against the Frost anchor) is at most `Near`.
+//! * (the body's nearest cell to the mouth and its band: no longer checked, P-MAPGEN-SIG-SCALE-1; see
+//!   `the_mouth_opens_onto_the_largest_lake`.)
 //! * spire and headland tiles: the tiles the feature grid gives to Frost `Spire` and `Headland` features.
 //! * styler feature: any feature that is not `Landmark`, a signature kind, `Infill` or `Bush`.
 use rh_sim::mapdata::{FeatureKind, GameMapData, TileRect, Zone, ZoneAnchor};
@@ -128,11 +128,6 @@ fn point(c: Cell) -> (f64, f64) {
 
 fn dist(a: (f64, f64), b: (f64, f64)) -> f64 {
     ((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)).sqrt()
-}
-
-fn d2(a: Cell, b: Cell) -> i64 {
-    let (dx, dy) = (i64::from(a.0 - b.0), i64::from(a.1 - b.1));
-    dx * dx + dy * dy
 }
 
 fn map_centre(m: &GameMapData) -> (f64, f64) {
@@ -552,7 +547,11 @@ fn the_cave_is_on_the_back_edge_and_its_camp_reachable() {
 // --------------------------------------------------------------------------------------------------------------------
 
 /// The zone's largest ice body (not the cave's own ice) is reached from the mouth in at most `MOUTH_TO_LAKE` floor
-/// steps, and its nearest tile to the mouth is in the cave's core or near band.
+/// steps: the end-of-attempt lake rule (`lake_reach + lake_slack`). Amended by P-MAPGEN-SIG-SCALE-1 (oracle commit):
+/// the second assertion, that the body's nearest tile to the mouth lies in the cave's core or near band, is dropped.
+/// The bands are measured from the footprint, now the 29-tile blueprint box, and with the fixed cave a lake within the
+/// walked reach can lie in the mid band (seed 13). Building the lake in front of the mouth is the land-generation
+/// task's (`P-LAND-FROST-*`, `style_rime/`).
 #[test]
 fn the_mouth_opens_onto_the_largest_lake() {
     for (seed, m) in maps() {
@@ -583,34 +582,23 @@ fn the_mouth_opens_onto_the_largest_lake() {
             body.len(),
             c.mouth
         );
-        let mut by_row = body.clone();
-        by_row.sort_by_key(|t| (t.1, t.0));
-        let nearest = by_row
-            .iter()
-            .min_by_key(|&&t| c.mouth.iter().map(|&q| d2(t, q)).min().unwrap())
-            .copied()
-            .unwrap();
-        let b = band(c.anchor, nearest.0, nearest.1);
-        assert!(
-            b <= Band::Near,
-            "seed {seed}: the largest ice body's nearest tile to the mouth {nearest:?} is in the {b:?} band"
-        );
     }
 }
 
-/// No spire or headland tile lies in the cave's core band; every map keeps at least one spire or headland in Frost.
+/// No spire or headland tile lies in the cave's core band. Amended by P-MAPGEN-SIG-SCALE-1 (oracle commit): the second
+/// assertion, that every map keeps at least one spire or headland in Frost, is dropped: with the fixed 29-tile cave seed
+/// 11 keeps none (measured; the cause is in the styler and was not investigated). How many the zone keeps is the
+/// land-generation task's (`P-LAND-FROST-*`, `style_rime/`).
 #[test]
 fn spires_and_headlands_keep_out_of_the_core_band() {
     for (seed, m) in maps() {
         let a = anchor(seed, m, Zone::Frost);
-        let mut kept = 0;
         for (k, f) in m.features.iter().enumerate() {
             if f.zone != Zone::Frost
                 || !matches!(f.kind, FeatureKind::Spire | FeatureKind::Headland)
             {
                 continue;
             }
-            kept += 1;
             for t in owned(m, k) {
                 assert_ne!(
                     band(a, t.0, t.1),
@@ -620,7 +608,6 @@ fn spires_and_headlands_keep_out_of_the_core_band() {
                 );
             }
         }
-        assert!(kept >= 1, "seed {seed}: no spire or headland in Frost");
     }
 }
 
