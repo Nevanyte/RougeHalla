@@ -585,8 +585,7 @@ fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
         check_prop(prop, previous, w, h).map_err(EncodeError::BadMap)?;
         previous = Some(prop);
     }
-    if p
-        .ground_variants
+    if p.ground_variants
         .as_deref()
         .is_some_and(|g| g.iter().any(|&v| v > MAX_GROUND_VARIANT))
     {
@@ -841,12 +840,7 @@ fn read_props(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> {
 
 /// The value checks of one prop row in the wire rules' order (flags, kind, variant, tile, order), shared by the encoder
 /// and the decoder; `previous` is the row before it.
-fn check_prop(
-    p: &MapProp,
-    previous: Option<&MapProp>,
-    w: u16,
-    h: u16,
-) -> Result<(), &'static str> {
+fn check_prop(p: &MapProp, previous: Option<&MapProp>, w: u16, h: u16) -> Result<(), &'static str> {
     if p.flags & !(PROP_FLAG_TALL | PROP_FLAG_LEGACY) != 0 {
         return Err("prop flags");
     }
@@ -1139,10 +1133,7 @@ fn prop_row(row: &[u8]) -> MapProp {
 }
 
 fn decode_props(section: &[u8]) -> Vec<MapProp> {
-    section[2..]
-        .chunks_exact(PROP_LEN)
-        .map(prop_row)
-        .collect()
+    section[2..].chunks_exact(PROP_LEN).map(prop_row).collect()
 }
 
 fn decode_coliseum(section: &[u8]) -> Result<MapColiseum, DecodeError> {
@@ -1409,3 +1400,62 @@ fn runs_match(runs: &[u8], values: &[u8]) -> bool {
 }
 
 // Reader support is intentionally narrow: the map preflight needs to compare the scan pass's exact consumed prefix.
+
+#[cfg(test)]
+mod dressing_match_tests {
+    use super::*;
+
+    fn props() -> Vec<MapProp> {
+        vec![
+            MapProp {
+                kind: 1,
+                x: 16,
+                y: 16,
+                variant: 0,
+                flags: PROP_FLAG_TALL,
+            },
+            MapProp {
+                kind: 2,
+                x: 40,
+                y: 70,
+                variant: 3,
+                flags: 0,
+            },
+        ]
+    }
+
+    /// A dressed and an undressed blob of one map both match that map; neither matches another map, and a blob whose
+    /// non-dressing sections differ (camps) never matches.
+    #[test]
+    fn a_blob_matches_its_map_with_or_without_dressing() {
+        let tiles = vec![0u8; 12];
+        let plain = MapPublic::default();
+        let dressing = MapPublic {
+            props: props(),
+            ground_variants: Some((0..12).map(|i| (i % 4) as u8).collect()),
+            ..MapPublic::default()
+        };
+        let undressed = EncodedMap::from_public(4, 3, &tiles, None, None, &plain).unwrap();
+        let dressed = EncodedMap::from_public(4, 3, &tiles, None, None, &dressing).unwrap();
+        let camps = MapPublic {
+            camps: vec![MapCamp {
+                x: 16,
+                y: 16,
+                r: 40,
+                zone: 1,
+            }],
+            ..MapPublic::default()
+        };
+        let mut other = tiles.clone();
+        other[5] = 1;
+        for blob in [&undressed, &dressed] {
+            assert!(blob.matches_public_any_dressing(4, 3, &tiles, None, None, &plain));
+            // The caller's own dressing is ignored: only the blob's counts.
+            assert!(blob.matches_public_any_dressing(4, 3, &tiles, None, None, &dressing));
+            assert!(!blob.matches_public_any_dressing(4, 3, &other, None, None, &plain));
+            assert!(!blob.matches_public_any_dressing(4, 3, &tiles, None, None, &camps));
+        }
+        // The exact match stays exact: a dressed blob is not the undressed map's blob.
+        assert!(!dressed.matches_public(4, 3, &tiles, None, None, &plain));
+    }
+}

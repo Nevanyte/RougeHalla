@@ -131,11 +131,8 @@ impl MapMaker for StyledMaker {
             return Ok(None);
         };
         let rules = crate::runtime::shipped_dress_rules()?;
-        let dressing = rh_mapdress::dress(
-            &export.map,
-            u64::from(export.legacy_map_hash_u32),
-            rules,
-        );
+        let dressing =
+            rh_mapdress::dress(&export.map, u64::from(export.legacy_map_hash_u32), rules);
         Ok(Some(MadeMap {
             arena: into_arena(export)?,
             dressing: Some(dressing),

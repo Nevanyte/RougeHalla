@@ -2256,8 +2256,14 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         ("welcome_public_all", welcome_map_msg(public_map(true))),
         ("welcome_public_shipped", welcome_map_msg(public_map(false))),
         // P-DRESS-BAKE-1: a dressed map, with and without its ground-variant plane.
-        ("welcome_dress_props_ground", welcome_map_msg(dressed_map(true))),
-        ("welcome_dress_props_only", welcome_map_msg(dressed_map(false))),
+        (
+            "welcome_dress_props_ground",
+            welcome_map_msg(dressed_map(true)),
+        ),
+        (
+            "welcome_dress_props_only",
+            welcome_map_msg(dressed_map(false)),
+        ),
         (
             "reject",
             ServerMsg::Reject {
