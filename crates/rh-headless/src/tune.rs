@@ -1022,7 +1022,7 @@ pub fn evidence(
 }
 
 fn proportion_json(p: &Proportion) -> Value {
-    json!({"wins": p.k, "games": p.n, "p": p.p, "lo": p.lo, "hi": p.hi})
+    json!({"wins": p.k as u64, "games": p.n as u64, "p": p.p, "lo": p.lo, "hi": p.hi})
 }
 
 fn tiers_json(rows: &[TierComparison]) -> Value {
@@ -1052,8 +1052,12 @@ pub fn search_file_with_evidence(
     file["evidence"] = json!({
         "interval": "wilson 95% (z = 1.96) of per-bot wins",
         "spread": {"baseline": evidence.baseline_spread, "best": evidence.best_spread},
-        "search": {"tiers": tiers_json(&evidence.search)},
+        "search": {
+            "basis": "in sample: the search's own games; optimistic",
+            "tiers": tiers_json(&evidence.search),
+        },
         "heldOut": evidence.held_out.as_ref().map(|h| json!({
+            "basis": "held out: fresh game seeds, same arena and lineup",
             "seed": h.seed,
             "tiers": tiers_json(&h.tiers),
         })),
