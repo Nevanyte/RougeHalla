@@ -37,7 +37,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 1. **Where.** `rh_sim::mapgen::landmarks::signature`, a step inside the Landmarks phase: `pipeline::build_attempt`
    runs it right after the legacy landmark stage and before the spawn preparation, only when
    `pipeline::Options::signature` (serde default `false`) and the attempt is styled. Zones in order Fire, Sentenced,
-   Plague, Frost; each keeps out of the aprons marked before it. All four landmarks are generator-placed; nothing is
+   Plague, Frost; the volcano and the bog tree keep out of the aprons marked before them, and the end-of-attempt
+   discard keeps every landmark out of every other's apron (decision 6). All four landmarks are generator-placed; nothing is
    added after generation. Not a landmark recipe: the legacy
    stage admits only floor-to-wall writes owned by `FeatureKind::Landmark`, whose certifier rules and `map.buildings`
    records belong to the legacy buildings.
@@ -68,7 +69,15 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    pipeline tries the next one. After records, a signature map is discarded (`Refusal::SignatureDiscarded`) unless
    every signature tile is still as placed (the cave: walls, and floor carrying its ice), every entrance tile is still
    floor, no styler feature owns a tile of an apron (styler floor claims do not read
-   `no_block`), and the strict certifier (every zone) finds zero failures.
+   `no_block`), no landmark's tiles lie in another landmark's apron, the Frost zone's largest ice body outside the cave
+   is at the cave's mouth (decision 11), and the strict certifier (every zone) finds zero failures. The landmark-apron
+   rule (P-MAPGEN-SIG-FROST-2) is symmetric: for every ordered pair of the five landmarks (the volcano, whose streams
+   and pools count as its tiles while its apron is the cone's box grown by the core band; the church with its
+   graveyard; the bog tree; the cave; the Holy hall on the Holy anchor's footprint), no tile of one lies in the other's
+   boxes grown by the core band. At placement only the volcano and the bog tree keep out of the aprons marked before
+   them (`Site::ground`); the church and the cave read no apron (`Site::wall` only; seed 46's cave stood in the
+   volcano's apron), and no landmark keeps the earlier ones out of its own. The end-of-attempt discard is the rule for
+   all five, independent of the placement order.
 7. **Anchors (G3).** `GameMapData.anchors` only, zone-code order, omitted from JSON when empty. They are not on the
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
@@ -123,7 +132,12 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    seeded at the allowed tile within 8 floor steps of the mouth with the most clearance and grown round its seed (value
    falling with chamfer distance, plus the styler's noise), off the route guard's corridor; while a spawn route crosses
    it, it is regrown off the routes (at most 3 times); the second lake grows to at most 75% of the mere's area. Spires
-   and headlands keep their placement rules, which already keep them off the cave's apron (`no_block`).
+   and headlands keep their placement rules, which already keep them off the cave's apron (`no_block`). The mouth
+   faces the lake (P-MAPGEN-SIG-FROST-2, G5): when the finished map's Frost zone holds ice the cave does not own, its
+   largest 4-connected body (the first in row order on a size tie) must lie within `lake_reach + lake_slack` (8 + 2 =
+   10) walked floor steps of the mouth (any floor, any zone, from the Frost anchor's `entrance`), else the attempt is
+   discarded (`Refusal::SignatureDiscarded`) and the next one is tried; the styler is not changed. A Frost zone with no
+   ice outside the cave is kept (the styler may place none).
 
 ## Measurements (seeds 1-16, `decor: false`, debug test build, macOS arm64)
 
@@ -140,6 +154,17 @@ With the cave (P-MAPGEN-SIG-FROST-1; four landmarks): seeds 1-32 refuse exactly 
 on seeds 17 and 18 the far camp sits in a 12-14 tile strip of the zone along the edge with another camp within 15
 tiles, so no lake fits within reach of the mouth by the styler's clearance rules and the mere grows where it does today.
 
+With the end-of-attempt lake and landmark-apron rules (P-MAPGEN-SIG-FROST-2): on seeds 1-64 the largest ice body
+outside the cave was 3 floor steps from the mouth on 61 seeds (seed 25: 5) and 98, 102 and 20 steps on seeds 17, 18
+and 34; every cave found its mouth with the forecourt, so the far lakes are not fallback cases. Under the rules seed 17
+lands on attempt 1 (was 0), 18 on 3 (was 0; attempt 1 refused `Repair(RadiusPost)`, 2 `Signature`), 34 on 1 (was 0:
+far lake, and bog tree and cave in each other's aprons), 46 on 1 (was 0: volcano and cave in each other's aprons) and
+49 on 4 (was 0: bog tree and cave; attempts 1-3 refused by the existing rules); every other seed lands on the same
+attempt with the same map, each moved seed's lake is 3 steps from the mouth, and no accepted attempt of seeds 1-40
+breaches an apron. Worst attempt index: 3 on seeds 1-32 (seed 18), 7 on 1-64 (seed 51, unchanged), against the limit
+16. About 0.67 s per certified map on seeds 1-40 with its refused attempts (0.64 s before; seed 17 1.05 s, 18 1.3 s).
+The two checks are one flood fill, one bounded walk and one scan of the landmarks' grown boxes per finished map.
+
 ## Consequences
 
 - The Holy hall is an anchor only after step 3. Moving it into the Landmarks phase means porting the hall's placement
@@ -147,12 +172,17 @@ tiles, so no lake fits within reach of the mouth by the styler's clearance rules
   instead of placing it), and re-pinning the option-on Holy layouts: a styler packet.
 - The Fire and Frost stylers arrange round their anchors; the others wait for `P-MAPGEN-SIG-STYLE-1`.
 - On a seed whose far Frost camp sits in a narrow strip of the zone (seeds 17 and 18 of 1-32) there is no room for a
-  lake within reach of the mouth, so the mere is not at the mouth: it grows where today's styler puts it and the attempt
-  is not refused for it, pending P-MAPGEN-SIG-FROST-2.
+  lake within reach of the mouth; such an attempt is discarded (P-MAPGEN-SIG-FROST-2) and the seed lands on a later
+  attempt whose cave has its lake at the mouth, at the cost of one to three extra attempts on those seeds. A seed whose
+  every attempt put the lake far would exhaust its attempts; none of seeds 1-64 comes near (worst 7 of 16).
+- Landmarks crowding each other's aprons (seen as the bog tree or the volcano against the cave) are discarded, not
+  kept apart at placement: the placement rules, and so every kept map, are unchanged. Moving the guard into placement
+  would change site choices and every pinned option-on map.
 - The Frost spires and headlands are not arranged to flank the approach in the near band: only the core band is
   enforced (the lake's `allow` and the apron discard); spires follow the mere and headlands its shore.
 - The Fire craters stay camp pens: size and presence are their only levers, and both now follow the camp's band
-  (seeds 1-32: near-band craters 136 tiles on average against 90 far). Density does not yet fall with distance: far
+  (seeds 1-32: near-band craters 134 tiles on average against 90 far; 136 before P-MAPGEN-SIG-FROST-2 moved seeds
+  17 and 18 to later attempts). Density does not yet fall with distance: far
   pens are not thinned (a rule that drops them on purpose meets the count floor of option-off minus two; owner
   question).
 - Elite bushes read the stylers' `protect` and stay out of every apron. Repair's walls (the safety net's connectivity
