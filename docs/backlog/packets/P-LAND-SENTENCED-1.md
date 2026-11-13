@@ -6,6 +6,16 @@
 > lattice can hold is 0.81 of option off's share (median), 0.78 after the detour rule. The budget test's lower bound is
 > therefore **0.6** (section 12). The coordinator takes the figure to the owner; the packet can be implemented now.
 > Revision 1 (two enclosures round the church, held) is superseded; its measurement is kept in section 12.
+>
+> **Coordinator of the land-generation lane, 2026-11-13, afternoon: READY TO IMPLEMENT.** The owner accepted the
+> shortfall in chat ("Yes to all" to four questions; the first: lanes at about 80% of today's fence at most, probably
+> nearer 70% built, rows kept 8 apart; the second: the church's site rule is left as it is). The budget test's
+> [0.6, 1.2] stands. The branch was rebased onto `1032e5bd` (after P-MAPGEN-SIG-RESERVE-1, which moves every option-on
+> map): the same three tests fail and the same seven pass; section 12 has the figures again on the reserved sites.
+> The landmark lane's coordinator answered two requests (`docs/coordination/LANDMARK_GENERATION_SPEC.md`, update of
+> 2026-11-13): the `NON_GAMEPLAY` row is in scope; its `mapgen_signature_*.rs` pins are left untouched and re-pinned
+> by it at merge. The `rh-mapdress` goldens are this lane's and are now in scope as one separate re-pin commit
+> (section 5).
 
 - **Serves:** owner decision 2026-11-13 (land generation, Sentenced: "Option 1, churchyard plus lanes"; the churchyard
   fence round the church and graveyard with its 5-wide gate is the church blueprint's, in the coordinator's lane,
@@ -15,7 +25,7 @@
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Sentenced styler in signature mode; draw order; plan
   validation)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework (`566841f4` or later)
+- **Integration base:** feature/unity-rework (`1032e5bd`: the branch was rebased onto it, after P-MAPGEN-SIG-RESERVE-1)
 - **D-rules touched:** D1: option off byte-identical (G8); under the option an intentional difference from legacy (row
   to propose in the hand-off: an amendment of DEV-020 or a new row) · D2 n/a · no sim tick, wire or content-hash change
 
@@ -57,8 +67,10 @@ When this lands, in signature mode (the Sentenced zone holds a `Church` feature;
 and is not counted.
 
 ## 2. Dependencies
-- None to start. P-MAPGEN-SIG-RESERVE-1 and the SCALE packets (coordinator's lane) will change every option-on map while
-  this packet is open: every check is a property measured from the anchor, never a pinned map, hash, attempt or tile.
+- None to start. P-MAPGEN-SIG-RESERVE-1 is merged and under this branch (the church stands in a 34-tile reserved site on
+  the zone's back edge, its elite camp inside). The SCALE packets (coordinator's lane) will change every option-on map
+  while this packet is open: every check is a property measured from the anchor, never a pinned map, hash, attempt or
+  tile.
 - P-MAPGEN-SIG-SCALE-2 adds the churchyard fence (church blueprint). This packet's apron and lanes do not depend on it.
 - Supersedes the styler half of P-MAPGEN-SIG-SENTENCED-1 (its branch and oracle are left untouched).
 
@@ -85,8 +97,14 @@ and is not counted.
 - The oracle file is read-only for implementers.
 - Shared, **ask in the hand-off before editing**: `mapgen/style_runtime/`, `mapgen/style_zones/`, `mapgen/certify/`,
   `docs/adr/0028-signature-landmarks.md`, `docs/DEVIATIONS.md`.
-- Not yours: `mapgen/landmarks/**`, `mapgen/pipeline/`, the coordinator's tests `crates/rh-sim/tests/mapgen_signature_*.rs`,
-  and the `rh-mapdress` goldens (section 11: no documented regeneration command exists, so they are not in scope).
+- `crates/rh-mapdress/tests/anchor.rs` `NO_ANCHOR_GOLDEN` and `crates/rh-mapdress/tests/marsh.rs` `SIG_GOLDEN`: the
+  constants' values only, only if they move (section 11), re-measured as their comments say (run the test, take the
+  value the failed assertion prints for each seed), in **one separate commit** whose message starts
+  `P-LAND-SENTENCED-1 re-pin:`, made after the implementation commits, so that the merge can drop it and redo it.
+  Nothing else in `crates/rh-mapdress/` changes.
+- Not yours: `mapgen/landmarks/**`, `mapgen/pipeline/`, and the landmark lane's tests
+  `crates/rh-sim/tests/mapgen_signature_*.rs`: leave them red if they move and report each test with its new values
+  (that lane's coordinator re-pins them at merge).
 
 ## 6. Contracts and references
 - ADR 0028 (G1-G8; decisions 2, 5, 6). `docs/coordination/LANDMARK_GENERATION_SPEC.md` section 4.
@@ -118,12 +136,12 @@ definitions in its file comment.
 |---|---|---|
 | `every_lane_fence_tile_stands_on_a_lane_line` | rules 1-2 (`|d| mod 8 == 4`) | FAIL, 32 of 32 seeds ("lane fence off the lane lines: 32 findings") |
 | `no_lane_fence_tile_stands_in_a_cross_lane_band` | rule 3 | FAIL, 32 of 32 seeds ("lane fence in a cross-lane band: 32 findings") |
-| `no_lane_fence_tile_stands_within_two_of_the_yard_box` | rule 4 | FAIL, 5 seeds (1, 5, 15, 23, 28: "lane fence in the yard box's apron: 5 findings") |
+| `no_lane_fence_tile_stands_within_two_of_the_yard_box` | rule 4 | FAIL, 9 seeds (2, 11, 12, 18, 22, 24, 29, 31, 32: "lane fence in the yard box's apron: 9 findings"; 5 seeds before the rebase) |
 | `lane_fence_share_stays_near_option_off` | rule 5, median in [0.6, 1.2]; the non-triviality guard of the three above | PASS (today 0.92) |
-| `every_seed_keeps_its_lanes` | rule 5, every seed at least 0.3 | PASS (today min 0.73) |
+| `every_seed_keeps_its_lanes` | rule 5, every seed at least 0.3 | PASS (today min 0.74) |
 | `fence_runs_stay_within_nine_and_pieces_keep_the_minimum` | runs at most 9, pieces at least `min_piece` | PASS |
 | `maps_certify_clean_and_keep_the_church_and_the_gallows_square` | section 7 | PASS |
-| `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | section 7 | PASS (today 3) |
+| `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | section 7 | PASS (today 1; 3 before the rebase) |
 | `option_on_with_decor_keeps_the_lane_fence` | seeds 1-8 with decor: map made at the same attempt, same lane fence | PASS |
 | `option_off_maps_are_todays` | G8 (seeds 1-8 map hashes; decor does not move the fence) | PASS |
 | `report_lanes_seeds_1_to_32` (`#[ignore]`) | section 12's M1-M5, per seed and summary | report |
@@ -191,7 +209,8 @@ proposed.
   excludes the corridor, `shape.rs:154-159`); repair opens fence near the worst corridor afterwards. Lanes run roughly
   toward the coliseum, like the routes; the oracle does not model repair (section 12).
 - **Option off byte-identical**; the content hash does not move (section 5).
-- **Tests that pin option-on output and will move** (do not edit; run them and report the new values in the hand-off):
+- **Tests that pin option-on output and will move** (the first group: do not edit, run them and report the new values in
+  the hand-off; the second group: re-pin as section 5 says):
   - `crates/rh-sim/tests/mapgen_signature_frost_lake.rs` (coordinator's): `seeds_with_the_lake_at_the_mouth_keep_their_maps`
     (`unchanged()`, attempt and `map_hash` of 30 seeds), `seeds_17_and_18_land_on_the_next_attempt_with_the_lake_at_the_mouth`
     (`moved()`, attempt and `map_hash`): every option-on map hash moves; `the_worst_attempt_stays_within_the_measured_margin`
@@ -200,8 +219,8 @@ proposed.
     (`NO_ANCHOR_GOLDEN`, seeds 1-4) and `crates/rh-mapdress/tests/marsh.rs` `every_zone_other_than_plague_is_dressed_as_before`
     (`SIG_GOLDEN`, 4 seeds x 4 zones): the dressing is seeded by the map hash (`tests/common/mod.rs:36`), so every value
     moves. These are hand-measured constants ("measured on the tree before the change"), with no documented
-    regeneration command: not in this write scope. The implementer reports the new values; the coordinator updates
-    them or widens the scope.
+    regeneration command. They are this lane's: re-pin them as section 5 says, in the separate labelled commit, and
+    list old and new values in the hand-off.
   - Comments naming seeds and attempts: `mapgen_signature_aprons.rs:201-202`, `mapgen_signature_frost_lake.rs`.
 - Stylers share one runtime (`mapgen/style_runtime/`): a changed Sentenced result can change the zones styled after it
   and later stages (spawns, crates, repair), hence the moved hashes above.
@@ -300,6 +319,32 @@ What it implies:
   on 8 seeds one side holds none.
 - The prompt's M2 definition left routes out; the planner does not (above), so the decision uses the loose ceiling and
   states the strict one.
+
+### Re-measured on `1032e5bd` (after P-MAPGEN-SIG-RESERVE-1), 2026-11-13, same report, seeds 1-32
+The church now stands in a reserved 34-tile site on the zone's back edge with only its own elite camp inside
+(facing E 13, W 12, N 5, S 2 of 32 seeds). Offset 4, phase 8. The per-seed table above is the old base; rerun the
+report for the new one.
+
+| | before (`566841f4`) | now (`1032e5bd`) |
+|---|---|---|
+| M1 door axis = today's row axis | 15 of 32 | **26 of 32** |
+| M2 strict ceiling, x off share | 0.22 / 0.57 / 0.82 | 0.38 / 0.63 / 0.88 |
+| M2 loose ceiling, tiles | 198 / 262.5 / 323 | 195 / 251.5 / 287 |
+| M2 loose ceiling, x off share | 0.56 / 0.81 / 1.17 | 0.60 / **0.77** / 0.99 |
+| M2 kept after detours, x off share | 0.53 / 0.78 / 1.12 | 0.59 / **0.76** / 0.93 |
+| M2 kept with `min_run` 10, x off share | median 0.73 | 0.49 / 0.71 / 0.91 |
+| M4 fence tiles, option on today | 229 / 306 / 359 | 246 / 311.5 / 385 |
+| M4 ratio on/off today | 0.73 / 0.92 / 1.22 | 0.74 / 0.92 / 1.35 |
+| Today's fence on the route band (%) | 3 / 12 / 32 | 2 / 15 / 31 |
+| M5 sides of the spine, smaller / larger | 0.00 / 0.15 / 0.61 | **0.21 / 0.60 / 0.98** |
+| attempt index today | 0 / 0 / 3 | 0 / 0 / 1 (refusals before: 3 `Prefix`, 1 `Repair(RadiusPost)`, 5 `SignatureDiscarded`) |
+
+- **The budget bound stands.** Kept is 0.76 of option off (median), 0.59 at the lowest seed; the test's [0.6, 1.2]
+  median leaves 0.16 under it (0.11 if `min_run` is kept) and every seed is above 0.3.
+- **The lanes are no longer lopsided.** With the church on the back edge of its site, the smaller side of the spine
+  holds 60% of the larger side's lane fence on the median seed (15% before), and no seed has an empty side (8 before).
+- **Phase 8 is still among the best.** Kept, median x off, phases 0-11 at offset 4: 0.71, 0.70, 0.69, 0.69, 0.70, 0.68,
+  0.73, 0.75, **0.76**, 0.75, 0.73, 0.72. Offsets 3-8 at phase 8: 0.76, **0.76**, 0.70, 0.68, 0.63, 0.72. No change.
 
 ## Oracle files (read-only for implementers)
 - `crates/rh-sim/tests/mapgen_land_sentenced.rs`
