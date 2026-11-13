@@ -435,7 +435,7 @@ namespace Roguehalla.Client
             HudUi.Surface(wind, Tone(theme.SurfaceRaised, .94f), 5f, theme.Border, false, true);
             HudUi.Label(HudUi.At(wind, "Name", 8, 7, 30, 14), "Label", "Wind", theme.SizeSmall, theme.Info, bold: true);
             _windText = HudUi.Label(HudUi.At(wind, "Text", 42, 7, 100, 14), "Label", "Walk over emblems", theme.SizeSmall, theme.TextPrimary);
-            _windText.enableAutoSizing = true; _windText.fontSizeMin = 8f; _windText.fontSizeMax = theme.SizeSmall;
+            _windText.GetComponent<MythicTextScale>().MinSize = 7f;   // the text-size fit shrinks "+50% speed · Active 120s" to about 7.5
         }
 
         void CreatePickupHint(UiTheme theme, float bottom)

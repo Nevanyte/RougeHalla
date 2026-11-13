@@ -91,6 +91,11 @@ namespace Roguehalla.Client
 
         void ApplyInventoryHints(InventoryView? inventory, double now)
         {
+            // A session with no snapshot yet (just after a reconnect) has no clock: ServerTimeMs reads 0, which would draw an old end time as a huge "Ns". No clock, no seconds.
+            if (_session != null && _session.Latest == null && inventory.HasValue)
+            {
+                var bare = inventory.Value; bare.HealingUntil = null; bare.SpeedBoostUntil = null; inventory = bare;
+            }
             for (int i = 0; i < 2; i++)
             {
                 var weapon = !inventory.HasValue ? null : i == 0 ? inventory.Value.Slot0 : inventory.Value.Slot1;
@@ -115,7 +120,12 @@ namespace Roguehalla.Client
             {
                 Set(_healText, SlotText.PotionCounts(key.Large, key.Small, key.Delivered));
                 Set(_healStatus, SlotText.HealingSlot(inventory, now));
-                if (_windText != null) Set(_windText, SlotText.WindEmblem(inventory, now));
+                if (_windText != null)
+                {
+                    Set(_windText, SlotText.WindEmblem(inventory, now));
+                    var fit = _windText.GetComponent<MythicTextScale>();
+                    if (fit != null) fit.Refit();   // the longer text is fitted when it changes (once a second), not left to the next LateUpdate
+                }
             }
             if (_potionHint != null) _potionHint.Text = key.Delivered ? "E · Drink potion\n" + key.Small + " small / " + key.Large + " camp / " + key.Healing + " healing" : "E · Drink potion\nAwaiting inventory";
         }
