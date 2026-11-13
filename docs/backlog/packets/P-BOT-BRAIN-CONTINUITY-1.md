@@ -81,7 +81,36 @@ from the seat's accepted frames. Brain seats then farm and fight: the release te
 - `scripts/gate.sh --oracle packet/P-BOT-BRAIN-CONTINUITY-1` passes (full).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-BOT-BRAIN-CONTINUITY-1`
+- `crates/rh-policy/src/bots/temporal_percept/brain/mob_tracks/tests.rs` (8 tests: step bound, classes, crossing,
+  tight camp, gap in sight, death, row order, velocity)
+- `crates/rh-policy/src/bots/temporal_percept/brain/compose14/continuity_tests.rs` (4 tests: keys survive renewed
+  references with velocity; renumbered and reordered references compose identical percepts; a hidden row changes no
+  track (guard, passes on the stub); an untracked composer keeps reference keys (guard))
+- `crates/rh-policy/src/bots/temporal_percept/memory/tracked_tests.rs` (4 tests: a record lives while its key is
+  carried (guard); dropped `TRACK_RETAIN_MS` after; bounded over 24,000 ticks (guard); flag off keeps the source rule)
+- `crates/rh-headless/tests/brain_bots.rs` (release: HumanBot baseline on the same seeds and the floors)
+
+Verified against the code (oracle author, 2026-11-12): every path and line in section 1 holds at 038f83c8. Decisions
+the oracle pins:
+- Crossing rule: kept apart by global nearest-first assignment (ties: the older track, then the row's x, then y); no
+  cut. Step bound 255 u/s (PLAYER_SPEED 170 x skirmisher 1.15 x G10 cap 1.3) + 8 u slack; a sample more than 250 ms
+  after the previous one, or a self teleport, ends every track.
+- Wire rows are in ascending reference order, so "rows shuffled" at the composer level is a permuted hand-out of
+  references; the tracker's own unit test shuffles rows freely.
+- Memory bound: legacy never drops a mob record (its key never changes); a track key never recurs, so on live seats a
+  record is kept while carried and `TRACK_RETAIN_MS` = legacy `REENTRY_MS` (3,000 ms) after, then dropped. Peak
+  records <= visible tracks + tracks ended in the last 3 s.
+- Release floors, measured first (seeds 3 and 11, 6,000 ticks, 2026-11-12): Brain 4 resolved deaths, 16 mob kills,
+  1,773 proposals, quietest seat 7; HumanBot 13 deaths, 52 kills, 2,175 proposals (136 a seat), quietest 23 (its
+  seed 3 ends at tick 3,209). Floors over both seeds: Brain deaths >= 0.5 x HumanBot's, mob kills >= 0.5 x, and the
+  quietest Brain seat >= 0.25 x the mean HumanBot seat's proposals. Correction (same day, after implementing): the
+  matches run 16,000 ticks, not 6,000. The raid's patience ends about tick 12,300 on this configuration; the Brain,
+  like legacy, farms through the raid and fights in the coliseum (with the tracker: 2 player deaths by tick 6,000,
+  11 by tick 16,000; HumanBot's matches end at ticks 3,209 and 6,961 with 13). The fractions are unchanged.
+  Second correction: a 16,000-tick recording of seed 3 diverges on replay at step 11,004 (rh-sim or recorder, outside
+  this packet; filed as P-SIM-REPLAY-LONG-1 with an ignored repro test). The floors and the two-run hash check use
+  unrecorded 16,000-tick matches; the replay check keeps a recorded 6,000-tick run per seed (`REPLAY_TICKS`). Per-seat decision cost is reported (the ignored
+  `profile_brain_seats` diagnostic), not gated: wall-clock floors are not stable on shared CI cores.
 
 ## 9. Validation commands
 - `cargo test -p rh-policy`; `cargo test --release -p rh-headless --test brain_bots`;

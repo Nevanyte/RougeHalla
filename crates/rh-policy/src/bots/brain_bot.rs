@@ -218,7 +218,7 @@ impl Policy for BrainBot {
         let Ok(mut brain) = Brain::new(config) else {
             return;
         };
-        brain.use_sample_scoped_mob_ids();
+        brain.use_tracked_mob_ids();
         self.seated = Some(Seated {
             composer: SeatComposer14::new(m.me, self.tier, setup),
             brain,
