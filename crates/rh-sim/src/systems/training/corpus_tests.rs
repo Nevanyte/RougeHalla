@@ -71,6 +71,7 @@ fn config(kind: &str) -> SimConfig {
         hitboxes: crate::archetype::HitboxMode::LegacyCircle,
         mob_spacing: Default::default(),
         regen_in_combat: crate::RegenInCombat::Legacy,
+        camp_buffs: crate::CampBuffRule::Legacy,
     }
 }
 

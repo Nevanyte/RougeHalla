@@ -433,6 +433,43 @@ pub(crate) struct MobRuntime {
     pub(crate) combat: bool,
     pub(crate) camps: Vec<CampRoster>,
     pub(crate) life: Vec<CampLife>,
+    /// P-CAMP-BUFF-THEMES-1: under `SimConfig::camp_buffs = Themed` one entry per camp (index-aligned with `camps`),
+    /// empty under `Legacy`; `check_world` ties the shape to the hashed config. `#[serde(default)]`: checkpoints written
+    /// before the field restore as empty.
+    #[serde(default)]
+    pub(crate) buffs: CampBuffs,
+}
+
+/// Each camp's buff (legacy a7b5c4ce `CampState.buff`): `Some(t)` when its normal kills pay normal type `t`'s stat
+/// instead of its own type's, `None` when they pay its own. An empty row (every `Legacy` world, and a `Themed` world
+/// without camps) serializes as a unit: JSON `null`, and no word for the state hasher, so every `Legacy` world hashes and
+/// checkpoints exactly as before the field existed. A non-empty row is a plain sequence (its length, then each entry's
+/// `Option` tag). Within one statics digest only one of the two shapes is admitted (`check_world`), so the untagged
+/// empty form cannot be confused with a written one (`hash.rs` module docs).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CampBuffs(pub(crate) Vec<Option<crate::mob_catalog::MobTypeId>>);
+
+impl serde::Serialize for CampBuffs {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if self.0.is_empty() {
+            s.serialize_unit()
+        } else {
+            self.0.serialize(s)
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CampBuffs {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        match Option::<Vec<Option<crate::mob_catalog::MobTypeId>>>::deserialize(d)? {
+            None => Ok(Self::default()),
+            // The one written form of an empty row is the unit: refuse a second spelling of the same state.
+            Some(v) if v.is_empty() => Err(serde::de::Error::custom(
+                "an empty camp buff row is written as null",
+            )),
+            Some(v) => Ok(Self(v)),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

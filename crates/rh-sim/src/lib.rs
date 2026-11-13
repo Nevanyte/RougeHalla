@@ -86,7 +86,7 @@ pub use state::{
 };
 pub mod terrain;
 pub mod traders;
-pub use statics::{FactionMode, RegenInCombat};
+pub use statics::{CampBuffRule, FactionMode, RegenInCombat};
 pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;
@@ -113,6 +113,8 @@ pub use systems::planning::{ArenaView, PlanView, PlanningView, SpawnOptionView};
 
 #[cfg(test)]
 mod build_summary_tests;
+#[cfg(test)]
+mod camp_buff_tests;
 #[cfg(test)]
 mod card_witness_tests;
 #[cfg(test)]

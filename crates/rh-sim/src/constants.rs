@@ -488,4 +488,19 @@ content! {
     /// A mob that stays put looks for a spacing step on one tick in this many (staggered by id): a crowd with no room
     /// left re-weighs its candidates a quarter as often. At most 150 ms of delay before a step.
     MOB_SPACING_LOOK_TICKS: u32 = 4, "ticks";
+
+    // ---- camp buffs (unreleased legacy a7b5c4ce shared/constants.ts:593-614, mob_catalog/camp_buffs.rs; only under
+    // SimConfig::camp_buffs = Themed, P-CAMP-BUFF-THEMES-1) ----
+    /// The repair's first aim: from every camp, the nearest camp of each buff within this (or the camp's ninth-nearest
+    /// camp distance, itself included, where that is farther).
+    CAMP_BUFF_MAX_DISTANCE_TILES: f64 = 65., "tiles";
+    /// The draw's theme factor of a buff outside the camp's zone's four (its own four weigh 1).
+    CAMP_BUFF_OFF_THEME_WEIGHT: f64 = 0.15, "multiplier";
+    /// The draw's need factor: 1 + (d / REF)^2, d the distance to the nearest camp already given the buff, capped at CAP.
+    CAMP_BUFF_NEED_REF_TILES: f64 = 30., "tiles";
+    CAMP_BUFF_NEED_CAP_TILES: f64 = 90., "tiles";
+    /// The draw's balance factor: (even share / (camps given the buff so far + 1))^POWER, a loop of multiplications.
+    CAMP_BUFF_BALANCE_POWER: u32 = 2, "exponent";
+    /// At most this many repair moves after the draw.
+    CAMP_BUFF_REPAIR_STEPS: u32 = 160, "moves";
 }

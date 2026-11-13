@@ -403,8 +403,9 @@ fn hud_stat(stat: crate::modifiers::farm::RewardStat) -> Option<HudStat> {
 }
 
 /// Refreshes `out` to one HUD row per camp roster row (same order): the camp's normal-mob reward (public content,
-/// legacy `planning.ts:176-187`) and its ward as a verdict for `viewer` (legacy `CampWards.ts:39-54`: live only while
-/// an owner exists and `now < wardExpiresAt`; never the owner's id, C-OBS). Reuses `out`'s capacity.
+/// legacy `planning.ts:176-187`; the camp's buff where it has one, P-CAMP-BUFF-THEMES-1) and its ward as a verdict for
+/// `viewer` (legacy `CampWards.ts:39-54`: live only while an owner exists and `now < wardExpiresAt`; never the owner's
+/// id, C-OBS). Reuses `out`'s capacity.
 fn camp_hud_into(sim: &Sim, viewer: PlayerId, now: f64, out: &mut Vec<CampHudView>) {
     out.clear();
     let life = sim
@@ -412,8 +413,11 @@ fn camp_hud_into(sim: &Sim, viewer: PlayerId, now: f64, out: &mut Vec<CampHudVie
         .mob_runtime
         .as_ref()
         .map_or(&[][..], |rt| &rt.life[..]);
+    let buffs = sim.camp_buffs();
     for (i, camp) in sim.camp_rosters().iter().enumerate() {
-        let reward = crate::modifiers::farm::Farm::reward_of(camp.mob_type).and_then(|r| {
+        // a7b5c4ce `campRewardId`: the camp's buff (`SimConfig::camp_buffs = Themed`), else its own type.
+        let pays = buffs.get(i).copied().flatten().unwrap_or(camp.mob_type);
+        let reward = crate::modifiers::farm::Farm::reward_of(pays).and_then(|r| {
             hud_stat(r.stat).map(|stat| CampReward {
                 stat,
                 amount: r.value,

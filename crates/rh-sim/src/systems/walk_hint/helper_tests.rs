@@ -658,6 +658,7 @@ fn captured_npc_timings_drive_real_ai_aim_proposals() {
         combat: true,
         camps: vec![],
         life: vec![],
+        buffs: Default::default(),
     });
     let vel = super::super::targeting::velocity(&sim.w.players[0].core, now);
     let decide = |windup| {
