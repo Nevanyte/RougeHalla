@@ -36,6 +36,15 @@
 - `style_sanctum/` in signature mode builds round the placed hall and places none of its own; the land-generation
   task leaves Holy until this packet lands.
 
+## Owner decision 2026-11-13 (chat, midday)
+
+The hall is **37 x 37** with **two Holy camps inside on the nave's centre line** (a 41-tile site: the hall plus a
+2-tile apron each side). The approved grid is `docs/landmarks/blueprints/hall.txt` once redrawn from the 39 draft;
+the two camps stand at the blueprint's `E` tiles and never move. Legacy's elite rule is kept for Holy: the zone's
+elites are chosen as today among all ten camps (in the probe the hall camps were never the elites), so the certifier's
+`elite-selection` needs no Holy case. The oracle author re-measures the 37 grid with its real camp rows (the probe's
+37 row used positions scaled from the 39 draft).
+
 ## Measurement 2026-11-13 (throwaway probe after P-MAPGEN-SIG-RESERVE-1; seeds 1-64, option on, release; 1-128 in brackets)
 
 Baseline today: 101 attempts [225], worst attempt index 5; Holy camp nearest-neighbour mean 20.2, spread 31.7.
