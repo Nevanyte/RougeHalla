@@ -1035,10 +1035,10 @@ mod tests {
             &camps,
             &mut grid,
         );
-        for i in 0..W * H {
+        for (i, &label) in grid.iter().enumerate() {
             let (x, y) = ((i % W) as i32, (i / W) as i32);
             let inside = (60..64).contains(&x) && (60..63).contains(&y);
-            assert_eq!(grid[i], if inside { 3 } else { 7 }, "({x}, {y})");
+            assert_eq!(label, if inside { 3 } else { 7 }, "({x}, {y})");
         }
     }
 }
