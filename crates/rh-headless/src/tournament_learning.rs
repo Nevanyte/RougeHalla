@@ -344,10 +344,13 @@ pub fn play_learning(
     policy: SeatPolicy,
     store: &mut LearnStore,
 ) -> Vec<LearnedGame> {
+    let tables = crate::tune::plan_tables(plan).unwrap_or_else(|error| panic!("{error}"));
     (0..plan.games)
         .map(|index| {
             let learned = store.snapshot();
-            let game = run_learning_game(index, plan, arena, sim, policy, &learned);
+            let game = crate::tune::scoped(tables, || {
+                run_learning_game(index, plan, arena, sim, policy, &learned)
+            });
             for record in &game.records {
                 store.record(record);
             }

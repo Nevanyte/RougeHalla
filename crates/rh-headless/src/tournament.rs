@@ -1934,6 +1934,8 @@ pub(crate) fn play_each<T: Send>(
     workers: u32,
     execute: impl Fn(u32) -> T + Sync,
 ) -> Vec<T> {
+    // The plan's --tune patch (legacy applyTune): installed around every game on the thread that plays it.
+    let tables = crate::tune::plan_tables(plan).unwrap_or_else(|error| panic!("{error}"));
     let batches = split(plan.games, workers);
     let mut results: Vec<(u32, T)> = std::thread::scope(|scope| {
         let execute = &execute;
@@ -1943,7 +1945,7 @@ pub(crate) fn play_each<T: Send>(
                 scope.spawn(move || {
                     batch
                         .into_iter()
-                        .map(|index| (index, execute(index)))
+                        .map(|index| (index, crate::tune::scoped(tables, || execute(index))))
                         .collect::<Vec<_>>()
                 })
             })

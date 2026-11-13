@@ -483,11 +483,15 @@ impl TierParams {
     /// The tier's numbers: the compiled [`TIERS`], or the patched copy an offline run installed on this thread with
     /// [`with_tables`].
     pub fn by_id(id: TierId) -> &'static Self {
-        &TIERS[match id {
+        let i = match id {
             TierId::Easy => 0,
             TierId::Normal => 1,
             TierId::Hard => 2,
-        }]
+        };
+        match INSTALLED.with(std::cell::Cell::get) {
+            Some(tables) => &tables.tiers[i],
+            None => &TIERS[i],
+        }
     }
 }
 
@@ -510,8 +514,19 @@ impl BrainTables {
 /// what was there before (also when `f` panics). Headless tuning only: the live server never calls it, so live bots
 /// always read the compiled tables. Every seat of a match must run on the thread that installed the tables.
 pub fn with_tables<R>(tables: &'static BrainTables, f: impl FnOnce() -> R) -> R {
-    let _ = tables;
+    struct Restore(Option<&'static BrainTables>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            INSTALLED.with(|cell| cell.set(self.0));
+        }
+    }
+    let _restore = Restore(INSTALLED.with(|cell| cell.replace(Some(tables))));
     f()
+}
+
+thread_local! {
+    /// The tables [`with_tables`] installed on this thread (None: the compiled tables).
+    static INSTALLED: std::cell::Cell<Option<&'static BrainTables>> = const { std::cell::Cell::new(None) };
 }
 
 /// PersonaParams (types.ts 5): preference. The weights and thresholds, never multiplied with the tier.
@@ -619,12 +634,16 @@ pub const PERSONAS: [PersonaParams; 4] = [
 impl PersonaParams {
     /// The persona's numbers: the compiled [`PERSONAS`], or the patched copy installed with [`with_tables`].
     pub fn by_id(id: PersonaId) -> &'static Self {
-        &PERSONAS[match id {
+        let i = match id {
             PersonaId::Farmer => 0,
             PersonaId::Hunter => 1,
             PersonaId::Opportunist => 2,
             PersonaId::Cautious => 3,
-        }]
+        };
+        match INSTALLED.with(std::cell::Cell::get) {
+            Some(tables) => &tables.personas[i],
+            None => &PERSONAS[i],
+        }
     }
 }
 

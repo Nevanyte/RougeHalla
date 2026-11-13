@@ -62,11 +62,10 @@ fn main() -> std::process::ExitCode {
         eprintln!("{message}");
         return std::process::ExitCode::from(2);
     }
-    if args.tune.is_some() {
-        eprintln!(
-            "--tune: the ported runner does not apply TIERS/PERSONAS table patches yet (they are compile-time constants; \
-             P-BOTS-6 remainder). Refusing a tuning diagnostic that would silently ignore its patch."
-        );
+    // The legacy tune.ts diagnostic: the patch is checked before any game (play installs it around every game).
+    let plan_check = plan_of(&args);
+    if let Err(message) = rh_headless::tune::plan_tables(&plan_check) {
+        eprintln!("{message}");
         return std::process::ExitCode::from(2);
     }
     let plan = plan_of(&args);
