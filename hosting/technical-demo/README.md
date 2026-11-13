@@ -175,6 +175,30 @@ are intentionally sparse; use SSM metadata and Root-approved safe probes.
 The setup receipt means services were started and loopback identity checked,
 not that ACME completed, the public site loaded or a genuine match succeeded.
 
+## Source launch settings (P-HOST-FLAGS-1)
+
+The nonsecret config takes three optional keys for the **Source** room; Training never receives them (rh-server refuses
+`--map-pool` and `--lobby-timing` there). Absent keys mean the defaults, and with all defaults the rendered units are
+byte-identical to the earlier ones. The owner chooses the values at deploy time.
+
+- `map_pool` (`true`/`false`, default `false`): adds `--map-pool`; each room takes its own certified generated map and
+  `--map source-map.json` stays as the last resort. Maps are generated off the tick, so on this one small host the first
+  room may wait for the first certified map; until one is ready the server uses the `--map` file.
+- `signature_landmarks` (`true`/`false`, default `false`): adds `--signature-landmarks`; refused by config validation
+  unless `map_pool` is `true`. Keep it off on a real host until the landmark and art packets land.
+- `lobby_timing` (`"legacy"`/`"matchmaking"`, default `"legacy"`): `"matchmaking"` adds `--lobby-timing matchmaking`, a
+  15 second lobby with bots added at second 13, and drops `--lobby-seconds 10 --fill-seconds 3`. Per
+  `crates/rh-server/src/bot_fill.rs` (`apply_lobby_timing`), matchmaking overwrites the sim's lobby seconds, minimum
+  players and fill seconds anyway, so it wins whenever both are present; the pair is dropped to avoid a misleading unit.
+
+Any other key or value is refused. Offline check of the rendered flags: `test_offline.py` (`LaunchFlags`). Local proof
+that the "all three on" command starts a real server: build `rh-server`, then run it on loopback with the Source options
+(`--runtime source-arena --bind 127.0.0.1:<port> --map maps/... --min-players 1 --fill-bots 8 --max-rooms 1 --map-pool
+--signature-landmarks --lobby-timing matchmaking` plus a database URL) until it prints its ready line. Done once on 2026-11-12 against `crates/rh-sim/src/mapdata/fixtures/seed1.map.json`
+(runtime `rh-map/2`, seed 1) with a throwaway Postgres: `[server] map pool on: each room takes its own certified map
+(target 8)`, then `[server] ws/http (dev only) on 127.0.0.1:17777 | protocol 17 content 4674a176a28e3c7a`, and
+`/readyz` returned `{"ok":true,"state":"ready","storage":"ok"}`.
+
 ## Boot-persistent interface egress shaping
 
 The enabled isolation oneshot runs `bootstrap.py isolate`: nft first, then the
