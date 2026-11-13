@@ -158,8 +158,8 @@ make sense at some point.
 (These use quest time τ = 0.75 min, uncapped.)
 
 **Quest A, time only:** `τ = 0.75` min, `p = 1`, `E[C] = 2.9·0.75 = 2.18` CE, so it needs `V ≥ 2.50`.
-→ The quest is **overpriced for its reward even at R = 8** (2.04 < 2.50), so nobody should take it. Fix: about a 34 s
-quest (solve `0.83 + 0.167(8 − τ) = 1.15·2.9·τ`, which gives τ ≈ 0.57 min), a bigger buff, or indexing.
+→ The quest is **overpriced for its reward even at R = 8** (2.04 < 2.50), so nobody should take it. Fix: about a 37 s
+quest (solve `0.83 + 0.167(8 − τ) = 1.15·2.9·τ`, which gives τ ≈ 0.62 min), a bigger buff, or indexing.
 
 **Quest B, risky:** `τ = 0.75`, `p = 0.8`, death costs 15 s, so `L = 2.9·0.25 = 0.725` CE.
 `E[C] = 2.72 + 0.725·0.25 = 2.90` CE, so it needs `V ≥ 3.34` CE.
