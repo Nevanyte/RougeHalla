@@ -72,11 +72,14 @@ namespace Roguehalla.Client
             var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
             Material.SetTexture("_TempleTex", pierTex);
-            // Server ground variants: one texel per tile (rgb tint, a strength), point sampled. _VariantOn stays 0 on a map without a variant plane.
+            // Server ground variants: one texel per tile (rgb tint, a strength), point sampled. _VariantOn stays 0 on a map without a tinted tile.
             var variantTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
-            variantTex.SetPixelData(BakeVariants(map), 0); variantTex.Apply(false, true); _owned.Add(variantTex);
+            var variantPx = BakeVariants(map);
+            variantTex.SetPixelData(variantPx, 0); variantTex.Apply(false, true); _owned.Add(variantTex);
             Material.SetTexture("_VariantTex", variantTex);
-            Material.SetFloat("_VariantOn", map.GroundVariants != null && map.GroundVariants.Length == w * h ? 1f : 0f);
+            // On only when some tile carries a tint: a plane of zeros (or of unknown variants) costs no extra sample.
+            bool anyVariant = false; for (int i = 0; i < variantPx.Length; i++) if (variantPx[i].a != 0) { anyVariant = true; break; }
+            Material.SetFloat("_VariantOn", anyVariant ? 1f : 0f);
             Material.SetVector("_Coliseum", ColiseumBounds(map.Regions, w, h));
 
             Material.SetVector("_Map", new Vector4(w, h, ArenaView.GroundSquash, 0));

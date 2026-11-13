@@ -182,8 +182,8 @@ The nonsecret config takes three optional keys for the **Source** room; Training
 byte-identical to the earlier ones. The owner chooses the values at deploy time.
 
 - `map_pool` (`true`/`false`, default `false`): adds `--map-pool`; each room takes its own certified generated map and
-  `--map source-map.json` stays as the last resort. Maps are generated off the tick, so on this one small host the first
-  room may wait for the first certified map; until one is ready the server uses the `--map` file.
+  `--map source-map.json` stays as the last resort. Maps are generated off the tick and a room never waits for one: until the
+  pool has a certified map ready, early rooms are given the `--map` file (counted as a fallback).
 - `signature_landmarks` (`true`/`false`, default `false`): adds `--signature-landmarks`; refused by config validation
   unless `map_pool` is `true`. Keep it off on a real host until the landmark and art packets land.
 - `lobby_timing` (`"legacy"`/`"matchmaking"`, default `"legacy"`): `"matchmaking"` adds `--lobby-timing matchmaking`, a
