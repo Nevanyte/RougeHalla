@@ -480,13 +480,53 @@ pub const TIERS: [TierParams; 3] = [
 ];
 
 impl TierParams {
+    /// The tier's numbers: the compiled [`TIERS`], or the patched copy an offline run installed on this thread with
+    /// [`with_tables`].
     pub fn by_id(id: TierId) -> &'static Self {
-        &TIERS[match id {
+        let i = match id {
             TierId::Easy => 0,
             TierId::Normal => 1,
             TierId::Hard => 2,
-        }]
+        };
+        match INSTALLED.with(std::cell::Cell::get) {
+            Some(tables) => &tables.tiers[i],
+            None => &TIERS[i],
+        }
     }
+}
+
+/// Both Brain tables as one value: what an offline tuning run patches (source `tune.ts` patches the two tables in place).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BrainTables {
+    pub tiers: [TierParams; 3],
+    pub personas: [PersonaParams; 4],
+}
+
+impl BrainTables {
+    /// The compiled tables (the legacy design numbers).
+    pub const COMPILED: BrainTables = BrainTables {
+        tiers: TIERS,
+        personas: PERSONAS,
+    };
+}
+
+/// Run `f` with `tables` as what [`TierParams::by_id`] and [`PersonaParams::by_id`] answer on this thread, then restore
+/// what was there before (also when `f` panics). Headless tuning only: the live server never calls it, so live bots
+/// always read the compiled tables. Every seat of a match must run on the thread that installed the tables.
+pub fn with_tables<R>(tables: &'static BrainTables, f: impl FnOnce() -> R) -> R {
+    struct Restore(Option<&'static BrainTables>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            INSTALLED.with(|cell| cell.set(self.0));
+        }
+    }
+    let _restore = Restore(INSTALLED.with(|cell| cell.replace(Some(tables))));
+    f()
+}
+
+thread_local! {
+    /// The tables [`with_tables`] installed on this thread (None: the compiled tables).
+    static INSTALLED: std::cell::Cell<Option<&'static BrainTables>> = const { std::cell::Cell::new(None) };
 }
 
 /// PersonaParams (types.ts 5): preference. The weights and thresholds, never multiplied with the tier.
@@ -592,13 +632,18 @@ pub const PERSONAS: [PersonaParams; 4] = [
 ];
 
 impl PersonaParams {
+    /// The persona's numbers: the compiled [`PERSONAS`], or the patched copy installed with [`with_tables`].
     pub fn by_id(id: PersonaId) -> &'static Self {
-        &PERSONAS[match id {
+        let i = match id {
             PersonaId::Farmer => 0,
             PersonaId::Hunter => 1,
             PersonaId::Opportunist => 2,
             PersonaId::Cautious => 3,
-        }]
+        };
+        match INSTALLED.with(std::cell::Cell::get) {
+            Some(tables) => &tables.personas[i],
+            None => &PERSONAS[i],
+        }
     }
 }
 

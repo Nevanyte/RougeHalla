@@ -37,7 +37,9 @@ pub const USAGE: &str = "usage: cargo run -p rh-headless --bin tournament -- [op
   --workers N      worker threads (default min(cores - 1, 6); results retain plan order)
   --lineup L       one letter per seat, E(asy) N(ormal) H(ard), comma separated (default E,E,N,N,H,H; 2 to 8 seats)
   --seed N         the tournament seed (default 1): game seeds, factions and personas all derive from it
-  --learn on|off   learning off by default; explicit on is refused (this runner has no learning store)
+  --learn on|off   learning off by default; on needs --policy brain: games run one after another in plan
+                   order through one in-memory store, --workers is ignored, the store goes to --learn-out
+                   (default tournament-learning.json)
   --persona P      mix (default: rotated evenly), farmer, hunter, opportunist or cautious for every bot
   --faction F      mix (default: rotated evenly) or one faction id (fire, sentenced, plague, frost, holy) for every bot
   --json FILE      also write the plan, the report and the games there
@@ -46,8 +48,8 @@ pub const USAGE: &str = "usage: cargo run -p rh-headless --bin tournament -- [op
   --sudden S       sudden death seconds (default 30)
   --latency MS     --jitter MS   command-only diagnostic delay (default off; independent per-seat jitter, no observation delay)
   --telemetry DIR  also write every game's reduced summary NDJSON to DIR/runs-<day>.ndjson
-  --tune JSON      a tuning diagnostic: patch the TIERS / PERSONAS tables (the ported runner refuses it: the tables are
-                   compile-time constants, P-BOTS-6 remainder)
+  --tune JSON      a tuning diagnostic: apply a patch to the TIERS / PERSONAS tables for this tournament (existing keys
+                   only; \"ablation\": true allows a patch that breaks the tier order)
   --quiet          no progress on stderr
   --help";
 
@@ -441,16 +443,39 @@ pub fn json_payload(
     wall_ms: Option<f64>,
     game_ms: Option<f64>,
 ) -> Value {
-    let meta = json!({
+    json_payload_with_policy(
+        plan,
+        report,
+        games,
+        wall_ms,
+        game_ms,
+        crate::tournament_learning::SeatPolicy::Human,
+    )
+}
+
+/// [`json_payload`] naming the seated policy in `meta` when it is not `human` (the default payload does not move). A
+/// learning run is sequential, so its `meta.workers` is 1.
+pub fn json_payload_with_policy(
+    plan: &TournamentPlan,
+    report: &Report,
+    games: &[GameSummary],
+    wall_ms: Option<f64>,
+    game_ms: Option<f64>,
+    policy: crate::tournament_learning::SeatPolicy,
+) -> Value {
+    let mut meta = json!({
         "lineup": lineup_text(&plan.tiers),
         "seed": plan.seed,
         "learn": plan.learn,
         "persona": plan.persona.as_str(),
         "faction": plan.faction.as_str(),
-        "workers": plan.workers,
+        "workers": if plan.learn { 1 } else { plan.workers },
         "wallMs": wall_ms.map_or(Value::Null, js_num),
         "gameMs": game_ms.map_or(Value::Null, js_num),
     });
+    if policy != crate::tournament_learning::SeatPolicy::Human {
+        meta["policy"] = json!(policy.as_str());
+    }
     json!({
         "meta": meta,
         "plan": plan_json(plan),

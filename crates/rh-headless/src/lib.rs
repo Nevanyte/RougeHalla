@@ -8,6 +8,8 @@ pub mod digest;
 pub mod telemetry_record;
 pub mod tournament;
 pub mod tournament_cli;
+pub mod tournament_learning;
+pub mod tune;
 
 use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
@@ -470,6 +472,19 @@ impl Env {
     /// The policy telemetry snapshots, in seat order (the tournament report's behaviour block).
     pub fn seat_telemetry(&self) -> Vec<Option<rh_policy::PolicyStats>> {
         self.seats.iter().map(Seat::stats).collect()
+    }
+
+    /// The end-of-run summary of `player`'s policy seat (source `seat.runner.end(result)`), asked once per seat: `None`
+    /// for an external player, a second call, a faulted seat, or a policy that reports nothing ([`Seat::finish`]).
+    pub fn finish_seat(
+        &mut self,
+        player: PlayerId,
+        result: Option<&RunResult>,
+    ) -> Option<rh_policy::PolicyFinish> {
+        self.seats
+            .iter_mut()
+            .find(|seat| seat.player() == player)
+            .and_then(|seat| seat.finish(result))
     }
 
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {

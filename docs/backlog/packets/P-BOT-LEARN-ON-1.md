@@ -59,7 +59,26 @@ plan, same file, byte for byte. `--learn off` and the default policy behave exac
 - `scripts/gate.sh --oracle packet/P-BOT-LEARN-ON-1` passes (full).
 
 ## Oracle files (read-only for implementers)
-- listed by the oracle author on `packet/P-BOT-LEARN-ON-1`
+- `crates/rh-headless/tests/tournament_learning.rs`
+- `crates/rh-headless/tests/fixtures/tournament_learn_off.json` (golden of today's runner: `small_plan(2)`, seed 7,
+  E,N,H, the fast lifecycle, learning off, HumanBot seats; generated from 038f83c8 before any implementation)
+
+## Verified against the code (oracle author, 2026-11-12)
+- Paths and lines above checked at 038f83c8. `BotKind` is `lib.rs:523`, `run_bot_match_kind` `:593`.
+- The CLI parser and `USAGE` live in `crates/rh-headless/src/tournament_cli.rs`, outside the write scope, and its
+  `args_json` is compared to the pinned source CLI corpus. So the new flags (`--policy human|brain`, `--learn-out FILE`)
+  are taken out of argv by `tournament_learning::split_learning_args` in the binary before the source parser sees it,
+  and `TournamentPlan` gets no new field (no literal changes; `--json` payloads unchanged). The `USAGE` line saying
+  `--learn on` is refused becomes stale: proposed edit for the coordinator.
+- Source order (`BotManager.onResult` :471-484): a seat is recorded when its result arrives, as `runner.end(result)`
+  choices then `faction|<persona>|<faction>`; a seat that never resolved records nothing. The live server does the
+  same (`rh-server/src/room.rs:1657-1665`, `bot_learning.rs:599`), and records the faction key even when the seat's
+  `finish` is `None` (faulted). The oracle pins that: a faulted seat contributes no Brain choices, only the faction key.
+- Source learning keeps one store per worker batch (`tournament/worker.ts:111-125`), so a source learning run depends
+  on the worker count. The port plays a learning series in plan order with one store (proposed DEVIATIONS row).
+- New module: `crates/rh-headless/src/tournament_learning.rs` (the store, the series runner, the flag split);
+  `Env::finish_seat` in `lib.rs` exposes `Seat::finish`.
+- A Brain game on the practice arena with patience 3 s / sudden death 2 s resolves in about 950 ticks (~0.3 s debug).
 
 ## 9. Validation commands
 - `cargo test -p rh-headless`; `cargo run --release -p rh-headless --bin tournament -- --help`; `scripts/gate.sh --quick`

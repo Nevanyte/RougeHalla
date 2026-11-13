@@ -95,7 +95,8 @@ pub struct TournamentPlan {
     pub max_sim_ms: f64,
     /// Independent games are split across this many workers and returned in plan order.
     pub workers: u32,
-    /// Unsupported here: actual tournament play requires false; no learning store is activated.
+    /// Learning on (`--learn on`, with `--policy brain`): the games are played one after another in plan order through
+    /// one in-memory store (`tournament_learning::play_learning`); `workers` does not apply. `play`/`run_game` need false.
     pub learn: bool,
     /// Patience seconds at a full lobby, scaling to 40% (source planOf config.patienceSeconds; None = the headless
     /// defaults).
@@ -106,7 +107,8 @@ pub struct TournamentPlan {
     /// Observations are not delayed. None/zero preserves the ordinary Env path.
     pub latency_ms: Option<f64>,
     pub jitter_ms: Option<f64>,
-    /// The source tune.ts table patch: parsed and carried; the ported runner refuses to run a diagnostic it cannot apply.
+    /// The source tune.ts table patch (`--tune`): applied to the Brain tables for this tournament only (`tune::plan_tables`);
+    /// an invalid patch is refused before any game.
     pub tune: Option<serde_json::Value>,
     /// Write every game's reduced summary NDJSON to this directory (the source telemetry record is the P-BOTS-6
     /// remainder item 3; this is the ported telemetry surface).
@@ -534,8 +536,29 @@ fn damage_telemetry_supported(sim: &SimConfig) -> bool {
 pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> GameSummary {
     assert!(
         !plan.learn,
-        "tournament learning is unsupported; use learning off"
+        "tournament learning runs through tournament_learning::play_learning"
     );
+    run_game_seats(
+        index,
+        plan,
+        arena,
+        sim,
+        |seat| Box::new(HumanBot::new(seat.tier, seat.persona)),
+        |_, _, _, _| {},
+    )
+}
+
+/// [`run_game`] with the seats' policies built by `policy_of`, calling `on_resolved(env, seat index, player id, result)` the moment
+/// each seat's result arrives, in event order (source `BotManager.onResult`). The learning series uses it; `run_game`
+/// is this with HumanBot seats and no hook.
+pub fn run_game_seats(
+    index: u32,
+    plan: &TournamentPlan,
+    arena: &Arena,
+    sim: &SimConfig,
+    policy_of: impl Fn(&SeatSpec) -> Box<dyn rh_policy::Policy>,
+    mut on_resolved: impl FnMut(&mut Env, usize, PlayerId, &RunResult),
+) -> GameSummary {
     let game = plan_game(plan, index);
     let damage_available = damage_telemetry_supported(sim);
     let delay = plan_delay(plan);
@@ -548,7 +571,7 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             faction: seat.faction,
             bot: true,
             agent: Agent::Policy {
-                policy: Box::new(HumanBot::new(seat.tier, seat.persona)),
+                policy: policy_of(seat),
             },
         })
         .collect();
@@ -673,7 +696,8 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
                 }
                 Event::Resolved { id, result, .. } => {
                     if let Some(i) = ids.iter().position(|candidate| *candidate == id) {
-                        resolved[i] = Some(result.clone());
+                        on_resolved(&mut env, i, id, &result);
+                        resolved[i] = Some(result);
                     }
                 }
                 _ => {}
@@ -1906,11 +1930,14 @@ pub fn mean_game_ms(results: &[MeasuredGame]) -> Option<f64> {
         .then(|| results.iter().map(|r| r.wall_ms).sum::<f64>() / results.len() as f64)
 }
 
-fn play_each<T: Send>(
+/// Games split across workers by [`split`], returned in plan order.
+pub(crate) fn play_each<T: Send>(
     plan: &TournamentPlan,
     workers: u32,
     execute: impl Fn(u32) -> T + Sync,
 ) -> Vec<T> {
+    // The plan's --tune patch (legacy applyTune): installed around every game on the thread that plays it.
+    let tables = crate::tune::plan_tables(plan).unwrap_or_else(|error| panic!("{error}"));
     let batches = split(plan.games, workers);
     let mut results: Vec<(u32, T)> = std::thread::scope(|scope| {
         let execute = &execute;
@@ -1920,7 +1947,7 @@ fn play_each<T: Send>(
                 scope.spawn(move || {
                     batch
                         .into_iter()
-                        .map(|index| (index, execute(index)))
+                        .map(|index| (index, crate::tune::scoped(tables, || execute(index))))
                         .collect::<Vec<_>>()
                 })
             })
