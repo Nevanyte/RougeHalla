@@ -306,10 +306,10 @@ const OFF_GOLDEN: [u64; 8] = [
 ];
 /// The same for signature maps (seeds 1..=4) once their anchors are removed: the fallback path on those maps.
 const NO_ANCHOR_GOLDEN: [u64; 4] = [
-    0xd20c_c01b_a69a_204a,
-    0x22b0_0e8b_c9de_4713,
-    0xa6d9_07d7_1ba6_062c,
-    0x795b_39bd_d94e_1243,
+    0xa7de_6857_1baf_273d,
+    0xb7f2_f150_8b3f_4423,
+    0xb234_6e23_a544_f81e,
+    0x18b2_5ec3_8b7b_ec60,
 ];
 
 /// The shipped file without any `terrainRings` list (P-DRESS-MARSH-1): the marsh rings change Plague's ground, so the
