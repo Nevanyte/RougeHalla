@@ -525,10 +525,12 @@ impl Raw {
                             "near" => Band::Near,
                             "mid" => Band::Mid,
                             "far" => Band::Far,
-                            other => return Err(format!(
+                            other => {
+                                return Err(format!(
                                 "rule \"{}\": unknown band \"{other}\" (core, near, mid or far)",
                                 r.name
-                            )),
+                            ))
+                            }
                         };
                         if let Some(first) = band_rings.iter().find(|b: &&BandRing| b.band == band)
                         {
