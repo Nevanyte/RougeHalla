@@ -1,6 +1,7 @@
 //! Frost: the cave (P-MAPGEN-SIG-FROST-1; no legacy counterpart, DEV-020). A rectangular wall chamber on the Frost zone's
-//! back edge round the zone's far elite camp (the elite camp farthest from the map centre), its interior holding the
-//! camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
+//! back edge round the zone's far elite camp (the elite camp farthest from the map centre; with a reserved site,
+//! P-MAPGEN-SIG-RESERVE-1: the site's camp, the zone's first elite, wholly inside the site's inner rect), its interior
+//! holding the camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
 //! map border, so the chamber may be off-centre. It is closed except for one mouth (`2 * mouth + 1` floor tiles) in the
 //! wall toward the coliseum (the dominant axis of DIR16 toward it, else the other axis), nearer the coliseum than the
 //! camp, its axis up to `door_shift` tiles off the camp's, with `doorway` tiles of free Frost floor beyond it. The cave

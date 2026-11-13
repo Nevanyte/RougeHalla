@@ -35,6 +35,14 @@ claimed. Selected full captures include multiple real failures and signed/large 
 all partition input cells, every CampSite field, all territory cells, all consumed RNG words and eight continuation words.
 Reach is compared with no collision mask, a WALL/LOW mask and direct empty typed-array helper inputs.
 
+`place_camps_reserving(&context, &mut rng_callback, &ZonePartition, &[Reserve])` (P-MAPGEN-SIG-RESERVE-1, the
+generator's signature option only; ADR 0028) is `place_camps` round reserved landmark sites: every candidate and every
+Lloyd pole whose halo meets a site is refused (`PoleSearch::halo_ok`, which `place_camps` sets to `CampContext::halo_ok`,
+so its draws are unchanged); a site's own camp (the church's and the cave's) is placed first in its zone as label 1,
+counts in the spacing of every later camp, seeds its territory label in every Lloyd step, never moves and is the zone's
+first elite, the second elite following the legacy rule against it. With the option off the Prefix calls `place_camps`
+and nothing here runs.
+
 No I/O, clock, entropy, global mutable scratch, new dependency, legacy pin change or modification to parent foundations
 is introduced. Post-styler territory repair, spots, faction renumbering, stylers, full generator/certifier and map-pin
 parity remain later work. The coordinator owns the parent module hook and content-identity fold.

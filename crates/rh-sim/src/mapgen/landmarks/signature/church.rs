@@ -1,8 +1,10 @@
-//! Sentenced: the church round the zone's far elite camp, and its graveyard. The church is a rectangular wall ring whose
-//! interior holds the camp's whole halo; each wall line stands 4-7 tiles from the camp tile, or the side leans on the map
-//! border (a camp near the edge or a corner), so the rectangle may be off-centre. Its 3-tile door is on the side facing
-//! the coliseum (the dominant axis of the front), and beyond the door the graveyard's headstones (2x3 walls) stand in
-//! rows mirrored about the door axis, every row starting the same gap past the door line.
+//! Sentenced: the church round the zone's far elite camp (with a reserved site, P-MAPGEN-SIG-RESERVE-1: the site's
+//! camp, the zone's first elite, and wholly inside the site's inner rect), and its graveyard. The church is a
+//! rectangular wall ring whose interior holds the camp's whole halo; each wall line stands 4-7 tiles from the camp tile,
+//! or the side leans on the map border (a camp near the edge or a corner), so the rectangle may be off-centre. Its
+//! 3-tile door is on the side facing the coliseum (the dominant axis of the front), and beyond the door the graveyard's
+//! headstones (2x3 walls) stand in rows mirrored about the door axis, every row starting the same gap past the door
+//! line.
 //!
 //! Choice: the first graveyard layout, then the door axis nearest the camp, that admits any rectangle; among those
 //! rectangles one uniform draw (redrawn while a choice would split the zone's floor).
