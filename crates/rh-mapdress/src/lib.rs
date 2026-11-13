@@ -19,9 +19,11 @@ mod mask;
 mod order_tests;
 pub mod rules;
 
+use rh_sim::mapdata::ZoneAnchor;
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone};
+use rh_sim::mapgen::landmarks::signature;
 pub use rules::{Against, Rules, TileClass};
-use rules::{ClusterRule, ZoneRules};
+use rules::{Band, ClusterRule, ZoneRules};
 
 /// The wire cap on props (`rh_protocol::map::MAX_MAP_PROPS`).
 pub const MAX_PROPS: usize = 8192;
@@ -138,9 +140,16 @@ struct Grid<'a> {
     moat: Vec<bool>,
     /// Tiles holding a filler prop, for the filler spacing.
     filler: Vec<bool>,
+    /// Landmark mode: per tile of a zone that has an anchor and a `landmark` rule block, `1 + band index`; 0 elsewhere.
+    /// Empty when no zone uses the landmark path.
+    bands: Vec<u8>,
 }
 
 impl Grid<'_> {
+    /// Core band of a landmark-mode zone: tall props of every stage keep out of it.
+    fn is_core(&self, i: usize) -> bool {
+        self.bands.get(i) == Some(&1)
+    }
     fn zone_of(&self, i: usize) -> u8 {
         self.map.region_grid.get(i).copied().unwrap_or(0)
     }
@@ -150,7 +159,7 @@ impl Grid<'_> {
         self.zone_of(i) == zone.code()
             && !self.clear[i]
             && !self.occupied[i]
-            && !(tall && self.corridor[i])
+            && !(tall && (self.corridor[i] || self.is_core(i)))
             && on.contains(&class_of(self.map, i))
     }
 }
@@ -310,6 +319,35 @@ fn all_sites(g: &Grid, map_hash: u64, rules: &Rules) -> Vec<ClusterSite> {
     out
 }
 
+/// The anchor the landmark path of a zone uses: the map's anchor for the zone, of the kind the rules name. `None` means
+/// the zone is dressed by the fallback rings.
+fn landmark_anchor<'a>(map: &'a GameMapData, z: &ZoneRules) -> Option<&'a ZoneAnchor> {
+    let lm = z.landmark.as_ref()?;
+    map.anchors
+        .iter()
+        .find(|a| a.zone == z.zone && a.kind == lm.feature)
+}
+
+/// The band plane of [`Grid::bands`], from the generator's own `signature::band`.
+fn band_plane(map: &GameMapData, rules: &Rules) -> Vec<u8> {
+    let w = map.w as usize;
+    let mut out = Vec::new();
+    for z in &rules.zones {
+        let Some(anchor) = landmark_anchor(map, z) else {
+            continue;
+        };
+        if out.is_empty() {
+            out = vec![0u8; w * map.h as usize];
+        }
+        for (i, slot) in out.iter_mut().enumerate() {
+            if map.region_grid.get(i).copied() == Some(z.zone.code()) {
+                *slot = 1 + signature::band(anchor, (i % w) as i32, (i / w) as i32) as u8;
+            }
+        }
+    }
+    out
+}
+
 fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
     let (w, h) = (map.w as usize, map.h as usize);
     Grid {
@@ -321,6 +359,7 @@ fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
         occupied: vec![false; w * h],
         moat: vec![false; w * h],
         filler: vec![false; w * h],
+        bands: band_plane(map, rules),
     }
 }
 
@@ -398,6 +437,47 @@ fn rings(
             let tall = rules.is_tall(p.kind);
             for i in 0..g.w * g.h {
                 if !g.open(i, zone, &ring.on, tall) || !in_band(d2_of(i), ring.inner, ring.outer) {
+                    continue;
+                }
+                let h = hash::at(seed, i as u64, pi as u64, 1);
+                if h % 10_000 < thr {
+                    let pos = jitter(i % g.w, i / g.w, h >> 16);
+                    push(out, g, rules, p.kind, pos, h);
+                }
+            }
+        }
+    }
+}
+
+/// Stage 3 for one zone on the landmark path: ground variant and ring props follow the tile's band from the anchor's
+/// footprint (`signature::band`, read through [`Grid::bands`]).
+fn landmark_rings(
+    g: &mut Grid,
+    z: &ZoneRules,
+    rules: &Rules,
+    map_hash: u64,
+    ground: &mut [u8],
+    out: &mut Vec<DressProp>,
+) {
+    let Some(lm) = &z.landmark else { return };
+    let zone = z.zone;
+    let code = |b: Band| 1 + b as u8;
+    for (i, slot) in ground.iter_mut().enumerate() {
+        if g.zone_of(i) != zone.code() || g.map.tiles[i] != 0 {
+            continue;
+        }
+        if let Some(r) = lm.rings.iter().find(|r| code(r.band) == g.bands[i]) {
+            *slot = r.ground_variant;
+        }
+    }
+    for ring in &lm.rings {
+        let seed = hash::stage_seed(map_hash, &ring.name);
+        let want = code(ring.band);
+        for (pi, p) in ring.props.iter().enumerate() {
+            let thr = hash::threshold(p.density);
+            let tall = rules.is_tall(p.kind);
+            for i in 0..g.w * g.h {
+                if g.bands[i] != want || !g.open(i, zone, &ring.on, tall) {
                     continue;
                 }
                 let h = hash::at(seed, i as u64, pi as u64, 1);
@@ -521,7 +601,11 @@ pub fn dress(map: &GameMapData, map_hash: u64, rules: &Rules) -> Dressing {
         }
     }
     for z in &rules.zones {
-        rings(&mut g, z, rules, map_hash, &mut ground, &mut props);
+        if landmark_anchor(map, z).is_some() {
+            landmark_rings(&mut g, z, rules, map_hash, &mut ground, &mut props);
+        } else {
+            rings(&mut g, z, rules, map_hash, &mut ground, &mut props);
+        }
     }
     let sites = all_sites(&g, map_hash, rules);
     clusters(&mut g, rules, map_hash, &sites, &mut props);

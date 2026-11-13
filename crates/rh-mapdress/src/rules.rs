@@ -196,6 +196,11 @@ impl Rules {
                     add(&r.on);
                 }
             }
+            for r in z.landmark.iter().flat_map(|l| l.rings.iter()) {
+                if r.props.iter().any(|p| p.kind == code) {
+                    add(&r.on);
+                }
+            }
             for r in &z.clusters {
                 if r.kinds.contains(&code) {
                     add(&r.on);
@@ -268,20 +273,12 @@ struct RawLandmark {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawBandRing {
     name: String,
-    band: RawBand,
+    band: String,
     #[serde(default)]
     ground_variant: u8,
     props: Vec<RawRingProp>,
     #[serde(default = "floor_only")]
     on: Vec<TileClass>,
-}
-#[derive(Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum RawBand {
-    Core,
-    Near,
-    Mid,
-    Far,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -517,15 +514,32 @@ impl Raw {
                     on: f.on.clone(),
                 });
             }
-            // STUB (P-DRESS-ANCHOR-1): parses the landmark block and resolves kinds, densities and names. Still to do
-            // (tests/landmark_rules.rs): refuse a second ring for one band and a ring with no props, naming the rule;
-            // refuse an unknown band naming the rule (serde's message does not); `allowed_classes` must include these rings.
             let landmark = match &rz.signature.landmark {
                 None => None,
                 Some(l) => {
                     let mut band_rings = Vec::new();
                     for r in &l.rings {
                         claim(&r.name)?;
+                        let band = match r.band.as_str() {
+                            "core" => Band::Core,
+                            "near" => Band::Near,
+                            "mid" => Band::Mid,
+                            "far" => Band::Far,
+                            other => return Err(format!(
+                                "rule \"{}\": unknown band \"{other}\" (core, near, mid or far)",
+                                r.name
+                            )),
+                        };
+                        if let Some(first) = band_rings.iter().find(|b: &&BandRing| b.band == band)
+                        {
+                            return Err(format!(
+                                "rule \"{}\": band \"{}\" already has a ring (rule \"{}\")",
+                                r.name, r.band, first.name
+                            ));
+                        }
+                        if r.props.is_empty() {
+                            return Err(format!("rule \"{}\": ring has no props", r.name));
+                        }
                         let mut props = Vec::new();
                         for p in &r.props {
                             props.push(RingProp {
@@ -535,12 +549,7 @@ impl Raw {
                         }
                         band_rings.push(BandRing {
                             name: r.name.clone(),
-                            band: match r.band {
-                                RawBand::Core => Band::Core,
-                                RawBand::Near => Band::Near,
-                                RawBand::Mid => Band::Mid,
-                                RawBand::Far => Band::Far,
-                            },
+                            band,
                             ground_variant: r.ground_variant,
                             props,
                             on: r.on.clone(),
