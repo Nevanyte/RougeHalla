@@ -21,6 +21,15 @@ and caps route checks at the source's six. `visit_content(definition, resolved_d
 actual values once; the coordinator registers the default pair or the registry's actual resolved pair.
 No separate catalog of template rows, prop IDs, route thresholds or Viterbi mechanics is maintained.
 
+Signature mode (P-LAND-SENTENCED-1, `lanes.rs`): when the zone holds a signature `Church` (only with
+`pipeline::Options::signature`), today's grid, base rows and gallows square are still computed first, then the rows
+are laid as lanes on a second grid in the church's door orientation: straight rows on the lines `|d| mod 8 == 4` from
+the door axis, one gate grid `(along - 8) mod 12 < 3` counted from the door line, nothing within Chebyshev 2 of the
+yard box (church and graveyards), no `Dials::min_run`. Detours, Trim placement, relaxation and route repair are
+today's. `Plan::axis`, `s_lo`, `t_lo` and the rows are the lanes'; `base_rows` and `square` keep today's orientation,
+and `validate_plan` checks each in its own. The tunables are `LANES`, outside `Definition`/`Dials` and the content
+hash. Option off there is no `Church`, and nothing here is read; nothing in either path draws.
+
 The typed `Plan`, `Row`, and `Square` preserve source order and all row/window/house reporting. Tests begin
 with genuine captured pre-zone inputs, including earlier-zone layers, feature metadata and wrote/scratch;
 expected post-callback plans and decisions are never supplied to production code. Six real caller inputs
