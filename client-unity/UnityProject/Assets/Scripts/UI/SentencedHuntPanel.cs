@@ -15,7 +15,8 @@ namespace Roguehalla.Client
     /// </summary>
     public sealed class SentencedHuntPanel : MonoBehaviour
     {
-        const float Width = 300f, Top = 156f, Left = 12f, RowH = 24f, MaxRows = 5, StatusH = 76f, RowsTop = 102f;
+        const float Width = 300f, DefaultTop = 162f, Left = 12f, RowH = 24f, MaxRows = 5, StatusTop = 21f, RowsGap = 6f;
+        float _top = DefaultTop;
         RectTransform _root;
         TMP_Text _title, _status;
         readonly List<Button> _rows = new List<Button>();
@@ -33,10 +34,11 @@ namespace Roguehalla.Client
         public void Initialize(Transform parent)
         {
             var theme = UiTheme.Current;
-            _root = HudUi.Box(parent, "SentencedHunt", HudAnchor.TopLeft, Left, Top, Width, 60f);
+            _root = HudUi.Box(parent, "SentencedHunt", HudAnchor.TopLeft, Left, _top, Width, 60f);
             HudUi.Surface(_root, UiTheme.With(theme.Surface, .93f), 7f, theme.FactionColor(1), true, false);
             _title = HudUi.Label(HudUi.At(_root, "Title", 8f, 5f, Width - 16f, 15f), "Title", "Hunt", 11f, theme.FactionColor(1), bold: true);
-            _status = HudUi.Label(HudUi.At(_root, "Status", 8f, 21f, Width - 16f, StatusH), "Status", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _status = HudUi.Label(HudUi.At(_root, "Status", 8f, StatusTop, Width - 16f, 40f), "Status", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _status.rectTransform.offsetMin = _status.rectTransform.offsetMax = Vector2.zero;   // fill the text box exactly (no extra line-grow below it)
             for (int i = 0; i < (int)MaxRows; i++) Row(i).gameObject.SetActive(false); // all rows exist from the start: no UI is built inside the frame loop
             _root.gameObject.SetActive(false);
         }
@@ -47,7 +49,7 @@ namespace Roguehalla.Client
             {
                 int n = _rows.Count; var theme = UiTheme.Current;
                 // A non-empty label so the button owns a label child (HudUi.Button adds none for ""): WebGL builds trap, not throw, on a null deref.
-                var button = HudUi.Button(_root, "Rival" + n, " ", HudAnchor.TopLeft, 7f, RowsTop + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
+                var button = HudUi.Button(_root, "Rival" + n, " ", HudAnchor.TopLeft, 7f, 100f + n * (RowH + 3f), Width - 14f, RowH, () => Choose(n), 10f, 4f);
                 var label = button.GetComponentInChildren<TMP_Text>(); label.alignment = TextAlignmentOptions.MidlineLeft; label.rectTransform.offsetMin = new Vector2(30f, label.rectTransform.offsetMin.y);
                 var icon = LaunchUi.FactionShape(button.transform, "FactionIcon", 0, 8f, 5f, 14f, theme.TextPrimary);
                 _rows.Add(button); _rowText.Add(label); _rowIcon.Add(icon);
@@ -115,7 +117,27 @@ namespace Roguehalla.Client
                 _rowIcon[i].sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp(f, 0, 4)].Shape); _rowIcon[i].color = UiTheme.Current.FactionColor(f);
                 button.interactable = _pending == 0;
             }
-            _root.sizeDelta = new Vector2(Width, RowsTop + (rows > 0 ? rows * (RowH + 3f) : 12f) + 4f);
+            // The card follows its content: the status text's height, then the rows right under it.
+            float textH = Mathf.Ceil(_status.GetPreferredValues(_status.text, Width - 16f, 0f).y);
+            // The text box is sized for the largest text-size setting (1.5x) so a later scale change does not clip it; rows start under the actual text.
+            var fit = _status.GetComponent<MythicTextScale>();
+            float ratio = fit != null && _status.fontSize > 0f ? Mathf.Max(1f, 1.5f * fit.BaseSize / _status.fontSize) : 1f;
+            float boxH = Mathf.Ceil(textH * ratio);
+            var statusBox = _status.transform.parent as RectTransform;
+            HudUi.Place(statusBox, HudAnchor.TopLeft, 8f, StatusTop, Width - 16f, boxH);
+            float rowsTop = StatusTop + textH + RowsGap;
+            for (int i = 0; i < rows; i++) HudUi.Place((RectTransform)_rows[i].transform, HudAnchor.TopLeft, 7f, rowsTop + i * (RowH + 3f), Width - 14f, RowH);
+            _height = rows > 0 ? Mathf.Max(rowsTop + rows * (RowH + 3f) + 2f, StatusTop + boxH + 2.5f) : StatusTop + boxH + 2.5f;
+            HudUi.Place(_root, HudAnchor.TopLeft, Left, _top, Width, _height);
+        }
+        float _height = 60f;
+
+        /// <summary>Where the card's top edge sits in HUD units: under the GAINED plate, and under the terrain chip row when one shows (MatchHud sets it).</summary>
+        public void SetTop(float top)
+        {
+            if (Mathf.Approximately(top, _top)) return;
+            _top = top;
+            if (_root != null) HudUi.Place(_root, HudAnchor.TopLeft, Left, _top, Width, _height);
         }
 
         /// <summary>Legacy rule: only a living Sentenced in an active run, never in Training.</summary>

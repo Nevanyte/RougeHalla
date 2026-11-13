@@ -52,6 +52,13 @@ namespace Roguehalla.Client
         const float FootprintOutline = .72f;
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; SpriteOutline.ConfigureFromUrl(Application.absoluteURL); /* CONTRAST */ }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
+        /// <summary>
+        /// The delivered camps (Session.Map.Camps and Session.Collections.Camps, index-aligned) so a mob's name can be packed by camp
+        /// (P-UNITY-HUD-VISUAL-FIX-4, <see cref="NameMerge.CampOfMob"/>). Null or empty: every mob has no camp and packs by distance.
+        /// Stub: stores nothing; the implementer keeps the arrays and uses them in the pack merge. ArenaView calls it (coordinator wiring).
+        /// </summary>
+        public void SetCamps(MapCamp[] camps, IReadOnlyList<CampView> rows) { _camps = camps; _campRows = rows; }
+        MapCamp[] _camps; IReadOnlyList<CampView> _campRows;
         public int ActiveCount { get { return _active.Count; } }
         /// <summary>True when the actor's overhead name label is drawn this frame (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         public bool NameShown(uint id) { return _active.TryGetValue(id, out var art) && art.Ind.NameActive; }
@@ -169,7 +176,8 @@ namespace Roguehalla.Client
             }
         }
         NameStackItem[] _stackItems = new NameStackItem[16]; float[] _lift = new float[16]; uint[] _stackIds = new uint[16];
-        float[] _anchorX = new float[32], _anchorY = new float[32]; int[] _packSize = new int[32];
+        float[] _anchorX = new float[32], _anchorY = new float[32], _packFade = new float[32]; int[] _packSize = new int[32];
+        readonly List<uint> _packNameIds = new List<uint>();
         readonly List<Rect> _nameRects = new List<Rect>();
         /// <summary>World rects of the fighter names drawn this frame (after stacking), for the camp labels to keep clear of.</summary>
         public void FighterNameRects(List<Rect> into) { into.AddRange(_nameRects); }
@@ -181,6 +189,12 @@ namespace Roguehalla.Client
         void MergeMobNames()
         {
             _nameRects.Clear();
+            if (WorldLabelVisibility.Hidden)
+            {
+                // The Tab map is open: no world name may show through behind its panels.
+                foreach (var pair in _active) if (pair.Value.Ind != null) pair.Value.Ind.HideName();
+                return;
+            }
             int n = 0, fighters = 0;
             foreach (var pair in _active)
             {
@@ -193,23 +207,37 @@ namespace Roguehalla.Client
                 if (n == _mergeItems.Length)
                 {
                     System.Array.Resize(ref _mergeItems, n * 2); System.Array.Resize(ref _mergeShown, n * 2); System.Array.Resize(ref _mergeIds, n * 2); System.Array.Resize(ref _mergeScratch, n * 2);
-                    System.Array.Resize(ref _anchorX, n * 2); System.Array.Resize(ref _anchorY, n * 2); System.Array.Resize(ref _packSize, n * 2);
+                    System.Array.Resize(ref _anchorX, n * 2); System.Array.Resize(ref _anchorY, n * 2); System.Array.Resize(ref _packSize, n * 2); System.Array.Resize(ref _packFade, n * 2);
                 }
                 var at = art.Ind.NameWorldPosition;
-                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Single = (byte)(f.Hovered ? 2 : f.Locked ? 1 : 0) };
+                int camp = 0;
+                if (!f.Elite && art.MobType.HasValue && _camps != null)
+                {
+                    var lp = art.LastPosition;
+                    camp = NameMerge.CampOfMob(_camps, _campRows, art.MobType.Value, lp.x / ArenaView.Scale, -lp.y / (ArenaView.Scale * ArenaView.GroundSquash)) + 1;
+                }
+                _mergeItems[n] = new NameMergeItem { Id = pair.Key, Text = f.Name, X = at.x, Y = at.y, Width = art.Ind.NameWorldWidth, Elite = f.Elite, Single = (byte)(f.Hovered ? 2 : f.Locked ? 1 : 0), Camp = camp };
                 _mergeIds[n] = pair.Key; n++;
             }
             if (n > 0)
             {
                 NameMerge.PackNames(_mergeItems, n, NameMerge.PackDistancePx * ArenaView.Scale, _mergeShown, _mergeScratch, _anchorX, _anchorY);
-                for (int i = 0; i < n; i++) _packSize[i] = 0;
-                for (int i = 0; i < n; i++) _packSize[_mergeScratch[i]]++;
+                for (int i = 0; i < n; i++) { _packSize[i] = 0; _packFade[i] = 0f; }
+                for (int i = 0; i < n; i++)
+                {
+                    _packSize[_mergeScratch[i]]++;
+                    // A pack's one name fades with its most visible member, so a carrier at the edge of vision does not make it faint.
+                    if (_active.TryGetValue(_mergeIds[i], out var m) && m.Ind != null && m.Ind.TextFade > _packFade[_mergeScratch[i]]) _packFade[_mergeScratch[i]] = m.Ind.TextFade;
+                }
+                _packNameIds.Clear();
                 for (int i = 0; i < n; i++)
                 {
                     if (!_active.TryGetValue(_mergeIds[i], out var art)) continue;
                     if (!_mergeShown[i]) { art.Ind.HideName(); continue; }
-                    if (_packSize[_mergeScratch[i]] > 1 || _mergeItems[i].Single != 0) art.Ind.NameFullAlpha();
+                    bool pack = _packSize[_mergeScratch[i]] > 1;
+                    art.Ind.NameFullAlpha(pack ? _packFade[_mergeScratch[i]] : art.Ind.TextFade);   // every mob name reads at full strength (DEV-024)
                     if (_anchorX[i] != _mergeItems[i].X || _anchorY[i] != _mergeItems[i].Y) art.Ind.MoveName(_anchorX[i], _anchorY[i]);
+                    if (pack) _packNameIds.Add(_mergeIds[i]);
                 }
             }
             StackFighterNames(fighters);
@@ -219,9 +247,10 @@ namespace Roguehalla.Client
         void StackFighterNames(int fighters)
         {
             if (fighters == 0) return;
-            if (_stackItems.Length < fighters)
+            int total = fighters + _packNameIds.Count;
+            if (_stackItems.Length < total)
             {
-                int size = fighters * 2;
+                int size = total * 2;
                 System.Array.Resize(ref _stackItems, size); System.Array.Resize(ref _lift, size); System.Array.Resize(ref _stackIds, size);
             }
             bool haveLocal = false; Vector3 local = default;
@@ -242,12 +271,22 @@ namespace Roguehalla.Client
                 _stackItems[k] = new NameStackItem { Id = pair.Key, X = at.x, Y = nb.min.y, W = w, H = h, Dist = haveLocal ? Mathf.Sqrt((at.x - local.x) * (at.x - local.x) + (at.y - local.y) * (at.y - local.y)) : 0f };
                 _stackIds[k] = pair.Key; k++;
             }
+            int fighterCount = k;
+            // A pack's name takes part last (its distance is offset past every fighter's), so fighters keep their places and the pack steps above.
+            foreach (uint id in _packNameIds)
+            {
+                if (!_active.TryGetValue(id, out var art) || !art.Ind.NameActive) continue;
+                var nb = art.Ind.NameDrawnBounds; var at = nb.center;
+                float dist = haveLocal ? Mathf.Sqrt((at.x - local.x) * (at.x - local.x) + (at.y - local.y) * (at.y - local.y)) : 0f;
+                _stackItems[k] = new NameStackItem { Id = id, X = at.x, Y = nb.min.y, W = nb.size.x + .06f, H = nb.size.y, Dist = 1e6f + dist };
+                _stackIds[k] = id; k++;
+            }
             NameStack.Separate(_stackItems, k, .02f, _lift);
             for (int i = 0; i < k; i++)
             {
                 var item = _stackItems[i];
                 if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.LiftName(_lift[i]);
-                _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
+                if (i < fighterCount) _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
             }
         }
 

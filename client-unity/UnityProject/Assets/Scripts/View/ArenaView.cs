@@ -267,6 +267,7 @@ namespace Roguehalla.Client
         {
             var pmActors = PerfMarks.Begin();
             _actors.Begin(); ActorField.Begin();      // render pass: presented actors for the surface shaders
+            if (_visionSession != null && _visionSession.Map != null) _actors.SetCamps(_visionSession.Map.Camps, _visionSession.Collections.Camps);   // camp packs (P-UNITY-HUD-VISUAL-FIX-4)
             uint mine = me != null ? me.Id : 0; _localId = mine;
             _huntTarget = me != null ? me.HuntTarget : null; _haveLocal = me != null;
             if (me != null) { _selfMaxHp = me.MaxHp; _wishState = WishState(me); _wishAbility = me.Wish.HasValue ? (byte)me.Wish.Value.Ability : (byte)0; }

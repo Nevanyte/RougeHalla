@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using Roguehalla.Net.Protocol;
+
 namespace Roguehalla.Net.Ui
 {
     /// <summary>One mob name that is on screen this frame. X, Y and Width share one unit (world or screen); the caller picks it.</summary>
@@ -10,6 +13,9 @@ namespace Roguehalla.Net.Ui
         public bool Elite;     // an elite's name is never merged away
         public bool Always;    // a mob that is engaged or locked: its own name is always shown (DecidePacks only; Decide and PackNames ignore it)
         public byte Single;    // PackNames only: 0 nothing, 1 the local attack lock, 2 the mob under the cursor (hover wins over lock)
+        /// <summary>PackNames only (P-UNITY-HUD-VISUAL-FIX-4): 0 when the mob's camp is unknown, else the camp's index in the map's camp list plus one
+        /// (see <see cref="NameMerge.CampOfMob"/>). Zero keeps every earlier rule.</summary>
+        public int Camp;
     }
 
     /// <summary>
@@ -116,6 +122,10 @@ namespace Roguehalla.Net.Ui
         /// extent, (min X + max X) / 2 over its members (NOT the mean), and the largest Y of its members (the highest one). Every item outside a
         /// pack (an elite, an empty or null Text) is shown at its own anchor. Anchors of hidden items are unspecified. Order of
         /// <paramref name="items"/> does not matter. Allocation-free; the caller owns all four buffers (each at least <paramref name="count"/> long).
+        /// P-UNITY-HUD-VISUAL-FIX-4 (the body still ignores it: the implementer adds it): an item with <see cref="NameMergeItem.Camp"/> &gt; 0 is
+        /// in one pack with every taking-part item of the same Text and the same Camp however far apart (no distance test), and never in a pack with
+        /// an item of another Camp or of Camp 0; items with Camp 0 are chained by <paramref name="packDistance"/> among themselves exactly as before.
+        /// Carrier, anchors and the shown count are unchanged.
         /// On return <paramref name="scratch"/>[i] is the index of the representative of item i's pack (i itself outside a pack), so a caller can count members.
         /// </summary>
         public static int PackNames(NameMergeItem[] items, int count, float packDistance, bool[] shown, int[] scratch, float[] anchorX, float[] anchorY)
@@ -128,8 +138,12 @@ namespace Roguehalla.Net.Ui
                 for (int j = i + 1; j < count; j++)
                 {
                     if (!Packs(items[j]) || items[i].Text != items[j].Text) continue;
-                    float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
-                    if (dx * dx + dy * dy >= d2) continue;
+                    if (items[i].Camp != items[j].Camp) continue;
+                    if (items[i].Camp == 0)
+                    {
+                        float dx = items[i].X - items[j].X, dy = items[i].Y - items[j].Y;
+                        if (dx * dx + dy * dy >= d2) continue;
+                    }
                     int ri = Root(scratch, i), rj = Root(scratch, j);
                     if (ri != rj) scratch[rj] = ri;
                 }
@@ -163,6 +177,36 @@ namespace Roguehalla.Net.Ui
             }
             for (int i = 0; i < count; i++) scratch[i] = Packs(items[i]) ? Root(scratch, i) : i;
             return shownCount;
+        }
+
+        /// <summary>
+        /// How far from its camp's centre a mob can be and still belong to that camp, beyond the camp's clearing radius, in legacy pixels:
+        /// legacy MOB_LEASH_CAP (24 tiles of 32, packages/shared/src/constants.ts:541). The wire delivers only the clearing radius
+        /// (<see cref="MapCamp.R"/>), not the territory leash (min(territory radius, 24 tiles) around the mob's home), so this is the upper bound.
+        /// </summary>
+        public const float CampReachPx = 24f * 32f;
+
+        /// <summary>
+        /// Which camp a regional mob belongs to, for packing its name (P-UNITY-HUD-VISUAL-FIX-4). The actor row carries no camp or home index
+        /// (WireActor has only Kind, MobTypeCode, Sig, Archetype), so a client infers it: of the camps i (rows[i] is camp i's row, index-aligned
+        /// with <paramref name="camps"/>; a camp with no row is skipped) whose normal <c>MobType</c> equals <paramref name="type"/> and whose
+        /// centre is within <c>camp.R + CampReachPx</c> of (x, y) (inclusive; legacy pixels, Euclidean), the nearest centre wins (lowest index on a
+        /// tie). A mob that is only the camp's elite type belongs to no camp. Returns the camp index, or -1 when none qualifies (null or empty
+        /// inputs included).
+        /// </summary>
+        public static int CampOfMob(MapCamp[] camps, IReadOnlyList<CampView> rows, MobTypeId type, double x, double y)
+        {
+            if (camps == null || rows == null) return -1;
+            int best = -1; double bestD2 = 0;
+            for (int i = 0; i < camps.Length && i < rows.Count; i++)
+            {
+                if (rows[i].MobType != type) continue;
+                double dx = x - camps[i].X, dy = y - camps[i].Y, reach = camps[i].R + (double)CampReachPx;
+                double d2 = dx * dx + dy * dy;
+                if (d2 > reach * reach) continue;
+                if (best < 0 || d2 < bestD2) { best = i; bestD2 = d2; }
+            }
+            return best;
         }
 
         static bool Packs(NameMergeItem it) { return !it.Elite && !string.IsNullOrEmpty(it.Text); }
