@@ -845,6 +845,7 @@ pub struct WireResult {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(clippy::large_enum_variant)] // The Welcome (one per connection) carries the map blob inline; boxing it would change every caller.
 pub enum ServerMsg {
     Welcome {
         protocol: u16,

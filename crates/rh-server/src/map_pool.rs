@@ -57,6 +57,7 @@ pub trait MapMaker: Send + Sync + 'static {
         Ok(self.make(seed)?.map(|arena| MadeMap {
             arena,
             dressing: None,
+            anchors: Vec::new(),
         }))
     }
 }
@@ -66,6 +67,10 @@ pub trait MapMaker: Send + Sync + 'static {
 pub struct MadeMap {
     pub arena: Arena,
     pub dressing: Option<rh_mapdress::Dressing>,
+    /// The generator's landmark anchors (`GameMapData::anchors`, zone-code order), which the arena drops; they reach the
+    /// Welcome's map blob (P-WIRE17-MAP-3). Empty for a map without landmarks. A maker that records anchors also dresses
+    /// its map (from the generator's map, anchors included).
+    pub anchors: Vec<rh_sim::mapdata::ZoneAnchor>,
 }
 
 /// The generator as the server runs it: legacy `certifiedMap(seed, { decor: false })`, the complete styled pipeline. The
@@ -133,9 +138,11 @@ impl MapMaker for StyledMaker {
         let rules = crate::runtime::shipped_dress_rules().map_err(str::to_owned)?;
         let dressing =
             rh_mapdress::dress(&export.map, u64::from(export.legacy_map_hash_u32), rules);
+        let anchors = export.map.anchors.clone();
         Ok(Some(MadeMap {
             arena: into_arena(export)?,
             dressing: Some(dressing),
+            anchors,
         }))
     }
 }
@@ -147,12 +154,19 @@ pub fn admit(arena: Arena) -> Result<MapAssets, String> {
     admit_made(MadeMap {
         arena,
         dressing: None,
+        anchors: Vec::new(),
     })
 }
 
-/// [`admit`] for a made map: its own dressing when the maker computed one, else the arena's.
+/// [`admit`] for a made map: its own dressing when the maker computed one, else the arena's; its landmark anchors in the
+/// blob (P-WIRE17-MAP-3). Anchors without the maker's dressing are refused: the arena alone would dress a landmark map
+/// with the fallback rings.
 pub fn admit_made(made: MadeMap) -> Result<MapAssets, String> {
-    let MadeMap { arena, dressing } = made;
+    let MadeMap {
+        arena,
+        dressing,
+        anchors,
+    } = made;
     crate::wire::arena_fits(&arena)?;
     if arena.spawns.len() < rh_sim::constants::MAX_PLAYERS {
         return Err(format!(
@@ -162,8 +176,9 @@ pub fn admit_made(made: MadeMap) -> Result<MapAssets, String> {
         ));
     }
     match dressing {
-        Some(d) => MapAssets::dressed(arena, Some(&d)),
-        None => MapAssets::new(arena),
+        Some(d) => MapAssets::landmarked(arena, Some(&d), &anchors),
+        None if anchors.is_empty() => MapAssets::new(arena),
+        None => return Err("landmark anchors without the maker's dressing".to_owned()),
     }
     .map_err(|e| format!("{e:?}"))
 }

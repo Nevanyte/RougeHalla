@@ -30,8 +30,10 @@ pub(crate) const SECTION_VERSION: u8 = 2;
 pub(crate) const SECTION_VERSION_PRESENCE2: u8 = 3;
 /// Second presence byte (version 3): the camp patience plane.
 pub(crate) const PRESENCE2_PATIENCE: u8 = 0x01;
+/// Second presence byte (version 3): the landmark anchors (P-WIRE17-MAP-3), after the patience plane.
+pub(crate) const PRESENCE2_ANCHORS: u8 = 0x02;
 /// Every second-presence bit a decoder accepts.
-pub(crate) const PRESENCE2_KNOWN: u8 = 0x01;
+pub(crate) const PRESENCE2_KNOWN: u8 = PRESENCE2_PATIENCE | PRESENCE2_ANCHORS;
 pub(crate) const PRESENCE_TERRAIN: u8 = 0x01;
 pub(crate) const PRESENCE_REGIONS: u8 = 0x02;
 pub(crate) const PRESENCE_CAMPS: u8 = 0x04;
