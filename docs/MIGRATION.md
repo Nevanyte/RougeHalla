@@ -4,6 +4,28 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, midday): the five blueprints, and the Holy hall at 37
+
+"I approve all 5. Let's have holy hall at size 37." The five landmark blueprint drafts shown in chat (the session's
+sheet and write-up) are approved as drawn: Frost cave 29 x 29, Sentenced church with its graveyard 29 x 29, Plague
+bog tree 29 x 29, Fire volcano 30 x 30 with three outlets on its front row; the grids are checked in under
+[landmarks/blueprints/](landmarks/blueprints/README.md). The Holy hall is **37 x 37** (a 41-tile site), which the
+coordinator put to the owner together with **two Holy camps inside on the nave** (the measured option at about
+today's generation cost: P-MAPGEN-SIG-HOLY-1's brief); its 39 draft is being redrawn at 37. Legacy's elite rule is
+kept for Holy (the hall camps need not be the zone's elites) unless the owner says otherwise. This unblocks the
+oracles of P-MAPGEN-SIG-SCALE-1 to -4 and P-MAPGEN-SIG-HOLY-1, which run one at a time on `signature/mod.rs`.
+
+**Open, put to the owner the same hour:** the land-generation session left
+`coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_1.md` (uncommitted, written 10:35) saying the owner chose its
+"Option 1" in that session: a **churchyard fence round the church and graveyard, with a 5-wide main gate on the door
+axis, inside the church's blueprint** (requirement L2a), the outer enclosure dropped, and the rest of the zone's
+fence as straight lanes parallel to the door axis. The church blueprint approved here has no churchyard fence. The
+coordinator takes owner decisions from this chat only: until the owner confirms L2a here, P-MAPGEN-SIG-SCALE-2 (the
+church) is not started; the cave, tree, volcano and hall are unaffected. Coordinator answers to that file's requests
+that do not depend on L2a: option-on pins in the landmark lane's tests are left untouched by that session and
+re-pinned by the coordinator at merge (its option b); a `NON_GAMEPLAY` row in `crates/rh-sim/tests/content.rs` for
+its lane constants is in its scope.
+
 ## Beta follow-up integrations 13 to 16 (2026-11-12 night to 2026-11-13 morning): current checkpoint
 
 Integration branch `feature/unity-rework` @ `56549ead` (pushed). Identities: protocol 17 (protocol 18 is stamped on
