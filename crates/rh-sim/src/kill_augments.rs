@@ -210,10 +210,11 @@ pub fn text(a: KillAugment) -> (String, String) {
 
 /// The victim's readable investment scores (source `combatReadability(...).investedStats` with `lasting: true`, the
 /// one scoring mode the trophy roll reads). The leech term starts from Holy's camp lifesteal
-/// (`holyCampLifestealOf(campClears)`, `Player.camps_cleared`) and then adds the farm rows, as legacy.
-pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
+/// (`holyCampLifestealOf(campClears)`) and then adds the farm rows, as legacy. `camp_clears` is the public camp-clear
+/// mirror legacy reads (`combatReadability.ts:102,133`): `systems::bruiser::camp_clears`, 0 without the Bruiser installer.
+pub fn invested_stats(p: &crate::state::Player, camp_clears: u16) -> Vec<(KillStatKey, f64)> {
     let (farm_rows, farm_len) = p.farm.rows();
-    let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len]), true);
+    let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len], camp_clears), true);
     let mut out: Vec<(KillStatKey, f64)> = KillStatKey::ALL
         .into_iter()
         .map(|k| (k, scores[k.index()]))
@@ -227,10 +228,14 @@ pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
 /// `combatReadability(p).investedStats` in display mode, i.e. not `lasting`). Keys only, in descending score order with
 /// the source's stable tie-break (the earlier key in [`KillStatKey::ALL`] wins a tie); `None` where fewer than two scores
 /// pass the source's `> 0.01` threshold. Computed from the sim's own folds; allocation-free (observation hot path).
+///
+/// Reads the canonical camp count, which equals legacy's public mirror wherever the Bruiser installer runs; without the
+/// installer legacy reads 0 (`systems::bruiser::camp_clears`). Routing the mirror here needs the match statics at the
+/// observation call sites (`observe.rs`, through `fx_report::BuildMarkCache::of`): not done yet.
 pub fn build_marks(p: &crate::state::Player) -> [Option<KillStatKey>; 2] {
     let (farm_rows, farm_len) = p.farm.rows();
     top_two(&invested_scores(
-        &Readable::of(p, &farm_rows[..farm_len]),
+        &Readable::of(p, &farm_rows[..farm_len], p.camps_cleared),
         false,
     ))
 }
@@ -266,12 +271,16 @@ pub(crate) struct Readable<'a> {
     pub(crate) max_hp: f64,
     pub(crate) farm_rows: &'a [EffectRow<'static>],
     pub(crate) kill: &'a KillStats,
-    /// Legacy `ReadableFighter.campClears` (`Player.camps_cleared`): feeds Holy's camp lifesteal in the leech score
-    /// (combatReadability.ts:133).
+    /// Legacy `ReadableFighter.campClears`, the public camp-clear mirror (`systems::bruiser::camp_clears`): feeds Holy's
+    /// camp lifesteal in the leech score (combatReadability.ts:133).
     pub(crate) camp_clears: u16,
 }
 impl<'a> Readable<'a> {
-    pub(crate) fn of(p: &'a crate::state::Player, farm_rows: &'a [EffectRow<'static>]) -> Self {
+    pub(crate) fn of(
+        p: &'a crate::state::Player,
+        farm_rows: &'a [EffectRow<'static>],
+        camp_clears: u16,
+    ) -> Self {
         Self {
             build: &p.build,
             faction: p.faction(),
@@ -279,7 +288,7 @@ impl<'a> Readable<'a> {
             max_hp: p.vitals.max_hp,
             farm_rows,
             kill: &p.kill_stats,
-            camp_clears: p.camps_cleared,
+            camp_clears,
         }
     }
 }
@@ -426,11 +435,18 @@ pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
     scores
 }
 
-/// Source `rollKillAugments`: the victim's top three investments as trophy options (fewer when it had fewer).
+/// Source `rollKillAugments`: the victim's top three investments as trophy options (fewer when it had fewer), reading
+/// the canonical camp count, i.e. a world with the Bruiser installer. The kill path (`on_player_killed`) uses
+/// `roll_with` and the gated mirror; this form stays for callers without the match statics.
 pub fn roll(p: &crate::state::Player) -> Vec<KillAugment> {
+    roll_with(p, p.camps_cleared)
+}
+
+/// [`roll`] with the victim's public camp-clear mirror `camp_clears` (`systems::bruiser::camp_clears`).
+pub(crate) fn roll_with(p: &crate::state::Player, camp_clears: u16) -> Vec<KillAugment> {
     let mut out = Vec::with_capacity(3);
     let cap = usize::try_from(crate::constants::KILL_AUG_OPTIONS).unwrap_or(3);
-    for (key, score) in invested_stats(p) {
+    for (key, score) in invested_stats(p, camp_clears) {
         let gain = js_to_fixed_value(
             score * DEFINITION.unit[key.index()] * crate::constants::KILL_AUG_SHARE,
             if key.flat() { 1 } else { 4 },
@@ -569,7 +585,7 @@ pub(crate) fn on_player_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::H
     let Some(v) = hx.w.player(*victim) else {
         return;
     };
-    let options = roll(v);
+    let options = roll_with(v, crate::systems::bruiser::camp_clears(hx.k, v));
     if options.is_empty() {
         return;
     }
