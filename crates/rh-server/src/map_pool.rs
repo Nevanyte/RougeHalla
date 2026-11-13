@@ -49,10 +49,28 @@ pub trait MapMaker: Send + Sync + 'static {
     /// The certified map for `seed`; `Ok(None)` when no attempt certifies (a discarded seed); `Err` when the generator
     /// itself failed (a bug, not a refused attempt).
     fn make(&self, seed: u32) -> Result<Option<Arena>, String>;
+
+    /// [`Self::make`] with the map's decoration (P-DRESS-BAKE-1), computed where the map is made (the worker thread, or
+    /// the caller in inline mode). The default computes none here: [`admit_made`] then dresses the arena itself
+    /// ([`MapAssets::new`]).
+    fn make_dressed(&self, seed: u32) -> Result<Option<MadeMap>, String> {
+        Ok(self.make(seed)?.map(|arena| MadeMap {
+            arena,
+            dressing: None,
+        }))
+    }
+}
+
+/// A made map and, when the maker computed it, its decoration (`rh_mapdress::dress` of the generator's map, landmark
+/// anchors included). `None`: the arena is dressed on admission.
+pub struct MadeMap {
+    pub arena: Arena,
+    pub dressing: Option<rh_mapdress::Dressing>,
 }
 
 /// The generator as the server runs it: legacy `certifiedMap(seed, { decor: false })`, the complete styled pipeline. The
-/// server builds no decor (props are cosmetic and the client draws its own).
+/// generator builds no decor; the server dresses the finished map with `rh_mapdress` (P-DRESS-BAKE-1,
+/// [`MapMaker::make_dressed`]) before it becomes an arena, since the arena drops the landmark anchors the dressing reads.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StyledMaker {
     /// Generate every map with the signature landmarks (owner decision 6): the generator's `Options::signature`.
@@ -70,10 +88,9 @@ impl StyledMaker {
             ..rh_sim::mapgen::pipeline::Options::default()
         }
     }
-}
 
-impl MapMaker for StyledMaker {
-    fn make(&self, seed: u32) -> Result<Option<Arena>, String> {
+    /// The certified generator map for `seed` (anchors still on it) and its export hash, `map_hash::map_hash`.
+    fn generate(&self, seed: u32) -> Result<Option<rh_sim::mapdata::MapExport>, String> {
         use rh_sim::mapgen::{coliseum, map_hash, pipeline};
         let fixed = coliseum::fixed_layout();
         let generator = pipeline::Pipeline::new(&fixed);
@@ -86,22 +103,56 @@ impl MapMaker for StyledMaker {
         };
         let legacy_map_hash_u32 =
             u32::from_str_radix(&map_hash::map_hash(&map), 16).map_err(|e| e.to_string())?;
-        let arena = rh_sim::mapdata::MapExport {
+        Ok(Some(rh_sim::mapdata::MapExport {
             format: "rh-map/2".into(),
             legacy_map_hash_u32,
             map,
-        }
+        }))
+    }
+}
+
+fn into_arena(export: rh_sim::mapdata::MapExport) -> Result<Arena, String> {
+    export
         .validate()
         .map_err(|e| e.to_string())?
         .into_arena()
-        .map_err(|e| e.to_string())?;
-        Ok(Some(arena))
+        .map_err(|e| e.to_string())
+}
+
+impl MapMaker for StyledMaker {
+    fn make(&self, seed: u32) -> Result<Option<Arena>, String> {
+        self.generate(seed)?.map(into_arena).transpose()
+    }
+
+    /// Dresses the generator's map with the shipped rules and its own hash BEFORE it becomes an arena: the arena drops
+    /// the landmark anchors, and a landmark map dressed without them would get the fallback rings.
+    fn make_dressed(&self, seed: u32) -> Result<Option<MadeMap>, String> {
+        let Some(export) = self.generate(seed)? else {
+            return Ok(None);
+        };
+        let rules = crate::runtime::shipped_dress_rules().map_err(str::to_owned)?;
+        let dressing =
+            rh_mapdress::dress(&export.map, u64::from(export.legacy_map_hash_u32), rules);
+        Ok(Some(MadeMap {
+            arena: into_arena(export)?,
+            dressing: Some(dressing),
+        }))
     }
 }
 
 /// The arrival check: a map is served only if it fits the wire position range, has a spawn for every seat and encodes as
-/// a Welcome. Run on every worker map before it is queued and on every fallback map.
+/// a Welcome. Run on every worker map before it is queued and on every fallback map. Dresses the arena itself
+/// ([`MapAssets::new`]).
 pub fn admit(arena: Arena) -> Result<MapAssets, String> {
+    admit_made(MadeMap {
+        arena,
+        dressing: None,
+    })
+}
+
+/// [`admit`] for a made map: its own dressing when the maker computed one, else the arena's.
+pub fn admit_made(made: MadeMap) -> Result<MapAssets, String> {
+    let MadeMap { arena, dressing } = made;
     crate::wire::arena_fits(&arena)?;
     if arena.spawns.len() < rh_sim::constants::MAX_PLAYERS {
         return Err(format!(
@@ -110,7 +161,11 @@ pub fn admit(arena: Arena) -> Result<MapAssets, String> {
             rh_sim::constants::MAX_PLAYERS
         ));
     }
-    MapAssets::new(arena).map_err(|e| format!("{e:?}"))
+    match dressing {
+        Some(d) => MapAssets::dressed(arena, Some(&d)),
+        None => MapAssets::new(arena),
+    }
+    .map_err(|e| format!("{e:?}"))
 }
 
 /// A fresh public map seed from the OS: legacy `freshSeed`, `randomInt(0, 2 ** 31)`.
@@ -208,7 +263,7 @@ impl Default for MapPoolOptions {
 }
 
 enum Reply {
-    Map(u32, Arena),
+    Map(u32, MadeMap),
     Discard,
     Error(String),
 }
@@ -380,10 +435,10 @@ impl MapPool {
         for _ in 0..MAP_FALLBACK_SEEDS {
             let seed = (self.shared.seed)();
             let made = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                self.shared.maker.make(seed)
+                self.shared.maker.make_dressed(seed)
             }))
             .unwrap_or_else(|_| Err("the generator panicked".into()));
-            match made.and_then(|m| m.map(admit).transpose()) {
+            match made.and_then(|m| m.map(admit_made).transpose()) {
                 Ok(Some(map)) => {
                     let mut st = self.shared.lock();
                     st.stats.fallbacks += 1;
@@ -439,8 +494,8 @@ fn spawn_worker(maker: Arc<dyn MapMaker>) -> std::io::Result<Worker> {
             let _guard = guard;
             // Ends when the pool drops its request sender (stop or replacement) or a reply has nowhere to go.
             while let Ok(seed) = req_rx.recv() {
-                let reply = match maker.make(seed) {
-                    Ok(Some(arena)) => Reply::Map(seed, arena),
+                let reply = match maker.make_dressed(seed) {
+                    Ok(Some(made)) => Reply::Map(seed, made),
                     Ok(None) => Reply::Discard,
                     Err(e) => Reply::Error(e),
                 };
@@ -536,7 +591,7 @@ fn supervise(s: &Shared) {
 
 fn arrive(s: &Shared, worker: &mut Option<Worker>, reply: Reply) {
     match reply {
-        Reply::Map(seed, arena) => match admit(arena) {
+        Reply::Map(seed, made) => match admit_made(made) {
             Ok(map) => {
                 let mut st = s.lock();
                 st.reject_streak = 0;

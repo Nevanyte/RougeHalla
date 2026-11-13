@@ -329,10 +329,26 @@ pub struct MapAssets {
 }
 
 impl MapAssets {
-    /// Fails (with the protocol's reason) for a map a client would refuse to decode.
+    /// Fails (with the protocol's reason) for a map a client would refuse to decode. The blob carries the map's
+    /// decoration (P-DRESS-BAKE-1), dressed here from the arena with the shipped rules (an arena keeps no landmark
+    /// anchors: the pool dresses its maps from the generator's map, [`Self::dressed`]); a map without layers is undressed.
+    /// Runs where the assets are built (start-up, the pool), never on a room's tick.
     pub fn new(arena: impl Into<Arc<Arena>>) -> Result<Self, rh_protocol::EncodeError> {
         let arena = arena.into();
-        let welcome_map = crate::public_ground::encode_static_map(&arena.map)?;
+        // The reason is the rules' whole message ("dressing rules: ..."), so a caller's panic names what is wrong.
+        let rules =
+            crate::runtime::shipped_dress_rules().map_err(rh_protocol::EncodeError::BadMap)?;
+        let dressing = crate::public_ground::dress_map(&arena.map, rules)?;
+        Self::dressed(arena, dressing.as_ref())
+    }
+
+    /// The assets of `arena` with `dressing` (already computed, e.g. from the generator's map) in its Welcome blob.
+    pub fn dressed(
+        arena: impl Into<Arc<Arena>>,
+        dressing: Option<&rh_mapdress::Dressing>,
+    ) -> Result<Self, rh_protocol::EncodeError> {
+        let arena = arena.into();
+        let welcome_map = crate::public_ground::encode_dressed_map(&arena.map, dressing)?;
         Ok(Self {
             arena,
             welcome_map: Arc::new(welcome_map),

@@ -34,7 +34,8 @@ namespace Roguehalla.Net.Protocol
         public MapColiseum(ushort x, ushort y, ushort w, ushort h, MapGate[] gates) { X = x; Y = y; W = w; H = h; Gates = gates; }
     }
 
-    /// <summary>A cosmetic prop (reserved section; the server ships none yet). x, y in world units.</summary>
+    /// <summary>A cosmetic prop of the server's map dressing (P-DRESS-BAKE-1). x, y in world units; rows sorted by (y, x, kind).
+    /// Validated on decode; no Unity script draws it until P-UNITY-DRESS-1.</summary>
     public readonly struct MapProp
     {
         public readonly byte Kind, Variant, Flags;
@@ -53,6 +54,13 @@ namespace Roguehalla.Net.Protocol
             BushesPresent = 0x10, PropsPresent = 0x20, GroundVariantsPresent = 0x40, KnownPresence = 0x7f;
         public const int MaxCamps = 64, MaxColiseumGates = 8, MaxGateTiles = 16, MaxProps = 8192;
         const byte MaxCampZone = 5, MaxGateSide = 3;
+        /// <summary>Dressing value caps (P-DRESS-BAKE-1), the same as Rust's `rh_protocol::map`: prop flags tall and legacy;
+        /// a rule prop's kind 1..MaxPropKind and variant at most MaxPropVariant; a legacy prop's kind below LegacyPropKinds;
+        /// every ground-variant cell at most MaxGroundVariant.</summary>
+        public const byte PropFlagTall = 1, PropFlagLegacy = 2, MaxPropKind = 100, LegacyPropKinds = 34, MaxPropVariant = 3,
+            MaxGroundVariant = 15;
+        /// <summary>World units per tile: a prop's tile (x / 32, y / 32) must be inside the map.</summary>
+        const int PropTile = 32;
         const int CampRowLength = 7, PropRowLength = 7;
         static readonly MapCamp[] NoCamps = new MapCamp[0];
         static readonly MapProp[] NoProps = new MapProp[0];
@@ -346,6 +354,41 @@ namespace Roguehalla.Net.Protocol
             if (bushes != null && bushes.Length != total) throw new EncodeException("bad map plane length");
             if (groundVariants != null && groundVariants.Length != total) throw new EncodeException("bad map plane length");
             if (props.Length > MaxProps) throw new EncodeException("bad map prop count");
+            for (int i = 0; i < props.Length; i++)
+            {
+                string fault = PropFault(props[i], i > 0, i > 0 ? props[i - 1] : default, w, h);
+                if (fault != null) throw new EncodeException("bad map " + fault);
+            }
+            if (groundVariants != null)
+                foreach (var v in groundVariants) if (v > MaxGroundVariant) throw new EncodeException("bad map ground variant");
+        }
+
+        /// <summary>The value checks of one prop row in the wire rules' order (flags, kind, variant, tile, order), shared by the
+        /// encoder and the decoder: null when the row is valid, else the Rust reason.</summary>
+        static string PropFault(MapProp p, bool hasPrevious, MapProp previous, ushort w, ushort h)
+        {
+            if ((p.Flags & ~(PropFlagTall | PropFlagLegacy)) != 0) return "prop flags";
+            if ((p.Flags & PropFlagLegacy) != 0)
+            {
+                // A legacy prop's kind is a generator catalogue index; its variant is the generator's v (not checked).
+                if (p.Kind >= LegacyPropKinds) return "prop kind";
+            }
+            else
+            {
+                if (p.Kind == 0 || p.Kind > MaxPropKind) return "prop kind";
+                if (p.Variant > MaxPropVariant) return "prop variant";
+            }
+            if (p.X / PropTile >= w || p.Y / PropTile >= h) return "prop tile";
+            if (hasPrevious && !PropAfter(previous, p)) return "prop order";
+            return null;
+        }
+
+        /// <summary>Whether <paramref name="b"/> is strictly after <paramref name="a"/> in (y, x, kind).</summary>
+        static bool PropAfter(MapProp a, MapProp b)
+        {
+            if (b.Y != a.Y) return b.Y > a.Y;
+            if (b.X != a.X) return b.X > a.X;
+            return b.Kind > a.Kind;
         }
 
         static bool ColiseumRectFits(ushort x, ushort y, ushort cw, ushort ch, ushort w, ushort h)
@@ -530,14 +573,16 @@ namespace Roguehalla.Net.Protocol
             if ((presence & PropsPresent) != 0)
             {
                 Reader start = extension;
-                ValidateProps(ref extension);
+                ValidateProps(ref extension, w, h);
                 FeedConsumed(ref actualSemanticHash, start, extension.Remaining);
             }
             if ((presence & GroundVariantsPresent) != 0)
             {
                 uint runs = extension.U32();
                 countedRuns = AddRunCount(countedRuns, runs, total, extension.Remaining);
-                ValidatePublicPlane(ref extension, runs, total, ref actualSemanticHash);
+                // The run checks first ("run", "length"), then the values, as Rust does.
+                if (ValidatePublicPlane(ref extension, runs, total, ref actualSemanticHash) > MaxGroundVariant)
+                    throw BadMap("ground variant");
             }
             if (actualSemanticHash != expectedSemanticHash) throw BadMap("semantic hash");
 
@@ -598,27 +643,41 @@ namespace Roguehalla.Net.Protocol
             }
         }
 
-        static void ValidateProps(ref Reader r)
+        static void ValidateProps(ref Reader r, ushort w, ushort h)
         {
             int count = r.U16();
             if (count == 0 || count > MaxProps) throw BadMap("prop count");
             if (r.Remaining < count * PropRowLength) throw new DecodeException(DecodeError.Truncated);
-            for (int i = 0; i < count * PropRowLength; i++) r.U8();
+            MapProp previous = default;
+            for (int i = 0; i < count; i++)
+            {
+                byte kind = r.U8();
+                ushort x = r.U16(), y = r.U16();
+                byte variant = r.U8();
+                var prop = new MapProp(kind, x, y, variant, r.U8());
+                string fault = PropFault(prop, i > 0, previous, w, h);
+                if (fault != null) throw BadMap(fault);
+                previous = prop;
+            }
         }
 
-        /// <summary>A bush or ground-variant plane: any value; a zero or overlong run is "run", a short plane "length".</summary>
-        static void ValidatePublicPlane(ref Reader r, uint runs, int total, ref uint hash)
+        /// <summary>A bush or ground-variant plane: a zero or overlong run is "run", a short plane "length". Returns the
+        /// largest value (the caller checks its own cap).</summary>
+        static byte ValidatePublicPlane(ref Reader r, uint runs, int total, ref uint hash)
         {
             int length = 0;
+            byte max = 0;
             for (uint i = 0; i < runs; i++)
             {
                 byte value = r.U8();
                 int runLength = r.U16();
                 if (runLength == 0 || runLength > total - length) throw BadMap("run");
                 length += runLength;
+                if (value > max) max = value;
                 for (int j = 0; j < runLength; j++) Feed(ref hash, value);
             }
             if (length != total) throw BadMap("length");
+            return max;
         }
 
         static uint ValidateCollisionPlane(ref Reader r, ushort w, ushort h, int total, uint runs, ref uint countedRuns)

@@ -80,6 +80,9 @@ const TERRAIN_MAX = 7, REGION_MAX = 6, GROUND_VERSION = 2;
 // Protocol 17 public map sections (crates/rh-protocol/src/map.rs): caps and the presence bits after terrain (1) and regions (2).
 const MAX_MAP_CAMPS = 64, MAX_COLISEUM_GATES = 8, MAX_GATE_TILES = 16, MAX_MAP_PROPS = 8192;
 const PRESENCE_CAMPS = 4, PRESENCE_COLISEUM = 8, PRESENCE_BUSHES = 16, PRESENCE_PROPS = 32, PRESENCE_GROUND_VARIANTS = 64;
+// Map dressing value caps (P-DRESS-BAKE-1; the same constants as crates/rh-protocol/src/map.rs).
+const PROP_FLAG_TALL = 1, PROP_FLAG_LEGACY = 2, MAX_PROP_KIND = 100, LEGACY_PROP_KINDS = 34, MAX_PROP_VARIANT = 3;
+const MAX_GROUND_VARIANT = 15;
 function fnv(w, h, tiles) {
   let x = 0x811c9dc5;
   const eat = (b) => { x ^= b; x = Math.imul(x, 0x01000193) >>> 0; };
@@ -108,18 +111,21 @@ function readPlane(r, n, maxValue, reserveBytes, what) {
   return { start, runs, limit: r.limit };
 }
 function fnvSpan(x, view, start, end) { for (let i = start; i < end; i++) x = fnvByte(x, view.getUint8(i)); return x; }
-// A bush or ground-variant plane: any value; zero or overlong runs are "run", a short plane "length", missing bytes truncated.
-function readPublicPlane(r, n, what) {
+// A bush or ground-variant plane: zero or overlong runs are "run", a short plane "length", missing bytes truncated; then
+// (when maxValue is given) a cell above it is "<valueReason>", after every run check as in Rust.
+function readPublicPlane(r, n, what, maxValue = 255, valueReason = "") {
   const start = r.p, runs = r.u32();
   if (runs < 1 || runs > n) throw new Error("bad map " + what + " run");
   if (runs * 3 > r.limit - r.p) throw new Error("truncated");
-  let cells = 0;
+  let cells = 0, max = 0;
   for (let i = 0; i < runs; i++) {
-    r.u8(); const len = r.u16();
+    const value = r.u8(), len = r.u16();
     if (len === 0 || cells + len > n) throw new Error("bad map " + what + " run");
     cells += len;
+    if (value > max) max = value;
   }
   if (cells !== n) throw new Error("bad map " + what + " length");
+  if (max > maxValue) throw new Error("bad map " + valueReason);
   return { start, runs, limit: r.limit };
 }
 function readMapCamps(r) {
@@ -155,14 +161,27 @@ function readMapColiseum(r, w, h) {
   }
   return { x, y, w: cw, h: ch, gates };
 }
-function readMapProps(r) {
+// Map dressing rows (P-DRESS-BAKE-1), checked in the Rust order: flags, kind, variant, tile (32 world units), (y, x, kind) order.
+function readMapProps(r, w, h) {
   const count = r.u16();
   if (count === 0 || count > MAX_MAP_PROPS) throw new Error("bad map prop count");
   if (count * 7 > r.limit - r.p) throw new Error("truncated");
   const props = [];
+  let prev = null;
   for (let i = 0; i < count; i++) {
     const kind = r.u8(), x = r.u16(), y = r.u16(), variant = r.u8(), flags = r.u8();
-    props.push({ kind, x, y, variant, flags });
+    if (flags & ~(PROP_FLAG_TALL | PROP_FLAG_LEGACY)) throw new Error("bad map prop flags");
+    if (flags & PROP_FLAG_LEGACY) {
+      if (kind >= LEGACY_PROP_KINDS) throw new Error("bad map prop kind");
+    } else {
+      if (kind === 0 || kind > MAX_PROP_KIND) throw new Error("bad map prop kind");
+      if (variant > MAX_PROP_VARIANT) throw new Error("bad map prop variant");
+    }
+    if (Math.floor(x / 32) >= w || Math.floor(y / 32) >= h) throw new Error("bad map prop tile");
+    if (prev && !(y > prev.y || (y === prev.y && (x > prev.x || (x === prev.x && kind > prev.kind)))))
+      throw new Error("bad map prop order");
+    prev = { kind, x, y, variant, flags };
+    props.push(prev);
   }
   return props;
 }
@@ -557,9 +576,9 @@ function decodeBody(r) {
       if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
       semantic = fnvPlane(semantic, cursor(p.v, bushes.start, extEnd), bushes);
     }
-    if (flags & PRESENCE_PROPS) { const at = ext.p; props = readMapProps(ext); semantic = fnvSpan(semantic, p.v, at, ext.p); }
+    if (flags & PRESENCE_PROPS) { const at = ext.p; props = readMapProps(ext, w, h); semantic = fnvSpan(semantic, p.v, at, ext.p); }
     if (hasVariants) {
-      variants = readPublicPlane(ext, n, "ground variants");
+      variants = readPublicPlane(ext, n, "ground variants", MAX_GROUND_VARIANT, "ground variant");
       cumulativeRuns.count += variants.runs;
       if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
       semantic = fnvPlane(semantic, cursor(p.v, variants.start, extEnd), variants);
