@@ -225,13 +225,22 @@ pub(crate) fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], terri
         .iter()
         .filter(|r| relabelled_zones().contains(&r.zone))
     {
-        let Some(label) = r
-            .camp
-            .and_then(|t| camps.iter().position(|c| c.site == t))
-            .and_then(|k| u8::try_from(k + 1).ok())
-        else {
+        let Some(inside) = r.camp.and_then(|t| camps.iter().position(|c| c.site == t)) else {
             continue;
         };
+        let Ok(label) = u8::try_from(inside + 1) else {
+            continue;
+        };
+        // `place_camps_reserving` keeps every other camp's halo, so its site tile, out of the rect; a camp left inside
+        // would lose its own tile's territory here and fail far away (repair's safety nets admission).
+        debug_assert!(
+            stray_camp(r, camps, inside).is_none(),
+            "relabel_sites: camp {:?} (zone {}) lies in the {:?} site {:?} of camp {inside}",
+            stray_camp(r, camps, inside),
+            stray_camp(r, camps, inside).map_or(0, |k| camps[k].zone),
+            r.zone,
+            r.rect
+        );
         for y in r.rect.y..r.rect.y + r.rect.h as i32 {
             for x in r.rect.x..r.rect.x + r.rect.w as i32 {
                 if let Some(i) = at(x, y) {
@@ -240,6 +249,17 @@ pub(crate) fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], terri
             }
         }
     }
+}
+
+/// The first camp other than `inside` (indices into `camps`) whose site tile lies in site `r`'s rect; `None` when there is
+/// none, as `place_camps_reserving` guarantees (`relabel_sites`'s precondition).
+fn stray_camp(r: &ReservedSite, camps: &[CampSite], inside: usize) -> Option<usize> {
+    let (x0, y0) = (r.rect.x, r.rect.y);
+    let (x1, y1) = (x0 + r.rect.w as i32, y0 + r.rect.h as i32);
+    camps.iter().enumerate().position(|(k, c)| {
+        let (x, y) = ((c.site % W) as i32, (c.site / W) as i32);
+        k != inside && x >= x0 && x < x1 && y >= y0 && y < y1
+    })
 }
 
 /// The zone's one-based slot in the attempt's faction order.
@@ -1040,5 +1060,51 @@ mod tests {
             let inside = (60..64).contains(&x) && (60..63).contains(&y);
             assert_eq!(label, if inside { 3 } else { 7 }, "({x}, {y})");
         }
+        // The precondition's predicate: a second camp in the rect is found; one just outside it is not.
+        let frost = site(Zone::Frost, 60, 60, Some(camps[2].site));
+        let crowded = [camp(4, 61, 61), camp(4, 63, 62), camp(4, 64, 62)];
+        assert_eq!(stray_camp(&frost, &crowded, 0), Some(1));
+        assert_eq!(
+            stray_camp(&frost, &[crowded[0].clone(), crowded[2].clone()], 0),
+            None
+        );
+    }
+
+    /// `relabel_sites`'s precondition (its `debug_assert!`) on real reserving prefixes, seeds 1-8, attempts 0-1: no
+    /// camp but the inside camp has its site tile in a relabelled site, and the inside camp is one of the prefix's.
+    #[test]
+    fn no_other_camp_stands_in_a_relabelled_site_on_real_prefixes() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let context = crate::mapgen::attempt::AttemptContext::new(&fixed);
+        let mut checked = 0;
+        for seed in 1..=8 {
+            for n in 0..2 {
+                let Some(frame) =
+                    crate::mapgen::attempt::begin_attempt_signature(&context, seed, n, true)
+                        .expect("prefix input")
+                else {
+                    continue;
+                };
+                let (reserved, camps) = (&frame.state.reserved, &frame.state.layout.camps);
+                for r in reserved
+                    .iter()
+                    .filter(|r| relabelled_zones().contains(&r.zone))
+                {
+                    let t = r.camp.expect("a relabelled site carries its camp");
+                    let inside = camps
+                        .iter()
+                        .position(|c| c.site == t)
+                        .unwrap_or_else(|| panic!("seed {seed} attempt {n}: no camp on {t}"));
+                    assert_eq!(
+                        stray_camp(r, camps, inside),
+                        None,
+                        "seed {seed} attempt {n}: a camp in the {:?} site",
+                        r.zone
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 8, "only {checked} relabelled sites checked");
     }
 }
