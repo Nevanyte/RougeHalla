@@ -1,34 +1,34 @@
-//! Oracle of P-LAND-SENTENCED-1 (brief `docs/backlog/packets/P-LAND-SENTENCED-1.md`): with
-//! `pipeline::Options::signature` on, every fence of the Sentenced zone belongs to one of two rectangular enclosures
-//! round the church and its graveyard, gated on one rhythm so the gates of both enclosures line up (owner direction
-//! 2026-11-12). No legacy counterpart: legacy has no church; `packages/shared/src/zoneStyle/gallows.ts` lays parallel
-//! fence rows, which option off keeps byte for byte.
+//! Oracle of P-LAND-SENTENCED-1, revision 2, "lanes" (brief `docs/backlog/packets/P-LAND-SENTENCED-1.md`; owner
+//! decision 2026-11-13, "Option 1: churchyard plus lanes"). With `pipeline::Options::signature` on, the Sentenced
+//! styler's fence rows run parallel to the church's door axis, on a lattice symmetric about it, and every row is cut by
+//! the same 3-wide gate every 12 tiles counted from the church door, so the gates line up into cross lanes. No legacy
+//! counterpart: legacy has no church; `packages/shared/src/zoneStyle/gallows.ts` lays parallel fence rows across the
+//! zone, which option off keeps byte for byte.
 //!
 //! Every check is a property measured from the map's Sentenced anchor over seeds 1-32 (option on, the server's options:
-//! no decor). Nothing pins an option-on map, hash, attempt number or tile position: the landmark lane changes every
-//! option-on map several times while this packet is open.
+//! no decor). Nothing pins an option-on map, hash, attempt number or tile position: the landmark lane (the reserved
+//! site, the 30-tile church, the churchyard) changes every option-on map while this packet is open.
 //!
 //! Definitions (tile units):
 //! * door frame: `side`, the unit vector out of the church door (the dominant axis of `DIR16[anchor.front]`, as
 //!   `signature/church.rs` builds the door); `along`, the signed distance from the door line (the line of the anchor's
-//!   `entrance`) out through the door; `across`, the other coordinate (absolute).
-//! * spine: the line `across = spine`, the middle tile of the entrance.
-//! * yard box: the bounding box of the anchor's footprint and of every Sentenced `Graveyard` feature's bbox; in the door
-//!   frame `[a0, a1]` along by `[c0, c1]` across.
-//! * enclosure at distance d: the ring of tiles at Chebyshev distance exactly d from the yard box; inner d = 5, outer
-//!   d = 12. Sides: front (along = a1 + d), back (along = a0 - d), left (across = c0 - d), right (across = c1 + d). The
-//!   four corners belong to two sides.
-//! * gates: on the front and back sides centred at across = spine + 12k; on the left and right sides centred at
-//!   along = mid + 12k, mid = (a0 + a1).div_euclid(2) (the middle of the box, toward the church when its length along
-//!   is even). Every gate is 3 tiles wide except the front side's gate on the spine (k = 0), which is 5. A gate with a
-//!   tile on a corner or next to one is not cut and is not checked. A gate's flanks are the two line tiles just beyond
-//!   its ends.
-//! * fence tile: a LOW tile (2) that has the fence terrain (`certify::rules::R.fence_kind`) or is owned by a `FenceRow`
-//!   feature, in the Sentenced region.
-//! * walkable: tile value 0 (floor).
+//!   `entrance` tiles), positive out through the door; `across`, the other map coordinate.
+//! * spine: the door axis, the line `across = spine` through the middle tile of the entrance. `d = across - spine`.
+//! * lane line: a line `across = spine + d` with `|d| mod 8 == 4` (d = ±4, ±12, ±20 ...): rows stand only there, so the
+//!   spine is an open lane 7 wide and the lattice is symmetric about it.
+//! * cross-lane band: the tiles with `(along - 8).rem_euclid(12) < 3`, i.e. `along mod 12` in {8, 9, 10}: one gate every
+//!   12 tiles, 3 wide, the same phase in every row (phase 8: the brief's measurement M3).
+//! * yard box: the bounding box of the anchor's footprint and of every Sentenced `Graveyard` feature's bbox. Apron: the
+//!   tiles at Chebyshev distance 1 or 2 from the yard box.
+//! * lane fence tile: a LOW tile (2) of the Sentenced region owned by a `FenceRow` feature (the styler's fence; a future
+//!   churchyard fence belongs to the church's blueprint, not to a `FenceRow`).
+//! * free ground: a Sentenced tile that is floor (0) or a lane fence tile, owned by no feature other than a `FenceRow`,
+//!   outside every camp halo and every spawn pad of the pool (the certifier's `protected` rule; the pad is 3x3). The
+//!   lane fence share of a map is lane fence tiles / free ground tiles; both are computed live on both maps.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone, ZoneAnchor};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
-use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline, style_gallows};
+use rh_sim::mapgen::landmarks::runtime::chamfer;
+use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline, style_gallows, style_runtime};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::OnceLock;
 
@@ -48,26 +48,47 @@ fn worst_attempt_allowed() -> u64 {
     8
 }
 
-/// Owner direction 2026-11-12: the inner and outer enclosures stand 5 and 12 tiles (Chebyshev) out from the yard box.
-fn inner_distance() -> i32 {
-    5
+/// Owner decision 2026-11-13: lane lines 8 apart.
+fn lane_spacing() -> i32 {
+    8
 }
 
-fn outer_distance() -> i32 {
-    12
+/// The lattice's offset from the spine (coordinator's choice, confirmed by the brief's measurement M3).
+fn lane_offset() -> i32 {
+    4
 }
 
-/// Owner direction: one gate every 12 tiles, 3 wide; the front side's gate on the spine 5 wide.
+/// Owner decision: one gate every 12 tiles, 3 wide.
 fn gate_period() -> i32 {
     12
 }
 
-fn gate_half_width() -> i32 {
-    1
+fn gate_width() -> i32 {
+    3
 }
 
-fn spine_gate_half_width() -> i32 {
+/// The gate band's phase from the entrance: the coordinator proposed 3; the brief's measurement M3 moved it to 8 (the
+/// best phase on seeds 1-32 that also beats 3 on most seeds: 24 of 32).
+fn gate_phase() -> i32 {
+    8
+}
+
+/// No lane fence within this Chebyshev distance of the yard box.
+fn apron() -> i32 {
     2
+}
+
+/// The budget (brief sections 8 and 12, M4): the median over seeds 1-32 of (option-on lane fence share) / (option-off
+/// lane fence share) lies in this range. BUDGET SHORT: the owner's target is [0.8, 1.2]; the lanes ceiling measured
+/// 0.81 and the ceiling after the detour rule 0.78 (median), so the lower bound is set at 0.6, leaving 0.18 for what
+/// the estimate does not model (route repair, relaxation, the runtime's placement checks).
+fn budget() -> (f64, f64) {
+    (0.6, 1.2)
+}
+
+/// Every seed keeps at least this ratio (same measure as `budget`): the smallest ceiling after detours measured 0.53.
+fn seed_floor() -> f64 {
+    0.3
 }
 
 /// Owner direction: no straight run of fence longer than 9 (the certifier's `fence_run`).
@@ -145,6 +166,23 @@ fn maps() -> &'static Vec<Landed> {
     })
 }
 
+/// Seeds 1-32 with the option off (no decor), in seed order, generated once per test binary.
+fn off_maps() -> &'static Vec<GameMapData> {
+    static MAPS: OnceLock<Vec<GameMapData>> = OnceLock::new();
+    MAPS.get_or_init(|| {
+        let fixed = coliseum::fixed_layout();
+        let generator = pipeline::Pipeline::new(&fixed);
+        seeds()
+            .map(|seed| {
+                generator
+                    .certified_styled(seed, off_options())
+                    .expect("generator error")
+                    .unwrap_or_else(|| panic!("seed {seed}: no option-off map"))
+            })
+            .collect()
+    })
+}
+
 fn at(m: &GameMapData, c: Cell) -> Option<usize> {
     (c.0 >= 0 && c.1 >= 0 && c.0 < m.w as i32 && c.1 < m.h as i32)
         .then(|| (c.1 * m.w as i32 + c.0) as usize)
@@ -168,27 +206,19 @@ fn owner_kind(m: &GameMapData, i: usize) -> Option<FeatureKind> {
         .map(|f| f.kind)
 }
 
-fn is_fence(m: &GameMapData, i: usize) -> bool {
+/// A lane fence tile (file comment).
+fn is_lane_fence(m: &GameMapData, i: usize) -> bool {
     m.region_grid[i] == sentenced()
         && m.tiles[i] == 2
-        && (m.terrain[i] == certify::rules::R.fence_kind
-            || owner_kind(m, i) == Some(FeatureKind::FenceRow))
+        && owner_kind(m, i) == Some(FeatureKind::FenceRow)
 }
 
-/// Every fence tile of the Sentenced zone.
-fn fence(m: &GameMapData) -> BTreeSet<Cell> {
+/// Every lane fence tile of the Sentenced zone.
+fn lane_fence(m: &GameMapData) -> BTreeSet<Cell> {
     (0..m.tiles.len())
-        .filter(|&i| is_fence(m, i))
+        .filter(|&i| is_lane_fence(m, i))
         .map(|i| cell(m, i))
         .collect()
-}
-
-fn fence_at(m: &GameMapData, c: Cell) -> bool {
-    at(m, c).is_some_and(|i| is_fence(m, i))
-}
-
-fn walkable(m: &GameMapData, c: Cell) -> bool {
-    at(m, c).is_some_and(|i| m.tiles[i] == 0)
 }
 
 fn anchor(seed: i64, m: &GameMapData) -> &ZoneAnchor {
@@ -211,7 +241,7 @@ fn door_side(front: u8) -> Cell {
     }
 }
 
-/// The door frame and the yard box in it (file comment).
+/// The door frame and the yard box in it (file comment): `[a0, a1]` along by `[c0, c1]` across.
 #[derive(Clone, Copy, Debug)]
 struct Frame {
     side: Cell,
@@ -232,16 +262,14 @@ impl Frame {
         }
     }
 
+    /// `(along, across)` of a tile.
     fn frame(&self, c: Cell) -> (i32, i32) {
         Self::of(c, self.side, self.line)
     }
 
-    fn cell(&self, along: i32, across: i32) -> Cell {
-        if self.side.0 != 0 {
-            (self.line + along * self.side.0, across)
-        } else {
-            (across, self.line + along * self.side.1)
-        }
+    /// The signed offset of a tile from the spine.
+    fn d(&self, c: Cell) -> i32 {
+        self.frame(c).1 - self.spine
     }
 
     /// Chebyshev distance of a tile from the yard box (0 inside).
@@ -251,6 +279,29 @@ impl Frame {
             .max(a - self.a1)
             .max(0)
             .max((self.c0 - x).max(x - self.c1).max(0))
+    }
+
+    /// The tile at the middle of the entrance.
+    fn entrance(&self) -> Cell {
+        if self.side.0 != 0 {
+            (self.line, self.spine)
+        } else {
+            (self.spine, self.line)
+        }
+    }
+
+    /// `FenceRow` axis code of a row parallel to the spine (0: rows along x, as `style_gallows::Plan::axis`).
+    fn axis(&self) -> i32 {
+        i32::from(self.side.0 == 0)
+    }
+
+    fn facing(&self) -> char {
+        match self.side {
+            (1, 0) => 'E',
+            (-1, 0) => 'W',
+            (0, 1) => 'S',
+            _ => 'N',
+        }
     }
 }
 
@@ -296,115 +347,43 @@ fn yard(seed: i64, m: &GameMapData) -> Frame {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Side {
-    Front,
-    Back,
-    Left,
-    Right,
-}
-
-/// One gate position: its side, its centre's offset from its origin (the spine, or the middle of the box), whether it
-/// is the front side's spine gate, its tiles and its two flanks.
-#[derive(Clone, Debug)]
-struct Gate {
-    side: Side,
+/// A lattice: lane lines at `|d| mod 8 == offset mod 8`, gate bands at `(along - phase) mod 12 < 3`.
+#[derive(Clone, Copy, Debug)]
+struct Lattice {
     offset: i32,
-    spine: bool,
-    tiles: Vec<Cell>,
-    flanks: [Cell; 2],
+    phase: i32,
 }
 
-struct Enclosure {
-    d: i32,
-    tiles: BTreeSet<Cell>,
-    gates: Vec<Gate>,
-}
-
-impl Enclosure {
-    fn name(&self) -> &'static str {
-        if self.d == inner_distance() {
-            "inner"
-        } else {
-            "outer"
+impl Lattice {
+    fn owners() -> Self {
+        Self {
+            offset: lane_offset(),
+            phase: gate_phase(),
         }
     }
 
-    fn spine_gate(&self) -> Option<&Gate> {
-        self.gates.iter().find(|g| g.spine)
+    fn on_line(&self, d: i32) -> bool {
+        d.abs() % lane_spacing() == self.offset.rem_euclid(lane_spacing())
+    }
+
+    fn in_band(&self, along: i32) -> bool {
+        (along - self.phase).rem_euclid(gate_period()) < gate_width()
     }
 }
 
-fn enclosure(f: &Frame, d: i32) -> Enclosure {
-    let (lo_a, hi_a, lo_c, hi_c) = (f.a0 - d, f.a1 + d, f.c0 - d, f.c1 + d);
-    let mut tiles = BTreeSet::new();
-    for al in lo_a..=hi_a {
-        for ac in lo_c..=hi_c {
-            if al == lo_a || al == hi_a || ac == lo_c || ac == hi_c {
-                tiles.insert(f.cell(al, ac));
-            }
-        }
-    }
-    let p = gate_period();
-    let mut gates = Vec::new();
-    // Front and back: along fixed, gates at across = spine + 12k, kept off the corners.
-    for (side, al) in [(Side::Front, hi_a), (Side::Back, lo_a)] {
-        let first = (lo_c - f.spine).div_euclid(p) - 1;
-        let last = (hi_c - f.spine).div_euclid(p) + 1;
-        for k in first..=last {
-            let centre = f.spine + p * k;
-            let spine = side == Side::Front && k == 0;
-            let half = if spine {
-                spine_gate_half_width()
-            } else {
-                gate_half_width()
-            };
-            let (t0, t1) = (centre - half, centre + half);
-            if t0 < lo_c + 2 || t1 > hi_c - 2 {
-                continue;
-            }
-            gates.push(Gate {
-                side,
-                offset: p * k,
-                spine,
-                tiles: (t0..=t1).map(|t| f.cell(al, t)).collect(),
-                flanks: [f.cell(al, t0 - 1), f.cell(al, t1 + 1)],
-            });
-        }
-    }
-    // Left and right: across fixed, gates at along = mid + 12k, kept off the corners.
-    let mid = (f.a0 + f.a1).div_euclid(2);
-    for (side, ac) in [(Side::Left, lo_c), (Side::Right, hi_c)] {
-        let first = (lo_a - mid).div_euclid(p) - 1;
-        let last = (hi_a - mid).div_euclid(p) + 1;
-        for k in first..=last {
-            let centre = mid + p * k;
-            let (t0, t1) = (centre - gate_half_width(), centre + gate_half_width());
-            if t0 < lo_a + 2 || t1 > hi_a - 2 {
-                continue;
-            }
-            gates.push(Gate {
-                side,
-                offset: p * k,
-                spine: false,
-                tiles: (t0..=t1).map(|t| f.cell(t, ac)).collect(),
-                flanks: [f.cell(t0 - 1, ac), f.cell(t1 + 1, ac)],
-            });
-        }
-    }
-    Enclosure { d, tiles, gates }
-}
-
-fn enclosures(f: &Frame) -> [Enclosure; 2] {
-    [
-        enclosure(f, inner_distance()),
-        enclosure(f, outer_distance()),
-    ]
-}
-
-/// An opening: a gate whose tiles are all walkable, with fence on at least one flank.
-fn is_opening(m: &GameMapData, g: &Gate) -> bool {
-    g.tiles.iter().all(|&c| walkable(m, c)) && g.flanks.iter().any(|&c| fence_at(m, c))
+/// Fails with every finding when there is one (one line per finding, the first 40).
+fn verdict(what: &str, findings: &[String]) {
+    let shown: Vec<&String> = findings.iter().take(40).collect();
+    assert!(
+        findings.is_empty(),
+        "{what}: {} findings\n{}",
+        findings.len(),
+        shown
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
 }
 
 /// Pieces of `cells` (8-connected, as `style_gallows/detours.rs` and the certifier's `feature-size` count them).
@@ -434,224 +413,239 @@ fn pieces(cells: &BTreeSet<Cell>) -> Vec<Vec<Cell>> {
     out
 }
 
-/// Fails with every finding when there is one (one line per finding, the first 40).
-fn verdict(what: &str, findings: &[String]) {
-    let shown: Vec<&String> = findings.iter().take(40).collect();
-    assert!(
-        findings.is_empty(),
-        "{what}: {} findings\n{}",
-        findings.len(),
-        shown
+// --------------------------------------------------------------------------------------------------------------------
+// Free ground and the share (budget).
+// --------------------------------------------------------------------------------------------------------------------
+
+/// The certifier's camp halo (`certify` `protected`): the clearing grown by the halo span, round every camp.
+fn halo(m: &GameMapData) -> Vec<bool> {
+    let r = certify::rules::R;
+    let mut out = vec![false; m.tiles.len()];
+    for c in &m.camps {
+        let (cx, cy) = world_cell(c.x, c.y);
+        for dy in -r.protection_span..=r.protection_span {
+            for dx in -r.protection_span..=r.protection_span {
+                let near = (-r.halo..=r.halo).any(|oy| {
+                    (-r.halo..=r.halo).any(|ox| {
+                        f64::from((dx + ox).pow(2) + (dy + oy).pow(2)) <= r.clearing * r.clearing
+                    })
+                });
+                if let Some(i) = at(m, (cx + dx, cy + dy)).filter(|_| near) {
+                    out[i] = true;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The pad round every spawn of the pool (the certifier's `protected` rule: the square of half-width `R.spawn_pad`,
+/// 3x3 today).
+fn spawn_pads(m: &GameMapData) -> Vec<bool> {
+    let r = certify::rules::R.spawn_pad;
+    let mut out = vec![false; m.tiles.len()];
+    for s in &m.spawn_pool {
+        let (sx, sy) = world_cell(s.x, s.y);
+        for dy in -r..=r {
+            for dx in -r..=r {
+                if let Some(i) = at(m, (sx + dx, sy + dy)) {
+                    out[i] = true;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Free ground (file comment), one flag per tile.
+fn free_ground(m: &GameMapData) -> Vec<bool> {
+    let (halo, pads) = (halo(m), spawn_pads(m));
+    (0..m.tiles.len())
+        .map(|i| {
+            let fence = is_lane_fence(m, i);
+            m.region_grid[i] == sentenced()
+                && (m.tiles[i] == 0 || fence)
+                && (fence || m.feature_grid[i] == 0)
+                && !halo[i]
+                && !pads[i]
+        })
+        .collect()
+}
+
+/// `(lane fence tiles, free ground tiles)` of a map.
+fn share_parts(m: &GameMapData) -> (usize, usize) {
+    (
+        lane_fence(m).len(),
+        free_ground(m).iter().filter(|&&f| f).count(),
+    )
+}
+
+fn share(m: &GameMapData) -> f64 {
+    let (fence, free) = share_parts(m);
+    fence as f64 / free.max(1) as f64
+}
+
+fn median(mut v: Vec<f64>) -> f64 {
+    v.sort_by(f64::total_cmp);
+    let n = v.len();
+    if n % 2 == 1 {
+        v[n / 2]
+    } else {
+        (v[n / 2 - 1] + v[n / 2]) / 2.0
+    }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Rules 2-4: the lattice, the cross lanes, the apron.
+// --------------------------------------------------------------------------------------------------------------------
+
+/// Rules 1-2: every lane fence tile stands on a lane line (`|d| mod 8 == 4`): rows parallel to the door axis, symmetric
+/// about it, the spine open 7 wide, no jogs.
+#[test]
+fn every_lane_fence_tile_stands_on_a_lane_line() {
+    let lat = Lattice::owners();
+    let mut findings = Vec::new();
+    for l in maps() {
+        let f = yard(l.seed, &l.map);
+        let all = lane_fence(&l.map);
+        let off: Vec<Cell> = all
             .iter()
-            .map(|s| s.as_str())
+            .copied()
+            .filter(|&c| !lat.on_line(f.d(c)))
+            .collect();
+        if !off.is_empty() {
+            let mut by_d: BTreeMap<i32, usize> = BTreeMap::new();
+            for &c in &off {
+                *by_d.entry(f.d(c).abs() % lane_spacing()).or_default() += 1;
+            }
+            findings.push(format!(
+                "seed {}: {} of {} lane fence tiles are off the lane lines (|d| mod 8: tiles {:?}); first {:?}",
+                l.seed,
+                off.len(),
+                all.len(),
+                by_d,
+                &off[..off.len().min(4)]
+            ));
+        }
+    }
+    verdict("lane fence off the lane lines", &findings);
+}
+
+/// Rule 3: no lane fence tile stands in a cross-lane band (`along mod 12` in {8, 9, 10} from the entrance), so every
+/// row has its gates on one shared grid and the bands are fence-free cross lanes.
+#[test]
+fn no_lane_fence_tile_stands_in_a_cross_lane_band() {
+    let lat = Lattice::owners();
+    let mut findings = Vec::new();
+    for l in maps() {
+        let f = yard(l.seed, &l.map);
+        let all = lane_fence(&l.map);
+        let shut: Vec<Cell> = all
+            .iter()
+            .copied()
+            .filter(|&c| lat.in_band(f.frame(c).0))
+            .collect();
+        if !shut.is_empty() {
+            findings.push(format!(
+                "seed {}: {} of {} lane fence tiles stand in a cross-lane band; first {:?}",
+                l.seed,
+                shut.len(),
+                all.len(),
+                &shut[..shut.len().min(4)]
+            ));
+        }
+    }
+    verdict("lane fence in a cross-lane band", &findings);
+}
+
+/// Rule 4: no lane fence tile within Chebyshev distance 2 of the yard box.
+#[test]
+fn no_lane_fence_tile_stands_within_two_of_the_yard_box() {
+    let mut findings = Vec::new();
+    for l in maps() {
+        let f = yard(l.seed, &l.map);
+        let near: Vec<(Cell, i32)> = lane_fence(&l.map)
+            .into_iter()
+            .map(|c| (c, f.distance(c)))
+            .filter(|&(_, d)| d <= apron())
+            .collect();
+        if !near.is_empty() {
+            findings.push(format!(
+                "seed {}: {} lane fence tiles within {} of the yard box; first (tile, distance) {:?}",
+                l.seed,
+                near.len(),
+                apron(),
+                &near[..near.len().min(4)]
+            ));
+        }
+    }
+    verdict("lane fence in the yard box's apron", &findings);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// Rule 5: the amount.
+// --------------------------------------------------------------------------------------------------------------------
+
+/// Per seed `(on/off share ratio, row text)`: option-on lane fence share of free ground over option-off's.
+fn share_ratios() -> Vec<(f64, String)> {
+    maps()
+        .iter()
+        .zip(off_maps())
+        .map(|(l, off)| {
+            let (on_f, on_g) = share_parts(&l.map);
+            let (off_f, off_g) = share_parts(off);
+            let r = share(&l.map) / share(off).max(f64::MIN_POSITIVE);
+            (
+                r,
+                format!(
+                    "seed {}: on {on_f}/{on_g} off {off_f}/{off_g} ratio {r:.2}",
+                    l.seed
+                ),
+            )
+        })
+        .collect()
+}
+
+/// Rule 5 (and the non-triviality guard of rules 1-4): over seeds 1-32 the median of (option-on lane fence share of
+/// free ground) / (option-off lane fence share) lies in the budget range.
+#[test]
+fn lane_fence_share_stays_near_option_off() {
+    let (lo, hi) = budget();
+    let rows = share_ratios();
+    let m = median(rows.iter().map(|r| r.0).collect());
+    assert!(
+        (lo..=hi).contains(&m),
+        "median on/off lane fence share ratio {m:.3} is outside [{lo}, {hi}]\n{}",
+        rows.iter()
+            .map(|r| r.1.as_str())
             .collect::<Vec<_>>()
             .join("\n")
     );
 }
 
-// --------------------------------------------------------------------------------------------------------------------
-// Items 1-2: all fence is on the two enclosures.
-// --------------------------------------------------------------------------------------------------------------------
-
-/// Every fence tile of the Sentenced zone lies on the inner or the outer enclosure of its map's yard box.
+/// The per-seed guard: no seed loses its lanes (an axis or orientation the planner gets wrong shows here, not in the
+/// median).
 #[test]
-fn every_sentenced_fence_tile_lies_on_the_inner_or_the_outer_enclosure() {
-    let mut findings = Vec::new();
-    for l in maps() {
-        let f = yard(l.seed, &l.map);
-        let [inner, outer] = enclosures(&f);
-        let all = fence(&l.map);
-        let off: Vec<Cell> = all
-            .iter()
-            .copied()
-            .filter(|c| !inner.tiles.contains(c) && !outer.tiles.contains(c))
-            .collect();
-        if !off.is_empty() {
-            let mut by_distance: BTreeMap<i32, usize> = BTreeMap::new();
-            for &c in &off {
-                *by_distance.entry(f.distance(c)).or_default() += 1;
-            }
-            findings.push(format!(
-                "seed {}: {} of {} fence tiles are off both enclosures (distance from the yard box: tiles {:?}); first {:?}",
-                l.seed,
-                off.len(),
-                all.len(),
-                by_distance,
-                &off[..off.len().min(4)]
-            ));
-        }
-    }
-    verdict("fence off the enclosures", &findings);
+fn every_seed_keeps_its_lanes() {
+    let findings: Vec<String> = share_ratios()
+        .into_iter()
+        .filter(|r| r.0 < seed_floor())
+        .map(|r| format!("{} (floor {})", r.1, seed_floor()))
+        .collect();
+    verdict("seeds with too little lane fence", &findings);
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-// Items 4, 7: gates; the enclosure exists.
+// Kept: runs and pieces, certification, attempts, option off.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// No gate tile (item 4, gates off the corners) is fence: a gate is cut on both enclosures wherever it falls.
-#[test]
-fn no_gate_tile_is_fence() {
-    let mut findings = Vec::new();
-    for l in maps() {
-        let f = yard(l.seed, &l.map);
-        for e in enclosures(&f) {
-            for g in &e.gates {
-                let shut: Vec<Cell> = g
-                    .tiles
-                    .iter()
-                    .copied()
-                    .filter(|&c| fence_at(&l.map, c))
-                    .collect();
-                if !shut.is_empty() {
-                    findings.push(format!(
-                        "seed {}: {} enclosure, {:?} gate at offset {}{}: fence on {:?}",
-                        l.seed,
-                        e.name(),
-                        g.side,
-                        g.offset,
-                        if g.spine { " (spine)" } else { "" },
-                        shut
-                    ));
-                }
-            }
-        }
-    }
-    verdict("fence across a gate", &findings);
-}
-
-/// Item 7: on every accepted map the front side of each enclosure has its spine gate, 5 walkable tiles, with a fence
-/// tile on both flanks.
-#[test]
-fn the_front_spine_gate_of_each_enclosure_is_five_wide_and_flanked_by_fence() {
-    let mut findings = Vec::new();
-    for l in maps() {
-        let f = yard(l.seed, &l.map);
-        for e in enclosures(&f) {
-            let Some(g) = e.spine_gate() else {
-                findings.push(format!(
-                    "seed {}: {} enclosure has no front spine gate (yard box {:?})",
-                    l.seed,
-                    e.name(),
-                    f
-                ));
-                continue;
-            };
-            assert_eq!(
-                g.tiles.len() as i32,
-                2 * spine_gate_half_width() + 1,
-                "spine gate width"
-            );
-            let blocked: Vec<Cell> = g
-                .tiles
-                .iter()
-                .copied()
-                .filter(|&c| !walkable(&l.map, c))
-                .collect();
-            let bare: Vec<Cell> = g
-                .flanks
-                .iter()
-                .copied()
-                .filter(|&c| !fence_at(&l.map, c))
-                .collect();
-            if !blocked.is_empty() || !bare.is_empty() {
-                findings.push(format!(
-                    "seed {}: {} enclosure's front spine gate {:?}: not walkable {:?}, flanks without fence {:?}",
-                    l.seed,
-                    e.name(),
-                    g.tiles,
-                    blocked,
-                    bare
-                ));
-            }
-        }
-    }
-    verdict("front spine gate", &findings);
-}
-
-/// Both enclosures stand on every seed, each with at least two openings (a gate of walkable tiles with fence on at
-/// least one flank).
-#[test]
-fn each_enclosure_has_at_least_two_openings() {
-    let mut findings = Vec::new();
-    for l in maps() {
-        let f = yard(l.seed, &l.map);
-        for e in enclosures(&f) {
-            let open: Vec<(Side, i32)> = e
-                .gates
-                .iter()
-                .filter(|g| is_opening(&l.map, g))
-                .map(|g| (g.side, g.offset))
-                .collect();
-            let standing = e.tiles.iter().filter(|&&c| fence_at(&l.map, c)).count();
-            if open.len() < 2 {
-                findings.push(format!(
-                    "seed {}: {} enclosure has {} openings {:?} ({} fence tiles on it)",
-                    l.seed,
-                    e.name(),
-                    open.len(),
-                    open,
-                    standing
-                ));
-            }
-        }
-    }
-    verdict("enclosure openings", &findings);
-}
-
-/// Gates line up: wherever an inner gate is open and its lane runs straight out to the outer enclosure over walkable
-/// tiles, the outer enclosure is open at the same offset (no fence on the lane's end).
-#[test]
-fn gates_line_up_from_the_inner_to_the_outer_enclosure() {
-    let mut findings = Vec::new();
-    for l in maps() {
-        let f = yard(l.seed, &l.map);
-        let [inner, _] = enclosures(&f);
-        let gap = outer_distance() - inner_distance();
-        for g in inner.gates.iter().filter(|g| is_opening(&l.map, g)) {
-            let step = |c: Cell, k: i32| -> Cell {
-                let (al, ac) = f.frame(c);
-                match g.side {
-                    Side::Front => f.cell(al + k, ac),
-                    Side::Back => f.cell(al - k, ac),
-                    Side::Left => f.cell(al, ac - k),
-                    Side::Right => f.cell(al, ac + k),
-                }
-            };
-            let lane_free = g
-                .tiles
-                .iter()
-                .all(|&c| (1..gap).all(|k| walkable(&l.map, step(c, k))));
-            if !lane_free {
-                continue;
-            }
-            let shut: Vec<Cell> = g
-                .tiles
-                .iter()
-                .map(|&c| step(c, gap))
-                .filter(|&c| fence_at(&l.map, c))
-                .collect();
-            if !shut.is_empty() {
-                findings.push(format!(
-                    "seed {}: inner {:?} gate at offset {} is open with a free lane, the outer line is fenced at {:?}",
-                    l.seed, g.side, g.offset, shut
-                ));
-            }
-        }
-    }
-    verdict("gates out of line", &findings);
-}
-
-// --------------------------------------------------------------------------------------------------------------------
-// Item 5 and the certifier: runs and pieces.
-// --------------------------------------------------------------------------------------------------------------------
-
-/// No straight run of Sentenced fence (along x or along y) is longer than 9; no fence piece (8-connected) is smaller
-/// than the styler's `min_piece`. (Both hold today: the certifier's `fence-run` and `feature-size` rules.)
+/// No straight run of lane fence (along x or along y) is longer than 9; no lane fence piece (8-connected) is smaller
+/// than the styler's `min_piece`.
 #[test]
 fn fence_runs_stay_within_nine_and_pieces_keep_the_minimum() {
     let mut findings = Vec::new();
     for l in maps() {
-        let all = fence(&l.map);
+        let all = lane_fence(&l.map);
         for &(x, y) in &all {
             for (dx, dy) in [(1, 0), (0, 1)] {
                 if all.contains(&(x - dx, y - dy)) {
@@ -684,12 +678,8 @@ fn fence_runs_stay_within_nine_and_pieces_keep_the_minimum() {
     verdict("fence runs and pieces", &findings);
 }
 
-// --------------------------------------------------------------------------------------------------------------------
-// Behaviour to preserve (brief section 7).
-// --------------------------------------------------------------------------------------------------------------------
-
-/// Every accepted map certifies with zero failures under the strict certifier and keeps its church, graveyard and
-/// gallows square.
+/// Every accepted map certifies with zero failures under the strict certifier and keeps its church and its gallows
+/// square.
 #[test]
 fn maps_certify_clean_and_keep_the_church_and_the_gallows_square() {
     let mut findings = Vec::new();
@@ -707,11 +697,7 @@ fn maps_certify_clean_and_keep_the_church_and_the_gallows_square() {
         for f in &c.failures {
             findings.push(format!("seed {}: {}/{}", l.seed, f.rule, f.subject));
         }
-        for kind in [
-            FeatureKind::Church,
-            FeatureKind::Graveyard,
-            FeatureKind::Gallows,
-        ] {
+        for kind in [FeatureKind::Church, FeatureKind::Gallows] {
             let n = m
                 .features
                 .iter()
@@ -739,9 +725,8 @@ fn the_worst_attempt_over_seeds_1_to_32_is_at_most_eight() {
 }
 
 /// Option off (G8): today's generator, map hash for map hash, seeds 1-8 (the values `mapgen_signature_fire.rs` and
-/// `mapgen_signature_frost.rs` pin for `Options::default()`); this file's own copy of the guard, with the server's
-/// options (no decor) giving the same fence as the default. The full guard is
-/// `mapgen_signature_core::g8_signature_off_is_todays_generator`.
+/// `mapgen_signature_frost.rs` pin for `Options::default()`), and the server's options (no decor) give the same fence.
+/// The full guard is `mapgen_signature_core::g8_signature_off_is_todays_generator`.
 #[test]
 fn option_off_maps_are_todays() {
     let fixed = coliseum::fixed_layout();
@@ -765,63 +750,47 @@ fn option_off_maps_are_todays() {
             m.anchors.is_empty(),
             "seed {seed}: anchors with the option off"
         );
-        let bare = generator
-            .certified_styled(seed, off_options())
-            .expect("generator error")
-            .unwrap_or_else(|| panic!("seed {seed}: no option-off map without decor"));
+        let bare = &off_maps()[(seed - 1) as usize];
         assert_eq!(
-            fence(&bare),
-            fence(&m),
+            lane_fence(bare),
+            lane_fence(&m),
             "seed {seed}: decor moved the fence"
         );
     }
 }
 
-// --------------------------------------------------------------------------------------------------------------------
-// The report (brief section 8; not a gate check).
-// --------------------------------------------------------------------------------------------------------------------
-
-/// The certifier's camp halo (`certify` `protected`): the clearing grown by the halo span, round every camp.
-fn halo(m: &GameMapData) -> Vec<bool> {
-    let r = certify::rules::R;
-    let mut out = vec![false; m.tiles.len()];
-    for c in &m.camps {
-        let (cx, cy) = world_cell(c.x, c.y);
-        for dy in -r.protection_span..=r.protection_span {
-            for dx in -r.protection_span..=r.protection_span {
-                let near = (-r.halo..=r.halo).any(|oy| {
-                    (-r.halo..=r.halo).any(|ox| {
-                        f64::from((dx + ox).pow(2) + (dy + oy).pow(2)) <= r.clearing * r.clearing
-                    })
-                });
-                if let Some(i) = at(m, (cx + dx, cy + dy)).filter(|_| near) {
-                    out[i] = true;
-                }
-            }
-        }
+/// With decor on, the Sentenced props callback validates the styler's plan (`style_gallows` `validate_plan`: row gaps,
+/// row phases, the square's row index); the server's options skip it. Seeds 1-8, option on with decor, at the attempt
+/// the server's options land on: the map is made, and its lane fence is the same as without decor.
+#[test]
+fn option_on_with_decor_keeps_the_lane_fence() {
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    let decor = pipeline::Options {
+        signature: true,
+        ..pipeline::Options::default()
+    };
+    for l in maps().iter().take(8) {
+        let m = generator
+            .styled_attempt(l.seed, l.attempt, decor)
+            .unwrap_or_else(|e| panic!("seed {}: generator error with decor: {e:?}", l.seed))
+            .unwrap_or_else(|| panic!("seed {}: attempt {} refused with decor", l.seed, l.attempt));
+        assert_eq!(
+            lane_fence(&m),
+            lane_fence(&l.map),
+            "seed {}: decor moved the lane fence",
+            l.seed
+        );
     }
-    out
 }
 
-/// The 5x5 round every spawn of the pool (the certifier's spawn protection).
-fn spawn_pads(m: &GameMapData) -> Vec<bool> {
-    let mut out = vec![false; m.tiles.len()];
-    for s in &m.spawn_pool {
-        let (sx, sy) = world_cell(s.x, s.y);
-        for dy in -2..=2 {
-            for dx in -2..=2 {
-                if let Some(i) = at(m, (sx + dx, sy + dy)) {
-                    out[i] = true;
-                }
-            }
-        }
-    }
-    out
-}
+// --------------------------------------------------------------------------------------------------------------------
+// Reports (brief section 12; not gate checks). Run with `--ignored --nocapture`.
+// --------------------------------------------------------------------------------------------------------------------
 
 /// An approximation of the route guard's corridors (`style_runtime/route.rs`): from every Sentenced spawn of the pool,
-/// the steepest descent of the walk distance to the coliseum (fence counted as ground, as before the styler), while in
-/// the zone, grown by one tile all round.
+/// the steepest descent of the walk distance to the coliseum (fence counted as ground), while in the zone, grown by one
+/// tile all round.
 fn route_band(m: &GameMapData) -> Vec<bool> {
     let n = m.tiles.len();
     let ground = |i: usize| m.tiles[i] != 1;
@@ -875,260 +844,431 @@ fn route_band(m: &GameMapData) -> Vec<bool> {
     out
 }
 
-/// One line tile's class: `o` off the zone or the map; `w` wall, non-fence LOW or another feature's tile; `h` in a
-/// camp halo; `s` in a spawn's 5x5; `r` on a spawn route band; `F` free floor (or today's fence).
-fn class(m: &GameMapData, c: Cell, halo: &[bool], pads: &[bool], routes: &[bool]) -> char {
-    let Some(i) = at(m, c) else { return 'o' };
-    if m.region_grid[i] != sentenced() {
-        return 'o';
-    }
-    let fence = is_fence(m, i);
-    let owned_other = owner_kind(m, i).is_some_and(|k| k != FeatureKind::FenceRow);
-    if !(m.tiles[i] == 0 || fence) || owned_other {
-        return 'w';
-    }
-    if halo[i] {
-        return 'h';
-    }
-    if pads[i] {
-        return 's';
-    }
-    if routes[i] {
-        return 'r';
-    }
-    'F'
+/// The styler's rim (`style_runtime` `open`: zone edge distance at least `rim_tiles * 3` in the 3/4 chamfer's thirds),
+/// recomputed from the finished map's region grid.
+fn inside_rim(m: &GameMapData) -> Vec<bool> {
+    let mask: Vec<u8> = m
+        .region_grid
+        .iter()
+        .map(|&z| u8::from(z == sentenced()))
+        .collect();
+    let edge = chamfer(&mask, m.w as usize, m.h as usize);
+    let need = style_runtime::default_definition().rim_tiles * 3.0;
+    edge.iter().map(|&e| f64::from(e) >= need).collect()
 }
 
-/// `100 * part / whole`, 0 for an empty whole.
-fn percent(part: usize, whole: usize) -> usize {
-    (100 * part).checked_div(whole).unwrap_or(0)
+/// Ground a styler could fence: free ground inside the rim, and (when `routes` is given) off the route band.
+fn fenceable(m: &GameMapData, routes: Option<&[bool]>) -> Vec<bool> {
+    let (free, rim) = (free_ground(m), inside_rim(m));
+    (0..m.tiles.len())
+        .map(|i| free[i] && rim[i] && routes.is_none_or(|r| !r[i]))
+        .collect()
 }
 
-fn fence_count(m: &GameMapData) -> usize {
-    fence(m).len()
+/// The lanes ceiling (brief M2): fenceable tiles on a lane line, off the gate bands, more than `apron()` from the yard
+/// box, in a straight run along the line of at least `min_piece`.
+fn ceiling(m: &GameMapData, f: &Frame, lat: Lattice, ok: &[bool]) -> BTreeSet<Cell> {
+    ceiling_with_stretch(m, f, lat, ok, 0)
 }
 
-/// Run with `--ignored --nocapture`. One row per seed (option on): attempt and refusals; the yard box (along x across);
-/// for each enclosure: line tiles, line tiles in the zone, of those free (floor or fence, no other owner) and how many
-/// of the free are in a camp halo / a spawn's 5x5 / on a route band, fence standing on the line, the share of the free
-/// line standing, and the free clear tiles off the gates (a ceiling for fence on that line); the front spine gate as
-/// `flank|5 tiles|flank` classes; fence tiles on the map, option on and off.
+/// Consecutive runs of sorted values.
+fn runs(v: Vec<i32>) -> Vec<Vec<i32>> {
+    let mut out = Vec::new();
+    let mut run: Vec<i32> = Vec::new();
+    for al in v {
+        if run.last().is_some_and(|&p| al != p + 1) {
+            out.push(std::mem::take(&mut run));
+        }
+        run.push(al);
+    }
+    if !run.is_empty() {
+        out.push(run);
+    }
+    out
+}
+
+/// The ceiling when, as today's `rows.rs` `flush` does with `Dials::min_run`, an open stretch of a line (before the
+/// gate bands cut it) shorter than `stretch` lays nothing (`stretch` 0: no such rule).
+fn ceiling_with_stretch(
+    m: &GameMapData,
+    f: &Frame,
+    lat: Lattice,
+    ok: &[bool],
+    stretch: usize,
+) -> BTreeSet<Cell> {
+    let mut lines: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
+    for (i, _) in ok.iter().enumerate().filter(|(_, &o)| o) {
+        let c = cell(m, i);
+        let (al, ac) = f.frame(c);
+        if lat.on_line(ac - f.spine) && f.distance(c) > apron() {
+            lines.entry(ac).or_default().push(al);
+        }
+    }
+    let mut out = BTreeSet::new();
+    let to_cell = |al: i32, ac: i32| -> Cell {
+        if f.side.0 != 0 {
+            (f.line + al * f.side.0, ac)
+        } else {
+            (ac, f.line + al * f.side.1)
+        }
+    };
+    for (ac, mut v) in lines {
+        v.sort_unstable();
+        for open in runs(v).into_iter().filter(|r| r.len() >= stretch) {
+            let kept: Vec<i32> = open.into_iter().filter(|&a| !lat.in_band(a)).collect();
+            for run in runs(kept) {
+                if run.len() >= min_piece() {
+                    out.extend(run.iter().map(|&a| to_cell(a, ac)));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// An estimate of what a lanes planner keeps of a ceiling (brief M2, "after detours"): today's lane fence is taken off
+/// the map, the ceiling is laid instead, then, as `style_gallows/detours.rs` `plan_detours` does, every tile that fails
+/// the fence detour (`R.fence_reach` pairs, a walk of at most `2k + R.fence_detour` round it inside the zone) is
+/// dropped, then every piece under `min_piece`, until nothing changes. Route repair and relaxation are not modelled.
+fn after_detours(m: &GameMapData, ceiling: &BTreeSet<Cell>) -> BTreeSet<Cell> {
+    let r = certify::rules::R;
+    let (w, h) = (m.w as i32, m.h as i32);
+    let zone = |c: Cell| at(m, c).is_some_and(|i| m.region_grid[i] == sentenced());
+    let mut low: Vec<bool> = (0..m.tiles.len())
+        .map(|i| m.tiles[i] != 0 && !is_lane_fence(m, i))
+        .collect();
+    for &c in ceiling {
+        low[at(m, c).unwrap()] = true;
+    }
+    let floor = |low: &[bool], c: Cell| zone(c) && !low[at(m, c).unwrap()];
+    let mut live = ceiling.clone();
+    let (mut seen, mut depth) = (vec![0u32; m.tiles.len()], vec![0i32; m.tiles.len()]);
+    let mut stamp = 0u32;
+    for _ in 0..16 {
+        let mut gone = Vec::new();
+        for &c in &live {
+            let mut holds = true;
+            'pairs: for (sx, sy) in [(0, 1), (1, 0)] {
+                for k in 1..=r.fence_reach {
+                    let (a, b) = ((c.0 - k * sx, c.1 - k * sy), (c.0 + k * sx, c.1 + k * sy));
+                    if !floor(&low, a) || !floor(&low, b) {
+                        break;
+                    }
+                    let limit = 2 * k + r.fence_detour as i32;
+                    stamp += 1;
+                    let ia = at(m, a).unwrap();
+                    seen[ia] = stamp;
+                    depth[ia] = 0;
+                    let mut queue = VecDeque::from([a]);
+                    let mut found = false;
+                    while let Some(p) = queue.pop_front() {
+                        if p == b {
+                            found = true;
+                            break;
+                        }
+                        let dp = depth[at(m, p).unwrap()];
+                        if dp >= limit {
+                            continue;
+                        }
+                        for (dx, dy) in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+                            let q = (p.0 + dx, p.1 + dy);
+                            if q.0 < 0 || q.1 < 0 || q.0 >= w || q.1 >= h || q == c {
+                                continue;
+                            }
+                            let iq = at(m, q).unwrap();
+                            if seen[iq] != stamp && floor(&low, q) {
+                                seen[iq] = stamp;
+                                depth[iq] = dp + 1;
+                                queue.push_back(q);
+                            }
+                        }
+                    }
+                    if !found {
+                        holds = false;
+                        break 'pairs;
+                    }
+                }
+            }
+            if !holds {
+                gone.push(c);
+            }
+        }
+        for c in &gone {
+            low[at(m, *c).unwrap()] = false;
+            live.remove(c);
+        }
+        let mut small = Vec::new();
+        for p in pieces(&live) {
+            if p.len() < min_piece() {
+                small.extend(p);
+            }
+        }
+        for c in &small {
+            low[at(m, *c).unwrap()] = false;
+            live.remove(c);
+        }
+        if gone.is_empty() && small.is_empty() {
+            break;
+        }
+    }
+    live
+}
+
+fn stats(v: &[f64]) -> String {
+    let mut s = v.to_vec();
+    s.sort_by(f64::total_cmp);
+    format!(
+        "min {:.2} median {:.2} max {:.2}",
+        s[0],
+        median(s.clone()),
+        s[s.len() - 1]
+    )
+}
+
+/// One seed's lanes figures for one lattice: the ceiling with and without the route band, and what survives the
+/// detour rule (`after_detours`) of the ceiling without the route band, each as tiles.
+struct Lanes {
+    strict: BTreeSet<Cell>,
+    loose: BTreeSet<Cell>,
+    kept: BTreeSet<Cell>,
+}
+
+fn lanes(m: &GameMapData, f: &Frame, lat: Lattice, strict: &[bool], loose: &[bool]) -> Lanes {
+    let loose_ceiling = ceiling(m, f, lat, loose);
+    Lanes {
+        strict: ceiling(m, f, lat, strict),
+        kept: after_detours(m, &loose_ceiling),
+        loose: loose_ceiling,
+    }
+}
+
+/// The brief's measurement M1-M5 (run with `--ignored --nocapture`): one row per seed, then min / median / max of each
+/// column. Shares are of free ground (file comment); "x off" is a share divided by the option-off lane fence share of
+/// the same seed. M2's strict ceiling also leaves out an approximate route band (`route_band`); the loose ceiling keeps
+/// it (today's planner, `Route::Repair`, does not keep fence off the routes up front); "kept" is what of the loose
+/// ceiling survives the detour rule and `min_piece`.
 #[test]
 #[ignore]
-fn report_seeds_1_to_32() {
-    let fixed = coliseum::fixed_layout();
-    let generator = pipeline::Pipeline::new(&fixed);
-    let mut totals: BTreeMap<&str, Vec<i64>> = BTreeMap::new();
-    let mut viable = [0usize; 3];
+fn report_lanes_seeds_1_to_32() {
+    let owners = Lattice::owners();
+    let mut cols: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    let mut push = |k: &str, v: f64| cols.entry(k.to_string()).or_default().push(v);
+    let mut same_axis = 0;
     let mut refused: BTreeMap<String, usize> = BTreeMap::new();
-    for l in maps() {
+    let mut sweep: BTreeMap<(i32, i32), Vec<[f64; 2]>> = BTreeMap::new();
+    for (l, off) in maps().iter().zip(off_maps()) {
         let m = &l.map;
         let f = yard(l.seed, m);
-        let (halo, pads, routes) = (halo(m), spawn_pads(m), route_band(m));
-        let off = generator
-            .certified_styled(l.seed, off_options())
-            .expect("generator error")
-            .unwrap_or_else(|| panic!("seed {}: no option-off map", l.seed));
-        assert_eq!(m.attempt, l.attempt, "seed {}: map.attempt", l.seed);
         for r in &l.refusals {
             *refused.entry(r.clone()).or_default() += 1;
         }
-        let mut row = format!(
-            "seed {:2}: attempt {} refusals {:?} | box {}x{} | ",
+        // M1: the door axis against today's FenceRow axis (`FenceRow` params [axis, index, phase]).
+        let axes: BTreeSet<i32> = m
+            .features
+            .iter()
+            .filter(|x| x.kind == FeatureKind::FenceRow && x.zone == Zone::Sentenced)
+            .filter_map(|x| x.p.first().copied())
+            .collect();
+        let same = axes.len() == 1 && axes.contains(&f.axis());
+        same_axis += usize::from(same);
+        // M4.
+        let (on_f, on_g) = share_parts(m);
+        let (off_f, off_g) = share_parts(off);
+        let (s_on, s_off) = (share(m), share(off));
+        let x_off = |n: usize| n as f64 / on_g.max(1) as f64 / s_off;
+        // M2.
+        let routes = route_band(m);
+        let (strict, loose) = (fenceable(m, Some(&routes)), fenceable(m, None));
+        let today = lane_fence(m);
+        let on_band = today.iter().filter(|&&c| routes[at(m, c).unwrap()]).count();
+        let unfenceable = today.iter().filter(|&&c| !loose[at(m, c).unwrap()]).count();
+        let o = lanes(m, &f, owners, &strict, &loose);
+        let min_run = style_gallows::default_dials().min_run as usize;
+        let with_min_run = ceiling_with_stretch(m, &f, owners, &loose, min_run);
+        let kept_min_run = after_detours(m, &with_min_run);
+        push(
+            "m2 loose ceiling with min_run x off share",
+            x_off(with_min_run.len()),
+        );
+        push(
+            "m2 kept with min_run x off share",
+            x_off(kept_min_run.len()),
+        );
+        // M3.
+        for lat in (0..12)
+            .map(|p| (lane_offset(), p))
+            .chain((3..=8).map(|o| (o, gate_phase())))
+        {
+            let lat = Lattice {
+                offset: lat.0,
+                phase: lat.1,
+            };
+            let loose_c = ceiling(m, &f, lat, &loose);
+            let kept = after_detours(m, &loose_c);
+            sweep
+                .entry((lat.offset, lat.phase))
+                .or_default()
+                .push([x_off(loose_c.len()), x_off(kept.len())]);
+        }
+        // M5.
+        let (minus, plus) = (
+            o.loose.iter().filter(|&&c| f.d(c) < 0).count(),
+            o.loose.iter().filter(|&&c| f.d(c) > 0).count(),
+        );
+        let lop = minus.min(plus) as f64 / minus.max(plus).max(1) as f64;
+        eprintln!(
+            "seed {:2} att {} facing {} axis door {} fence {:?} same {} | on {on_f}/{on_g} {:.4} off {off_f}/{off_g} {:.4} on/off {:.2} | ceiling strict {} ({:.2} x off) loose {} ({:.2} x off) kept {} ({:.2} x off) | today's fence on the route band {on_band}, unfenceable {unfenceable} | sides -{minus} +{plus} ({:.2})",
             l.seed,
             l.attempt,
-            l.refusals,
-            f.a1 - f.a0 + 1,
-            f.c1 - f.c0 + 1
+            f.facing(),
+            f.axis(),
+            axes,
+            same,
+            s_on,
+            s_off,
+            s_on / s_off,
+            o.strict.len(),
+            x_off(o.strict.len()),
+            o.loose.len(),
+            x_off(o.loose.len()),
+            o.kept.len(),
+            x_off(o.kept.len()),
+            lop
         );
-        totals
-            .entry("box_area")
-            .or_default()
-            .push(i64::from((f.a1 - f.a0 + 1) * (f.c1 - f.c0 + 1)));
-        let mut ceiling = 0;
-        let mut both = true;
-        for (k, e) in enclosures(&f).iter().enumerate() {
-            let classes: Vec<char> = e
-                .tiles
-                .iter()
-                .map(|&c| class(m, c, &halo, &pads, &routes))
-                .collect();
-            let count = |ch: char| classes.iter().filter(|&&x| x == ch).count();
-            let zone = classes.iter().filter(|&&x| x != 'o').count();
-            let free = count('F') + count('h') + count('s') + count('r');
-            let standing = e.tiles.iter().filter(|&&c| fence_at(m, c)).count();
-            let gate_tiles: BTreeSet<Cell> = e
-                .gates
-                .iter()
-                .flat_map(|g| g.tiles.iter().copied())
-                .collect();
-            let clear_off_gates = e
-                .tiles
-                .iter()
-                .filter(|&&c| !gate_tiles.contains(&c) && class(m, c, &halo, &pads, &routes) == 'F')
-                .count();
-            ceiling += clear_off_gates;
-            let spine = e.spine_gate().map_or("none".to_string(), |g| {
-                let cl = |c: Cell| class(m, c, &halo, &pads, &routes);
-                let mid: String = g.tiles.iter().map(|&c| cl(c)).collect();
-                format!("{}|{}|{}", cl(g.flanks[0]), mid, cl(g.flanks[1]))
-            });
-            if e.spine_gate().is_some_and(|g| {
-                g.flanks
-                    .iter()
-                    .all(|&c| class(m, c, &halo, &pads, &routes) == 'F')
-                    && g.tiles.iter().all(|&c| walkable(m, c) || fence_at(m, c))
-            }) {
-                viable[k] += 1;
-            } else {
-                both = false;
-            }
-            row += &format!(
-                "{} {} zone {} free {} (h {} s {} r {}) fence {} ({}%) clear-off-gates {} spine {} | ",
-                e.name(),
-                e.tiles.len(),
-                zone,
-                free,
-                count('h'),
-                count('s'),
-                count('r'),
-                standing,
-                percent(standing, free),
-                clear_off_gates,
-                spine
-            );
-            let key: &'static str = if k == 0 { "inner_free" } else { "outer_free" };
-            totals.entry(key).or_default().push(free as i64);
-            let key: &'static str = if k == 0 {
-                "inner_clear_off_gates"
-            } else {
-                "outer_clear_off_gates"
-            };
-            totals.entry(key).or_default().push(clear_off_gates as i64);
-        }
-        if both {
-            viable[2] += 1;
-        }
-        let (on, offc) = (fence_count(m), fence_count(&off));
-        row += &format!(
-            "fence on {on} off {offc} ceiling/off {}%",
-            percent(ceiling, offc)
+        push("attempt", l.attempt as f64);
+        push("m2 strict ceiling tiles", o.strict.len() as f64);
+        push("m2 strict ceiling x off share", x_off(o.strict.len()));
+        push(
+            "m2 strict ceiling % of on fence",
+            100.0 * o.strict.len() as f64 / on_f as f64,
         );
-        totals.entry("fence_on").or_default().push(on as i64);
-        totals.entry("fence_off").or_default().push(offc as i64);
-        totals.entry("ceiling").or_default().push(ceiling as i64);
-        totals
-            .entry("ceiling_pct_of_off")
-            .or_default()
-            .push(percent(ceiling, offc) as i64);
-        totals.entry("attempt").or_default().push(l.attempt as i64);
-        eprintln!("{row}");
+        push(
+            "m2 strict ceiling % of off fence",
+            100.0 * o.strict.len() as f64 / off_f as f64,
+        );
+        push("m2 loose ceiling tiles", o.loose.len() as f64);
+        push("m2 loose ceiling x off share", x_off(o.loose.len()));
+        push(
+            "m2 loose ceiling % of on fence",
+            100.0 * o.loose.len() as f64 / on_f as f64,
+        );
+        push(
+            "m2 loose ceiling % of off fence",
+            100.0 * o.loose.len() as f64 / off_f as f64,
+        );
+        push("m2 kept tiles", o.kept.len() as f64);
+        push("m2 kept x off share", x_off(o.kept.len()));
+        push(
+            "m2 kept % of off fence",
+            100.0 * o.kept.len() as f64 / off_f as f64,
+        );
+        push("m4 fence on", on_f as f64);
+        push("m4 fence off", off_f as f64);
+        push("m4 free on", on_g as f64);
+        push("m4 free off", off_g as f64);
+        push("m4 share on", s_on);
+        push("m4 share off", s_off);
+        push("m4 ratio on/off", s_on / s_off);
+        push("m5 sides min/max", lop);
+        push(
+            "check today's fence % on the route band",
+            100.0 * on_band as f64 / today.len().max(1) as f64,
+        );
+        push("check today's fence unfenceable", unfenceable as f64);
     }
-    for (k, v) in &mut totals {
-        v.sort_unstable();
+    eprintln!("M1: door axis equals today's fence axis on {same_axis} of 32");
+    for (k, v) in &cols {
+        eprintln!("{k}: {}", stats(v));
+    }
+    let base = &sweep[&(lane_offset(), gate_phase())];
+    for ((o, p), v) in &sweep {
+        let better = v.iter().zip(base).filter(|(a, b)| a[1] > b[1]).count();
+        let worse = v.iter().zip(base).filter(|(a, b)| a[1] < b[1]).count();
+        let diff: Vec<f64> = v.iter().zip(base).map(|(a, b)| a[1] - b[1]).collect();
         eprintln!(
-            "{k}: min {} median {} max {}",
-            v[0],
-            v[v.len() / 2],
-            v[v.len() - 1]
+            "M3 offset {o} phase {p:2} against offset {} phase {}: kept better on {better} seeds, worse on {worse}; difference {}",
+            lane_offset(),
+            gate_phase(),
+            stats(&diff)
         );
     }
-    eprintln!(
-        "front spine gate with both flanks free and clear, gate tiles walkable: inner {} / outer {} / both {} of {} seeds",
-        viable[0],
-        viable[1],
-        viable[2],
-        maps().len()
-    );
-    eprintln!("refusals before the accepted attempt, by reason: {refused:?}");
+    for ((o, p), v) in &sweep {
+        let loose: Vec<f64> = v.iter().map(|x| x[0]).collect();
+        let kept: Vec<f64> = v.iter().map(|x| x[1]).collect();
+        eprintln!(
+            "M3 offset {o} phase {p:2}: loose ceiling x off {} | kept x off {}",
+            stats(&loose),
+            stats(&kept)
+        );
+    }
+    eprintln!("refusals before the accepted attempt: {refused:?}");
 }
 
-/// The measurement behind the brief's section 12 verdict on item 7 (run with `--ignored --nocapture`): on every accepted
-/// attempt of seeds 1-64 (the certifying one; on seeds 1-32 also every other accepted attempt of 0-3), is there room for
-/// each enclosure's front spine gate? Strict: the gate's tiles are walkable (or today's fence) and both flanks are clear
-/// zone floor (class `F`). Loose: a clear tile somewhere on the front side on each side of the gate. The flanks' classes
-/// come from the Prefix and the Landmarks phase (camps, zones, spawns), which no styler can move.
+/// The sheet dump (run with `--ignored --nocapture`): seeds 1-8, option on and option off, the Sentenced zone's bounding
+/// box as text. Header `SHEET <on|off> seed=<n> attempt=<i> x0=<x> y0=<y> w=<w> h=<h>` (and, option on,
+/// `entrance=<x>,<y> facing=<N|E|S|W>`), then `h` lines `SHEET|` + one character per tile: ` ` outside the zone, `#` wall,
+/// `.` floor, `:` floor in a camp halo, `p` floor on a spawn pad, `f` lane fence, `o` any other LOW tile, `C` a tile
+/// owned by the church, `g` by a graveyard, `S` by the gallows square, `H` by a guard house, `+` the middle entrance
+/// tile; a tile owned by another feature shows its ground (`#`, `.`, `o`).
 #[test]
 #[ignore]
-fn report_spine_gate_room_on_accepted_attempts() {
-    let fixed = coliseum::fixed_layout();
-    let generator = pipeline::Pipeline::new(&fixed);
-    let mut samples = 0;
-    let mut strict = [0; 3];
-    let mut loose = [0; 3];
-    let mut why: BTreeMap<String, usize> = BTreeMap::new();
-    let mut certifying = 0;
-    let mut cert_strict = 0;
-    for seed in 1..=64i64 {
-        let mut got_first = false;
-        for n in 0..16u64 {
-            if got_first && (seed > 32 || n >= 4) {
-                break;
+fn sheet_dump_seeds_1_to_8() {
+    for (l, off) in maps().iter().zip(off_maps()).take(8) {
+        for (name, m) in [("on", &l.map), ("off", off)] {
+            let (halo, pads) = (halo(m), spawn_pads(m));
+            let zone: Vec<Cell> = (0..m.tiles.len())
+                .filter(|&i| m.region_grid[i] == sentenced())
+                .map(|i| cell(m, i))
+                .collect();
+            let x0 = zone.iter().map(|c| c.0).min().unwrap();
+            let x1 = zone.iter().map(|c| c.0).max().unwrap();
+            let y0 = zone.iter().map(|c| c.1).min().unwrap();
+            let y1 = zone.iter().map(|c| c.1).max().unwrap();
+            let door = (name == "on").then(|| yard(l.seed, m));
+            let mut head = format!(
+                "SHEET {name} seed={} attempt={} x0={x0} y0={y0} w={} h={}",
+                l.seed,
+                m.attempt,
+                x1 - x0 + 1,
+                y1 - y0 + 1
+            );
+            if let Some(f) = door {
+                let e = f.entrance();
+                head += &format!(" entrance={},{} facing={}", e.0, e.1, f.facing());
             }
-            let Some(m) = generator
-                .styled_attempt(seed, n, on_options())
-                .expect("generator error")
-            else {
-                continue;
-            };
-            let first = !got_first;
-            got_first = true;
-            let f = yard(seed, &m);
-            let (halo, pads, routes) = (halo(&m), spawn_pads(&m), route_band(&m));
-            let cl = |c: Cell| class(&m, c, &halo, &pads, &routes);
-            let mut s_ok = [false; 2];
-            let mut l_ok = [false; 2];
-            for (k, e) in enclosures(&f).iter().enumerate() {
-                let g = e.spine_gate().expect("spine gate");
-                let walk = g.tiles.iter().all(|&c| walkable(&m, c) || fence_at(&m, c));
-                let flanks: String = g.flanks.iter().map(|&c| cl(c)).collect();
-                s_ok[k] = walk && flanks == "FF";
-                // Loose: a clear tile anywhere on the front side on each side of the gate.
-                let (al, ac0) = f.frame(g.tiles[0]);
-                let (_, ac1) = f.frame(*g.tiles.last().unwrap());
-                let (lo, hi) = (ac0.min(ac1), ac0.max(ac1));
-                let (c_lo, c_hi) = (f.c0 - e.d, f.c1 + e.d);
-                let left = (c_lo + 1..lo).any(|t| cl(f.cell(al, t)) == 'F');
-                let right = (hi + 1..c_hi).any(|t| cl(f.cell(al, t)) == 'F');
-                l_ok[k] = walk && left && right;
-                if !s_ok[k] {
-                    let mid: String = g.tiles.iter().map(|&c| cl(c)).collect();
-                    let key = format!(
-                        "{} flanks {} gate {}",
-                        e.name(),
-                        flanks,
-                        if mid.chars().all(|c| c == 'o') {
-                            "off-zone"
-                        } else if walk {
-                            "walkable"
-                        } else {
-                            "blocked"
+            println!("{head}");
+            for y in y0..=y1 {
+                let mut line = String::from("SHEET|");
+                for x in x0..=x1 {
+                    let i = at(m, (x, y)).unwrap();
+                    let owner = usize::from(m.feature_grid[i])
+                        .checked_sub(1)
+                        .and_then(|k| m.features.get(k));
+                    let ch = if m.region_grid[i] != sentenced() {
+                        ' '
+                    } else if door.is_some_and(|f| f.entrance() == (x, y)) {
+                        '+'
+                    } else if is_lane_fence(m, i) {
+                        'f'
+                    } else {
+                        match owner.map(|o| (o.kind, o.variant.as_str())) {
+                            Some((FeatureKind::Church, _)) => 'C',
+                            Some((FeatureKind::Graveyard, _)) => 'g',
+                            Some((FeatureKind::Gallows, _)) => 'S',
+                            Some((FeatureKind::Landmark, "guardHouse")) => 'H',
+                            _ => match m.tiles[i] {
+                                1 => '#',
+                                2 => 'o',
+                                _ if halo[i] => ':',
+                                _ if pads[i] => 'p',
+                                _ => '.',
+                            },
                         }
-                    );
-                    *why.entry(key).or_default() += 1;
+                    };
+                    line.push(ch);
                 }
-            }
-            samples += 1;
-            for k in 0..2 {
-                strict[k] += usize::from(s_ok[k]);
-                loose[k] += usize::from(l_ok[k]);
-            }
-            strict[2] += usize::from(s_ok[0] && s_ok[1]);
-            loose[2] += usize::from(l_ok[0] && l_ok[1]);
-            if first {
-                certifying += 1;
-                cert_strict += usize::from(s_ok[0] && s_ok[1]);
+                println!("{line}");
             }
         }
-    }
-    eprintln!("accepted maps sampled: {samples}");
-    eprintln!(
-        "strict (both flanks clear zone floor, gate walkable): inner {} outer {} both {}",
-        strict[0], strict[1], strict[2]
-    );
-    eprintln!("loose (a clear tile somewhere on each side of the gate on the front side): inner {} outer {} both {}", loose[0], loose[1], loose[2]);
-    eprintln!("certifying maps seeds 1-64: {certifying}, strict both {cert_strict}");
-    for (k, v) in &why {
-        eprintln!("  {k}: {v}");
     }
 }
