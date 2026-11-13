@@ -833,7 +833,10 @@ fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
 fn practice_contributors_state() -> (&'static str, Sim) {
     let (_, sim) = produced_walk_hint_states().swap_remove(0);
     let mut cp = serde_json::to_value(&sim).unwrap();
-    assert_eq!(cp["world"]["practice"]["contributors"], serde_json::json!([]));
+    assert_eq!(
+        cp["world"]["practice"]["contributors"],
+        serde_json::json!([])
+    );
     let first = rh_sim::constants::PRACTICE_CAMP_FIRST;
     cp["world"]["practice"]["contributors"] = serde_json::json!([[first, 1], [first + 2, 1]]);
     (

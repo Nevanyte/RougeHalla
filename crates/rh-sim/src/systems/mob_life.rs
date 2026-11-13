@@ -386,12 +386,7 @@ fn kill_training_mob(
             .iter()
             .any(|m| m.camp == camp && m.status == Status::Alive)
     {
-        super::ledger::pay_later(
-            k,
-            w,
-            ev,
-            PayLater::PracticeCampCleared { camp_ref: camp },
-        );
+        super::ledger::pay_later(k, w, ev, PayLater::PracticeCampCleared { camp_ref: camp });
     }
     ev.push(Event::Death {
         id,

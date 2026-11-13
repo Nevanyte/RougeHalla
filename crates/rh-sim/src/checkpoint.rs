@@ -1706,12 +1706,18 @@ mod tests {
             json["world"]["practice"]["contributors"] = pairs;
             json
         };
-        let good = Sim::restore(&with(serde_json::json!([[first, 1], [last, 1]])))
+        let good = Sim::restore(with(serde_json::json!([[first, 1], [last, 1]])))
             .expect("practice refs paired with the seated player restore");
         assert_ne!(good.state_hash(), a.state_hash());
         for (pairs, why) in [
-            (serde_json::json!([[first - 1, 1]]), "a ref below the practice range"),
-            (serde_json::json!([[last + 1, 1]]), "a ref above the practice range"),
+            (
+                serde_json::json!([[first - 1, 1]]),
+                "a ref below the practice range",
+            ),
+            (
+                serde_json::json!([[last + 1, 1]]),
+                "a ref above the practice range",
+            ),
             (serde_json::json!([[first, 2]]), "an id no player ever had"),
             (serde_json::json!([[first, 1], [first, 1]]), "a pair twice"),
         ] {

@@ -222,7 +222,10 @@ mod practice_tests {
             .filter(|p| matches!(p, Payout::Ordinary(PayLater::PracticeCampCleared { .. })))
             .count();
         assert_eq!(queued, 1, "one practice clear queued for the whole camp");
-        assert_eq!(sim.w.players[0].camps_cleared, 0, "nothing paid inside the pass");
+        assert_eq!(
+            sim.w.players[0].camps_cleared, 0,
+            "nothing paid inside the pass"
+        );
         let mut pf = crate::pathfind::Pathfinder::default();
         ledger::pay_all(&sim.k, &mut sim.w, &mut ev, &mut pf);
         assert_eq!(sim.w.players[0].camps_cleared, 1);
@@ -258,7 +261,11 @@ mod practice_tests {
             hit(&mut sim, id, 1.0e6, &mut ev);
         }
         assert_eq!(sim.w.players[0].camps_cleared, 0, "too far to count");
-        assert_eq!(sim.w.players[0].potion_large, potions + 1, "the potion still");
+        assert_eq!(
+            sim.w.players[0].potion_large,
+            potions + 1,
+            "the potion still"
+        );
         assert!(sim.w.practice.as_ref().unwrap().contributors.is_empty());
     }
 }
