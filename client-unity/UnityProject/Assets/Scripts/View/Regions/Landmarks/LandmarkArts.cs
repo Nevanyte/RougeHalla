@@ -6,15 +6,22 @@ namespace Roguehalla.Client
     public delegate void LandmarkArtBuilder(Landmark landmark);
 
     /// <summary>
-    /// P-UNITY-LANDMARK-1: the registration point for a kind's art. Follow-up packets add one line to <see cref="TryGet"/>:
-    /// P-UNITY-LANDMARK-2 Volcano, -3 Church, -4 BogTree, -5 Hall; this packet registers Cave only. STUB: registers nothing.
+    /// P-UNITY-LANDMARK-1: the registration point for a kind's art. Follow-up packets add one case to <see cref="TryGet"/>:
+    /// P-UNITY-LANDMARK-2 Volcano, -3 Church, -4 BogTree, -5 Hall; this packet registers Cave only.
     /// </summary>
     public static class LandmarkArts
     {
         /// <summary>True for the five codes the wire carries (MapBlob.AnchorKind*).</summary>
         public static bool IsKnownKind(byte kind) { return kind >= MapBlob.AnchorKindVolcano && kind <= MapBlob.AnchorKindHall; }
 
-        public static bool TryGet(byte kind, out LandmarkArtBuilder builder) { builder = null; return false; }
+        public static bool TryGet(byte kind, out LandmarkArtBuilder builder)
+        {
+            switch (kind)
+            {
+                case MapBlob.AnchorKindCave: builder = CaveLandmark.Build; return true;
+                default: builder = null; return false;
+            }
+        }
 
         public static bool Has(byte kind) { return TryGet(kind, out _); }
     }

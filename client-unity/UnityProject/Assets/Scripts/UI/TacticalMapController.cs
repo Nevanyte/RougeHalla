@@ -4,7 +4,6 @@ using System.Text;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using Roguehalla.Net.Ui;
-using MapRect = Roguehalla.Net.Ui.MapRect;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
