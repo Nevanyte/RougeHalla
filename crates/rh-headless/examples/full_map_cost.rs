@@ -36,7 +36,7 @@ fn live_rules() -> SimConfig {
         walk_hints: Some(true),
         regen: true,
         regen_in_combat: rh_sim::RegenInCombat::Off,
-        camp_buffs: rh_sim::CampBuffRule::Legacy,
+        camp_buffs: rh_sim::CampBuffRule::Themed,
         quests: true,
         hazards: terrain::Mode::Map,
         abilities: abilities::Mode::Full,
