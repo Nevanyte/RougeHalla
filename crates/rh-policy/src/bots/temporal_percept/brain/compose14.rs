@@ -2100,6 +2100,10 @@ pub(crate) mod test_support {
 #[cfg(test)]
 mod tests;
 
+/// P-BOT-BRAIN-RECONCILE-1: the seat fence and the derived `self.mobKills`.
+#[cfg(test)]
+mod reconcile_tests;
+
 #[cfg(test)]
 mod live2a_tests {
     //! P-BOT-BRAIN-LIVE-2a, beyond the oracle: a held lock with a redacted target reaches every component as held without a

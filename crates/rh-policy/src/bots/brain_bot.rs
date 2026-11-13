@@ -371,4 +371,59 @@ mod setup_tests {
         assert_eq!(setup.arena.map.w, arena.map.w);
         assert_eq!(setup.arena.map.h, arena.map.h);
     }
+
+    /// The cloud line's private plan deal (brief 6.3): a Brain seat in a source match with a planning phase sees the
+    /// delivered deal as the source's immediate `private`/`plan` event, once per change of the plan group.
+    #[test]
+    fn a_brain_seat_sees_the_private_plan_deal_once_per_change() {
+        use crate::{drive_seats, scripted, Seat};
+        let arena = crate::bots::temporal_percept::brain::compose14::test_support::seed1_arena();
+        let config = SimConfig {
+            lifecycle: rh_sim::ArenaMode::Source(Default::default()),
+            min_players: 1,
+            lobby_seconds: 2.,
+            fill_seconds: 1.,
+            ..SimConfig::default()
+        };
+        let mut sim = Sim::new(config.clone(), arena.clone(), Secrets::from_seed(3));
+        let me = sim
+            .add_player("seat", Some(FactionId::Fire), true)
+            .expect("seat");
+        let tap: Tap = Arc::new(Mutex::new(Vec::new()));
+        let mut seats = vec![Seat::new(
+            &MatchStart::of(&sim, me, 9),
+            Box::new(
+                BrainBot::new(
+                    TierId::Hard,
+                    PersonaId::Hunter,
+                    brain_features(&config, &arena),
+                )
+                .with_tap(tap.clone()),
+            ),
+            Box::new(scripted::Idle),
+        )];
+        seats[0].bind_fx(&sim).expect("unbound");
+        let mut events = Vec::new();
+        for _ in 0..400 {
+            drive_seats(&mut sim, &mut seats, &events);
+            events.clear();
+            sim.step_into(&mut events);
+        }
+        assert_eq!(seats[0].fault, None);
+        let deals: Vec<_> = tap
+            .lock()
+            .expect("tap")
+            .iter()
+            .flat_map(|(raw, _)| raw.get("events").and_then(|e| e.as_arr()).unwrap_or(&[]))
+            .filter(|e| {
+                e.get("kind").and_then(|k| k.as_str()) == Some("private")
+                    && e.get("type").and_then(|k| k.as_str()) == Some("plan")
+            })
+            .filter_map(|e| e.get("msg").cloned())
+            .collect();
+        assert!(!deals.is_empty(), "the planning phase dealt a plan");
+        for pair in deals.windows(2) {
+            assert_ne!(pair[0], pair[1], "a deal is sent only when it changes");
+        }
+    }
 }
