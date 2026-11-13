@@ -1081,6 +1081,37 @@ fn public_map(all: bool) -> MapBlob {
     .expect("the public sample map is valid")
 }
 
+/// An 8 x 6 map dressed at the wire's boundaries (P-DRESS-BAKE-1): props in `(y, x, kind)` order covering a tall rule
+/// prop, two props on one y, two on one `(y, x)`, the highest legacy kind with an unchecked variant and the highest rule
+/// kind on the last world unit inside the map; with `ground`, every ground variant id 0..=15 row-major.
+fn dressed_map(ground: bool) -> MapBlob {
+    let (w, h) = (8u16, 6u16);
+    let total = usize::from(w) * usize::from(h);
+    let tiles: Vec<u8> = (0..total).map(|i| u8::from(i % 7 == 3)).collect();
+    let prop = |kind, x, y, variant, flags| MapProp {
+        kind,
+        x,
+        y,
+        variant,
+        flags,
+    };
+    let props = vec![
+        prop(41, 48, 40, 0, 1),
+        prop(3, 100, 60, 2, 0),
+        prop(3, 101, 60, 3, 0),
+        prop(7, 101, 60, 0, 0),
+        prop(33, 16, 176, 200, 2),
+        prop(100, 255, 191, 1, 1),
+    ];
+    MapBlob::new(w, h, tiles)
+        .with_public(MapPublic {
+            props,
+            ground_variants: ground.then(|| (0..total).map(|i| (i % 16) as u8).collect()),
+            ..MapPublic::default()
+        })
+        .expect("the dressed sample map is valid")
+}
+
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
     // The sample rectangle needs a map of at least 3 x 2 tiles; smaller sample maps carry no coliseum.
     let vision = if map.w >= 3 && map.h >= 2 {
@@ -2224,6 +2255,9 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         // Protocol 17 public sections: every section, then what the server ships (camps, coliseum, bushes).
         ("welcome_public_all", welcome_map_msg(public_map(true))),
         ("welcome_public_shipped", welcome_map_msg(public_map(false))),
+        // P-DRESS-BAKE-1: a dressed map, with and without its ground-variant plane.
+        ("welcome_dress_props_ground", welcome_map_msg(dressed_map(true))),
+        ("welcome_dress_props_only", welcome_map_msg(dressed_map(false))),
         (
             "reject",
             ServerMsg::Reject {
@@ -3625,7 +3659,108 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
             welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&[(16, 16, 80, 1)]))], true),
             "semantic hash",
         ),
+        // P-DRESS-BAKE-1: dressing values a decoder refuses (the 4 x 3 map: x < 128, y < 96 world units).
+        (
+            "map17_dress_prop_kind_zero",
+            one_prop((0, 16, 16, 0, 0)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_prop_kind_over",
+            one_prop((101, 16, 16, 0, 0)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_legacy_kind_over",
+            one_prop((34, 16, 16, 0, 2)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_prop_flags",
+            one_prop((1, 16, 16, 0, 4)),
+            "prop flags",
+        ),
+        (
+            "map17_dress_prop_variant",
+            one_prop((1, 16, 16, 4, 0)),
+            "prop variant",
+        ),
+        (
+            "map17_dress_prop_x_outside",
+            one_prop((1, 128, 16, 0, 0)),
+            "prop tile",
+        ),
+        (
+            "map17_dress_prop_y_outside",
+            one_prop((1, 16, 96, 0, 0)),
+            "prop tile",
+        ),
+        (
+            "map17_dress_prop_order",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(
+                    2,
+                    &[(1, 16, 48, 0, 0), (1, 16, 16, 0, 0)],
+                ))],
+                false,
+            ),
+            "prop order",
+        ),
+        (
+            "map17_dress_prop_duplicate",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(
+                    2,
+                    &[(1, 16, 16, 0, 0), (1, 16, 16, 0, 0)],
+                ))],
+                false,
+            ),
+            "prop order",
+        ),
+        (
+            "map17_dress_props_truncated",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(2, &[(1, 16, 16, 0, 0)]))],
+                false,
+            ),
+            "truncated",
+        ),
+        (
+            "map17_dress_ground_over",
+            welcome_public_raw(2, 0x40, &[raw_plane(&vec![16; cells])], false),
+            "ground variant",
+        ),
+        (
+            "map17_dress_ground_long",
+            welcome_public_raw(2, 0x40, &[raw_plane(&vec![1; cells + 1])], false),
+            "run",
+        ),
     ]
+}
+
+/// A prop section with the given `count` and rows `(kind, x, y, variant, flags)` (a count above the rows is truncated).
+fn raw_props(count: u16, rows: &[(u8, u16, u16, u8, u8)]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u16(count);
+    for &(kind, x, y, variant, flags) in rows {
+        w.u8(kind);
+        w.u16(x);
+        w.u16(y);
+        w.u8(variant);
+        w.u8(flags);
+    }
+    w.finish()
+}
+
+/// A Welcome on the 4 x 3 raw map whose only section is one prop row.
+fn one_prop(row: (u8, u16, u16, u8, u8)) -> Vec<u8> {
+    welcome_public_raw(2, 0x20, &[raw_list(raw_props(1, &[row]))], false)
 }
 
 fn ground_welcome_bytes(

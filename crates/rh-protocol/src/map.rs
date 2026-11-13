@@ -30,7 +30,7 @@ pub const MAX_MAP_CAMPS: usize = 64;
 pub const MAX_COLISEUM_GATES: usize = 8;
 /// Most tiles in one gate (legacy: GATE_W = 4).
 pub const MAX_GATE_TILES: usize = 16;
-/// Most cosmetic props (reserved section; ships empty).
+/// Most cosmetic props (`rh_mapdress::MAX_PROPS`).
 pub const MAX_MAP_PROPS: usize = 8192;
 
 // P-DRESS-BAKE-1 (stub: the values are the brief's; the checks that use them are the implementer's).
@@ -48,6 +48,8 @@ pub const LEGACY_PROP_KINDS: u8 = 34;
 pub const MAX_PROP_VARIANT: u8 = 3;
 /// Highest ground-variant id in the ground-variant plane.
 pub const MAX_GROUND_VARIANT: u8 = 15;
+/// World units per tile: a prop at `(x, y)` stands on tile `(x / 32, y / 32)`, which must be inside the map.
+const PROP_TILE: u16 = 32;
 
 /// One camp marker, index-aligned with the `WireCamp` rows in state. World units; `zone` is `Zone::code` (1..=5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,7 +85,7 @@ pub struct MapColiseum {
     pub gates: Vec<MapGate>,
 }
 
-/// A cosmetic prop (reserved section; ships empty).
+/// A cosmetic prop (the server's map dressing, P-DRESS-BAKE-1): x and y in world units, rows sorted by `(y, x, kind)`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MapProp {
     pub kind: u8,
@@ -101,7 +103,7 @@ pub struct MapPublic {
     /// Row-major bush identity plane: 0 none, else the legacy bush id.
     pub bushes: Option<Vec<u8>>,
     pub props: Vec<MapProp>,
-    /// Row-major ground-variant plane (reserved; ships absent).
+    /// Row-major ground-variant plane (the server's map dressing; ids `0..=MAX_GROUND_VARIANT`).
     pub ground_variants: Option<Vec<u8>>,
 }
 
@@ -578,6 +580,18 @@ fn check_public(w: u16, h: u16, p: &MapPublic) -> Result<(), EncodeError> {
     if p.props.len() > MAX_MAP_PROPS {
         return Err(EncodeError::BadMap("prop count"));
     }
+    let mut previous = None;
+    for prop in &p.props {
+        check_prop(prop, previous, w, h).map_err(EncodeError::BadMap)?;
+        previous = Some(prop);
+    }
+    if p
+        .ground_variants
+        .as_deref()
+        .is_some_and(|g| g.iter().any(|&v| v > MAX_GROUND_VARIANT))
+    {
+        return Err(EncodeError::BadMap("ground variant"));
+    }
     Ok(())
 }
 
@@ -686,12 +700,20 @@ fn preflight<'a>(r: &mut Reader<'a>) -> Result<MapPlan<'a>, DecodeError> {
         None
     };
     let props = if flags & PRESENCE_PROPS != 0 {
-        Some(section(ext, &mut er, read_props)?)
+        Some(section(ext, &mut er, |r| read_props(r, w, h))?)
     } else {
         None
     };
     let ground_variants = if flags & PRESENCE_GROUND_VARIANTS != 0 {
-        Some(read_plane_plan(&mut er, total, &mut cumulative_runs)?)
+        let plan = read_plane_plan(&mut er, total, &mut cumulative_runs)?;
+        if plan
+            .runs
+            .chunks_exact(RUN_LEN)
+            .any(|run| run[0] > MAX_GROUND_VARIANT)
+        {
+            return Err(DecodeError::BadMap("ground variant"));
+        }
+        Some(plan)
     } else {
         None
     };
@@ -802,12 +824,51 @@ fn read_coliseum(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> 
     Ok(())
 }
 
-fn read_props(r: &mut Reader<'_>) -> Result<(), DecodeError> {
+fn read_props(r: &mut Reader<'_>, w: u16, h: u16) -> Result<(), DecodeError> {
     let count = usize::from(r.u16()?);
     if count == 0 || count > MAX_MAP_PROPS {
         return Err(DecodeError::BadMap("prop count"));
     }
-    r.bytes(count * PROP_LEN)?;
+    let rows = r.bytes(count * PROP_LEN)?;
+    let mut previous = None;
+    for row in rows.chunks_exact(PROP_LEN) {
+        let prop = prop_row(row);
+        check_prop(&prop, previous.as_ref(), w, h).map_err(DecodeError::BadMap)?;
+        previous = Some(prop);
+    }
+    Ok(())
+}
+
+/// The value checks of one prop row in the wire rules' order (flags, kind, variant, tile, order), shared by the encoder
+/// and the decoder; `previous` is the row before it.
+fn check_prop(
+    p: &MapProp,
+    previous: Option<&MapProp>,
+    w: u16,
+    h: u16,
+) -> Result<(), &'static str> {
+    if p.flags & !(PROP_FLAG_TALL | PROP_FLAG_LEGACY) != 0 {
+        return Err("prop flags");
+    }
+    if p.flags & PROP_FLAG_LEGACY != 0 {
+        // A legacy prop's kind is a generator catalogue index and its variant the generator's `v` (not checked).
+        if p.kind >= LEGACY_PROP_KINDS {
+            return Err("prop kind");
+        }
+    } else {
+        if p.kind == 0 || p.kind > MAX_PROP_KIND {
+            return Err("prop kind");
+        }
+        if p.variant > MAX_PROP_VARIANT {
+            return Err("prop variant");
+        }
+    }
+    if p.x / PROP_TILE >= w || p.y / PROP_TILE >= h {
+        return Err("prop tile");
+    }
+    if previous.is_some_and(|q| (q.y, q.x, q.kind) >= (p.y, p.x, p.kind)) {
+        return Err("prop order");
+    }
     Ok(())
 }
 
@@ -1067,16 +1128,20 @@ fn decode_camps(section: &[u8]) -> Vec<MapCamp> {
         .collect()
 }
 
+fn prop_row(row: &[u8]) -> MapProp {
+    MapProp {
+        kind: row[0],
+        x: le16(row, 1),
+        y: le16(row, 3),
+        variant: row[5],
+        flags: row[6],
+    }
+}
+
 fn decode_props(section: &[u8]) -> Vec<MapProp> {
     section[2..]
         .chunks_exact(PROP_LEN)
-        .map(|row| MapProp {
-            kind: row[0],
-            x: le16(row, 1),
-            y: le16(row, 3),
-            variant: row[5],
-            flags: row[6],
-        })
+        .map(prop_row)
         .collect()
 }
 
@@ -1284,6 +1349,32 @@ impl EncodedMap {
         let mut expected = Writer::with_capacity(public_len(public));
         write_public(&mut expected, public);
         self.body[offset..] == expected.finish()[..]
+    }
+
+    /// [`Self::matches_public`] for a blob that may also carry dressing (props, ground variants): every section but those
+    /// two must match `public` exactly, and the dressing the blob carries must pass the decoder's checks. `public`'s own
+    /// dressing is ignored. A cold path (room start, pool tests), never per tick: it decodes the blob once.
+    pub fn matches_public_any_dressing(
+        &self,
+        w: u16,
+        h: u16,
+        tiles: &[u8],
+        terrain: Option<&[u8]>,
+        regions: Option<&[u8]>,
+        public: &MapPublic,
+    ) -> bool {
+        let mut out = Writer::with_capacity(self.len());
+        self.write_with_mode(&mut out, GroundMode::Off);
+        let bytes = out.finish();
+        let Ok(decoded) = MapBlob::read(&mut Reader::new(&bytes)) else {
+            return false;
+        };
+        let dressed = MapPublic {
+            props: decoded.public.props,
+            ground_variants: decoded.public.ground_variants,
+            ..public.clone()
+        };
+        self.matches_public(w, h, tiles, terrain, regions, &dressed)
     }
 }
 
