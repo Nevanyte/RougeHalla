@@ -267,7 +267,7 @@ namespace Roguehalla.Client
             else if (_session.State == SessionState.Rejected) banner = "Join rejected: " + _session.RejectReason;
             else if (_session.State == SessionState.Failed) banner = "Connection failed: " + _session.Error;
             else banner = _session.State.ToString();
-            Set(_banner, banner); Set(_plateStatus, banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
+            Set(_banner, banner); Set(_plateStatus, _session.State == SessionState.InMatch && _client != null && _client.ConfirmedPractice && !_client.LaunchPending ? TrainingBanner : banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
             }
             if (_client != null && _client.LaunchPending) return;
             var pmOwner = PerfMarks.Begin();
