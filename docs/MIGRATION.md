@@ -4,6 +4,29 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, evening): P-BOT-BRAIN-CONTINUITY-1's two points ("Accept both")
+
+The coordinator asked the owner to confirm two things reviewer-opus raised on the worker session's
+P-BOT-BRAIN-CONTINUITY-1 branch, with a recommendation to accept both; the owner answered **"Accept both"**:
+(1) the 7-line fix in `tactics/kite.rs`, outside the packet's write scope (a bow pull with an unknown start time is
+no longer treated as a shot; before, it froze the seat's orders for the rest of the run); (2) the two oracle edits
+the worker made after implementing (the floors window lengthened from 6,000 to 16,000 ticks; the replay check
+shortened). The branch merges on that basis. Recorded with it, as an open weakness and not as proof: the Brain farms
+camps but fights less than the simple bots (11 deaths over 32,000 ticks against 14 over about 10,200), and the
+shortened replay check exists only because of the sim's replay fault (P-SIM-REPLAY-LONG-1, in flight: the claim in
+that branch's hand-off that it is "not established whether the divergence predates this branch" is superseded: it
+does predate it; the cause is `systems/mob_ai.rs:228` scanning the whole output event buffer).
+
+## Owner decision 2026-11-13 (chat, evening): the church with its churchyard is approved
+
+The coordinator showed the redrawn church (the session's picture and write-up) and asked "Is the redrawn church with
+its churchyard approved?"; the owner answered **"Approve"**. The grid is checked in as
+`docs/landmarks/blueprints/church.txt`: the building is 23 x 14 (it was 29 x 17), 8 pillars, no altar; the graveyard
+is 11 rows deep; the churchyard fence has the 5-wide main gate and eleven 3-wide gates (a 29-tile side cannot hold a
+fence run over 9 tiles or a closed corner arm over 5, so each side has three gates); the door line to the main gate
+line is 12 rows, which the land-generation session's lanes need. All five blueprints are now approved. Still open
+with the owner the same hour: the two P-BOT-BRAIN-CONTINUITY-1 confirmations.
+
 ## Owner decision 2026-11-13 (chat, late afternoon): "Finish everything first"
 
 The coordinator told the owner that the plan's three unfinished parts (larger landmarks with their art, Frost Wall

@@ -20,9 +20,14 @@ others, the next attempt tried), distinct from a real styler fault, which stays 
 for the door; the other signature-mode stylers may use it for their own landmark preconditions.
 
 ## 2. Dependencies
-- P-LAND-SENTENCED-1 merged. The land-generation session owns `style_gallows/`: the one-line change of that styler's
-  return (from `Error::Feature` to the new refusal) is made here with its agreement, or handed to it as a failing
-  test: say which in the brief.
+- P-LAND-SENTENCED-1 merged. The land-generation session owns `style_gallows/` and agreed (2026-11-13) that this
+  packet edits it, limited to: the two `Err(Error::Feature)` returns in `lanes::frame` (no dominant front sign;
+  `door_span` finds no three-tile door) becoming the new refusal, and whatever the two call sites need for the new
+  type (`shape.rs` `lanes::frame(&b)?`, `mod.rs` `validate_plan` `lanes::frame(c)?`). Its conditions: `Ok(None)`
+  without a `Church` stays as it is (option off); the unit test
+  `lanes::tests::the_door_is_exactly_three_open_tiles_in_one_run` and its oracle
+  (`crates/rh-sim/tests/mapgen_land_sentenced.rs`) stay green; it is told the commit. The README sentence and the doc
+  comments that say the styler "stops with `Error::Feature`" are corrected here too.
 
 ## 5. Exclusive write scope
 - `crates/rh-sim/src/mapgen/pipeline/mod.rs` (the styler call and the `Refusal` list), `mapgen/style_runtime/` (the
