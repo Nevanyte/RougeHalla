@@ -455,6 +455,8 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-UNITY-WORLD-MARKS-2 | the client draws each camp's patience range and the quest carrier's flag | P-WIRE17-MAP-2 | Brief ([spec](packets/P-UNITY-WORLD-MARKS-2.md)); oracle being written | client/src/render/CampPatience.ts, QuestView.ts |
 | P-FROST-WALL-1b | Frost Wall, second sim part: fighters it lands on, walks under way, mobs and blinks | P-FROST-WALL-1 | Brief ([spec](packets/P-FROST-WALL-1b.md)); needs oracle | legacy patch 78dd8bd4 |
 | P-FROST-WALL-2 | Frost Wall on the wire, and the live profiles select it | P-FROST-WALL-1b, P-WIRE17-MAP-3 | Brief ([spec](packets/P-FROST-WALL-2.md)); needs oracle | legacy patch 78dd8bd4, cde6f785 |
+| P-BOT-BRAIN-CHOICES-1 | a Brain seat records the choices it makes, so the learner has something to learn from | P-BOT-BRAIN-CONTINUITY-1, P-BOT-LEARN-ON-1 | Brief ([spec](packets/P-BOT-BRAIN-CHOICES-1.md)); needs oracle | server/src/bots/brain.ts |
+| P-BOT-TUNER-2 | the search's output can tell an improvement from noise (per-tier intervals, a held-out re-score) | P-BOT-TUNER-1 | Brief ([spec](packets/P-BOT-TUNER-2.md)); needs oracle | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 

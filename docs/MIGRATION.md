@@ -4,6 +4,19 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, evening): P-BOT-BRAIN-CONTINUITY-1's two points ("Accept both")
+
+The coordinator asked the owner to confirm two things reviewer-opus raised on the worker session's
+P-BOT-BRAIN-CONTINUITY-1 branch, with a recommendation to accept both; the owner answered **"Accept both"**:
+(1) the 7-line fix in `tactics/kite.rs`, outside the packet's write scope (a bow pull with an unknown start time is
+no longer treated as a shot; before, it froze the seat's orders for the rest of the run); (2) the two oracle edits
+the worker made after implementing (the floors window lengthened from 6,000 to 16,000 ticks; the replay check
+shortened). The branch merges on that basis. Recorded with it, as an open weakness and not as proof: the Brain farms
+camps but fights less than the simple bots (11 deaths over 32,000 ticks against 14 over about 10,200), and the
+shortened replay check exists only because of the sim's replay fault (P-SIM-REPLAY-LONG-1, in flight: the claim in
+that branch's hand-off that it is "not established whether the divergence predates this branch" is superseded: it
+does predate it; the cause is `systems/mob_ai.rs:228` scanning the whole output event buffer).
+
 ## Owner decision 2026-11-13 (chat, evening): the church with its churchyard is approved
 
 The coordinator showed the redrawn church (the session's picture and write-up) and asked "Is the redrawn church with
