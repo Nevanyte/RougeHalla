@@ -12,7 +12,11 @@ namespace Roguehalla.Client
 {
     public sealed class RegionProps : System.IDisposable
     {
-        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias; }
+        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias;
+            /// <summary>Set only for a prop the server sent (MapBlob.Props): its kind code, variant and flags (tall 1, legacy 2). Kind 0 means a client-rolled placement.</summary>
+            public byte Kind, Variant, Flags;
+            /// <summary>True for a row of the server's decoration: its tall flag (not the art's) decides the fade.</summary>
+            public bool Shipped; }
 
         struct Prop
         {
@@ -32,6 +36,7 @@ namespace Roguehalla.Client
         public static List<Placement> Scatter(MapBlob map)
         {
             var list = new List<Placement>(2048);
+            if (map.Props != null && map.Props.Length > 0) { AddShipped(map, list); return list; }
             if (map.Regions == null) { AddRealBushes(map, list); return list; }
             int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;     // props avoid every terrain tile, drawn or not
             int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
@@ -78,6 +83,25 @@ namespace Roguehalla.Client
             ColiseumProps.Add(map, list, seed);
             AddRealBushes(map, list);
             return list;
+        }
+
+        /// <summary>A map whose blob carries decoration: exactly the server's props (tile units), the fixed temple and coliseum furniture, and the real bushes. Nothing is rolled.</summary>
+        static void AddShipped(MapBlob map, List<Placement> list)
+        {
+            foreach (var p in map.Props)
+            {
+                float x = p.X / 32f, y = p.Y / 32f;
+                list.Add(new Placement { Art = DecorationKinds.ArtKey(p.Kind, p.Variant, p.Flags), X = x, Y = y, Scale = 1f, Flip = false, Tx = Mathf.FloorToInt(x), Ty = Mathf.FloorToInt(y),
+                    Kind = p.Kind, Variant = p.Variant, Flags = p.Flags, Shipped = true });
+            }
+            if (map.Regions != null && map.Regions.Length == map.W * map.H)
+            {
+                int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
+                foreach (var d in TempleLayout.For(map).Props)
+                    list.Add(new Placement { Art = d.Art, X = d.X, Y = d.Y, Scale = d.Scale, Flip = d.Flip, Tx = Mathf.FloorToInt(d.X), Ty = Mathf.FloorToInt(d.Y + (d.Bias > 0 ? 1.5f : 0f)), Bias = d.Bias });
+                ColiseumProps.Add(map, list, seed);
+            }
+            AddRealBushes(map, list);
         }
 
         /// <summary>One bush per real concealment cell of the map blob's bush plane (protocol 17), in the zone's own bush art.</summary>
@@ -127,17 +151,24 @@ namespace Roguehalla.Client
             _material = litShader != null ? new Material(litShader) { name = "Roguehalla / region props (sun lit)" } : ShowcaseSprites.Lit;
             if (litShader != null) _owned.Add(_material);
             var placements = Scatter(map);
+            HashSet<byte> warned = null;
             foreach (var pl in placements)
             {
+                if (pl.Shipped && (pl.Flags & 2) == 0 && !DecorationKinds.TryGet(pl.Kind, out _))
+                {
+                    if (warned == null) warned = new HashSet<byte>();
+                    if (warned.Add(pl.Kind)) Debug.LogWarning("RegionProps: unknown decoration kind " + pl.Kind + " drawn as the placeholder");
+                }
                 if (!RegionPropArt.TryGet(pl.Art, out var art)) continue;
                 var go = new GameObject(pl.Art); go.transform.SetParent(_root.transform, false);
                 Vector3 foot = ArenaView.WorldPoint(pl.X * 32f, pl.Y * 32f);
                 go.transform.localPosition = foot; go.transform.localScale = new Vector3(pl.Flip ? -pl.Scale : pl.Scale, pl.Scale, 1f);
                 var sr = go.AddComponent<SpriteRenderer>(); sr.sprite = art.Sprite; sr.sharedMaterial = _material;
                 sr.sortingOrder = 2000 + Mathf.RoundToInt(pl.Y * 32f * .5f) + pl.Bias;
-                var prop = new Prop { Renderer = sr, FootX = foot.x, FootY = foot.y, HalfW = art.Width * .5f * pl.Scale * .8f, Height = art.Height * pl.Scale, Tall = art.Tall, Alpha = 1f, MarkFrame = -10, Base = Color.white };
+                bool tall = pl.Shipped ? (pl.Flags & 1) != 0 : art.Tall;
+                var prop = new Prop { Renderer = sr, FootX = foot.x, FootY = foot.y, HalfW = art.Width * .5f * pl.Scale * .8f, Height = art.Height * pl.Scale, Tall = tall, Alpha = 1f, MarkFrame = -10, Base = Color.white };
                 int index = _props.Count; _props.Add(prop);
-                if (art.Tall)
+                if (tall)
                 {
                     int key = Cell(pl.Tx, pl.Ty); if (!_tallByCell.TryGetValue(key, out var cell)) { cell = new List<int>(2); _tallByCell[key] = cell; }
                     cell.Add(index);

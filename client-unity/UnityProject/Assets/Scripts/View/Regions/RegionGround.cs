@@ -72,6 +72,11 @@ namespace Roguehalla.Client
             var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
             Material.SetTexture("_TempleTex", pierTex);
+            // Server ground variants: one texel per tile (rgb tint, a strength), point sampled. _VariantOn stays 0 on a map without a variant plane.
+            var variantTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
+            variantTex.SetPixelData(BakeVariants(map), 0); variantTex.Apply(false, true); _owned.Add(variantTex);
+            Material.SetTexture("_VariantTex", variantTex);
+            Material.SetFloat("_VariantOn", map.GroundVariants != null && map.GroundVariants.Length == w * h ? 1f : 0f);
             Material.SetVector("_Coliseum", ColiseumBounds(map.Regions, w, h));
 
             Material.SetVector("_Map", new Vector4(w, h, ArenaView.GroundSquash, 0));
@@ -92,6 +97,27 @@ namespace Roguehalla.Client
             mr.sharedMaterial = Material; mr.sortingOrder = GroundSortingOrder;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off; mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        }
+
+        /// <summary>One texel per tile (row-major, w * h), the ground-variant look the shader blends over the base ground: rgb the tint, a its strength (0 = base ground). Variant 0 and an unknown variant bake 0; an unknown variant logs once per call.</summary>
+        public static Color32[] BakeVariants(MapBlob map)
+        {
+            int w = map.W, h = map.H; var px = new Color32[w * h];
+            var plane = map.GroundVariants; if (plane == null || plane.Length != w * h) return px;
+            System.Collections.Generic.HashSet<byte> warned = null;
+            for (int i = 0; i < px.Length; i++)
+            {
+                byte v = plane[i]; if (v == 0) continue;
+                int region = map.Regions != null && map.Regions.Length == px.Length ? map.Regions[i] : 0;
+                if (Roguehalla.Net.Ui.GroundVariantLook.TryGet(region, v, out var t))
+                    px[i] = new Color32(t.R, t.G, t.B, (byte)Mathf.RoundToInt(Mathf.Clamp01(t.Strength) * 255f));
+                else if (v > 8 || region >= 1 && region <= 5)
+                {
+                    if (warned == null) warned = new System.Collections.Generic.HashSet<byte>();
+                    if (warned.Add(v)) Debug.LogWarning("RegionGround: unknown ground variant " + v + " draws the base ground");
+                }
+            }
+            return px;
         }
 
         Texture2D Tex(string name, int w, int h, Color32[] px)

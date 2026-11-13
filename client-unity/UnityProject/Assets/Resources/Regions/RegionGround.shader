@@ -17,6 +17,8 @@ Shader "Roguehalla/RegionGround"
         _TerA("Terrain A", 2D) = "black" {}
         _TerB("Terrain B", 2D) = "black" {}
         _PlgTex("Plague ground", 2D) = "black" {}
+        _VariantTex("Ground variants (rgb tint, a strength, 1 texel per tile)", 2D) = "black" {}
+        _VariantOn("Ground variants present", Float) = 0
         _Exposure("Exposure", Float) = 1
         _Debug("Debug", Float) = 0
     }
@@ -64,6 +66,7 @@ Shader "Roguehalla/RegionGround"
             TEXTURE2D(_TerA); SAMPLER(sampler_TerA);
             TEXTURE2D(_TerB); SAMPLER(sampler_TerB);
             TEXTURE2D(_PlgTex); SAMPLER(sampler_PlgTex);   // r shallow water, g grass, b water depth (Plague only)
+            TEXTURE2D(_VariantTex); SAMPLER(sampler_VariantTex);   // rgb tint, a strength (0 = base ground), point sampled, 1 texel per tile
             TEXTURE2D(_TempleTex); SAMPLER(sampler_TempleTex);   // r = 1 on tiles of a temple pier block (point sampled, 1 texel per tile)
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -84,6 +87,7 @@ Shader "Roguehalla/RegionGround"
             CBUFFER_START(UnityPerMaterial)
                 half _Exposure;
                 half _Debug;
+                half _VariantOn;
             CBUFFER_END
             #include "RhSun.hlsl"
             #include "RhLocalLights.hlsl"
@@ -552,6 +556,14 @@ Shader "Roguehalla/RegionGround"
                             gTilt += (nr.rg * 2.0 - 1.0) * wk; gGloss += nr.b * wk;
                         }
                     }
+                }
+
+                // Server ground variants: a tint over the blended base ground, whole tiles, ragged edge from the same warp as the region borders.
+                [branch] if (_VariantOn > 0.5)
+                {
+                    float2 vuv = (floor(t + warp * 0.35) + 0.5) / _Map.xy;
+                    half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_VariantTex, vuv, 0);
+                    col = lerp(col, vt.rgb, vt.a);                  // raw bytes, the same convention as the palette colours
                 }
 
                 float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable

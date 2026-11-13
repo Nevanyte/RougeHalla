@@ -42,7 +42,7 @@ namespace Roguehalla.Client
         {
             if (_all != null) return;
             var defs = new List<Def>();
-            AddFrost(defs); AddFire(defs); AddSentenced(defs); AddPlague(defs); AddHoly(defs); AddTemple(defs); AddColiseum(defs);
+            AddFrost(defs); AddFire(defs); AddSentenced(defs); AddPlague(defs); AddHoly(defs); AddTemple(defs); AddColiseum(defs); AddPlaceholder(defs);
             // Shelf-pack into an atlas, growing the height if needed.
             Build(defs, 1024, 1024);
         }
@@ -128,6 +128,18 @@ namespace Roguehalla.Client
                 _all[d.Key] = new RegionPropSprite { Key = d.Key, Sprite = sprite, Width = Mathf.Max(d.W, 2f * Mathf.Max(pivots[i].x, cvs[i].W - pivots[i].x)) / PixelsPerUnit, Height = (d.H - d.Ground) / (float)PixelsPerUnit, Tall = d.Tall,
                     MarginLeft = margins[i][0], MarginRight = margins[i][1], MarginBottom = margins[i][2], MarginTop = margins[i][3], PixelWidth = cvs[i].W, PixelHeight = cvs[i].H, ExceededCell = margins[i][4] == 1 };
             }
+        }
+
+        /// <summary>The sprite drawn for a decoration kind the client does not know (and for a legacy prop): a loud magenta diamond, never invisible.</summary>
+        static void AddPlaceholder(List<Def> l)
+        {
+            Add(l, "dress.unknown", 64, 80, 6, (c, gy) =>
+            {
+                var magenta = new Color(.9f, .1f, .8f, 1f);
+                var d = Poly(new Vector2(32, gy), new Vector2(50, gy + 30), new Vector2(32, gy + 60), new Vector2(14, gy + 30));
+                c.Fill(d, Flat(magenta), Ink, 2f);
+                c.Fill(Intersect(d, Box(32, gy + 30, 4, 14)), Flat(Color.white));
+            });
         }
 
         static void Add(List<Def> l, string key, int w, int h, int ground, Action<RegionCanvas, int> paint, bool tall = false)
