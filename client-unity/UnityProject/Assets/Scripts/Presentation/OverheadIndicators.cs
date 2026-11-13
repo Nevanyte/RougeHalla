@@ -143,7 +143,16 @@ namespace Roguehalla.Client
         /// <summary>How wide the drawn name is, in world units.</summary>
         public float NameWorldWidth { get { return _name.preferredWidth * _name.transform.lossyScale.x; } }
         /// <summary>The bounds of the drawn name mesh in world units (what a player sees), with the mesh brought up to date.</summary>
-        public Bounds NameDrawnBounds { get { _name.ForceMeshUpdate(); return _name.GetComponent<MeshRenderer>().bounds; } }
+        public Bounds NameDrawnBounds
+        {
+            get
+            {
+                // The mesh is rebuilt only when the text or the size changed since the last read (moving the label needs no rebuild).
+                if (!ReferenceEquals(_boundsText, _nameText) || _boundsSize != _name.fontSize) { _name.ForceMeshUpdate(); _boundsText = _nameText; _boundsSize = _name.fontSize; }
+                return _name.GetComponent<MeshRenderer>().bounds;
+            }
+        }
+        string _boundsText; float _boundsSize;
         /// <summary>Height of the drawn name line in world units.</summary>
         public float NameWorldHeight { get { return _name.preferredHeight * _name.transform.lossyScale.y; } }
         /// <summary>Moves the name label (centre) to a world point for this frame (pack anchor, stacking); <see cref="Update"/> resets it next frame.</summary>
@@ -172,8 +181,9 @@ namespace Roguehalla.Client
             var look = NamePalette.Colours(_nameKind, _namePale);
             var mat = OutlinedMaterial(_name.font, _namePale);
             if (_name.fontSharedMaterial != mat) _name.fontSharedMaterial = mat;
-            float a = _nameBase.a; _nameBase = Rgb(look.Face); _nameBase.a = a;
-            var c = _nameBase; c.a *= _textFade; _name.color = c;
+            // Only the colour changes: the label keeps the alpha it has now (a pack name's fade, set by the presenter, survives the frame the palette flips).
+            float a = _name.color.a; _nameBase = Rgb(look.Face); _nameBase.a = 1f;
+            var c = _nameBase; c.a = a; _name.color = c;
         }
 
         /// <summary>The vision fade last applied to this actor's text (1 when fully visible).</summary>

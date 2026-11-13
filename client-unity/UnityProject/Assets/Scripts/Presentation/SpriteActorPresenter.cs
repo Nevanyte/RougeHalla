@@ -205,18 +205,36 @@ namespace Roguehalla.Client
             into.AddRange(_nameRects);
         }
 
-        // Luminance of what a player sees on each surface (the averages measured for P-UNITY-NAME-LEGIBLE-1, see NamePalette); the kinds with no
-        // measurement (lava, ember, bog, water, grass, none) are counted dark, the palette of today.
-        static readonly float[] FloorLuminance = BuildFloorLuminance();
-        static float[] BuildFloorLuminance()
+        // Luminance of what a player sees on each surface, for NamePalette.IsPale: the averages measured for P-UNITY-NAME-LEGIBLE-1 (ground texels through the
+        // ground shader, scaled by the drawn-light ratio). Every SurfaceKind has an explicit entry; NameLegibleTableEditModeTests keeps the measured ones
+        // in step with the texels. The kinds with no texel source are decisions, not measurements:
+        //   Ember, Lava, Bog: dark. Charred floor, obsidian crust and murky green with a glow; a light face reads on them, and the glow is not modelled.
+        //   Grass: the Plague mud average (the grass patches are part of the Plague sample, the brightest decile of Mud).
+        //   ShallowWater: dark. There is no water terrain in the ground table; legacy draws it a deep blue, below the .18 switch.
+        //   None: dark. No region (outside the map): the palette of today.
+        const float AssumedDark = .05f;
+        static readonly float Basalt = Lum(0x46251C), Flagstone = Lum(0x272223), Mud = Lum(0x394C23), Snow = Lum(0xA1BED0), Sand = Lum(0xCC9F55),
+            Limestone = Lum(0x9C9183), Ice = Lum(0xA6CAE3), HolyLight = Lum(0xAC8B4B), TempleFloor = Lum(0xBEAA86);
+        static float Lum(uint srgb) { return (float)NamePalette.Luminance(srgb); }
+
+        /// <summary>The relative luminance the name palette assumes for the ground of <paramref name="kind"/>. No allocation.</summary>
+        public static float FloorLuminance(SurfaceKind kind)
         {
-            var t = new float[System.Enum.GetValues(typeof(SurfaceKind)).Length];
-            for (int i = 0; i < t.Length; i++) t[i] = .05f;
-            void Set(SurfaceKind k, uint srgb) { t[(int)k] = (float)Roguehalla.Net.Ui.NamePalette.Luminance(srgb); }
-            Set(SurfaceKind.Basalt, 0x46251C); Set(SurfaceKind.Flagstone, 0x272223); Set(SurfaceKind.Mud, 0x394C23);
-            Set(SurfaceKind.Snow, 0xA1BED0); Set(SurfaceKind.Sand, 0xCC9F55); Set(SurfaceKind.Limestone, 0x9C9183);
-            Set(SurfaceKind.Ice, 0xA6CAE3); Set(SurfaceKind.HolyLight, 0xAC8B4B); Set(SurfaceKind.TempleFloor, 0xBEAA86);
-            return t;
+            switch (kind)
+            {
+                case SurfaceKind.Basalt: return Basalt;
+                case SurfaceKind.Flagstone: return Flagstone;
+                case SurfaceKind.Mud: return Mud;
+                case SurfaceKind.Snow: return Snow;
+                case SurfaceKind.Sand: return Sand;
+                case SurfaceKind.Limestone: return Limestone;
+                case SurfaceKind.Ice: return Ice;
+                case SurfaceKind.HolyLight: return HolyLight;
+                case SurfaceKind.TempleFloor: return TempleFloor;
+                case SurfaceKind.Grass: return Mud;
+                case SurfaceKind.Ember: case SurfaceKind.Lava: case SurfaceKind.Bog: case SurfaceKind.ShallowWater: case SurfaceKind.None: return AssumedDark;
+            }
+            throw new System.ArgumentOutOfRangeException(nameof(kind), kind, "a SurfaceKind with no floor luminance");
         }
 
         const float BarClearance = .15f;
@@ -230,7 +248,7 @@ namespace Roguehalla.Client
                 var art = pair.Value;
                 if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
                 if (art.IndFacts.Dead || !art.Ind.NameActive) continue;
-                art.Ind.SetNameGround(FloorLuminance[(int)Surfaces.SurfaceAt(art.Ind.NameWorldPosition)]);
+                art.Ind.SetNameGround(FloorLuminance(Surfaces.SurfaceAt(art.Ind.NameWorldPosition)));
             }
         }
 
