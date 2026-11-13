@@ -106,7 +106,10 @@ the oracle pins:
   quietest Brain seat >= 0.25 x the mean HumanBot seat's proposals. Correction (same day, after implementing): the
   matches run 16,000 ticks, not 6,000. The raid's patience ends about tick 12,300 on this configuration; the Brain,
   like legacy, farms through the raid and fights in the coliseum (with the tracker: 2 player deaths by tick 6,000,
-  11 by tick 16,000; HumanBot's matches end at ticks 3,209 and 6,961 with 13). The fractions are unchanged. Per-seat decision cost is reported (the ignored
+  11 by tick 16,000; HumanBot's matches end at ticks 3,209 and 6,961 with 13). The fractions are unchanged.
+  Second correction: a 16,000-tick recording of seed 3 diverges on replay at step 11,004 (rh-sim or recorder, outside
+  this packet; filed as P-SIM-REPLAY-LONG-1 with an ignored repro test). The floors and the two-run hash check use
+  unrecorded 16,000-tick matches; the replay check keeps a recorded 6,000-tick run per seed (`REPLAY_TICKS`). Per-seat decision cost is reported (the ignored
   `profile_brain_seats` diagnostic), not gated: wall-clock floors are not stable on shared CI cores.
 
 ## 9. Validation commands

@@ -25,6 +25,11 @@ use rh_sim::{abilities, mob_runtime::MobMode, terrain, ArenaMode, Event, Faction
 /// 6,961 (13 deaths).
 const MAX_TICKS: u32 = 16_000;
 
+/// The recorded runs whose replays are verified. A 16,000-tick recorded seed-3 run diverges on replay at step 11,004
+/// (an rh-sim or recorder fault, not bot code: `the_replay_of_a_long_brain_match_verifies` below, ignored until
+/// P-SIM-REPLAY-LONG-1 lands), so the replay check keeps the 6,000-tick window it had before this packet.
+const REPLAY_TICKS: u32 = 6000;
+
 /// What "plays" means against the HumanBot baseline on the same seeds, summed over both seeds: (resolved deaths, mob
 /// kills credited to a seat, the quietest Brain seat's proposals against the mean HumanBot seat's), each a fraction.
 fn floors() -> (f64, f64, f64) {
@@ -74,7 +79,7 @@ struct Run {
     replay: Option<rh_sim::replay::Replay>,
 }
 
-fn run(kind: BotKind, seed: u64) -> Run {
+fn run(kind: BotKind, seed: u64, max_ticks: u32, record: bool) -> Run {
     let arena = arena();
     let sim = live_config();
     let agents = (0..8)
@@ -91,8 +96,8 @@ fn run(kind: BotKind, seed: u64) -> Run {
         EnvConfig {
             arena,
             sim,
-            max_ticks: MAX_TICKS,
-            record: true,
+            max_ticks,
+            record,
         },
         agents,
         seed,
@@ -151,7 +156,7 @@ fn eight_brain_seats_play_the_source_arena_deterministically() {
             (BotKind::Human, 11),
         ]
         .into_iter()
-        .map(|(kind, seed)| scope.spawn(move || (kind, seed, run(kind, seed))))
+        .map(|(kind, seed)| scope.spawn(move || (kind, seed, run(kind, seed, MAX_TICKS, false))))
         .collect();
         handles
             .into_iter()
@@ -196,7 +201,7 @@ fn eight_brain_seats_play_the_source_arena_deterministically() {
             a.stats, b.stats,
             "seed {seed}: the seats played identically"
         );
-        checks.push((seed, a.hash, a.replay.as_ref().expect("recorded")));
+        checks.push(seed);
     }
 
     // The passivity floors (P-BOT-BRAIN-CONTINUITY-1) against HumanBot on the same seeds.
@@ -245,9 +250,13 @@ fn eight_brain_seats_play_the_source_arena_deterministically() {
         quietest >= seat_floor * human_seat_mean,
         "every Brain seat plays: the quietest proposed {quietest}, floor {seat_floor} x {human_seat_mean:.1}"
     );
+    // Determinism through the recorder: a recorded run per seed (REPLAY_TICKS) replays step for step to its own hash.
     std::thread::scope(|scope| {
-        for (seed, hash, replay) in checks {
+        for seed in checks {
             scope.spawn(move || {
+                let recorded = run(BotKind::Brain, seed, REPLAY_TICKS, true);
+                let hash = recorded.hash;
+                let replay = recorded.replay.as_ref().expect("recorded");
                 let (replayed, _) = run_replay(replay).expect("the replay verifies every step");
                 assert_eq!(
                     replayed.state_hash(),
@@ -257,4 +266,17 @@ fn eight_brain_seats_play_the_source_arena_deterministically() {
             });
         }
     });
+}
+
+/// P-SIM-REPLAY-LONG-1 repro (found by P-BOT-BRAIN-CONTINUITY-1, 2026-11-12): eight Brain seats on seed 3, recorded for
+/// 11,100 ticks; two live runs agree on their hash, but the replay of the recording diverges at step 11,004 (expected
+/// 16912772434412788001, got 4946499403885021848). Seed 11 replays clean over the same window. Bot commands are recorded
+/// as inputs, so the fault is in what the sim or the recorder does not reproduce.
+#[test]
+#[ignore = "known replay divergence at step 11,004 (P-SIM-REPLAY-LONG-1): run with --release --ignored"]
+fn the_replay_of_a_long_brain_match_verifies() {
+    let recorded = run(BotKind::Brain, 3, 11_100, true);
+    let (replayed, _) = run_replay(recorded.replay.as_ref().expect("recorded"))
+        .expect("the replay verifies every step");
+    assert_eq!(replayed.state_hash(), recorded.hash);
 }
