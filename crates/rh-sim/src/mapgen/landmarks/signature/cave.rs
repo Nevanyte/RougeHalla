@@ -10,14 +10,15 @@
 //! Choice: the mouth axis nearest the camp that admits any chamber; among those chambers one uniform draw (redrawn while
 //! a choice would split the zone's floor or leave a wall piece under `piece_min`).
 use super::church::smallest_piece;
-use super::{at, front, pick, Built, Piece, Site};
+use super::{at, front, pick, Built, Definition, Piece, Site};
 use crate::map::{TILE_FLOOR, TILE_WALL};
-use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
+use crate::mapdata::{FeatureJob, FeatureKind, GameMapData, TilePt, Zone, ZoneAnchor};
 use crate::mapgen::certify::rules::R;
 use crate::mapgen::coliseum::{CX, CY, H, W};
 use crate::mapgen::spawns;
 use crate::mapgen::zones::camps::CampSite;
 use crate::rng::Mulberry32;
+use std::collections::VecDeque;
 
 use super::super::recipe_support::DIR16;
 
@@ -64,6 +65,91 @@ pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> O
         }
     }
     None
+}
+
+/// The end-of-attempt lake rule on a finished map (P-MAPGEN-SIG-FROST-2; owner decision 4: the mouth faces the lake).
+/// Unowned Frost ice is floor of the Frost region carrying the cave's ice terrain that the cave does not own (the
+/// styler's meres and anything else); its largest 4-connected body (first in row order on a size tie) must lie within
+/// `lake_reach + lake_slack` steps over floor (any zone, owned or not) of the cave's mouth (the Frost anchor's
+/// `entrance`, step 0). A map without unowned Frost ice, or without a cave or Frost anchor, passes (the styler may place
+/// no lake; the cave's own presence is the Landmarks phase's rule). A pure read: no draw.
+pub(super) fn lake_at_mouth(map: &GameMapData, d: &Definition) -> bool {
+    let Some(cave) = map
+        .features
+        .iter()
+        .position(|f| f.kind == FeatureKind::Cave)
+    else {
+        return true;
+    };
+    let Some(anchor) = map.anchors.iter().find(|a| a.zone == Zone::Frost) else {
+        return true;
+    };
+    let n = map.tiles.len();
+    let frost = Zone::Frost.code();
+    let ice = |i: usize| {
+        map.region_grid[i] == frost
+            && map.tiles[i] == TILE_FLOOR
+            && map.terrain[i] == d.ice
+            && usize::from(map.feature_grid[i]) != cave + 1
+    };
+    let step = |i: usize| {
+        let (x, y) = ((i % W) as i32, (i / W) as i32);
+        [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            .into_iter()
+            .filter_map(move |(dx, dy)| at(x + dx, y + dy))
+    };
+    // Bodies labelled in row order of their first tile; the largest wins, the first on a tie.
+    let mut body = vec![0u32; n];
+    let (mut largest, mut size, mut label) = (0u32, 0usize, 0u32);
+    let mut stack = Vec::new();
+    for s in 0..n {
+        if body[s] != 0 || !ice(s) {
+            continue;
+        }
+        label += 1;
+        body[s] = label;
+        stack.push(s);
+        let mut count = 0;
+        while let Some(i) = stack.pop() {
+            count += 1;
+            for j in step(i) {
+                if body[j] == 0 && ice(j) {
+                    body[j] = label;
+                    stack.push(j);
+                }
+            }
+        }
+        if count > size {
+            (largest, size) = (label, count);
+        }
+    }
+    if size == 0 {
+        return true;
+    }
+    let reach = d.lake_reach + d.lake_slack;
+    let mut dist = vec![usize::MAX; n];
+    let mut queue = VecDeque::new();
+    for p in &anchor.entrance {
+        if let Some(i) = at(p.x, p.y).filter(|&i| map.tiles[i] == TILE_FLOOR && dist[i] != 0) {
+            dist[i] = 0;
+            queue.push_back(i);
+        }
+    }
+    while let Some(i) = queue.pop_front() {
+        if body[i] == largest {
+            return true;
+        }
+        if dist[i] >= reach {
+            continue;
+        }
+        for j in step(i) {
+            if dist[j] == usize::MAX && map.tiles[j] == TILE_FLOOR {
+                dist[j] = dist[i] + 1;
+                queue.push_back(j);
+            }
+        }
+    }
+    false
 }
 
 /// The cave with its mouth on side `u` (a unit axis vector) of the camp tile, or `None`.

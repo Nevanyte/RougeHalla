@@ -109,6 +109,9 @@ pub struct Definition {
     pub lake_tries: usize,
     pub lake_rounds: usize,
     pub second_share: usize,
+    /// The end-of-attempt check (`SignatureContext::intact`): the Frost zone's largest ice body outside the cave lies
+    /// within `lake_reach + lake_slack` floor steps of the cave's mouth, else the map is discarded (P-MAPGEN-SIG-FROST-2).
+    pub lake_slack: usize,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -164,6 +167,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     lake_tries: 8,
     lake_rounds: 3,
     second_share: 75,
+    lake_slack: 2,
 };
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.
@@ -398,7 +402,10 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
-    /// of it): a tree of trunk walls and bog floor, a church and graveyard of walls, an open door, all in their zone.
+    /// of it): a tree of trunk walls and bog floor, a church and graveyard of walls, an open door, all in their zone; no
+    /// styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
+    /// (`aprons_apart`); and the Frost zone's largest ice body outside the cave at the cave's mouth
+    /// (`cave::lake_at_mouth`). A pure predicate: it draws nothing and changes nothing.
     pub fn intact(&self, map: &GameMapData) -> bool {
         let owned_ok = (0..map.feature_grid.len()).all(|i| {
             let id = usize::from(map.feature_grid[i]);
@@ -478,7 +485,64 @@ impl<'f> SignatureContext<'f> {
                         )
                 })
         });
-        owned_ok && door_ok && apron_ok
+        owned_ok
+            && door_ok
+            && apron_ok
+            && self.aprons_apart(map)
+            && cave::lake_at_mouth(map, &self.rules)
+    }
+
+    /// G1, G5 (P-MAPGEN-SIG-FROST-2): no tile of one landmark lies in another landmark's apron, for every ordered pair
+    /// of the five. Placement keeps each landmark's walls out of the aprons marked before it (`Site::ground`) but not
+    /// the earlier landmarks out of its own; this check is symmetric, so the placement order decides nothing. The
+    /// landmarks: the volcano (its streams and pools count as its tiles; its apron is the cone's box), the church with
+    /// its graveyard, the bog tree, the cave, and the Holy hall (the Holy `Hall` on the Holy anchor's footprint). An
+    /// apron is each of the landmark's boxes grown by the core band.
+    fn aprons_apart(&self, map: &GameMapData) -> bool {
+        let holy = map
+            .anchors
+            .iter()
+            .find(|a| a.zone == Zone::Holy)
+            .map(|a| a.footprint);
+        let hall = holy.and_then(|fp| {
+            map.features
+                .iter()
+                .position(|f| f.kind == FeatureKind::Hall && f.zone == Zone::Holy && f.bbox == fp)
+        });
+        let landmark: Vec<Option<u8>> = map
+            .features
+            .iter()
+            .enumerate()
+            .map(|(k, f)| match f.kind {
+                FeatureKind::Volcano | FeatureKind::LavaStream | FeatureKind::LavaPool => Some(0),
+                FeatureKind::Church | FeatureKind::Graveyard => Some(1),
+                FeatureKind::BogTree => Some(2),
+                FeatureKind::Cave => Some(3),
+                _ if hall == Some(k) => Some(4),
+                _ => None,
+            })
+            .collect();
+        let b = self.rules.bands[0];
+        map.features.iter().enumerate().all(|(k, f)| {
+            let Some(host) = landmark[k] else {
+                return true;
+            };
+            if by_tile(f.kind) {
+                return true;
+            }
+            let (x1, y1) = (
+                f.bbox.x + f.bbox.w as i32 - 1,
+                f.bbox.y + f.bbox.h as i32 - 1,
+            );
+            (f.bbox.y - b..=y1 + b).all(|y| {
+                (f.bbox.x - b..=x1 + b).all(|x| {
+                    at(x, y)
+                        .and_then(|i| usize::from(map.feature_grid[i]).checked_sub(1))
+                        .and_then(|g| landmark.get(g).copied().flatten())
+                        .is_none_or(|guest| guest == host)
+                })
+            })
+        })
     }
 }
 
