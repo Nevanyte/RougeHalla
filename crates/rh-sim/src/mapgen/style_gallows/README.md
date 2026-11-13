@@ -27,8 +27,11 @@ are laid as lanes on a second grid in the church's door orientation: straight ro
 the door axis, one gate grid `(along - 8) mod 12 < 3` counted from the door line, nothing within Chebyshev 2 of the
 yard box (church and graveyards), no `Dials::min_run`. Detours, Trim placement, relaxation and route repair are
 today's. `Plan::axis`, `s_lo`, `t_lo` and the rows are the lanes'; `base_rows` and `square` keep today's orientation,
-and `validate_plan` checks each in its own. The tunables are `LANES`, outside `Definition`/`Dials` and the content
-hash. Option off there is no `Church`, and nothing here is read; nothing in either path draws.
+and `validate_plan` checks each in its own (`Square::s` counts from today's grid, whose origin the plan does not
+carry when the two differ). The door is read from the map, in `shape` and again in `validate_plan`: exactly three
+open tiles in one run on the church's door-side wall line. A church whose door does not read so stops the styler with
+`Error::Feature`; it is never given today's rows instead. The tunables are `LANES`, outside `Definition`/`Dials` and
+the content hash. Option off there is no `Church`, and nothing here is read; nothing in either path draws.
 
 The typed `Plan`, `Row`, and `Square` preserve source order and all row/window/house reporting. Tests begin
 with genuine captured pre-zone inputs, including earlier-zone layers, feature metadata and wrote/scratch;

@@ -146,7 +146,7 @@ impl Callbacks<'_> {
         let bb = b.zone.bbox;
         // Signature mode (P-LAND-SENTENCED-1): `Some` only when the zone holds a signature `Church`; option off this is
         // `None` and every line below runs as today.
-        let lanes = lanes::frame(&b);
+        let lanes = lanes::frame(&b)?;
         let horizontal = legacy_horizontal(&b);
         let (t_lo, n_t, s_lo, n_s) = if horizontal {
             (bb.y, bb.h as usize, bb.x, bb.w as usize)

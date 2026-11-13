@@ -32,6 +32,9 @@ pub struct Row {
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
+/// The gallows square, between base rows `k` and `k + 1` at offset `s` along today's rows. `s` counts from the `s_lo`
+/// of today's grid (the centroid orientation). In signature mode `Plan::s_lo` is the lanes' grid, so when the two
+/// orientations differ the plan does not carry the origin `s` counts from; `Plan::gallows` holds the tiles it wrote.
 pub struct Square {
     pub k: usize,
     pub s: i32,
@@ -39,6 +42,9 @@ pub struct Square {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Plan {
+    /// The axis and grid origin of `rows`. Option off they are also those of `base_rows` and `square` (today's
+    /// centroid orientation). In signature mode (`lanes.rs`) they are the lanes' door orientation, while `base_rows`
+    /// and `square` stay in today's: a reader works each orientation out from the zone, as `validate_plan` does.
     pub axis: u8,
     pub s_lo: i32,
     pub t_lo: i32,
@@ -180,7 +186,9 @@ impl<'a> Callbacks<'a> {
         let good = |v: &Vec<i32>| v.len() <= n * 2 && v.iter().all(|&i| i >= 0 && (i as usize) < n);
         // Signature mode (P-LAND-SENTENCED-1): the rows are lanes in the door orientation (`plan.axis`), while the
         // base rows and the square keep today's orientation; option off both are `plan.axis`, as today.
-        let lanes = lanes::frame(c);
+        // The door is read again here, from the props-time map: nothing between `shape` and `props` writes the church's
+        // tiles or ownership, so it reads as it did in `shape`; if it did not, the plan is refused as `Error::Feature`.
+        let lanes = lanes::frame(c)?;
         let base_axis = if lanes.is_some() {
             u8::from(!shape::legacy_horizontal(c))
         } else {

@@ -2,7 +2,7 @@
 //! Landmarks phase only with `pipeline::Options::signature`), the fence rows run parallel to the church's door axis on
 //! the lines `|d| mod spacing == offset` from it, every row is cut by one gate grid counted from the door line, and no
 //! row comes within `apron` of the yard box (the church and its graveyards). Option off there is no `Church` feature,
-//! `frame` is `None` and nothing here is read. Nothing here draws from any stream.
+//! `frame` is `Ok(None)` and nothing here is read. Nothing here draws from any stream.
 use super::rows::{flush, Grid, RowPlan};
 use super::*;
 use crate::mapgen::landmarks::{recipe_support::DIR16, signature::front};
@@ -59,9 +59,21 @@ impl Frame {
         (x0 - x).max(x - x1).max(y0 - y).max(y - y1) <= LANES.apron
     }
 }
-/// The zone's church as the lanes read it, or `None` (option off, or a church without a door).
-pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
-    let f = b.zone_features().find(|f| f.kind == FeatureKind::Church)?;
+/// The door as the church's ring leaves it (`church.rs`): exactly three open tiles in one run on the door-side wall
+/// line, the middle entrance tile and one either side. Anything else is not a door the lanes can centre on.
+fn door_span(open: &[i32]) -> Option<(i32, i32)> {
+    match open {
+        [a, b, c] if *b == *a + 1 && *c == *b + 1 => Some((*a, *c)),
+        _ => None,
+    }
+}
+/// The zone's church as the lanes read it. `Ok(None)` when the zone holds no signature `Church` (option off).
+/// `Err(Error::Feature)` when it holds one whose door cannot be read: a signature zone is never given today's rows
+/// instead of lanes, and the spine is never centred on something that is not the door.
+pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
+    let Some(f) = b.zone_features().find(|f| f.kind == FeatureKind::Church) else {
+        return Ok(None);
+    };
     let r = f.bbox;
     let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1);
     let v = DIR16[usize::from(front(f.ax, f.ay))];
@@ -72,7 +84,7 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
         v[1].signum()
     };
     if sign == 0 {
-        return None;
+        return Err(Error::Feature);
     }
     let (line, lo, hi) = match (horizontal, sign > 0) {
         (true, true) => (x1, y0, y1),
@@ -91,7 +103,7 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
             i >= 0 && !b.is_owned(i) && b.tiles[i as usize] == TILE_FLOOR
         })
         .collect();
-    let (first, last) = (*door.first()?, *door.last()?);
+    let (first, last) = door_span(&door).ok_or(Error::Feature)?;
     let mut yard = (x0, y0, x1, y1);
     for g in b
         .zone_features()
@@ -103,13 +115,13 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Option<Frame> {
         yard.2 = yard.2.max(r.x + r.w as i32 - 1);
         yard.3 = yard.3.max(r.y + r.h as i32 - 1);
     }
-    Some(Frame {
+    Ok(Some(Frame {
         horizontal,
         sign,
         line,
         spine: (first + last).div_euclid(2),
         yard,
-    })
+    }))
 }
 impl Callbacks<'_> {
     /// The lanes grid: the zone's box in the door orientation, open where the runtime would take a block, off the
@@ -244,5 +256,16 @@ mod tests {
         let gates: Vec<i32> = (10..=40).filter(|&s| back.gate(s)).collect();
         assert_eq!(gates, vec![18, 19, 20, 30, 31, 32]);
         assert!(f.in_apron(42, 32) && !f.in_apron(43, 20) && !f.in_apron(35, 7));
+    }
+    #[test]
+    fn the_door_is_exactly_three_open_tiles_in_one_run() {
+        assert_eq!(door_span(&[13, 14, 15]), Some((13, 15)));
+        // An extra open tile on the door-side edge, beside the door or apart from it, is not a door.
+        assert_eq!(door_span(&[13, 14, 15, 16]), None);
+        assert_eq!(door_span(&[13, 14, 15, 20]), None);
+        // Nor is a door with a tile missing, a gap in it, or no open tile at all.
+        assert_eq!(door_span(&[13, 14]), None);
+        assert_eq!(door_span(&[13, 14, 16]), None);
+        assert_eq!(door_span(&[]), None);
     }
 }
