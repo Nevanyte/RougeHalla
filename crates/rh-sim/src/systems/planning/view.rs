@@ -62,8 +62,8 @@ pub(crate) fn arena_view(k: &MatchStatic, w: &World) -> Option<ArenaView> {
         } else {
             0
         },
-        // Stub (P-WIRE17-HUD-3): not observed yet.
-        min_players: 0,
+        // Public room configuration (legacy world.ts:899 `state.minPlayers = opts.config.minPlayers`).
+        min_players: u32::try_from(k.config.min_players).unwrap_or(u32::MAX),
     })
 }
 

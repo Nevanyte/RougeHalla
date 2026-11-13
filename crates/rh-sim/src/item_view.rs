@@ -509,9 +509,9 @@ impl ItemObserver {
             potion_large: me.potion_large,
             potions_healing: me.potions_healing,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
-            // Stub (P-WIRE17-HUD-3): the owner's clocks are not observed yet.
-            healing_until: None,
-            speed_boost_until: None,
+            // The owner's own clocks (C-OBS: built only from the viewer's player); the sim's 0 is "not running".
+            healing_until: (me.healing_until != 0.).then_some(me.healing_until),
+            speed_boost_until: (me.speed_boost_until != 0.).then_some(me.speed_boost_until),
         });
         if changed {
             out.props.clear();

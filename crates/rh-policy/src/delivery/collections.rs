@@ -47,9 +47,9 @@ fn inventory(value: Inventory) -> WireInventory {
         potion_small: value.potion_small,
         potion_large: value.potion_large,
         potions_healing: value.potions_healing,
-        // Stub (P-WIRE17-HUD-3): the owner's clocks are not projected yet.
-        healing_until: None,
-        speed_boost_until: None,
+        // Server ms, unchanged; a non-finite or negative clock is refused by the encoder, never clamped.
+        healing_until: value.healing_until,
+        speed_boost_until: value.speed_boost_until,
     }
 }
 
@@ -642,8 +642,9 @@ fn arena(observation: &Observation) -> Option<WireArena> {
         gates_locked: a.gates_locked,
         sudden_death_at: a.sudden_death_at,
         started_with: a.started_with,
-        // Stub (P-WIRE17-HUD-3): not projected yet.
-        min_players: 0,
+        // Past u8 saturates to 255, which the encoder refuses (`BadValue("arena")`): never clamped or wrapped to a legal
+        // minimum.
+        min_players: u8::try_from(a.min_players).unwrap_or(u8::MAX),
     })
 }
 
