@@ -12,6 +12,8 @@
 //! this subsystem (`strategy/`, `tactics.rs`, `modules/`, `memory.rs`, `../humanizer.rs`, `../knowledge.rs`, `../paths.rs`).
 
 mod adapters;
+#[cfg(test)]
+mod brain_input_tests;
 mod compose14;
 #[cfg(test)]
 mod compose14_review_tests;
@@ -1285,9 +1287,7 @@ fn is_engaged(
     let trade = |at: Option<ServerMs>| {
         at.is_some_and(|at| now - at <= rh_sim::constants::ENGAGE_TRADE_SECONDS * 1000.)
     };
-    (p.me_attack_target.is_some() && last_tactics.attacking)
-        || trade(last_hit_at)
-        || trade(last_dealt_at)
+    (p.me_attack_held && last_tactics.attacking) || trade(last_hit_at) || trade(last_dealt_at)
 }
 
 fn tactics_intents(intents: Vec<TacticsIntent>) -> Vec<HandIntent> {
