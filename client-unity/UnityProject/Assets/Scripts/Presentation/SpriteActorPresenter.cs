@@ -235,7 +235,7 @@ namespace Roguehalla.Client
                     if (!_active.TryGetValue(_mergeIds[i], out var art)) continue;
                     if (!_mergeShown[i]) { art.Ind.HideName(); continue; }
                     bool pack = _packSize[_mergeScratch[i]] > 1;
-                    if (pack || _mergeItems[i].Single != 0) art.Ind.NameFullAlpha(pack ? _packFade[_mergeScratch[i]] : art.Ind.TextFade);
+                    art.Ind.NameFullAlpha(pack ? _packFade[_mergeScratch[i]] : art.Ind.TextFade);   // every mob name reads at full strength (DEV-024)
                     if (_anchorX[i] != _mergeItems[i].X || _anchorY[i] != _mergeItems[i].Y) art.Ind.MoveName(_anchorX[i], _anchorY[i]);
                     if (pack) _packNameIds.Add(_mergeIds[i]);
                 }

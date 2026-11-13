@@ -38,6 +38,7 @@ namespace Roguehalla.Client
             HudUi.Surface(_root, UiTheme.With(theme.Surface, .93f), 7f, theme.FactionColor(1), true, false);
             _title = HudUi.Label(HudUi.At(_root, "Title", 8f, 5f, Width - 16f, 15f), "Title", "Hunt", 11f, theme.FactionColor(1), bold: true);
             _status = HudUi.Label(HudUi.At(_root, "Status", 8f, StatusTop, Width - 16f, 40f), "Status", "", theme.SizeSmall, theme.TextSecondary, TextAlignmentOptions.TopLeft, false, UiFontRole.Body, true);
+            _status.rectTransform.offsetMin = _status.rectTransform.offsetMax = Vector2.zero;   // fill the text box exactly (no extra line-grow below it)
             for (int i = 0; i < (int)MaxRows; i++) Row(i).gameObject.SetActive(false); // all rows exist from the start: no UI is built inside the frame loop
             _root.gameObject.SetActive(false);
         }
@@ -118,11 +119,15 @@ namespace Roguehalla.Client
             }
             // The card follows its content: the status text's height, then the rows right under it.
             float textH = Mathf.Ceil(_status.GetPreferredValues(_status.text, Width - 16f, 0f).y);
+            // The text box is sized for the largest text-size setting (1.5x) so a later scale change does not clip it; rows start under the actual text.
+            var fit = _status.GetComponent<MythicTextScale>();
+            float ratio = fit != null && _status.fontSize > 0f ? Mathf.Max(1f, 1.5f * fit.BaseSize / _status.fontSize) : 1f;
+            float boxH = Mathf.Ceil(textH * ratio);
             var statusBox = _status.transform.parent as RectTransform;
-            HudUi.Place(statusBox, HudAnchor.TopLeft, 8f, StatusTop, Width - 16f, textH);
+            HudUi.Place(statusBox, HudAnchor.TopLeft, 8f, StatusTop, Width - 16f, boxH);
             float rowsTop = StatusTop + textH + RowsGap;
             for (int i = 0; i < rows; i++) HudUi.Place((RectTransform)_rows[i].transform, HudAnchor.TopLeft, 7f, rowsTop + i * (RowH + 3f), Width - 14f, RowH);
-            _height = rows > 0 ? rowsTop + rows * (RowH + 3f) + 2f : StatusTop + textH + 8f;
+            _height = rows > 0 ? Mathf.Max(rowsTop + rows * (RowH + 3f) + 2f, StatusTop + boxH + 2.5f) : StatusTop + boxH + 2.5f;
             HudUi.Place(_root, HudAnchor.TopLeft, Left, _top, Width, _height);
         }
         float _height = 60f;

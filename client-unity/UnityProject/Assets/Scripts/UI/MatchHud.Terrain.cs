@@ -152,9 +152,6 @@ namespace Roguehalla.Client
                 var tone = ChipColor(chips[i].Id);   // legacy terrainChips.css --c
                 chip.Label.color = tone; chip.Rect.GetComponent<UnityEngine.UI.Outline>().effectColor = tone;
                 chip.Label.text = chips[i].Glyph + " " + chips[i].Label;
-                // A pill sized to its text (P-UNITY-HUD-VISUAL-FIX-4), not a full-width bar.
-                float pill = Mathf.Ceil(chip.Label.GetPreferredValues(chip.Label.text, 1000f, 0f).x) + ChipPad * 2f;
-                HudUi.Place(chip.Rect, HudAnchor.TopLeft, 0, i * TerrainLine, pill, TerrainLine);
                 chip.Hint.Text = chips[i].Explanation;
                 chip.Rect.gameObject.SetActive(true);
             }
@@ -165,6 +162,13 @@ namespace Roguehalla.Client
             _terrainNoteText.transform.parent.GetComponent<UnityEngine.UI.Image>().enabled = note != null;
             LayoutTerrainNote();
             _terrainRow.gameObject.SetActive(count > 0 || note != null);
+            // A pill sized to its text (P-UNITY-HUD-VISUAL-FIX-4), not a full-width bar. Measured once the row is active: an inactive label measures nothing.
+            for (int i = 0; i < count; i++)
+            {
+                var chip = _terrainChips[i];
+                float pill = Mathf.Ceil(chip.Label.GetPreferredValues(chip.Label.text, 1000f, 0f).x) + ChipPad * 2f;
+                HudUi.Place(chip.Rect, HudAnchor.TopLeft, 0, i * TerrainLine, pill, TerrainLine);
+            }
             PlaceHuntPanel();
         }
 
