@@ -229,7 +229,7 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = check_world(&k, &w) {
             return Err(self.refuse(CheckpointError::Malformed(why)));
         }
-        // The barrier overlay is derived from the restored walls and gate state (P-FROST-WALL-1).
+        // The barrier overlay is derived from the restored walls alone: it holds both gate states (P-FROST-WALL-1, -fix).
         crate::barriers::sync(&k, &mut w);
         if let Err(why) = crate::systems::frost::prepare(&k, &mut w) {
             return Err(self.refuse(CheckpointError::Malformed(why.into())));
