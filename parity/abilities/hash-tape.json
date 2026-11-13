@@ -218,7 +218,7 @@
       "ticks": 39
     },
     "training-swarm-real-five-second-recast-replacement": {
-      "fold": "3864926239496ebd",
+      "fold": "842a4784dd8d2181",
       "ticks": 271
     },
     "trial-centre-after-same-batch-self-blink": {
@@ -254,7 +254,7 @@
       "ticks": 59
     }
   },
-  "checkpoint": "rh-checkpoint/31",
+  "checkpoint": "rh-checkpoint/32",
   "contentHash": "4674a176a28e3c7a",
   "format": "rh-ability-hash-tape/2",
   "note": "63 admitted source cases executed without catch-and-drop; native digests rebound for the combined layout, not legacy expected gameplay",
