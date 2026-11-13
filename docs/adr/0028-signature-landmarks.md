@@ -178,7 +178,8 @@ The two checks are one flood fill, one bounded walk and one scan of the landmark
 - The Frost spires and headlands are not arranged to flank the approach in the near band: only the core band is
   enforced (the lake's `allow` and the apron discard); spires follow the mere and headlands its shore.
 - The Fire craters stay camp pens: size and presence are their only levers, and both now follow the camp's band
-  (seeds 1-32: near-band craters 136 tiles on average against 90 far). Density does not yet fall with distance: far
+  (seeds 1-32: near-band craters 134 tiles on average against 90 far; 136 before P-MAPGEN-SIG-FROST-2 moved seeds
+  17 and 18 to later attempts). Density does not yet fall with distance: far
   pens are not thinned (a rule that drops them on purpose meets the count floor of option-off minus two; owner
   question).
 - Elite bushes read the stylers' `protect` and stay out of every apron. Repair's walls (the safety net's connectivity
