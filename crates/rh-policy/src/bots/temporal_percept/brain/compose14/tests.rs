@@ -79,6 +79,10 @@ fn placeholder(path: &str) -> Option<BVal> {
             BVal::num(0.)
         }
         "events.weapon" => BVal::text("fists"),
+        // P-BOT-BRAIN-RECONCILE-1 (brief 6.1, 6.2): a zombie's or a quest giver's name is not on the wire, and the
+        // Wish rank is not either (2a's `extras.wish`); both are unknown, never a guessed "" or 1.
+        "mobs.name" => BVal::text(""),
+        "extras.wish.rank" => BVal::num(1.),
         // Source-declared optional `undefined` (kept as is).
         "mobs.type" | "containers.weapon" => BVal::Undefined,
         _ => return None,
@@ -212,10 +216,11 @@ fn composed_percepts_mark_every_unpublished_fact_undefined() {
     let minimap = raw.get("minimap").unwrap();
     assert_eq!(minimap.get("t"), Some(&BVal::Undefined));
     assert_eq!(minimap.get("mobs"), Some(&BVal::Arr(Vec::new())));
+    // P-BOT-BRAIN-RECONCILE-1 (brief 6.2): the seat composes with 2a's pinned world delay (INTERP_DELAY_MS).
     assert_eq!(
-        raw.get("now"),
-        raw.get("viewT"),
-        "the world delay is pinned to 0"
+        raw.get("now").and_then(BVal::as_num).map(|now| now - 100.),
+        raw.get("viewT").and_then(BVal::as_num),
+        "the world delay is pinned to 100 ms"
     );
 }
 
