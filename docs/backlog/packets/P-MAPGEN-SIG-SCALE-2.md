@@ -9,6 +9,19 @@
   wire change
 - **Status:** brief only; the oracle is written when SCALE-1 has landed (oracle-author, Opus).
 
+## From P-MAPGEN-SIG-SCALE-1's oracle (2026-11-13; read with that brief)
+
+- **The territory relabel is needed here too.** A 29-tile cave's walls cut the territories of the camps next to the
+  site (the reservation keeps their halos out of the site, not their territories): 247 `Repair(RadiusPost)` refusals
+  on seeds 1-64 and 7 seeds without a map, until every tile of the site carried the inside camp's territory label when
+  repair ran (then 8). SCALE-1 builds the relabel for the Frost site; this packet extends it to the Sentenced site.
+- **The placement rule** (a drawing, eight orientations, `E` on the site's camp, one mirror draw) is in
+  `signature/mod.rs` after SCALE-1; the church's drawing is read the same way.
+- **The drawing's copy:** `include_str!` of `docs/` breaks the server image (`hosting/Dockerfile` copies only
+  `crates/`; `.dockerignore` excludes `docs`): the crate carries `signature/church.txt`, byte-equal to
+  `docs/landmarks/blueprints/church.txt`, read into a `Definition` field (no new `const`), and the oracle checks the
+  equality.
+
 ## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L2; supersedes everything below where they differ)
 
 Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision

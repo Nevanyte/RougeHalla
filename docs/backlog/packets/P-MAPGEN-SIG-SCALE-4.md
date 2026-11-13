@@ -9,6 +9,14 @@
   wire change
 - **Status:** brief only; the oracle is written when SCALE-3 has landed (oracle-author, Opus).
 
+## From P-MAPGEN-SIG-SCALE-1's oracle (2026-11-13)
+
+- The drawing is read through SCALE-1's placement rule (`signature/mod.rs`). Its copy: `include_str!` of `docs/`
+  breaks the server image (`hosting/Dockerfile` copies only `crates/`; `.dockerignore` excludes `docs`), so the crate
+  carries `signature/volcano.txt`, byte-equal to `docs/landmarks/blueprints/volcano.txt`, in a `Definition` field; the
+  oracle checks the equality. A volcano site has no inside camp: if the cone cuts neighbouring territories, measure
+  `Repair(RadiusPost)` before assuming SCALE-1's relabel covers it.
+
 ## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L4; supersedes everything below where they differ)
 
 Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision
