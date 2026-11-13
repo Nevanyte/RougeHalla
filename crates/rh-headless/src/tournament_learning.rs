@@ -11,12 +11,17 @@
 //! (learning plays the games one after another), so the same plan and seed give the same store on any machine.
 //!
 //! Pure: no clock, no file I/O (the binary writes the JSON this module renders).
-use crate::tournament::{GameSummary, SeatSpec, TournamentPlan};
-use rh_policy::bots::learning::{LearnedBias, RunOutcome, Stats, Tier};
+use crate::tournament::{
+    plan_game, play_each, run_game_seats, GameSummary, SeatSpec, TournamentPlan,
+};
+use crate::tournament_cli::lineup_text;
+use rh_policy::bots::learning::LEARN_VERSION;
+use rh_policy::bots::learning::{Cell, LearnedBias, RunOutcome, RunSummary, Stats, Tier};
 use rh_policy::bots::TierId;
+use rh_policy::bots::{BrainBot, HumanBot};
 use rh_policy::PolicyFinish;
-use rh_sim::{Arena, RunResult, SimConfig};
-use serde_json::Value;
+use rh_sim::{Arena, Outcome, RunResult, SimConfig};
+use serde_json::{json, Map, Value};
 
 /// Which built-in policy a tournament seats (the source tournament always seats its Brain; the port's default is the
 /// live fill bot, HumanBot, so today's runs stay byte-identical).
@@ -59,16 +64,64 @@ pub struct LearningArgs {
 pub const DEFAULT_LEARN_OUT: &str = "tournament-learning.json";
 
 /// The extra usage lines (`--policy`, `--learn-out`).
-pub const LEARNING_USAGE: &str = "";
+pub const LEARNING_USAGE: &str = "  --policy P       human (default: the live fill bot) or brain (the ported legacy Brain)
+  --learn on       with --policy brain: play the games in plan order through one in-memory store of the ported
+                   legacy learner (each game's seats read the store as it stood when the game began)
+  --learn-out FILE where --learn on writes the final store (default tournament-learning.json)";
+
+/// The format tag of a store file.
+pub const STORE_FORMAT: &str = "rh-bot-learning/1";
 
 /// Take `--policy P` and `--learn-out FILE` (and their `=` forms) out of argv; the rest goes to the source parser
 /// unchanged.
 pub fn split_learning_args(argv: &[String]) -> Result<(Vec<String>, LearningArgs), String> {
-    Ok((argv.to_vec(), LearningArgs::default()))
+    let mut rest = Vec::with_capacity(argv.len());
+    let mut args = LearningArgs::default();
+    let mut i = 0;
+    while i < argv.len() {
+        let raw = &argv[i];
+        i += 1;
+        let (flag, inline) = match raw.split_once('=') {
+            Some((flag, value)) if flag.starts_with("--") => (flag, Some(value.to_owned())),
+            _ => (raw.as_str(), None),
+        };
+        if flag != "--policy" && flag != "--learn-out" {
+            rest.push(raw.clone());
+            continue;
+        }
+        let value = match inline {
+            Some(value) => value,
+            None => {
+                let value = argv
+                    .get(i)
+                    .cloned()
+                    .ok_or_else(|| format!("{flag} needs a value"))?;
+                i += 1;
+                value
+            }
+        };
+        if flag == "--policy" {
+            let v = value.to_lowercase();
+            args.policy = SeatPolicy::parse(&v)
+                .ok_or_else(|| format!("--policy takes human or brain, got \"{v}\""))?;
+        } else {
+            if value.is_empty() {
+                return Err("--learn-out needs a file name".into());
+            }
+            args.learn_out = Some(value);
+        }
+    }
+    Ok((rest, args))
 }
 
 /// A learning run is refused unless its seats report choices.
-pub fn check_learning(_policy: SeatPolicy, _learn: bool) -> Result<(), String> {
+pub fn check_learning(policy: SeatPolicy, learn: bool) -> Result<(), String> {
+    if learn && !policy.reports_choices() {
+        return Err(format!(
+            "--learn on needs seats that report their choices; --policy {} reports none (use --policy brain)",
+            policy.as_str()
+        ));
+    }
     Ok(())
 }
 
@@ -98,18 +151,42 @@ pub struct SeatRecord {
 /// faulted seat or a policy that reports nothing, which then records only the manager's faction key.
 pub fn seat_record(
     index: usize,
-    _seat: &SeatSpec,
-    _result: &RunResult,
-    _finish: Option<PolicyFinish>,
+    seat: &SeatSpec,
+    result: &RunResult,
+    finish: Option<PolicyFinish>,
 ) -> SeatRecord {
+    let mut choices = finish.map(|f| f.choices).unwrap_or_default();
+    // Source onResult: the faction was the manager's pick, recorded after the Brain's own choices.
+    choices.push(format!(
+        "faction|{}|{}",
+        seat.persona.as_str(),
+        seat.faction.as_str()
+    ));
     SeatRecord {
         index,
-        tier: Tier::Easy,
-        outcome: RunOutcome::Void,
-        place: 0.,
-        players: 0.,
-        choices: Vec::new(),
+        tier: learn_tier(seat.tier),
+        outcome: match result.outcome {
+            Outcome::Won => RunOutcome::Won,
+            Outcome::Draw => RunOutcome::Draw,
+            Outcome::Died => RunOutcome::Died,
+            Outcome::Mia => RunOutcome::Mia,
+        },
+        place: f64::from(result.place),
+        players: f64::from(result.players),
+        choices,
     }
+}
+
+fn cell_json(cell: Cell) -> Value {
+    json!({ "n": cell.n(), "s": cell.s() })
+}
+
+fn cell_of(value: &Value, what: &str) -> Result<Cell, String> {
+    let n = value["n"].as_f64();
+    let s = value["s"].as_f64();
+    n.zip(s)
+        .and_then(|(n, s)| Cell::try_new(n, s))
+        .ok_or_else(|| format!("{what}: not a cell"))
 }
 
 /// The in-memory learning store of a tournament series.
@@ -127,20 +204,81 @@ impl LearnStore {
     }
     /// The frozen view a game's seats are built with (source `store.snapshot()`).
     pub fn snapshot(&self) -> LearnedBias {
-        LearnedBias::NO_BIAS
+        self.stats.snapshot()
     }
     /// Fold one seat record in (source `store.record`). False when the learner ignores it.
-    pub fn record(&mut self, _record: &SeatRecord) -> bool {
-        false
+    pub fn record(&mut self, record: &SeatRecord) -> bool {
+        self.stats.apply(&RunSummary {
+            tier: record.tier,
+            outcome: record.outcome,
+            place: record.place,
+            players: record.players,
+            choices: &record.choices,
+        })
     }
     /// The store as JSON: the format tag, every tier's baseline cell, every choice cell (sorted by key, as the source
     /// writer sorts), and each cell's bias.
     pub fn to_json(&self) -> Value {
-        Value::Null
+        let mut baseline = Map::new();
+        for tier in Tier::ALL {
+            baseline.insert(tier.as_str().into(), cell_json(self.stats.baseline(tier)));
+        }
+        let mut entries = Map::new();
+        let mut bias = Map::new();
+        // BTreeMap order: sorted by key.
+        for (key, cell) in self.stats.entries() {
+            entries.insert(key.clone(), cell_json(*cell));
+            bias.insert(key.clone(), json!(cell.bias()));
+        }
+        json!({
+            "format": STORE_FORMAT,
+            "version": LEARN_VERSION,
+            "baseline": baseline,
+            "entries": entries,
+            // Oldest first: the age order eviction reads (the entries object above is sorted by key).
+            "order": self.stats.entry_order(),
+            "bias": bias,
+        })
     }
-    /// Read a store back (the inverse of [`to_json`](Self::to_json)).
-    pub fn from_json(_value: &Value) -> Result<Self, String> {
-        Err("unimplemented".into())
+    /// Read a store back (the inverse of [`to_json`](Self::to_json)). Anything damaged refuses the whole file.
+    pub fn from_json(value: &Value) -> Result<Self, String> {
+        if value["format"] != STORE_FORMAT {
+            return Err(format!("not a {STORE_FORMAT} store"));
+        }
+        if value["version"] != LEARN_VERSION {
+            return Err(format!(
+                "store version {} is not {LEARN_VERSION}",
+                value["version"]
+            ));
+        }
+        let mut stats = Stats::default();
+        for tier in Tier::ALL {
+            let cell = cell_of(&value["baseline"][tier.as_str()], tier.as_str())?;
+            stats.set_baseline(tier, cell);
+        }
+        let entries = value["entries"]
+            .as_object()
+            .ok_or("the store has no entries object")?;
+        let order = value["order"]
+            .as_array()
+            .ok_or("the store has no order array")?;
+        if order.len() != entries.len() {
+            return Err("the store's order does not list every entry once".into());
+        }
+        // Restored oldest first, so the eviction age order comes back with the cells.
+        for key in order {
+            let key = key.as_str().ok_or("an order key is not a string")?;
+            let cell = entries
+                .get(key)
+                .ok_or_else(|| format!("{key}: in the order but not in the entries"))?;
+            if stats.entries().contains_key(key) {
+                return Err(format!("{key}: listed twice in the order"));
+            }
+            if !stats.insert_entry(key.to_owned(), cell_of(cell, key)?) {
+                return Err(format!("{key}: not a choice key"));
+            }
+        }
+        Ok(Self { stats })
     }
 }
 
@@ -162,12 +300,37 @@ pub fn run_learning_game(
     policy: SeatPolicy,
     learned: &LearnedBias,
 ) -> LearnedGame {
-    let _ = (plan, arena, sim, policy);
+    let features = rh_policy::bots::brain_features(sim, arena);
+    let mut records = Vec::new();
+    let mut lineup: Vec<SeatSpec> = Vec::new();
+    let summary = run_game_seats(
+        index,
+        plan,
+        arena,
+        sim,
+        |seat| -> Box<dyn rh_policy::Policy> {
+            match policy {
+                SeatPolicy::Human => Box::new(HumanBot::new(seat.tier, seat.persona)),
+                SeatPolicy::Brain => Box::new(
+                    BrainBot::new(seat.tier, seat.persona, features.clone())
+                        .with_learned(learned.clone()),
+                ),
+            }
+        },
+        |env, i, result| {
+            if lineup.is_empty() {
+                lineup = plan_game(plan, index).lineup;
+            }
+            let player = env.sim.players()[i].id;
+            let finish = env.finish_seat(player, Some(result));
+            records.push(seat_record(i, &lineup[i], result, finish));
+        },
+    );
     LearnedGame {
         index,
         bias_in: learned.clone(),
-        summary: crate::tournament::run_game(index, plan, arena, sim),
-        records: Vec::new(),
+        summary,
+        records,
     }
 }
 
@@ -180,12 +343,45 @@ pub fn play_learning(
     policy: SeatPolicy,
     store: &mut LearnStore,
 ) -> Vec<LearnedGame> {
-    let _ = (plan, arena, sim, policy, store);
-    Vec::new()
+    (0..plan.games)
+        .map(|index| {
+            let learned = store.snapshot();
+            let game = run_learning_game(index, plan, arena, sim, policy, &learned);
+            for record in &game.records {
+                store.record(record);
+            }
+            game
+        })
+        .collect()
+}
+
+/// Play the plan with `policy` seats and no learning (the Brain reads the switched-off bias), split across the plan's
+/// workers and returned in plan order.
+pub fn play_policy(
+    plan: &TournamentPlan,
+    arena: &Arena,
+    sim: &SimConfig,
+    policy: SeatPolicy,
+) -> Vec<GameSummary> {
+    play_each(plan, plan.workers, |index| {
+        run_learning_game(index, plan, arena, sim, policy, &LearnedBias::NO_BIAS).summary
+    })
 }
 
 /// The JSON file a learning run writes: the plan that produced it and the final store.
 pub fn learning_file(plan: &TournamentPlan, policy: SeatPolicy, store: &LearnStore) -> Value {
-    let _ = (plan, policy, store);
-    Value::Null
+    json!({
+        "plan": {
+            "games": plan.games,
+            "seed": plan.seed,
+            "lineup": lineup_text(&plan.tiers),
+            "persona": plan.persona.as_str(),
+            "faction": plan.faction.as_str(),
+            "maxSimMs": plan.max_sim_ms,
+            "patienceSeconds": plan.patience_seconds,
+            "suddenDeathSeconds": plan.sudden_death_seconds,
+            "policy": policy.as_str(),
+        },
+        "store": store.to_json(),
+    })
 }

@@ -480,8 +480,10 @@ impl Env {
         player: PlayerId,
         result: Option<&RunResult>,
     ) -> Option<rh_policy::PolicyFinish> {
-        let _ = (player, result);
-        None
+        self.seats
+            .iter_mut()
+            .find(|seat| seat.player() == player)
+            .and_then(|seat| seat.finish(result))
     }
 
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {

@@ -143,6 +143,11 @@ impl Stats {
     pub fn entries(&self) -> &BTreeMap<String, Cell> {
         &self.entries
     }
+    /// The choice keys oldest first (the eviction age order: a full table drops the smallest n, the oldest of equals).
+    /// A store file that keeps this order restores to an equal `Stats`.
+    pub fn entry_order(&self) -> &[String] {
+        &self.entry_order
+    }
     /// Restore decoded rows (a damaged entry is dropped on its own: one bad row is not worth the other rows).
     pub fn set_baseline(&mut self, tier: Tier, cell: Cell) {
         self.baseline[tier.index()] = cell;
