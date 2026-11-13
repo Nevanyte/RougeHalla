@@ -20,6 +20,14 @@
 > answer.** The branch was rebased onto `1032e5bd` (after P-MAPGEN-SIG-RESERVE-1) and re-measured (section 12, last
 > subsection): test 8 (the budget) now fails today, the walk test now passes today, and test 9's floor was amended
 > from 85% to 70% because the reservation alone takes the barrows from 94% to 79% of option off.
+>
+> **Coordinator of the land-generation lane, 2026-11-13, evening: READY TO IMPLEMENT.** The landmark lane's
+> coordinator answered addendum 2, section 4 (cross-session message, 2026-11-13): **option (b)**. This packet's write
+> scope is widened to the six shared files for the new feature kind only, on four conditions; section 5 carries them
+> word for word. Read section 5 and the first trap of section 11 before anything else. Two things are known to be
+> coming and are not this packet's to solve: P-MAPGEN-SIG-SCALE-1 (the fixed 29 x 29 Frost cave) merges next and
+> moves many option-on maps to a later attempt, and P-MAPGEN-SIG-SCALE-2 will also edit `certify/rules.rs` and
+> `certify/features.rs` ("whichever of us lands second rebases").
 
 - **Serves:** owner direction 2026-11-12 on generation order and land generation round the landmarks (MIGRATION
   checkpoint, "Owner direction 2026-11-12 (chat, late night)"); the land-generation requirements accepted that night,
@@ -33,7 +41,8 @@
 - **Reviewer:** reviewer-opus
 - **Integration base:** feature/unity-rework (`1032e5bd`: the branch was rebased onto it, after P-MAPGEN-SIG-RESERVE-1)
 - **D-rules touched:** D1: option off byte-identical (G8); under the option an intentional difference from legacy
-  (a proposed row in the hand-off: an amendment of DEV-020 or a new row) · D2 n/a · no sim tick or wire change
+  (a proposed new row in the hand-off, in DEV-028's form, "Inside DEV-020"; the coordinator numbers it) · D2 n/a ·
+  no sim tick or wire change
 
 ## 1. ID and outcome
 Today, with `pipeline::Options::signature` on, the Landmarks phase places the bog tree
@@ -76,9 +85,9 @@ Out of this packet: `P-LAND-PLAGUE-2` (the water and mud decoration rings in `rh
 - P-MAPGEN-SIG-RESERVE-1 (a 34-tile reserved site) is merged and under this branch. P-MAPGEN-SIG-SCALE-3 (a 29-tile
   tree) will change every option-on map while this packet is open: every check is a property measured from the anchor,
   never a pinned map, hash, attempt number or tile position.
-- **Decision needed first** (section 11): the pool's feature kind (needs files outside this scope; asked in
-  `docs/coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_2.md`). The reading of "Barrows unchanged" is settled by
-  the owner (status note above).
+- **Settled** (section 11): the pool's feature kind is added by this packet under the widened scope of section 5
+  (the landmark lane's coordinator, 2026-11-13). The reading of "Barrows unchanged" is settled by the owner (status
+  note above).
 
 ## 3. Relevant legacy paths (verified with `rg`)
 - `packages/shared/src/zoneStyle/warren.ts:1-20` (the design: "go left on dry ground, right through the bog crescent on
@@ -96,12 +105,29 @@ Out of this packet: `P-LAND-PLAGUE-2` (the water and mud decoration rings in `rh
   `signature::DEFAULT_DEFINITION` is at `tests/content.rs:46`)
 - `crates/rh-mapdress/tests/anchor.rs` `NO_ANCHOR_GOLDEN` and `crates/rh-mapdress/tests/marsh.rs` `SIG_GOLDEN`: only if
   they move (section 11), re-measured as their comments say ("measured on the tree before the change": run the test,
-  take the value the failed assertion prints for each seed), and named in the hand-off for approval
-- **Not in scope, coordinator's decision** (section 11, first trap): a new signature feature kind for a pool, which
-  touches `mapdata/model.rs`, `mapdata/validate.rs`, `mapgen/certify/{rules,features,diagnostics}.rs` and
-  `mapgen/map_hash/mod.rs` (the FIRE-1 stub `aa22573a6` is the precedent).
-- Not yours: `mapgen/landmarks/**`, `mapgen/pipeline/`, `mapgen/style_runtime/`, `mapgen/certify/`, the coordinator's
-  tests `crates/rh-sim/tests/mapgen_signature_*.rs` (leave them; report the values that move).
+  take the value the failed assertion prints for each seed), constants only, in one separate last commit whose
+  message starts `P-LAND-PLAGUE-1 re-pin:`, with the old and new values listed in the hand-off
+- **Widened by the landmark lane's coordinator (2026-11-13), for the new feature kind only:**
+  `crates/rh-sim/src/mapdata/model.rs`, `crates/rh-sim/src/mapdata/validate.rs`,
+  `crates/rh-sim/src/mapgen/certify/rules.rs` (`SIGNATURE_KINDS`), `crates/rh-sim/src/mapgen/certify/features.rs`,
+  `crates/rh-sim/src/mapgen/certify/diagnostics.rs` and `crates/rh-sim/src/mapgen/map_hash/mod.rs`. The conditions,
+  as the coordinator wrote them:
+  - "(i) `BogPool` is APPENDED after the last existing `FeatureKind` variant, never inserted (ordinals and serialized
+    names of existing kinds must not move);"
+  - "(ii) it is one commit of its own on the packet or agent branch, separate from the styler work, so it can be read
+    alone;"
+  - "(iii) it follows `LavaPool`'s commit (aa22573a6) file for file and you state in the hand-off, having checked
+    rather than assumed, that option-off maps stay byte-identical, that the map export format string, the map blob,
+    the checkpoint format, the content hash and the map hash of every option-off map do not move;"
+  - "(iv) nothing else in those six files changes."
+  The kind commit goes on the agent branch, first, with a message starting `P-LAND-PLAGUE-1 kind:`. Of `aa22573a6`
+  only its edits to these six files are the pattern; its other four files (`landmarks/signature/`, `pipeline/mod.rs`,
+  `style_scorch/`) are not in this scope.
+- Not yours: `mapgen/landmarks/**`, `mapgen/pipeline/`, `mapgen/style_runtime/`, the rest of `mapgen/certify/` and
+  anything else in the six files above, the coordinator's tests `crates/rh-sim/tests/mapgen_signature_*.rs` (leave
+  them; report the values that move). If the kind turns out to need an edit anywhere else (a decoder, a table, a
+  `match` without a wildcard arm, `rh-protocol`, `rh-server`, `rh-mapdress` rules, the C# or JS side), stop and
+  report it; do not make it.
 
 ## 6. Contracts and references
 - ADR 0028 (G1, G4, G5, G8, G10; decision on masks and the end-of-attempt discard).
@@ -219,19 +245,23 @@ map. Seams (paths and lines at `b3a8fb516`):
   `style_runtime/rules.rs:34`), and stateless `c.streams.noise` (offset 100) for rough edges. The legacy Warren path
   draws nothing from the stream, so option off cannot move; under the option draw order is behaviour (a reordered draw
   is a different map). Never the attempt's main stream or the landmark stream (id 5).
-Size estimate: 250-400 changed lines in scope (pool planner, masks, barrow seam, surface, tunables); the feature kind
-is extra and outside scope. No cut proposed.
+Size estimate: 250-400 changed lines in the styler (pool planner, masks, barrow seam, surface, tunables); the feature
+kind is a separate first commit under the widened scope (section 5), about 20 lines by `LavaPool`'s precedent. No cut
+proposed.
 
 ## 11. Known traps
-- **No feature kind for a free pool (decision needed).** Bog floor in a strict zone must be owned by a feature
+- **No feature kind for a free pool (settled 2026-11-13: this packet adds `BogPool` under section 5's conditions; the
+  hand-off must state, each one checked and not assumed, that option-off maps are byte-identical and that the map
+  export format string, the map blob, the checkpoint format, the content hash and the map hash of every option-off
+  map do not move, and say how each was checked).** Bog floor in a strict zone must be owned by a feature
   (`certify/features.rs:222` `feature-hazards`) of the zone (`pipeline/style_contract.rs:64-72`). Today the `Barrow`
   owns its crescent; test 9b forbids that for pools. No existing kind fits: `Barrow` and `Landmark` need wall pieces or
   template params, `Mere` is Frost's lake (its params count ice), `Causeway` and `Bush` mean other things. The clean way
   is a signature kind (for example `BogPool`: no params, no wall, no LOW, terrain 0, job `Crossing`) added like
   `LavaPool` in FIRE-1's stub (`aa22573a6`: `mapdata/model.rs`, `mapdata/validate.rs`, `certify/rules.rs`
   `SIGNATURE_KINDS`, `certify/features.rs`, `certify/diagnostics.rs`, `map_hash/mod.rs`). Those files are shared
-  (`LANDMARK_GENERATION_SPEC.md` section 3): the coordinator adds the kind in a stub before dispatch, or widens this
-  scope. The certifier caps a map at 250 features (`R.features`) and `feature_grid` is `u8`; today's option-on maps
+  (`LANDMARK_GENERATION_SPEC.md` section 3): the landmark lane's coordinator widened this scope to them for the kind
+  only. The certifier caps a map at 250 features (`R.features`) and `feature_grid` is `u8`; today's option-on maps
   hold 77-95 (section 12, M9).
 - **"Barrows unchanged" (owner reading needed).** Legacy's barrow is a three-way fork: dry flank, wet crescent, tunnel
   (`warren.ts:2-5`, "the wet fork is its home advantage"). This oracle reads the requirement as: rock, tunnel, siting
