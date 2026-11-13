@@ -355,7 +355,8 @@ fn band_plane(map: &GameMapData, rules: &Rules) -> Vec<u8> {
 }
 
 /// Chebyshev distance in tiles from every tile to the nearest source tile, by a two-pass chamfer (exact for the
-/// Chebyshev metric): O(w*h) with 4 neighbours per pass, about 200k steps on a 160x160 map, per (zone, class) pair.
+/// Chebyshev metric): 4 neighbours per pass, 8 in all (the full 8-neighbourhood at unit weight; 4 alone would be
+/// Manhattan). O(w*h), about 200k steps on a 160x160 map, per (zone, class) pair.
 fn chebyshev_field(w: usize, h: usize, source: &[bool]) -> Vec<u32> {
     const FAR: u32 = u32::MAX / 2;
     let mut d: Vec<u32> = source.iter().map(|&s| if s { 0 } else { FAR }).collect();
@@ -414,15 +415,21 @@ fn terrain_plane(map: &GameMapData, rules: &Rules) -> (Vec<u8>, Vec<bool>, Vec<b
                     continue;
                 }
                 let mut prev = 0;
-                for (k, r) in z.terrain_rings.iter().enumerate() {
+                let mut first = true;
+                for r in &z.terrain_rings {
                     if r.around == class && dist[i] > prev && dist[i] <= r.reach {
-                        marsh[i] = r.ground_variant;
+                        // Round two classes, the first class in list order keeps the ground unless this ring is
+                        // a nearest ring; a nearest ring of any class bars tall props.
+                        if !ringed[i] || first {
+                            marsh[i] = r.ground_variant;
+                        }
                         ringed[i] = true;
-                        water[i] = k == 0;
+                        water[i] |= first;
                         break;
                     }
                     if r.around == class {
                         prev = r.reach;
+                        first = false;
                     }
                 }
             }

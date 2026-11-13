@@ -16,7 +16,7 @@
 //!
 //! Ground variants (per zone art meanings): 0 none; 1-2 a zone's fallback rings; 3-6 Plague's bog tree bands (core, near,
 //! mid, far); 7 water and 8 mud, Plague's `terrainRings` round bog (P-DRESS-MARSH-1). A terrain ring wins over the
-//! band or fallback ring variant within its reach.
+//! band or fallback ring variant within its reach. A zone's nearest terrain ring round each class also bars tall props.
 use rh_sim::mapdata::{FeatureKind, Zone};
 use serde::Deserialize;
 use std::collections::BTreeMap;
