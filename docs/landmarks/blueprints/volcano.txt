@@ -1,0 +1,42 @@
+; FIRE VOLCANO blueprint, 30 x 30 tiles. FRONT (toward the coliseum) is the BOTTOM edge.
+; Cone height tiers, all of them WALL to the generator (the tiers are looks for the artist):
+;   #  foot (lowest ring)     X  slope (middle ring)     H  rim (highest ring, round the lake)
+; ~  lava (LOW: walkers cannot cross, shots can): the crater lake in the middle and three channels from it to the front edge
+; O  stream OUTLET: the 2 lava tiles where a stream leaves the box. Exactly three, all on the front row (y=29).
+; .  floor (only in the four cut corners of the box, outside the cone)
+; Stream headings at the outlets (degrees off 'straight toward the coliseum', DIR16 uses 22.5-degree steps):
+;   left outlet (x=7-8): 45 degrees to the left, a side stream, 10-14 path tiles
+;   middle outlet (x=14-15): straight ahead, 14-18 path tiles, the longest
+;   right outlet (x=21-22): 45 degrees to the right, side stream, 10-14 path tiles
+; The streams themselves (random bends, a pool at each end) lie OUTSIDE this box and are not drawn.
+;
+......##################......
+.....####################.....
+....######################....
+...########################...
+..#######XXXXXXXXXXXX#######..
+.#######XXXXXXXXXXXXXX#######.
+#######XXXXXXXXXXXXXXXX#######
+######XXXXXXXXXXXXXXXXXX######
+#####XXXXXHHHHHHHHHHXXXXX#####
+####XXXXXHHHHHHHHHHHHXXXXX####
+####XXXXHHHH~~~~~~HHHHXXXX####
+####XXXXHHH~~~~~~~~HHHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXHH~~~~~~~~~~HHXXXX####
+####XXXXH~~~~~~~~~~~~HXXXX####
+####XXXX~~~HHH~~HHH~~~XXXX####
+#####XX~~~HHHH~~HHHH~~~XX#####
+######X~~XXXXX~~XXXXX~~X######
+#######~~XXXXX~~XXXXX~~#######
+.######~~XXXXX~~XXXXX~~######.
+..#####~~XXXXX~~XXXXX~~#####..
+...####~~#####~~#####~~####...
+....###~~#####~~#####~~###....
+.....##~~#####~~#####~~##.....
+......#OO#####OO#####OO#......

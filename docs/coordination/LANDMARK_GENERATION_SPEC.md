@@ -21,6 +21,27 @@ landmark's exact footprint is known only after that. Your requests in section 4 
 `style_gallows/`, `style_warren/` and `style_rime/` edits (the coordinator passes the failing test), `style_scorch/`
 stays with SCALE-4, the yard box and the superseded packets are as you wrote them.
 
+## Update 2026-11-13, midday: blueprints approved; merged since this file was written
+
+- **Merged:** P-MAPGEN-SIG-RESERVE-1 (sites reserved before camps; ADR 0028 decision 12) and P-DRESS-BAKE-1 (the
+  server bakes `rh_mapdress::dress` into the map blob; the rules are checked against the wire caps at start-up: kind
+  codes 1-100, ground variants up to 15).
+- **Blueprints approved by the owner** and checked in: [../landmarks/blueprints/](../landmarks/blueprints/README.md).
+  Footprints: cave, church with graveyard and bog tree 29 x 29 (placed relative to the camp tile, which is one tile
+  off the site's centre line), volcano 30 x 30 with its three outlets on the front row at columns 7-8, 14-15 and
+  21-22, Holy hall 37 x 37 with two Holy camps on the nave (site 41; grid being redrawn).
+- **Your addendum 1** (the churchyard inside the church's blueprint, L2a) is not yet confirmed to the coordinator by
+  the owner; the church blueprint approved here has no churchyard fence. SCALE-2 waits for that answer. Your request
+  5.4: option (b): leave the landmark lane's option-on pins untouched and list the new values; the coordinator
+  re-pins at merge. Your request 5.5: the `NON_GAMEPLAY` row for your lane constants is in your scope.
+- **Decoration kinds have a client table.** P-UNITY-DRESS-1 (in flight) adds
+  `client-unity/RoguehallaNet/Net/Ui/DecorationKinds.cs` and a test that fails when `rules/zones.json` holds a kind
+  the table lacks. A new kind in the rules needs a row there: name it in your hand-off and the coordinator adds it at
+  merge.
+- **Pinned decoration digests:** `crates/rh-mapdress/tests/anchor.rs` (`NO_ANCHOR_GOLDEN`) and `marsh.rs`
+  (`SIG_GOLDEN`) are pinned on landmark-mode maps and were re-pinned at the reservation merge; they move again with
+  every landmark and land packet.
+
 ## 1. What is merged today
 
 **Order (G1, owner rule):** zones and camps (the Prefix) → one landmark per zone (the Landmarks phase) → thematic
