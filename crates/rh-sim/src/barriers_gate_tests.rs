@@ -189,7 +189,10 @@ fn two_walls_landing_in_one_tick_share_no_tile() {
         config,
         room(),
         Secrets::from_seed(7),
-        &[p(0, Vec2::new(tc(5), tc(10))), p(1, Vec2::new(tc(19), tc(13)))],
+        &[
+            p(0, Vec2::new(tc(5), tc(10))),
+            p(1, Vec2::new(tc(19), tc(13))),
+        ],
     );
     s.step();
     let (one, two) = (s.players()[0].id, s.players()[1].id);
@@ -205,7 +208,8 @@ fn two_walls_landing_in_one_tick_share_no_tile() {
     assert!(landed_together, "both walls rose in one tick");
     let r = rows(&s);
     // Whichever lands first takes its whole stretch; the second only what is left of its own.
-    let column = |rows: std::ops::RangeInclusive<u32>| -> Vec<u32> { rows.map(|y| y * 40 + 12).collect() };
+    let column =
+        |rows: std::ops::RangeInclusive<u32>| -> Vec<u32> { rows.map(|y| y * 40 + 12).collect() };
     let (west, east) = (column(7..=13), column(10..=16));
     let (whole, rest) = if r[0].cells == west {
         (west, column(14..=16))
@@ -214,15 +218,14 @@ fn two_walls_landing_in_one_tick_share_no_tile() {
     };
     assert_eq!(r[0].cells, whole, "the first takes its whole stretch");
     assert_eq!(r[1].cells, rest, "the second excludes the first's tiles");
-    let walls = s
-        .w
-        .abilities
-        .as_ref()
-        .unwrap()
-        .fields
-        .iter()
-        .filter(|f| f.kind == FieldKind::Wall)
-        .count();
+    let walls =
+        s.w.abilities
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .filter(|f| f.kind == FieldKind::Wall)
+            .count();
     assert_eq!(walls, 2, "two wall fields, one row each");
     let held = held(&s.w);
     let map = body_map(&s.k, &held, s.w.rt.gates_locked);

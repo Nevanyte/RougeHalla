@@ -50,7 +50,7 @@ pub struct AbilityRuntime {
     /// [`crate::barriers::Barriers`]). `#[serde(default)]`: checkpoints written before the field restore as empty.
     #[serde(default)]
     pub barriers: crate::barriers::Barriers,
-    /// Derived from `barriers` and the gate state (`barriers::sync`): never serialized, never hashed.
+    /// Derived from `barriers`, over both gate states (`barriers::sync`): never serialized, never hashed.
     #[serde(skip)]
     pub overlay: crate::barriers::Overlay,
 }

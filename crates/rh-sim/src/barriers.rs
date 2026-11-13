@@ -164,9 +164,13 @@ impl<'de> serde::Deserialize<'de> for Barriers {
     }
 }
 
-/// The collision map with the standing barriers' tiles LOW (legacy `collisionMap`'s `withBarriers` overlay), keyed by
-/// the gate state and the wall fields it was built from. Derived: never serialized, rebuilt by [`sync`]; equality
-/// ignores it (it is a function of serialized state and the statics).
+/// The collision maps with the standing barriers' tiles LOW (legacy `collisionMap`'s `withBarriers` overlay), keyed by
+/// the wall fields they were built from. Derived: never serialized, rebuilt by [`sync`]; equality ignores it (it is a
+/// function of serialized state and the statics).
+///
+/// It holds the walls over both gate states, as the statics hold the open and the closed-gate map, and [`body_map`]
+/// picks one by the gate state at the query. So the overlay depends on the barrier rows alone: a site that opens or
+/// closes the gates needs no sync (legacy re-keys its map on a gate change, `world.ts:1079-1091`), and none can forget.
 #[derive(Clone, Debug, Default)]
 pub struct Overlay(pub(crate) Option<Arc<OverlayMap>>);
 
@@ -178,15 +182,16 @@ impl PartialEq for Overlay {
 
 #[derive(Debug)]
 pub struct OverlayMap {
-    pub(crate) locked: bool,
     pub(crate) fields: Vec<u32>,
-    pub(crate) map: TileMap,
+    /// The open map with the walls.
+    pub(crate) open: TileMap,
+    /// The closed-gate map with the walls; `None` when the arena has no gates (the statics' `locked_map` is `None`).
+    pub(crate) locked: Option<TileMap>,
 }
 
-/// Rebuilds the overlay when the standing walls or the gate state changed since it was built; drops it when no wall
-/// stands. Allocation-free when nothing changed.
+/// Rebuilds the overlay when the standing walls changed since it was built; drops it when no wall stands.
+/// Allocation-free when nothing changed. The gate state is not an input (see [`Overlay`]).
 pub(crate) fn sync(k: &MatchStatic, w: &mut World) {
-    let locked = w.rt.gates_locked;
     let Some(a) = w.abilities.as_mut() else {
         return;
     };
@@ -195,8 +200,7 @@ pub(crate) fn sync(k: &MatchStatic, w: &mut World) {
         return;
     }
     let current = a.overlay.0.as_ref().is_some_and(|o| {
-        o.locked == locked
-            && o.fields.len() == a.barriers.0.len()
+        o.fields.len() == a.barriers.0.len()
             && o.fields
                 .iter()
                 .zip(&a.barriers.0)
@@ -205,13 +209,11 @@ pub(crate) fn sync(k: &MatchStatic, w: &mut World) {
     if current {
         return;
     }
-    let map = k
-        .collision_map(locked)
-        .with_low(a.barriers.0.iter().flat_map(|b| b.cells.iter().copied()));
+    let cells = || a.barriers.0.iter().flat_map(|b| b.cells.iter().copied());
     a.overlay.0 = Some(Arc::new(OverlayMap {
-        locked,
         fields: a.barriers.0.iter().map(|b| b.field).collect(),
-        map,
+        open: k.arena.map.with_low(cells()),
+        locked: k.locked_map.as_ref().map(|m| m.with_low(cells())),
     }));
 }
 
@@ -220,14 +222,16 @@ pub(crate) fn held(w: &World) -> Option<Arc<OverlayMap>> {
     w.abilities.as_ref().and_then(|a| a.overlay.0.clone())
 }
 
-/// The map bodies, swings and paths read: the overlay while a wall stands, else the arena's (gates as they are).
+/// The map bodies, swings and paths read, gates as they are now: the overlay while a wall stands, else the arena's.
+/// Picks the gate state the way `MatchStatic::collision_view` does.
 pub(crate) fn body_map<'a>(
     k: &'a MatchStatic,
     held: &'a Option<Arc<OverlayMap>>,
     locked: bool,
 ) -> &'a TileMap {
     match held {
-        Some(o) => &o.map,
+        Some(o) if locked => o.locked.as_ref().unwrap_or(&o.open),
+        Some(o) => &o.open,
         None => k.collision_map(locked),
     }
 }
@@ -274,8 +278,8 @@ pub(crate) fn forget(a: &mut crate::status_runtime::AbilityRuntime, field: u32) 
 }
 
 #[cfg(test)]
-#[path = "barriers_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "barriers_gate_tests.rs"]
 mod gate_tests;
+#[cfg(test)]
+#[path = "barriers_tests.rs"]
+mod tests;

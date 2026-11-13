@@ -32,10 +32,14 @@
 //! new config field must say in its own doc whether its default adds a word to the digest; one whose default adds none
 //! needs a non-default encoding of its own, checked in `tests/hash_coverage.rs` against every other such field.
 //!
-//! One World exception (P-CAMP-BUFF-THEMES-1, coordinator decision): `MobRuntime::buffs` writes its empty row as a unit
+//! Two World exceptions. `MobRuntime::buffs` (P-CAMP-BUFF-THEMES-1, coordinator decision) writes its empty row as a unit
 //! (no word) so every `CampBuffRule::Legacy` world keeps its hash and checkpoint; it is safe only because `check_world`
 //! admits that untagged shape exactly when the digest holds `Legacy` (or the world has no camps) and a row of one entry
 //! per camp exactly when it holds `Themed`, so two states under one digest never differ by its presence alone.
+//! `AbilityRuntime::barriers` (P-FROST-WALL-1, `barriers::Barriers`) writes its empty row as a unit too, so every world
+//! with no wall standing keeps its hash and checkpoint; it is safe because the row is non-empty exactly when the field
+//! list written before it holds a `Wall` field (`barriers::check`), so the untagged empty form cannot be confused with a
+//! written one.
 //!
 //! Mixer: one `(h ^ word) * K` and a rotate per word (a bijection of the running state for every word, so a single changed
 //! word always changes the result), then a splitmix64 finalizer.
