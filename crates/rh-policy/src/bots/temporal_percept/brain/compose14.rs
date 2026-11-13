@@ -28,11 +28,15 @@
 //! - `extras.wish` is the delivered Wish slot with its `def` built from the public catalog (`bots::wish::WISHES` and
 //!   `rh_sim::abilities::definition`), its `rank` `undefined` (not on the wire; source `rankOf` reads it as 1).
 //!
-//! NPC references are per-sample (no cross-frame join), so a mob's velocity is the source's `0` for "no earlier sample"
-//! and a mob is drawn where the newest sample has it, not interpolated at `viewT` like a player. The camera is always the
+//! NPC references are per-sample (no cross-frame join). On a live seat ([`Composer14::track_mobs`],
+//! P-BOT-BRAIN-CONTINUITY-1) a mob's key is the seat's own track (`mob_tracks.rs`: position, class and step bound, never
+//! the reference or the row order) and its velocity is the track's displacement over the last sample interval; without
+//! tracking (the composer oracles) the key is the reference and the velocity the source's `0` for "no earlier sample".
+//! Either way a mob is drawn where the newest sample has it, not interpolated at `viewT` like a player. The camera is always the
 //! newest self position: frames.ts:137-142 keeps it (and the scene) at the old spot until render time reaches a teleport
 //! cut, which needs the pre-cut scene retained (not done; both are proposed deviations for piece 3).
 
+use super::mob_tracks::{MobClass, MobRow, MobTracks};
 use super::percept::Percept;
 use super::room_paths::with_gates;
 use super::trace::BVal;
@@ -266,6 +270,8 @@ pub(crate) struct Composer14 {
     /// `hud.winner` (arena.ts:91, :466): `""` until this seat accepts `MatchEnded`, then the winner's roster name (`""` on
     /// a draw or without a roster row).
     winner: String,
+    /// The seat's mob tracks (live seats only, [`Composer14::track_mobs`]).
+    tracks: Option<MobTracks>,
 }
 
 /// The groups a composition reads, all present (the composer's preflight).
@@ -289,13 +295,15 @@ impl Composer14 {
             mob_kills: 0,
             last_plan: None,
             winner: String::new(),
+            tracks: None,
         }
     }
 
     /// Key the mob rows by the seat's own tracks (`mob_tracks.rs`) instead of their per-sample references: live seats
     /// only; the frozen-corpus and composer oracles keep reference keys.
-    /// STUB (P-BOT-BRAIN-CONTINUITY-1): not wired yet.
-    pub(crate) fn track_mobs(&mut self) {}
+    pub(crate) fn track_mobs(&mut self) {
+        self.tracks = Some(MobTracks::default());
+    }
 
     /// Forget every retained sample (a new session or match).
     pub(crate) fn reset(&mut self) {
@@ -305,6 +313,9 @@ impl Composer14 {
         self.mob_kills = 0;
         self.last_plan = None;
         self.winner.clear();
+        if let Some(tracks) = self.tracks.as_mut() {
+            tracks.cut();
+        }
     }
 
     /// The composer's whole refusal set, without changing anything (the seat's `check_input`).
@@ -397,6 +408,52 @@ impl Composer14 {
             self.samples.remove(0);
         }
 
+        // The NPC rows' keys: the seat's tracks on a live seat, else the per-sample references.
+        let died_now: Vec<u32> = frame
+            .events
+            .iter()
+            .flat_map(|b| &b.events)
+            .filter_map(|e| match e {
+                WireEvent::Death { id, .. } => Some(*id),
+                _ => None,
+            })
+            .collect();
+        let keys = match self.tracks.as_mut() {
+            None => NpcKeys::default(),
+            Some(tracks) => {
+                if self.samples.last().is_some_and(|s| s.teleport) {
+                    tracks.cut();
+                }
+                let rows: Vec<&WireActor> = frame
+                    .actors
+                    .iter()
+                    .filter(|a| a.kind != 0 && shown(a))
+                    .filter(|a| wire_status(a.status) == Status::Alive || died_now.contains(&a.id))
+                    .collect();
+                let tracked = tracks.update(
+                    now,
+                    &rows
+                        .iter()
+                        .map(|a| MobRow {
+                            at: actor_at(a),
+                            class: MobClass {
+                                kind: a.kind,
+                                type_code: a.mob_type_code,
+                                faction: a.faction,
+                            },
+                            dying: wire_status(a.status) != Status::Alive,
+                        })
+                        .collect::<Vec<_>>(),
+                );
+                NpcKeys(
+                    rows.iter()
+                        .zip(tracked)
+                        .map(|(a, t)| (a.id, t.key, t.vel))
+                        .collect(),
+                )
+            }
+        };
+
         // What this sample draws (perceive's box), for the events it carries.
         let mut seen: Vec<Seen> = vec![Seen {
             id: me.id,
@@ -413,7 +470,7 @@ impl Composer14 {
             }
             seen.push(Seen {
                 id: a.id,
-                key: actor_key(a),
+                key: keys.actor(a),
                 at,
                 weapon: wire_weapon(a.weapon),
                 npc: a.kind != 0,
@@ -428,7 +485,7 @@ impl Composer14 {
                 .find(|r| r.id == id)
                 .map(|r| r.name.clone())
         };
-        let (queued, immediate) = sample_events(frame, now, &seen, &roster_name);
+        let (queued, immediate) = sample_events(frame, now, &seen, &keys, &roster_name);
         self.world.extend(queued);
         if self.world.len() > MAX_QUEUED {
             let excess = self.world.len() - MAX_QUEUED;
@@ -479,12 +536,12 @@ impl Composer14 {
 
         // ---- fighters (fighterSeen + compose), by source id order.
         let mut actors: Vec<&WireActor> = frame.actors.iter().filter(|a| shown(a)).collect();
-        actors.sort_by_key(|a| actor_key(a));
+        actors.sort_by_key(|a| keys.actor(a));
         let mut fighters = Vec::new();
         let mut drawn: Vec<(String, Vec2)> = Vec::new();
         let mut fighter_rows: Vec<FighterRow> = Vec::new();
         for a in actors.iter().filter(|a| a.kind == 0) {
-            let key = actor_key(a);
+            let key = keys.actor(a);
             let status = wire_status(a.status);
             if !matches!(status, Status::Alive | Status::Lobby)
                 && !pending_deaths.contains(&key.as_str())
@@ -546,15 +603,6 @@ impl Composer14 {
         }
 
         // ---- mobs (mobSeen + compose). A dead row stays drawn only when its death is in this very sample (fade).
-        let died_now: Vec<u32> = frame
-            .events
-            .iter()
-            .flat_map(|b| &b.events)
-            .filter_map(|e| match e {
-                WireEvent::Death { id, .. } => Some(*id),
-                _ => None,
-            })
-            .collect();
         let mut mobs = Vec::new();
         let mut mob_rows: Vec<FighterRow> = Vec::new();
         for a in actors.iter().filter(|a| a.kind != 0) {
@@ -566,7 +614,8 @@ impl Composer14 {
             if !in_view(eye.x, eye.y, at.x, at.y, 0.) {
                 continue;
             }
-            let key = actor_key(a);
+            let key = keys.actor(a);
+            let vel = keys.vel(a.id);
             let def = mob_def(a);
             let faction = faction_of(a.faction);
             let (kind, name) = match a.kind {
@@ -619,8 +668,8 @@ impl Composer14 {
                     "brand",
                     BVal::num(if active { f64::from(a.brand) } else { 0. }),
                 ),
-                ("vx", BVal::num(0.)),
-                ("vy", BVal::num(0.)),
+                ("vx", BVal::num(vel.x)),
+                ("vy", BVal::num(vel.y)),
                 ("dist", BVal::num(row.dist)),
                 ("los", BVal::flag(row.los)),
                 ("central", BVal::flag(is_central(at))),
@@ -660,7 +709,7 @@ impl Composer14 {
             if id == me.id {
                 return Some(me_key.clone());
             }
-            let key = key_of(id);
+            let key = keys.of(id);
             drawn.iter().any(|(k, _)| *k == key).then_some(key)
         };
 
@@ -670,7 +719,7 @@ impl Composer14 {
             actors: frame
                 .actors
                 .iter()
-                .map(|a| (actor_key(a), PlayerId(a.id)))
+                .map(|a| (keys.actor(a), PlayerId(a.id)))
                 .collect(),
             ..Refs::default()
         };
@@ -914,7 +963,7 @@ impl Composer14 {
         if status_bits {
             let mut bits = vec![(me_key.clone(), BVal::num(f64::from(me.effects)))];
             for (key, _) in &drawn {
-                if let Some(a) = frame.actors.iter().find(|a| actor_key(a) == *key) {
+                if let Some(a) = frame.actors.iter().find(|a| keys.actor(a) == *key) {
                     bits.push((key.clone(), BVal::num(f64::from(a.effects))));
                 }
             }
@@ -1008,7 +1057,7 @@ impl Composer14 {
                 .actors
                 .iter()
                 .find(|a| a.id == id)
-                .map_or(BVal::Undefined, |a| BVal::text(actor_key(a))),
+                .map_or(BVal::Undefined, |a| BVal::text(keys.actor(a))),
             WireOwnerLock::Held { target: None } => BVal::Undefined,
         };
         let self_record = self_record(
@@ -1124,6 +1173,7 @@ fn sample_events(
     frame: &Frame14,
     t: f64,
     seen: &[Seen],
+    keys: &NpcKeys,
     roster_name: &dyn Fn(u32) -> Option<String>,
 ) -> (Vec<Queued>, Vec<BVal>) {
     let mut world = Vec::new();
@@ -1272,7 +1322,7 @@ fn sample_events(
         for event in frame.events.iter().flat_map(|b| &b.events) {
             match event {
                 WireEvent::Death { id, by } => {
-                    let key = key_of(*id);
+                    let key = keys.of(*id);
                     let row = find(*id);
                     let by_key = by.map_or(BVal::Null, &seen_key);
                     if *id < NPC_BASE {
@@ -1326,7 +1376,7 @@ fn sample_events(
                                 (
                                     "by",
                                     if elite {
-                                        by.map_or(BVal::Null, |b| BVal::text(key_of(b)))
+                                        by.map_or(BVal::Null, |b| BVal::text(keys.of(b)))
                                     } else {
                                         by_key
                                     },
@@ -1342,7 +1392,7 @@ fn sample_events(
                     None,
                     vec![
                         ("kind", BVal::text("bounty")),
-                        ("id", BVal::text(key_of(*id))),
+                        ("id", BVal::text(keys.of(*id))),
                         ("name", name_of(*id)),
                         ("bounty", BVal::num(f64::from(*bounty))),
                     ],
@@ -1353,7 +1403,7 @@ fn sample_events(
                     None,
                     vec![
                         ("kind", BVal::text("victory")),
-                        ("id", winner.map_or(BVal::Null, |w| BVal::text(key_of(w)))),
+                        ("id", winner.map_or(BVal::Null, |w| BVal::text(keys.of(w)))),
                         ("name", winner.map_or(BVal::Null, name_of)),
                         ("draw", BVal::flag(*draw)),
                     ],
@@ -1528,11 +1578,33 @@ pub(crate) fn key_of(id: u32) -> String {
     }
 }
 
-fn actor_key(a: &WireActor) -> String {
-    if a.kind == 0 {
-        player_key(PlayerId(a.id))
-    } else {
-        npc_key(PlayerId(a.id))
+/// One composition's NPC keys: (reference, track key, track velocity) of every tracked row; empty without tracking. A
+/// reference without a track (no tracking, or a row that is neither alive nor dying in this sample) keeps its
+/// per-sample key.
+#[derive(Default)]
+struct NpcKeys(Vec<(u32, String, Vec2)>);
+
+impl NpcKeys {
+    fn of(&self, id: u32) -> String {
+        self.0
+            .iter()
+            .find(|(r, ..)| *r == id)
+            .map_or_else(|| key_of(id), |(_, key, _)| key.clone())
+    }
+
+    fn actor(&self, a: &WireActor) -> String {
+        if a.kind == 0 {
+            player_key(PlayerId(a.id))
+        } else {
+            self.of(a.id)
+        }
+    }
+
+    fn vel(&self, id: u32) -> Vec2 {
+        self.0
+            .iter()
+            .find(|(r, ..)| *r == id)
+            .map_or(Vec2::new(0., 0.), |(.., v)| *v)
     }
 }
 

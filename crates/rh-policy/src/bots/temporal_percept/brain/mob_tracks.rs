@@ -90,25 +90,92 @@ impl MobTracks {
     }
 
     /// Match one sample's rows to the tracks; the answer is in the rows' order.
-    /// STUB (P-BOT-BRAIN-CONTINUITY-1): every row is a new track with no velocity.
     pub(crate) fn update(&mut self, time: f64, rows: &[MobRow]) -> Vec<Tracked> {
+        let dt = self.time.map_or(f64::INFINITY, |t| time - t);
+        if !(dt > 0. && dt <= MAX_GAP_MS) {
+            self.tracks.clear();
+        }
         self.time = Some(time);
-        let _ = (&self.tracks, STEP_SPEED, STEP_SLACK, MAX_GAP_MS);
-        rows.iter()
-            .map(|row| {
-                let serial = self.next;
-                self.next += 1;
-                let _ = (row.at, row.class, row.dying);
-                Tracked {
-                    key: track_key(serial),
-                    vel: Vec2::new(0., 0.),
+        let bound = STEP_SPEED * dt / 1000. + STEP_SLACK;
+
+        let mut pairs: Vec<(f64, usize, usize)> = Vec::new();
+        for (ti, track) in self.tracks.iter().enumerate() {
+            for (ri, row) in rows.iter().enumerate() {
+                if row.class != track.class {
+                    continue;
                 }
-            })
-            .collect()
+                let d = dist(track.at, row.at);
+                if d <= bound {
+                    pairs.push((d, ti, ri));
+                }
+            }
+        }
+        let tracks = &self.tracks;
+        pairs.sort_by(|a, b| {
+            a.0.total_cmp(&b.0)
+                .then(tracks[a.1].serial.cmp(&tracks[b.1].serial))
+                .then(rows[a.2].at.x.total_cmp(&rows[b.2].at.x))
+                .then(rows[a.2].at.y.total_cmp(&rows[b.2].at.y))
+        });
+        let mut row_track: Vec<Option<usize>> = vec![None; rows.len()];
+        let mut taken = vec![false; self.tracks.len()];
+        for (_, ti, ri) in pairs {
+            if taken[ti] || row_track[ri].is_some() {
+                continue;
+            }
+            taken[ti] = true;
+            row_track[ri] = Some(ti);
+        }
+
+        // New tracks take serials in class, then position order (never row order).
+        let mut fresh: Vec<usize> = (0..rows.len())
+            .filter(|&ri| row_track[ri].is_none())
+            .collect();
+        fresh.sort_by(|&a, &b| {
+            rows[a]
+                .class
+                .cmp(&rows[b].class)
+                .then(rows[a].at.x.total_cmp(&rows[b].at.x))
+                .then(rows[a].at.y.total_cmp(&rows[b].at.y))
+        });
+        let mut serial_of: Vec<u64> = vec![0; rows.len()];
+        for ri in fresh {
+            serial_of[ri] = self.next;
+            self.next += 1;
+        }
+
+        let mut out = Vec::with_capacity(rows.len());
+        let mut next_tracks = Vec::with_capacity(rows.len());
+        for (ri, row) in rows.iter().enumerate() {
+            let (serial, vel) = match row_track[ri] {
+                Some(ti) => {
+                    let prev = self.tracks[ti].at;
+                    let k = 1000. / dt;
+                    (
+                        self.tracks[ti].serial,
+                        Vec2::new((row.at.x - prev.x) * k, (row.at.y - prev.y) * k),
+                    )
+                }
+                None => (serial_of[ri], Vec2::new(0., 0.)),
+            };
+            if !row.dying {
+                next_tracks.push(Track {
+                    serial,
+                    at: row.at,
+                    class: row.class,
+                });
+            }
+            out.push(Tracked {
+                key: track_key(serial),
+                vel,
+            });
+        }
+        next_tracks.sort_by_key(|t| t.serial);
+        self.tracks = next_tracks;
+        out
     }
 }
 
-#[allow(dead_code)]
 fn dist(a: Vec2, b: Vec2) -> f64 {
     rh_sim::mapgen::certify::source_hypot(a.x - b.x, a.y - b.y)
 }

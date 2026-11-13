@@ -239,6 +239,8 @@ struct MobAux {
     dotted: bool,
     low: f64,
     returning_until: ServerMs,
+    /// Live seats ([`Memory::tracked_mobs`]): when the percept last carried this key.
+    carried_at: ServerMs,
 }
 #[derive(Clone, Debug, PartialEq)]
 struct PendingOrder {
@@ -534,6 +536,7 @@ impl Memory {
                 dotted: false,
                 low: 1.,
                 returning_until: 0.,
+                carried_at: 0.,
             },
         ));
         &mut self.m_aux.last_mut().unwrap().1
@@ -1204,15 +1207,22 @@ impl Memory {
             }
         }
         if self.tracked_mobs {
-            let current = |id: &str| p.mobs.iter().any(|v| v.id == id);
-            self.mobs.retain(|(id, _)| current(id));
-            self.m_aux.retain(|(id, _)| current(id));
+            // A track key never recurs once its track ends: keep a record while carried and TRACK_RETAIN_MS after.
+            let cutoff = now - TRACK_RETAIN_MS;
+            let keep: Vec<String> = self
+                .m_aux
+                .iter()
+                .filter(|(id, a)| a.carried_at >= cutoff || p.mobs.iter().any(|v| v.id == *id))
+                .map(|(id, _)| id.clone())
+                .collect();
+            self.mobs.retain(|(id, _)| keep.contains(id));
+            self.m_aux.retain(|(id, _)| keep.contains(id));
         }
         for v in &p.mobs {
             if !is_regional_kind(&v.kind) {
                 continue;
             }
-            self.mob_aux(&v.id);
+            self.mob_aux(&v.id).carried_at = now;
             if self.mob(&v.id).is_none() {
                 let home = Vec2::new(v.x, v.y);
                 self.mobs.push((
