@@ -83,6 +83,10 @@ pub enum Refusal {
     /// feature in an apron, a landmark in another landmark's apron, the Frost lake away from the cave's mouth, or a
     /// strict certifier failure (only with `Options::signature`).
     SignatureDiscarded,
+    /// P-MAPGEN-STYLE-REFUSE-1 (stub: not yet returned). A styler could not build round a signature landmark in its
+    /// zone (`style_runtime::Error::Landmark`), refused in the Styler phase; the next attempt is tried. Only with
+    /// `Options::signature`. Every other styler error still fails the call (`Error::Style`).
+    StyleLandmark,
 }
 #[derive(Debug)]
 pub enum Error {
@@ -124,8 +128,18 @@ pub struct Pipeline<'f> {
     records: records::Definition<'static>,
     terrain_on: Vec<Option<u8>>,
     styles: style_zones::Registry<'f>,
+    /// Test seam (P-MAPGEN-STYLE-REFUSE-1): the styler pass of attempt `.0` returns `.1` instead of its own result.
+    #[cfg(test)]
+    style_fault: Option<(u64, style_runtime::Error)>,
 }
 impl<'f> Pipeline<'f> {
+    /// Test seam (P-MAPGEN-STYLE-REFUSE-1): every attempt runs as usual, but the styler pass of attempt `attempt`
+    /// returns `error` after it has run, as a styler returning that error would.
+    #[cfg(test)]
+    pub(crate) fn with_style_fault(mut self, attempt: u64, error: style_runtime::Error) -> Self {
+        self.style_fault = Some((attempt, error));
+        self
+    }
     pub fn new(fixed: &'f FixedLayout) -> Self {
         Self::from_definition(fixed, &default_definition()).expect("default orchestration bounds")
     }
@@ -170,6 +184,8 @@ impl<'f> Pipeline<'f> {
             records: records::default_definition(),
             terrain_on: terrain.kinds.iter().map(|k| k.tile).collect(),
             styles: style_zones::Registry::new(fixed).map_err(Error::Style)?,
+            #[cfg(test)]
+            style_fault: None,
         })
     }
     pub fn plain_attempt(
@@ -422,6 +438,11 @@ impl<'f> Pipeline<'f> {
                 },
                 &mut style,
             );
+            #[cfg(test)]
+            let result = match self.style_fault {
+                Some((n, e)) if n == number => Err(e),
+                _ => result,
+            };
             let layers = style.into_layers();
             state.tiles = layers.tiles;
             state.terrain = layers.terrain;
@@ -776,5 +797,7 @@ fn spawn_gate(
             .ok_or(Refusal::SpawnRatio),
     )
 }
+#[cfg(test)]
+mod style_refusal_tests;
 #[cfg(test)]
 mod tests;

@@ -65,6 +65,11 @@ pub enum Error {
     Feature,
     Capacity,
     Route,
+    /// P-MAPGEN-STYLE-REFUSE-1 (stub: no styler returns it yet). The zone holds a signature landmark the styler cannot
+    /// build round (a landmark precondition, e.g. the Sentenced church's door not reading as three open tiles in one
+    /// run). Not a fault: the pipeline refuses the attempt (`pipeline::Refusal::StyleLandmark`) and tries the next.
+    /// Never "no room"; reachable only with `pipeline::Options::signature` (no signature landmark otherwise).
+    Landmark,
 }
 /// Index packing in source route seeds uses 21 bits; depth uses signed 16 bits.
 pub(crate) const MAX_CELLS: usize = 2_097_152;
