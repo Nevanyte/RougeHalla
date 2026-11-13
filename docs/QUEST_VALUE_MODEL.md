@@ -1,6 +1,6 @@
-# Quest value model
+# Quest value model (FUTURE ONLY)
 
-Status: design draft (owner discussion 2026-11-13). A rough pricing model, not a contract. The numbers come from one
+Status: **FUTURE DESIGN ONLY** (owner discussion 2026-11-13). Not approved for implementation, not in ORDER_OF_OPERATIONS, no packet. Companion workbook: `docs/quests/FUTURE_ONLY_Quest_Design_Discussion.xlsx`. A rough pricing model, not a contract. The numbers come from one
 `camp_bench --quick` run (seed 1, level 1, no cards) and a straight-line pass over
 `crates/rh-sim/src/mapdata/fixtures/seed1.map.json`. They are an order-of-magnitude calibration, to be replaced by
 P-BALANCE-3 and fuller bench runs.
