@@ -10,6 +10,16 @@
 > no large pool lies far and no small pool lies near (test 4). **Decisions before dispatch** (section 11, first two
 > traps): which feature kind owns a free pool (a new signature kind is outside this write scope), and the reading of
 > "Barrows unchanged" (taken here as rock, tunnel and number unchanged, with the crescent turned into free pools).
+>
+> **Coordinator of the land-generation lane, 2026-11-13, afternoon: HELD for one answer from the landmark lane.** The
+> owner answered "Yes to all" in chat to four questions; the two on Plague: the crescents become the free pools and
+> barrows keep their rock, tunnel, placement rule and number (the barrow's wet fork is lost; Plague's home advantage
+> moves to the pools); "large near the tree, small far" holds as a tendency, as test 4 is written, and is re-measured
+> when the tree is enlarged. Still open: the pool's feature kind, asked of the landmark lane's coordinator in
+> `docs/coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_2.md` section 4. **No implementer starts before that
+> answer.** The branch was rebased onto `1032e5bd` (after P-MAPGEN-SIG-RESERVE-1) and re-measured (section 12, last
+> subsection): test 8 (the budget) now fails today, the walk test now passes today, and test 9's floor was amended
+> from 85% to 70% because the reservation alone takes the barrows from 94% to 79% of option off.
 
 - **Serves:** owner direction 2026-11-12 on generation order and land generation round the landmarks (MIGRATION
   checkpoint, "Owner direction 2026-11-12 (chat, late night)"); the land-generation requirements accepted that night,
@@ -21,7 +31,7 @@
   leaves room for them.
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Plague styler in signature mode; draw order)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework (`b3a8fb516` or later)
+- **Integration base:** feature/unity-rework (`1032e5bd`: the branch was rebased onto it, after P-MAPGEN-SIG-RESERVE-1)
 - **D-rules touched:** D1: option off byte-identical (G8); under the option an intentional difference from legacy
   (a proposed row in the hand-off: an amendment of DEV-020 or a new row) · D2 n/a · no sim tick or wire change
 
@@ -63,11 +73,12 @@ Out of this packet: `P-LAND-PLAGUE-2` (the water and mud decoration rings in `rh
 `rules/zones.json` `terrainRings`); the tree's own marsh (L3, coordinator's `P-MAPGEN-SIG-SCALE-3`).
 
 ## 2. Dependencies
-- None to start. P-MAPGEN-SIG-RESERVE-1 (a 34-tile reserved site) and P-MAPGEN-SIG-SCALE-3 (a 28-30 tree) will change
-  every option-on map while this packet is open: every check is a property measured from the anchor, never a pinned
-  map, hash, attempt number or tile position.
-- **Decisions needed first** (section 11): the pool's feature kind (needs files outside this scope) and the reading of
-  "Barrows unchanged".
+- P-MAPGEN-SIG-RESERVE-1 (a 34-tile reserved site) is merged and under this branch. P-MAPGEN-SIG-SCALE-3 (a 29-tile
+  tree) will change every option-on map while this packet is open: every check is a property measured from the anchor,
+  never a pinned map, hash, attempt number or tile position.
+- **Decision needed first** (section 11): the pool's feature kind (needs files outside this scope; asked in
+  `docs/coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_2.md`). The reading of "Barrows unchanged" is settled by
+  the owner (status note above).
 
 ## 3. Relevant legacy paths (verified with `rg`)
 - `packages/shared/src/zoneStyle/warren.ts:1-20` (the design: "go left on dry ground, right through the bog crescent on
@@ -122,28 +133,31 @@ Out of this packet: `P-LAND-PLAGUE-2` (the water and mud decoration rings in `rh
 Oracle `crates/rh-sim/tests/mapgen_land_plague.rs`, seeds 1 to 32, option on, the server's options (no decor);
 definitions in its file comment (pool = 4-connected piece of styler bog; styler bog = bog not owned by the `BogTree`;
 size class = the largest full disc the pool holds: small r2 >= 5 (a whole 5-across disc, 21 tiles), medium r2 >= 9 (7
-across), large r2 >= 25 (11 across)). Today = `b3a8fb516`, debug build.
+across), large r2 >= 25 (11 across)). Today = `1032e5bd` (on the reserved sites), debug build; the figures on
+`b3a8fb516`, before the reservation, are in section 12's first table.
 
 | # | Test | Checks | Today |
 |---|---|---|---|
-| 1 | `every_styler_pool_holds_a_full_five_across_disc` | bodies, not crescents | FAIL: 346 of 352 pieces (crescents hold at most r2 4; median 3) |
-| 2 | `pool_area_lies_between_two_small_discs_and_four_large_discs` | 21 <= area <= 565 (one full 5-disc; five 12-discs) | FAIL: 171 pieces under 21 |
-| 3 | `distinct_pools_are_at_least_eight_tiles_apart` | gap >= 8 | FAIL: 203 pairs (median nearest gap 5) |
-| 4 | `pools_are_large_near_the_tree_and_small_far` | pooled mean area near >= 2 x far; no large far, no small (or thin) near | FAIL: near mean 38.9, far 23.8 (ratio 1.6); 32 thin near-band pieces |
-| 5 | `all_three_sizes_occur_and_maps_with_three_pools_mix_sizes` | small, medium, large all occur on seeds 1-32; a map with 3+ pools has 2+ classes | FAIL: no medium or large pool; 29 maps all thin |
-| 6 | `every_pool_has_a_two_tile_ring_of_plain_floor_in_the_zone_off_camp_halos` | ring of Chebyshev width 2: floor, no terrain, Plague, unowned, off halos | FAIL: 339 pieces (barrow rock and owned floor beside each crescent) |
+| 1 | `every_styler_pool_holds_a_full_five_across_disc` | bodies, not crescents | FAIL: 302 of 303 pieces (crescents hold at most r2 4; median 3) |
+| 2 | `pool_area_lies_between_two_small_discs_and_four_large_discs` | 21 <= area <= 565 (one full 5-disc; five 12-discs) | FAIL: 158 pieces under 21 |
+| 3 | `distinct_pools_are_at_least_eight_tiles_apart` | gap >= 8 | FAIL: 151 pairs (median nearest gap 6) |
+| 4 | `pools_are_large_near_the_tree_and_small_far` | pooled mean area near >= 2 x far; no large far, no small (or thin) near | FAIL: near mean 29.1, far 23.6 (ratio 1.2); all 57 near-band pieces are below medium |
+| 5 | `all_three_sizes_occur_and_maps_with_three_pools_mix_sizes` | small, medium, large all occur on seeds 1-32; a map with 3+ pools has 2+ classes | FAIL: no medium or large pool; 31 maps all thin |
+| 6 | `every_pool_has_a_two_tile_ring_of_plain_floor_in_the_zone_off_camp_halos` | ring of Chebyshev width 2: floor, no terrain, Plague, unowned, off halos | FAIL: 288 pieces (barrow rock and owned floor beside each crescent) |
 | 7 | `no_styler_bog_in_the_tree_footprint_or_its_apron` | no styler bog in the core band | PASS (keep) |
-| - | `pools_keep_off_spawn_walks_spawn_pads_and_camp_halos` | each Plague spawn's 4-connected walk to the coliseum grows at most 2 steps when styler bog is avoided; no styler bog on a spawn pad (5x5) or in a camp halo | FAIL: seed 25, one spawn's walk grows 3 steps |
-| 8 | `bog_share_of_free_ground_stays_within_a_fifth_of_todays` | median over seeds of (on share / off share) in [0.8, 1.2] | PASS (0.96 today; keep) |
-| 9 | `barrows_keep_their_rock_and_their_number` | every Plague barrow owns >= `piece_min` (6) walls; option-on barrows >= 85% of option-off over seeds 1-32 | PASS (372 / 397 = 94%; keep) |
-| 9b | `no_barrow_owns_bog` | the pools are free | FAIL: 336 barrows own bog |
+| - | `pools_keep_off_spawn_walks_spawn_pads_and_camp_halos` | each Plague spawn's 4-connected walk to the coliseum grows at most 2 steps when styler bog is avoided; no styler bog on a spawn pad (5x5) or in a camp halo | PASS (keep; largest growth today 2 steps. Before the reservation: FAIL on seed 25, 3 steps) |
+| 8 | `bog_share_of_free_ground_stays_within_a_fifth_of_todays` | median over seeds of (on share / off share) in [0.8, 1.2] | **FAIL: median 0.74** (per seed 0.27 to 1.43; today's crescents fall short on the reserved sites. Before the reservation: PASS, 0.96) |
+| 9 | `barrows_keep_their_rock_and_their_number` | every Plague barrow owns >= `piece_min` (6) walls; option-on barrows >= 70% of option-off over seeds 1-32 (amended from 85% after the rebase) | PASS (312 / 397 = 79%; keep. Before the reservation 372 / 397 = 94%) |
+| 9b | `no_barrow_owns_bog` | the pools are free | FAIL: 287 barrows own bog |
 | 10 | `maps_certify_clean_and_keep_the_tree` | strict certifier, zero failures; one `BogTree` with its own bog | PASS (keep) |
-| 10 | `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | attempts bounded | PASS (today 3) |
+| 10 | `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | attempts bounded | PASS (today 1) |
 | 10 | `option_off_maps_are_todays` | G8, seeds 1-8 map hashes; decor does not move the bog | PASS (keep) |
 | 11 | `report_seeds_1_to_32` (`#[ignore]`) | the per-seed table M1-M9 of section 12 | report |
 | 11 | `sheet_seeds_1_to_8` (`#[ignore]`) | tile pictures of the Plague zone for the owner, option on and off | report |
 
-Every red test fails on an assertion, with every finding listed (first 40). Messages today (first line each):
+Every red test fails on an assertion, with every finding listed (first 40). Messages before the rebase (first line
+each; the counts on the reserved sites are in the table above, and test 8 now prints `median on/off bog-share ratio
+0.740 outside [0.8, 1.2]`):
 - 1: `thin pools: 346 findings` / `seed 1: pool at (13, 136) of 44 tiles (6x11 box, 84% in a 3x3 block) holds no full
   5-across disc (inscribed r2 3)`
 - 2: `pool areas: 171 findings` / `seed 1: pool at (23, 105) has 8 tiles, outside [21, 565]`
@@ -164,8 +178,9 @@ because a 5-across body less one tile is a crescent's thickness (today's crescen
 whole small disc; at most five large discs (four plus a fifth's worth of rough rim). Gap 8 and ring 2 are the owner's.
 Near >= 2 x far: the nominal discs differ by about 5 in area; 2 leaves room for clipped and fallback pools. Walk
 allowance 2 steps: the oracle author's, because the route guard's corridor is string-pulled and today's corridor-aware
-crescents still lengthen one 4-connected walk by 3. Barrows 85%: today's option-on maps hold 94% of the option-off
-barrows; the margin is for barrows that give way to pools. Budget [0.8, 1.2] on the median: the owner's "within about a
+crescents still lengthen one 4-connected walk by 3. Barrows 70%: on the reserved sites today's option-on maps hold 79%
+of the option-off barrows (94% before the reservation, when the floor was 85%); the margin, about a tenth of today's
+barrows, is for barrows that give way to pools. Budget [0.8, 1.2] on the median: the owner's "within about a
 fifth"; per seed today's option-on ratio already ranges 0.57-1.55.
 
 Not checked by the oracle (a finished map cannot say it): that each pool is made of two to four discs (only its core,
@@ -231,7 +246,7 @@ is extra and outside scope. No cut proposed.
 - **Pools before barrows.** If barrows are sited first (today's order) the measured capacity is 0.33-2.33 (median 0.76)
   times the target with the strict size per band, 0.40-2.33 (median 0.93) with fallback sizes: the median budget might
   pass while some maps carry a third of today's bog. Laying pools first gives 1.12-3.78. Barrows then give way; test 9
-  holds them at 85% of option off.
+  holds them at 70% of option off (section 12, last subsection: the reservation alone takes them to 79%).
 - **The walk test is an approximation of "off spawn routes".** The guard corridor is not on the finished map. Keeping
   pools off `corridor` (as `bog_at` does) is necessary, not sufficient: seed 25 shows a 3-step growth today. The
   implementer may need the zone's walk field (BFS to the coliseum) to keep a pool off every shortest walk.
@@ -329,8 +344,40 @@ What it implies:
   the mid band as "near" for the large size (12 of 32 seeds), or let the near band take medium pools (22 of 32).
 - Barrows give way to pools: the number of barrows may drop (test 9 allows 15%); not measured, since no pool exists yet.
 
+### Re-measured on `1032e5bd` (after P-MAPGEN-SIG-RESERVE-1), 2026-11-13, same report, seeds 1-32
+The tree (still 13 x 15) now stands in a reserved 34-tile site that no camp halo touches; the other camps stand round
+the site. The per-seed table above is the old base; rerun the report for the new one.
+
+| | before (`b3a8fb516`) | now (`1032e5bd`) |
+|---|---|---|
+| M1 styler bog, option on | 164 / 267 / 474 | 105 / 238 / 358 |
+| M1 share of free ground, option on (%) | 3.79 / 6.35 / 11.48 | 2.38 / 5.66 / 8.85 |
+| M1 on/off share ratio (test 8) | 0.57 / 0.96 / 1.55 | **0.27 / 0.74 / 1.43** |
+| M1 free ground, option on | 4019 / 4178.5 / 4330 | 4045 / 4252.5 / 4406 |
+| M2 pieces, option on | 352 (346 hold no 5-across disc) | 303 (302) |
+| M3 pairs of pieces closer than 8, option on | 203 | 151 |
+| M4 pieces by band, near / mid / far (mean area) | 32 (38.9) / 69 (28.8) / 251 (23.8) | 57 (29.1) / 63 (20.5) / 183 (23.6) |
+| M5 seeds with room for a 12-across pool and its ring, near / mid / far, barrows give way | 9 / 12 / 24 | **25 / 16 / 17** |
+| M5 the same, barrows stay | 1 / 2 / 5 | 10 / 4 / 6 |
+| M5 seeds with room for an 8-across pool, near / mid / far, barrows give way | 22 / 27 / 32 | 32 / 32 / 32 |
+| M5 capacity over target, barrows give way, strict | 1.12 / 1.69 / 3.78 | 1.10 / 1.65 / 3.86 |
+| M5 capacity over target, barrows give way, fallback | 1.10 / 1.95 / 4.36 | 1.48 / 2.08 / 3.87 |
+| M5 capacity over target, barrows stay, strict / fallback (medians) | 0.76 / 0.93 | 0.93 / 1.29 (minimum 0.39 / 0.52) |
+| M6 attempt index, option on | 0 / 0 / 3 | 0 / 0 / 1 (refusals before: 3 `Prefix`, 1 `Repair(RadiusPost)`, 5 `SignatureDiscarded`) |
+| M7 largest walk growth when bog is avoided, option on | 0 / 0 / 3 | 0 / 0 / 2 |
+| M8 Plague barrows, option on (total; option off 397) | 8 / 12 / 14 (372, 94%) | **6 / 9.5 / 13 (312, 79%)** |
+| M9 features per map, option on (Plague) | 77 / 86 / 95 (15 / 20 / 23) | 71 / 82 / 88 (14 / 17 / 22) |
+
+- **The budget is now a failing test, for the right reason.** Fewer barrows carry fewer crescents: today's option-on
+  maps hold 0.74 of option off's bog share (median). With the pools laid first the target is reachable on every seed
+  (capacity at least 1.10 times the target).
+- **Large near the tree fits far more often for now** (25 of 32 seeds against 9): the site round the small tree is
+  empty ground. SCALE-3's 29-tile tree fills the site, so this does not last; test 4 stays a rule on averages.
+- **Barrows:** the reservation, not this packet, removes a fifth of them (397 to 312 over 32 maps). Test 9's floor is
+  amended to 70% of option off, the same allowance as before (about a tenth of today's barrows may give way).
+
 ## NOT ESTABLISHED
-- Nothing here is measured on a reserved site (RESERVE-1) or a 28-30 tree (SCALE-3). After them the near and mid bands
+- Nothing here is measured on a 29-tile tree (SCALE-3). After it the near and mid bands
   move outward and "far" nearly disappears (`LANDMARK_GENERATION_SPEC.md` section 2); tests 4 and 5 need near-band and
   far-band pools, so the band table `[2, 6, 14]` will need re-measuring then. The tree's own marsh (L3) is SCALE-3.
 - M5's room and capacity are estimates on today's finished maps (a greedy packing, an approximate route band); the

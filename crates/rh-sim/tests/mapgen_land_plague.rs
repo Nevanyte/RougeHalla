@@ -875,10 +875,11 @@ fn barrows_keep_their_rock_and_their_number() {
     verdict("barrows", &findings);
 }
 
-/// Measured (brief section 12): option on today holds 372 of the 397 option-off barrows (94%) over seeds 1-32; the
-/// floor leaves room for barrows to give way to the pools.
+/// Measured (brief section 12, on the reserved sites): option on today holds 312 of the 397 option-off barrows (79%)
+/// over seeds 1-32, because the tree's reserved site moves the camps the barrows stand between. The floor leaves the
+/// same room as before the reservation (85 against 94) for barrows to give way to the pools.
 fn barrow_share_min() -> usize {
-    85
+    70
 }
 
 /// 9b. The pools are free: no barrow owns bog (today each barrow owns its crescent; the barrow itself, its rock and
