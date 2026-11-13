@@ -184,3 +184,74 @@ spell is. If the farm phase is shorter than about 10.7 min the buff never wins, 
 `crates/rh-sim/src/quests/rules.rs`. These already price quests as farming time. This model extends that to spells,
 with compounding, risk and slots. The legacy 48 s per camp is about 2× the measured 17–25 s solo cycle, which is
 plausible once `h`, contention and travel share are included. Re-tune it once those are measured.
+
+## 11. Time to complete (time limits and difficulty)
+
+Quests should not have unlimited time. With no clock, a player accepts route quests and finishes them while farming, so
+the quest costs nothing and its reward is free, which breaks every price above. Each quest instead gets the clock that
+fits its type:
+
+| Clock type | Quests | Clock |
+|---|---|---|
+| **Route** (tour, fetch, collect, escort carry) | Watchtowers, Ember Walk, Smuggler's Run … | A personal timer `L` from acceptance (below) |
+| **Dwell** (stay in an area) | Hold the Fort, Trader's Shadow | No timer. Progress decays at `δ ≥ 1` × the fill rate after a grace of `D` seconds outside |
+| **Race** (one global winner) | Elite Slayer | No personal timer: the first finisher ends it |
+| **Event** | Bounty Hunter, Gatecrasher | The event is the clock (the bounty clears, the gates reopen) |
+
+The existing per-offer expiry (`expires_at_sec`, 150–300 s, `crates/rh-sim/src/quests/catalog.rs`) stays as the outer
+limit for all of them.
+
+### 11.1 Route timer
+
+Hostile encounters during a quest arrive at rate `λ` per minute, multiplied by an exposure factor `ε` (1 normally, about 3
+when the player is shown on every map). Each encounter costs `D` minutes to fight off and recover. Over the quest's `τ`
+minutes, the number of encounters is roughly Poisson with mean `μ = λ·ε·τ`. A timer that can absorb `K` fights is:
+
+```
+L       = τ + K·D
+p_time  = PoissonCDF(K; μ)                 chance to finish in time
+K       = smallest k with PoissonCDF(k; μ) ≥ p_target
+p       = p_task · p_time                  total success chance, used in E[C] (§3)
+```
+
+`p_target` is the difficulty tier: Easy 0.95, Medium 0.85, Hard 0.70. Tightness `L/τ` is a difficulty dial of its own.
+`K = 0` is pure execution, and `K ≥ 2` is relaxed.
+
+### 11.2 Long enough to fight, too short to farm
+
+The slack `L − τ` must absorb a fight but not a camp detour. With `cyc_d` = minutes to leave the route, farm one camp and
+come back (one cycle plus detour walk, ≈ 0.5 min), the rule is:
+
+```
+D  ≤  L − τ  <  cyc_d
+```
+
+With `D ≈ 20 s` and `cyc_d ≈ 30 s`, one fight fits and a camp does not. If the slack must exceed `cyc_d` (high exposure,
+hard quests), farming a camp mid-quest must risk more than the camp is worth:
+
+```
+(p_time(L) − p_time(L − cyc_d)) · V  >  1 CE
+```
+
+If a fight takes longer than a camp (`D > cyc_d`), no timer satisfies both conditions. Use a dwell or race clock instead.
+
+**Dwell decay:** leaving for one camp earns 1 CE but costs `δ·cyc_d` seconds of progress to redo, worth about `δ` CE. So
+`δ ≥ 1` makes it a loss. The grace period equals `D`, so a player who steps out to fight is not punished.
+
+### 11.3 Farm overlap
+
+Some objectives are partly farming. Clearing a camp, for example, also pays its stacks. With overlap share `ω`, the time
+cost is `c_eff · τ · (1 − ω)`. A quest with high `ω` is cheap, so its reward should be small, or its objective should ask
+for something farming does not.
+
+### 11.4 Worked numbers (λ = 0.4/min, D = 20 s, cyc_d = 0.5 min)
+
+| Quest | τ | ε | Tier | μ | K | Timer | p_time | Check |
+|---|---|---|---|---|---|---|---|---|
+| Watchtowers | 30 s | 1 | Easy | 0.2 | 1 | 50 s | 98% | no room to farm |
+| Rime Hunt | 45 s | 1 | Medium | 0.3 | 1 | 65 s | 96% | no room to farm |
+| Smuggler's Run | 60 s | 3 | Hard | 1.2 | 2 | 100 s | 88% | slack 40 s > cyc_d, but farming drops p_time to 30%, risking 0.58·V ≈ 1.7 CE > 1 CE |
+
+`λ` and `D` are placeholders until measured from telemetry (encounters per minute, fight length). Every timer moves with
+them. Complements: allow at most one active quest per player, which stops stacking quests along one route.
+Workbook: `docs/quests/FUTURE_ONLY_Quest_Design_Discussion.xlsx`, sheet `Time_Limits`.
