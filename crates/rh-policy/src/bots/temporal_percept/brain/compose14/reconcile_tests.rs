@@ -1,5 +1,6 @@
 //! P-BOT-BRAIN-RECONCILE-1: the seat fence (`SeatComposer14`) refuses a stale frame without touching the fence or the
-//! composer, and the derived `self.mobKills` counts only the seat's own credited deaths of delivered regional mobs.
+//! composer, the derived `self.mobKills` counts only the seat's own credited deaths of delivered regional mobs, and
+//! `hud.winner` follows legacy from the seat's own accepted `MatchEnded`.
 use super::super::trace::BVal;
 use super::{Composer14, SeatComposer14, Setup14};
 use crate::bots::types::TierId;
@@ -157,4 +158,62 @@ fn mob_kills_count_only_the_seats_own_credited_deaths_of_delivered_mobs() {
     }
     let n = |v: f64| Some(BVal::num(v));
     assert_eq!(kills, [n(1.), n(1.), n(1.), n(1.)]);
+}
+
+/// Coordinator ruling (`hud.winner` follows legacy, arena.ts:91 and :466): `""` until the seat's accepted `MatchEnded`,
+/// then the winner's roster name, `""` on a draw, and `""` again after `reset()`.
+#[test]
+fn hud_winner_is_empty_until_the_seat_accepts_the_match_end_then_the_winners_name() {
+    let sim = sim();
+    let mut composer = Composer14::new(Setup14 {
+        world_delay_ms: 0.,
+        ..setup(&sim)
+    });
+    let mut session = DeliverySession::new(OWNER);
+    let mut tick = 20;
+    let mut winner = |composer: &mut Composer14, ended: Option<(Option<PlayerId>, bool)>| {
+        let mut obs = scene(&sim, 50. * f64::from(tick), tick);
+        tick += 1;
+        obs.roster = [(OWNER, "Ada"), (ENEMY, "Bran")]
+            .map(|(id, name)| rh_sim::observe::RosterRow {
+                id,
+                name: name.into(),
+                bot: false,
+            })
+            .to_vec();
+        if let Some((winner, draw)) = ended {
+            obs.events.push(SeenEvent::Ended { winner, draw });
+        }
+        composer
+            .compose(accept(&mut session, &obs).frame())
+            .expect("composes")
+            .percept
+            .raw
+            .get("hud")
+            .and_then(|h| h.get("winner"))
+            .cloned()
+    };
+    let text = |s: &str| Some(BVal::text(s));
+    assert_eq!(winner(&mut composer, None), text(""), "before the end");
+    assert_eq!(
+        winner(&mut composer, Some((Some(ENEMY), false))),
+        text("Bran"),
+        "the accepted MatchEnded names the winner"
+    );
+    assert_eq!(
+        winner(&mut composer, None),
+        text("Bran"),
+        "kept after the end"
+    );
+    assert_eq!(
+        winner(&mut composer, Some((None, true))),
+        text(""),
+        "a draw has no winner"
+    );
+    composer.reset();
+    assert_eq!(
+        winner(&mut composer, None),
+        text(""),
+        "reset() forgets the winner"
+    );
 }

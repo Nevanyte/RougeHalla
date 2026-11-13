@@ -457,7 +457,11 @@ fn each_degraded_leaf_is_undefined_and_none_is_a_default() {
     let hud = at(&raw, "hud");
     assert_eq!(at(hud, "alive"), &BVal::Undefined, "hud.alive");
     assert_eq!(at(hud, "minPlayers"), &BVal::Undefined, "hud.minPlayers");
-    assert_eq!(at(hud, "winner"), &BVal::Undefined, "hud.winner");
+    assert_eq!(
+        at(hud, "winner"),
+        &BVal::text(""),
+        "hud.winner: legacy's \"\" before the end"
+    );
     // a remote fighter's and a mob's bow-draw timestamp is not published (the ENGAGED flag is a verdict, not a time).
     let other = fighter(&raw, "Bran");
     assert_eq!(at(other, "drawStartedAt"), &BVal::Undefined, "remote draw");

@@ -9,13 +9,15 @@
 //! `seeContainers`, `seeChests`, `seeCamps`, `seeFields`) and `frames.ts` (`FrameRing.compose`: `viewT`, interpolation at
 //! the view time, `velocity`, `isCentral`, `tintNearestFoe`, `deliver`, `windowExtras`). Degraded fair profile
 //! (owner-approved 2026-11-11; docs/DEVIATIONS.md DEV-026), as P-BOT-BRAIN-LIVE-1 section 6 names it:
-//! - always `undefined`: `self.immuneUntil`, `hud.alive`, `hud.minPlayers`, `hud.winner`, `minimap.t`,
+//! - always `undefined`: `self.immuneUntil`, `hud.alive`, `hud.minPlayers`, `minimap.t`,
 //!   `fighters[].drawStartedAt`, `mobs[].drawStartedAt`, `projectiles[].{id,vx,vy,x0,y0,t0,range}`;
 //! - derived, not unpublished (DEV-026, owner confirmation pending): `self.mobKills` counts this seat's own accepted
 //!   `Death` events of regional mobs (and elites) credited to it while the dead row was delivered (an under-count when a
 //!   credited death is out of sight; `undefined` would make every farm score NaN);
 //! - the private plan deal (`kind: "private"`, `type: "plan"`) is an immediate event when the delivered plan group
 //!   changes (source `input.privates`, perception.ts:672-679);
+//! - `hud.winner` is legacy's `state.winner` (arena.ts:91, :466): `""` until the seat accepts `MatchEnded`, then the
+//!   winner's roster name (`""` on a draw);
 //! - `undefined` when its own condition holds: `self.attackTarget` (a held lock whose target is redacted), `self.name`
 //!   and `fighters[].{name,bot}` (no roster row), `mobs[].type` (no type code), `mobs[].name` (a quest giver or a
 //!   zombie: the name or the zombie's owner is not on the wire), `containers[].weapon` (contents unknown, the source's own
@@ -251,6 +253,9 @@ pub(crate) struct Composer14 {
     mob_kills: u32,
     /// The last delivered plan group: the private plan deal is sent when it changes.
     last_plan: Option<WirePlan>,
+    /// `hud.winner` (arena.ts:91, :466): `""` until this seat accepts `MatchEnded`, then the winner's roster name (`""` on
+    /// a draw or without a roster row).
+    winner: String,
 }
 
 /// The groups a composition reads, all present (the composer's preflight).
@@ -273,6 +278,7 @@ impl Composer14 {
             held: Vec::new(),
             mob_kills: 0,
             last_plan: None,
+            winner: String::new(),
         }
     }
 
@@ -283,6 +289,7 @@ impl Composer14 {
         self.held.clear();
         self.mob_kills = 0;
         self.last_plan = None;
+        self.winner.clear();
     }
 
     /// The composer's whole refusal set, without changing anything (the seat's `check_input`).
@@ -960,6 +967,16 @@ impl Composer14 {
             })
             .collect();
 
+        // ---- hud.winner: legacy's `state.winner`, learned from the seat's own accepted `MatchEnded`.
+        for event in frame.events.iter().flat_map(|b| &b.events) {
+            if let WireEvent::MatchEnded { winner, draw } = event {
+                self.winner = winner
+                    .filter(|_| !*draw)
+                    .and_then(&roster_name)
+                    .unwrap_or_default();
+            }
+        }
+
         // ---- self.mobKills, derived (DEV-026): the seat's own accepted deaths of delivered regional mobs credited to it.
         for event in frame.events.iter().flat_map(|b| &b.events) {
             if let WireEvent::Death { id, by } = event {
@@ -1016,7 +1033,7 @@ impl Composer14 {
                 BVal::num(frame.collections.roster.len() as f64),
             ),
             ("minPlayers", BVal::Undefined),
-            ("winner", BVal::Undefined),
+            ("winner", BVal::text(self.winner.clone())),
         ]);
         let features_record = BVal::obj([
             (
