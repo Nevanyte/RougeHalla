@@ -82,8 +82,8 @@ pub struct WireQuestRow {
     pub participants: Vec<WireQuestParticipant>,
     pub carrier: Option<RosterId>,
     /// P-WIRE17-MAP-2: the carrier's public actor id (the id its snapshot actor row carries), present only while the
-    /// viewer is delivered that fighter (C-OBS); `None` when the carrier is unseen or there is no carrier.
-    // Stub: the codec neither writes, reads nor checks it yet (the implementer replaces this note).
+    /// viewer is delivered that fighter (C-OBS); `None` when the carrier is unseen or there is no carrier. Wire: row flag
+    /// 0x10 and a non-zero varint right after the flags byte; only with a carrier.
     pub carrier_actor: Option<u32>,
     pub done_by: Option<String>,
     pub can_accept: bool,
@@ -1545,6 +1545,12 @@ impl WireQuestView {
             if let Some(label) = &row.done_by {
                 str_fits("quest done_by", label)?;
             }
+            if row
+                .carrier_actor
+                .is_some_and(|actor| actor == 0 || row.carrier.is_none())
+            {
+                return Err(EncodeError::BadValue("quest carrier actor"));
+            }
             for (what, text) in [
                 ("quest name", &row.name),
                 ("quest giver label", &row.giver_label),
@@ -1709,6 +1715,7 @@ impl WireQuestRow {
             + 1
             + self.done_by.as_deref().map_or(0, str_len)
             + 1
+            + self.carrier_actor.map_or(0, varint_len)
             + varint_len(self.owner_progress)
             + 1
             + str_len(&self.name)
@@ -1736,7 +1743,11 @@ impl WireQuestRow {
         w.u8(u8::from(self.can_accept)
             | (u8::from(self.owner_accepted) << 1)
             | (u8::from(self.owner_completed) << 2)
-            | (u8::from(self.owner_ready) << 3));
+            | (u8::from(self.owner_ready) << 3)
+            | (u8::from(self.carrier_actor.is_some()) << 4));
+        if let Some(actor) = self.carrier_actor {
+            w.varint(actor);
+        }
         w.varint(self.owner_progress);
         w.u8(self.owner_visited);
         w.str(&self.name);
@@ -1773,9 +1784,18 @@ impl WireQuestRow {
         let carrier = roster_id_or_none(r.varint()?)?;
         let done_by = if quest_bool(r)? { Some(r.str()?) } else { None };
         let flags = r.u8()?;
-        if flags & !0x0f != 0 {
+        // 0x10: the carrier's actor id follows; it needs a carrier (else the flag is as unknown as 0x20..0x80).
+        if flags & !0x1f != 0 || (flags & 0x10 != 0 && carrier.is_none()) {
             return Err(DecodeError::BadField("quest flags"));
         }
+        let carrier_actor = if flags & 0x10 != 0 {
+            match r.varint()? {
+                0 => return Err(DecodeError::BadField("quest carrier actor")),
+                actor => Some(actor),
+            }
+        } else {
+            None
+        };
         let owner_progress = r.varint()?;
         let owner_visited = r.u8()?;
         Ok(Self {
@@ -1786,7 +1806,7 @@ impl WireQuestRow {
             expires_at,
             participants,
             carrier,
-            carrier_actor: None,
+            carrier_actor,
             done_by,
             can_accept: flags & 1 != 0,
             owner_accepted: flags & 2 != 0,
