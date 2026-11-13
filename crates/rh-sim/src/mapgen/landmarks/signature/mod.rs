@@ -193,8 +193,11 @@ pub struct ReservedSite {
     pub stream: Mulberry32,
 }
 
-/// The zones that reserve a site, in the order of `AttemptState::reserved` (Holy keeps its hall rule).
-pub const RESERVED: [Zone; 4] = [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost];
+/// The zones that reserve a site, in the order of `AttemptState::reserved` (Holy keeps its hall rule). A function, not a
+/// const: `tests/content.rs` reads consts as tunables.
+pub fn reserved_zones() -> [Zone; 4] {
+    [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost]
+}
 
 /// The zone's one-based slot in the attempt's faction order.
 fn slot_of(order: &[FactionId], zone: Zone) -> Option<u8> {
@@ -303,14 +306,14 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// P-MAPGEN-SIG-RESERVE-1: each reserving zone's signature stream, `hash_seed(seed, attempt, zone slot, stream)`, in
-    /// `RESERVED` order: the streams the Landmarks phase draws from, begun in the Prefix.
+    /// `reserved_zones` order: the streams the Landmarks phase draws from, begun in the Prefix.
     pub(crate) fn streams(
         &self,
         seed: i64,
         attempt: u64,
         order: &[FactionId],
     ) -> Option<Vec<Mulberry32>> {
-        RESERVED
+        reserved_zones()
             .iter()
             .map(|&z| {
                 slot_of(order, z).map(|slot| {
@@ -325,14 +328,14 @@ impl<'f> SignatureContext<'f> {
             .collect()
     }
 
-    /// P-MAPGEN-SIG-RESERVE-1: one prefix round's sites, in `RESERVED` order, on the round's partition `zone`. A
+    /// P-MAPGEN-SIG-RESERVE-1: one prefix round's sites, in `reserved_zones` order, on the round's partition `zone`. A
     /// zone's candidates are the `site_side` squares wholly of its tiles, off `hard` (border, coliseum, road, lanes) and
     /// off the open map corners, whose centre point lies beyond the zone's line: Fire, Sentenced and Frost the zone
     /// centroid's distance from the map centre plus `back_slack`, Plague the start of its outer third plus
     /// `outer_slack`. A Sentenced or Frost square also needs its camp tile (`inside_camp`). One uniform draw among the
     /// candidates, the zone's one draw of the round on its stream; without a candidate, Plague takes the deepest square
     /// still beyond its centroid (largest centre distance, first in row order), drawing nothing. `None` when a zone has
-    /// no square: the round fails as a camp failure does. Draws only from `streams` (`RESERVED` order).
+    /// no square: the round fails as a camp failure does. Draws only from `streams` (`reserved_zones` order).
     pub(crate) fn reserve(
         &self,
         zone: &[u8],
@@ -353,8 +356,8 @@ impl<'f> SignatureContext<'f> {
         // Summed-area table of the tiles a site may not hold.
         let stride = W + 1;
         let mut bad = vec![0i32; stride * (H + 1)];
-        let mut out = Vec::with_capacity(RESERVED.len());
-        for (k, &z) in RESERVED.iter().enumerate() {
+        let mut out = Vec::with_capacity(reserved_zones().len());
+        for (k, &z) in reserved_zones().iter().enumerate() {
             let slot = slot_of(order, z)?;
             let (mut sx, mut sy, mut n) = (0i64, 0i64, 0i64);
             let (mut lo, mut hi) = (f64::MAX, 0.0f64);
@@ -480,7 +483,7 @@ impl<'f> SignatureContext<'f> {
         }
         let mut terrain = vec![0u8; W * H];
         let mut anchors = Vec::new();
-        for zone in RESERVED {
+        for zone in reserved_zones() {
             let Some(slot) = slot_of(&prefix.order, zone) else {
                 return Ok(None);
             };
