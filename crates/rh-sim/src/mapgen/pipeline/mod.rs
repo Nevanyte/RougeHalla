@@ -80,7 +80,8 @@ pub enum Refusal {
     /// stylers (only with `Options::signature`). A finished map discarded later is `SignatureDiscarded`.
     Signature,
     /// A signature map discarded by the end-of-attempt check, after records: a landmark no longer whole, a styler
-    /// feature in an apron, or a strict certifier failure (only with `Options::signature`).
+    /// feature in an apron, a landmark in another landmark's apron, the Frost lake away from the cave's mouth, or a
+    /// strict certifier failure (only with `Options::signature`).
     SignatureDiscarded,
 }
 #[derive(Debug)]
