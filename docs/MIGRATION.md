@@ -4,6 +4,26 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, afternoon): the churchyard ("Yes, add churchyard")
+
+The coordinator put requirement L2a to the owner (the land-generation session's
+[addendum 1](coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_1.md), section 3) and the owner answered "Yes, add
+churchyard": the church's blueprint gains a churchyard fence round the church and its graveyard, with a main gate 5
+tiles wide on the door axis in the front side, all inside the 29 x 29 box; the church building gets smaller. The
+church drawing approved at midday is superseded and is being redrawn; the owner sees the new drawing before
+P-MAPGEN-SIG-SCALE-2's oracle is written. The other four blueprints stand.
+
+Coordinator answers to the land-generation session the same hour (its hand-off for P-LAND-SENTENCED-1 and its
+[addendum 2](coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_2.md)): the `Church` feature keeps covering the
+church building only, its door three open tiles in one run on the door-side edge (that session's lanes stop generation
+otherwise), the graveyard stays separate `Graveyard` features, and the anchor covers the whole box; P-LAND-PLAGUE-1's
+write scope is widened to the six files a new appended feature kind (`BogPool`) needs, as one commit of its own.
+That session's owner decisions in its own chat (about 80% of today's Sentenced fence accepted; the church's site rule
+unchanged; barrow bog crescents become free pools; "large pools near the tree" as a tendency) are recorded in
+addendum 2 and belong to its lane. P-LAND-SENTENCED-1 (lanes; that session reports a full gate, a reviewer-opus LAND
+and the owner's "Approve lanes" in its chat) is queued to merge with P-MAPGEN-SIG-SCALE-1 after the coordinator's own
+reviewer-opus pass.
+
 ## Beta follow-up integrations 17 to 23 (2026-11-13): current checkpoint
 
 Integration branch `feature/unity-rework` @ `aa66da83` (pushed). Identities: protocol 17 (protocol 18 is stamped on

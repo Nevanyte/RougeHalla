@@ -8,7 +8,7 @@ is a fixed blueprint, placed in one of eight orientations inside its reserved si
 | Landmark | File | Box | Packet that builds it |
 |---|---|---|---|
 | Frost cave | `cave.txt` | 29 x 29 | P-MAPGEN-SIG-SCALE-1 |
-| Sentenced church with its graveyard | `church.txt` | 29 x 29 | P-MAPGEN-SIG-SCALE-2 |
+| Sentenced church with its graveyard | `church.txt` (**superseded 2026-11-13**: the owner added a churchyard fence with a 5-wide main gate; being redrawn, not yet approved) | 29 x 29 | P-MAPGEN-SIG-SCALE-2 |
 | Plague bog tree | `bog.txt` | 29 x 29 | P-MAPGEN-SIG-SCALE-3 |
 | Fire volcano | `volcano.txt` | 30 x 30 | P-MAPGEN-SIG-SCALE-4 |
 | Holy hall | `hall.txt` (two Holy camps on the nave at rows 15 and 27 from the back; 32 piers; a 7-wide nave) | 37 x 37 | P-MAPGEN-SIG-HOLY-1 |
