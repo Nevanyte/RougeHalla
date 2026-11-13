@@ -79,7 +79,20 @@ namespace Roguehalla.Client
             layout.childControlWidth = true; layout.childControlHeight = true;
             layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
             content.gameObject.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+            viewport.offsetMax = new Vector2(-14, 0);
+            var barRoot = MythicUi.Rect(scrollRoot, "Scrollbar", new Vector2(1, 0), Vector2.one);
+            var track = barRoot.gameObject.AddComponent<UnityEngine.UI.Image>(); track.color = ShowcasePalette.PanelRaised;
+            barRoot.pivot = new Vector2(1, .5f); barRoot.sizeDelta = new Vector2(12, 0); barRoot.anchoredPosition = Vector2.zero;
+            var slide = MythicUi.Rect(barRoot, "Sliding Area", Vector2.zero, Vector2.one);
+            var handle = MythicUi.Rect(slide, "Handle", Vector2.zero, Vector2.one);
+            var handleImage = handle.gameObject.AddComponent<UnityEngine.UI.Image>(); handleImage.color = ShowcasePalette.Gold;
+            handle.offsetMin = handle.offsetMax = Vector2.zero;
+            var bar = barRoot.gameObject.AddComponent<UnityEngine.UI.Scrollbar>();
+            bar.handleRect = handle; bar.direction = UnityEngine.UI.Scrollbar.Direction.BottomToTop;
+            bar.targetGraphic = handleImage;
             scroll.viewport = viewport; scroll.content = content;
+            scroll.verticalScrollbar = bar;
+            scroll.verticalScrollbarVisibility = UnityEngine.UI.ScrollRect.ScrollbarVisibility.Permanent;
             scrollRoot.gameObject.AddComponent<KeyboardScrollPane>().Initialize(scroll);
 
             var mobRow = Row(content, "MobChoice", 90);
@@ -108,8 +121,8 @@ namespace Roguehalla.Client
             _cardDescription = FlowText(content, "CardDescription", "", 14);
             _cardDescription.enableAutoSizing = false;
             var chestRow = Row(content, "ChestRow", 52);
-            _chosenChest = Button(chestRow, "ChosenChestAction", "CHEST WITH AUGMENT", Vector2.zero, new Vector2(.62f, 1));
-            _randomChest = Button(chestRow, "RandomChestAction", "RANDOM CHEST", new Vector2(.65f, 0), Vector2.one);
+            _chosenChest = Button(chestRow, "ChosenChestAction", "CHEST WITH AUGMENT", Vector2.zero, new Vector2(.60f, 1));
+            _randomChest = Button(chestRow, "RandomChestAction", "RANDOM CHEST", new Vector2(.62f, 0), Vector2.one);
             _clear = Button(Row(content, "ClearRow", 48), "ClearAction", "CLEAR ALL", Vector2.zero, Vector2.one);
             FlowText(content, "AuthorityNote", "Requests use the ordinary Training input path. The server decides whether and how they apply. Mob stacks must be a complete nonnegative safe integer.", 13);
             _status = MythicUi.Text(_panel, "Status", "Choose a server intent.", new Vector2(.025f, .015f), new Vector2(.975f, .15f), 14, ShowcasePalette.MutedText);
