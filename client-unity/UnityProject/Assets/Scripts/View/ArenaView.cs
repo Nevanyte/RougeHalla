@@ -27,7 +27,7 @@ namespace Roguehalla.Client
         public RegionId LocalRegion { get { return Regions.LocalRegion; } }
         /// <summary>Raised (previous, current) when the local player enters another region.</summary>
         public event System.Action<RegionId, RegionId> LocalRegionChanged { add { Regions.LocalRegionChanged += value; } remove { Regions.LocalRegionChanged -= value; } }
-        RegionGround _regionGround; RegionWalls _regionWalls; RegionProps _regionProps;
+        RegionGround _regionGround; RegionWalls _regionWalls; RegionProps _regionProps; LandmarkView _landmarks;
         /// <summary>Brightness multiplier for region ground and walls (they are lit by the same Light2D set as the actors).</summary>
         public const float RegionExposure = 1f;
         SpriteActorPresenter _actors;
@@ -236,6 +236,7 @@ namespace Roguehalla.Client
             if (temple.Found) AddTempleEmblem(temple);
             _regionWalls = RegionWalls.Build(_mapRoot, map, RegionExposure);
             _regionProps = RegionProps.Build(_mapRoot, map);
+            _landmarks = LandmarkView.Build(_mapRoot, map);
             HasMap = true;
             ApplyQuality();
         }
@@ -295,6 +296,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                if (_landmarks != null) _landmarks.NoteActor(WorldPoint(a.X, a.Y));
                 ActorField.Note(WorldPoint(a.X, a.Y));
             }
             if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
@@ -313,6 +315,7 @@ namespace Roguehalla.Client
                 _wishFx.NoteActor(me.Id, ActorKind.Player, me.Effects, me.Status == ActorStatus.Alive);
                 Regions.UpdateLocal(mx, my, Time.unscaledTime);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(mx, my));
+                if (_landmarks != null) _landmarks.NoteActor(WorldPoint(mx, my));
                 ActorField.Note(WorldPoint(mx, my));
             }
             _actors.End(); PerfMarks.End(PerfMarks.Sec.Actors, pmActors);
@@ -323,6 +326,7 @@ namespace Roguehalla.Client
             _actors.StepFades(); TickVision();
             PerfMarks.End(PerfMarks.Sec.Vision, pm); pm = PerfMarks.Begin();
             if (_regionProps != null) _regionProps.Tick(Time.unscaledDeltaTime);
+            if (_landmarks != null) _landmarks.Tick(Time.unscaledDeltaTime);
             PerfMarks.End(PerfMarks.Sec.Props, pm); pm = PerfMarks.Begin();
             ReleaseScheduledFx();
             UpdateEffects();
@@ -481,6 +485,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
+                if (_landmarks != null) _landmarks.NoteActor(WorldPoint(a.X, a.Y));
                 ActorField.Note(WorldPoint(a.X, a.Y));
             }
         }
@@ -858,6 +863,7 @@ namespace Roguehalla.Client
             if (_regionGround != null) _regionGround.Dispose();
             if (_regionWalls != null) _regionWalls.Dispose();
             if (_regionProps != null) _regionProps.Dispose();
+            if (_landmarks != null) _landmarks.Dispose();
         }
     }
 }
