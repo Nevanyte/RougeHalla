@@ -36,8 +36,8 @@ namespace Roguehalla.Client
         bool _worldHudVisible = true;
         GameObject _worldHudFocus;
         bool WorldHudVisible => !BlocksKeyboardInput && !(_map?.IsOpen ?? false);
-        // Panels (plate, champion, hotbar, minimap) ignore which console control holds focus: Tab alone selects CONSOLE in practice.
-        bool PanelHudVisible => !BlocksKeyboardInputCore(false) && !(_map?.IsOpen ?? false);
+        // Panels (plate, champion, hotbar, minimap) read console focus only while the console is open; the closed CONSOLE button takes focus on a plain Tab.
+        bool PanelHudVisible => !BlocksKeyboardInputCore(_trainingConsole?.IsOpen == true) && !(_map?.IsOpen ?? false);
         public TacticalMapController TacticalMap => _map;
         public bool ChestOwnsDigits => _chestFocus || _chestConsumedDigits;
         public bool ConsumesArrowNavigation => _chestFocus || _map != null && _map.ContainsFocus || ReadingPaneSelected;
