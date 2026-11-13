@@ -54,3 +54,12 @@ discards the map (G5). Size the bog core down so the ring fits the legacy cresce
 - Legacy feature-tied props around barrows come from the generator's decor stream: leave them.
 
 ## Notes from previous attempts
+2026-11-12 (coordinator, owner decision the same evening: "Marsh slow 0% water 0% mud 30% bog"): the packet is
+narrowed. Mud and water are looks, not terrain: they are laid as decoration ground variants round each bog pool by
+`rh-mapdress` (water ring next to the bog, mud ring outside it), not by the generator, and P-TERRAIN-MARSH-1 is
+cancelled, so this packet no longer depends on it. What stays here: in signature mode each bog pool's size comes from
+the band it sits in (largest near the bog tree), pools keep off spawn corridors with dry paths between, the tree
+stands on dry ground, total bog stays in the measured window, and each pool leaves room for a two-tile ring of plain
+floor round it (the ring tiles must be free floor inside the Plague zone, off camp keep-clear: that is the only
+generator-side requirement the rings add). Section 8's neighbour rules for water and mud tiles move to the dress
+packet; the hazard-walk check counts bog only, as today. The oracle author rewrites sections 1, 2, 5 and 8 to this.

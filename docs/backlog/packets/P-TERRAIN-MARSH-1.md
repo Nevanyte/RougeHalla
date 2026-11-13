@@ -1,5 +1,9 @@
 # P-TERRAIN-MARSH-1: mud and water ground (two new slow terrains), Plague exempt
 
+> **CANCELLED 2026-11-12 (owner decision, chat: "Marsh slow 0% water 0% mud 30% bog").** Mud and water slow no one, so
+> they are not sim terrain: no new terrain code, no wire, content-hash or bot change. The rings are decoration ground
+> variants (P-DRESS-MARSH-1, to be written with the per-zone dress rules). Kept for the record; do not implement.
+
 - **Serves:** not in ORDER_OF_OPERATIONS: owner decision 4 (MIGRATION, 2026-11-10: "Plague marsh rings grass > mud
   (small slow) > water (more slow) > bog (as today), Plague exempt"); plan lane D packet 4
 - **Implementer tier:** implementer-opus (cross-crate: rh-sim terrain, rh-protocol map blob, C# and JS decoders,

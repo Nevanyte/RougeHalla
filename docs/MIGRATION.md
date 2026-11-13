@@ -4,6 +4,26 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decisions 2026-11-12 (chat, evening): bot Brain, Holy hall, marsh
+
+1. **Bot Brain.** Asked whether to reconcile the cloud session's complete P-BOT-BRAIN-LIVE-1 (pushed to
+   `origin/feature/unity-rework`, tip `5e7bc410`, branch `claude/festive-babbage-dkwvrm`) with this session's reviewed
+   composer and input side, or to revert it. Answer: "cloud session just finished". The coordinator reads this as: the
+   cloud work is the owner's own and is complete, so it is kept and reconciled (the option recommended in the
+   question), not reverted. Packet P-BOT-BRAIN-RECONCILE-1: one composer, held to both sessions' tests, then a
+   `reviewer-opus` review of the whole Brain. The cloud line's two departures stay open for the owner inside that
+   review: `self.mobKills` derived from seen deaths (the 2026-11-11 ruling was "unknown, never inferred") and Memory
+   dropping mobs whose reference is gone.
+2. **Holy hall.** "Please move it to landmark phase and standardize the interior." Option A of P-MAPGEN-SIG-HOLY-1:
+   the hall is placed in the Landmarks phase like the other four landmarks (Holy's option-on tiles change; option off
+   stays byte-identical), and its interior is one standard layout, not a per-seed result of the styler.
+3. **Marsh.** "Marsh slow 0% water 0% mud 30% bog." Mud and water do not slow anyone: they are ground looks only.
+   Bog keeps today's 0.7. P-TERRAIN-MARSH-1 (two new sim terrain codes) is therefore cancelled: no new terrain code,
+   no wire or content-hash change, no bot hazard change. The rings (mud outside, water inside, round each bog pool)
+   become decoration ground variants laid by `rh-mapdress` round bog terrain; P-MAPGEN-SIG-PLAGUE-1 keeps only the
+   generator part (bog pools sized by band from the bog tree).
+4. The owner asked what DEV-022 to DEV-027 are: explained in chat; none signed yet.
+
 ## Owner approvals 2026-11-12 (chat): "Yes to both"
 
 Asked: (1) may `crates/rh-server/src/signature.rs` and `crates/rh-server/src/signature/tests.rs` (the server-side
