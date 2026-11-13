@@ -4,6 +4,16 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, evening): the church with its churchyard is approved
+
+The coordinator showed the redrawn church (the session's picture and write-up) and asked "Is the redrawn church with
+its churchyard approved?"; the owner answered **"Approve"**. The grid is checked in as
+`docs/landmarks/blueprints/church.txt`: the building is 23 x 14 (it was 29 x 17), 8 pillars, no altar; the graveyard
+is 11 rows deep; the churchyard fence has the 5-wide main gate and eleven 3-wide gates (a 29-tile side cannot hold a
+fence run over 9 tiles or a closed corner arm over 5, so each side has three gates); the door line to the main gate
+line is 12 rows, which the land-generation session's lanes need. All five blueprints are now approved. Still open
+with the owner the same hour: the two P-BOT-BRAIN-CONTINUITY-1 confirmations.
+
 ## Owner decision 2026-11-13 (chat, late afternoon): "Finish everything first"
 
 The coordinator told the owner that the plan's three unfinished parts (larger landmarks with their art, Frost Wall
