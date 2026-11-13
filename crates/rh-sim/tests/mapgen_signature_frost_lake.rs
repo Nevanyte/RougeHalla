@@ -10,9 +10,13 @@
 //! * mouth to lake: the fewest 4-connected floor steps from any mouth tile (step 0) to any tile of the largest ice body.
 //!
 //! The rule under test: on every finished option-on map with unowned Frost ice, mouth to lake is at most
-//! `lake_reach + 2` = 10 floor steps; a map with no unowned Frost ice is kept. The pinned attempts and map hashes below
-//! are this packet's own golden values: measured with the generator as merged at P-MAPGEN-SIG-FROST-1 (2026-11-12),
-//! by running each attempt in turn and keeping the first map that meets the rule.
+//! `lake_reach + 2` = 10 floor steps; a map with no unowned Frost ice is kept.
+//!
+//! Amended by P-MAPGEN-SIG-SCALE-1 (oracle commit, coordinator's decision 2026-11-12): this packet first pinned, as a
+//! guard that the rule changed nothing else, the option-on (attempt, map hash) of every seed 1-32 as the generator made
+//! them at P-MAPGEN-SIG-FROST-1. Any change of a landmark's size moves every option-on map, so those exact pins are
+//! replaced by the properties that matter going forward: the rule on every seed, `certified_styled` serving the first
+//! attempt that meets it, and the worst attempt index within a re-measured bound.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone};
 use rh_sim::mapgen::landmarks::signature::DEFAULT_DEFINITION;
 use rh_sim::mapgen::{coliseum, map_hash, pipeline};
@@ -31,54 +35,10 @@ fn attempt_limit() -> u64 {
     16
 }
 
-/// The worst attempt index over seeds 1-32 under the rule (measured: 3, seed 18) plus a margin of 2.
+/// The worst attempt index over seeds 1-32 under the rule. Measured 3 (seed 18) at P-MAPGEN-SIG-FROST-2; re-measured
+/// for P-MAPGEN-SIG-SCALE-1 with the brief's prototype of the larger cave: 5 (seeds 1 and 23); plus a margin of 3.
 fn worst_attempt_allowed() -> u64 {
-    3 + 2
-}
-
-/// Seeds 1-32 whose lake is already at the mouth today: (seed, attempt that certifies, `map_hash`). The rule must leave
-/// them exactly as they are (it only discards).
-fn unchanged() -> [(i64, u64, &'static str); 30] {
-    [
-        (1, 0, "b0165a0a"),
-        (2, 0, "ef2c8748"),
-        (3, 0, "c83d0e2e"),
-        (4, 0, "55cfcd59"),
-        (5, 0, "b13ac97e"),
-        (6, 0, "2051e02c"),
-        (7, 0, "dfdeb7ef"),
-        (8, 2, "7281443c"),
-        (9, 2, "ef37c8e0"),
-        (10, 0, "ae7ff4f8"),
-        (11, 1, "885cc9ca"),
-        (12, 0, "969d8e93"),
-        (13, 0, "a77deac9"),
-        (14, 0, "5479e66f"),
-        (15, 0, "55a19e9f"),
-        (16, 1, "a2d02cd0"),
-        (19, 0, "623eea2b"),
-        (20, 0, "f637bb0c"),
-        (21, 0, "73ed442c"),
-        (22, 0, "71d373a2"),
-        (23, 0, "c3719689"),
-        (24, 0, "ce8439c4"),
-        (25, 0, "481cd65e"),
-        (26, 0, "01b07b7b"),
-        (27, 0, "99d5de56"),
-        (28, 0, "b2065d75"),
-        (29, 0, "6c6879db"),
-        (30, 0, "39d91776"),
-        (31, 0, "4ed863b2"),
-        (32, 1, "11ce93ef"),
-    ]
-}
-
-/// Seeds 17 and 18: today attempt 0 certifies with the largest ice body 98 and 102 floor steps from the mouth. Under
-/// the rule attempt 0 is discarded and the seed lands on the first later attempt that meets it: (seed, attempt,
-/// `map_hash`), the maps today's generator already makes at those attempts (18's attempt 1 is refused
-/// `Repair(RadiusPost)`, attempt 2 `Signature`).
-fn moved() -> [(i64, u64, &'static str); 2] {
-    [(17, 1, "78c08b44"), (18, 3, "2d258d08")]
+    5 + 3
 }
 
 /// Today's option-off generator (`Options::default()`, `certified_styled`), seeds 1-8: (seed, `map_hash`, FNV-1a 64 of
@@ -297,29 +257,32 @@ fn the_largest_lake_is_at_the_mouth_on_every_seed() {
     );
 }
 
-/// Seeds 17 and 18 still certify within the attempt limit, on the first later attempt that meets the rule, with the map
-/// today's generator makes at that attempt (17: attempt 1; 18: attempt 3). Red today: both land on attempt 0.
+/// The server's call serves the first attempt that meets the rule: for seeds 17 and 18 (whose attempt 0 put the lake
+/// 98 and 102 floor steps from the mouth at P-MAPGEN-SIG-FROST-1), `certified_styled` gives the map of the first attempt
+/// `styled_attempt_with_trace` accepts, and that map meets the rule. (Was: the pinned (attempt, map hash) of seeds 17 and
+/// 18; replaced by P-MAPGEN-SIG-SCALE-1, see the file comment.)
 #[test]
-fn seeds_17_and_18_land_on_the_next_attempt_with_the_lake_at_the_mouth() {
+fn certified_styled_serves_the_first_attempt_that_meets_the_rule() {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    for (seed, attempt, hash) in moved() {
+    for seed in [17, 18] {
         let l = landed(seed);
-        assert_eq!(
-            (l.attempt, map_hash::map_hash(&l.map).as_str()),
-            (attempt, hash),
-            "seed {seed}: (attempt, map hash); the map at attempt {} has its lake {:?} (size, floor steps) from the mouth",
-            l.attempt,
-            lake(seed, &l.map)
-        );
+        if let Some((size, steps)) = lake(seed, &l.map) {
+            assert!(
+                steps.is_some_and(|s| s <= mouth_to_lake()),
+                "seed {seed} (attempt {}): {size} ice tiles {steps:?} floor steps from the mouth",
+                l.attempt
+            );
+        }
         let served = generator
             .certified_styled(seed, on_options())
             .expect("generator error")
             .unwrap_or_else(|| panic!("seed {seed}: certified_styled gives no map"));
         assert_eq!(
             map_hash::map_hash(&served),
-            hash,
-            "seed {seed}: certified_styled's map"
+            map_hash::map_hash(&l.map),
+            "seed {seed}: certified_styled's map is not attempt {}'s",
+            l.attempt
         );
     }
 }
@@ -327,19 +290,6 @@ fn seeds_17_and_18_land_on_the_next_attempt_with_the_lake_at_the_mouth() {
 // --------------------------------------------------------------------------------------------------------------------
 // Guards: pass today, must keep passing.
 // --------------------------------------------------------------------------------------------------------------------
-
-/// Every seed in 1-32 whose lake is already at the mouth lands on the same attempt with the same map as today.
-#[test]
-fn seeds_with_the_lake_at_the_mouth_keep_their_maps() {
-    for (seed, attempt, hash) in unchanged() {
-        let l = landed(seed);
-        assert_eq!(
-            (l.attempt, map_hash::map_hash(&l.map).as_str()),
-            (attempt, hash),
-            "seed {seed}: (attempt, map hash)"
-        );
-    }
-}
 
 /// Option off, seeds 1-8: the map hash and the whole map's JSON are today's; no cave, no anchors (G8).
 #[test]
@@ -378,7 +328,7 @@ fn every_seed_still_places_all_four_landmarks() {
     }
 }
 
-/// The worst attempt index over seeds 1-32 stays within `worst_attempt_allowed()` (measured 3 under the rule, 2 today).
+/// The worst attempt index over seeds 1-32 stays within `worst_attempt_allowed()` (see there).
 #[test]
 fn the_worst_attempt_stays_within_the_measured_margin() {
     let worst = maps()
