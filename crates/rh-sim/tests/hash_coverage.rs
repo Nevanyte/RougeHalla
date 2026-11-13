@@ -827,6 +827,21 @@ fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
         .collect()
 }
 
+/// DECLARED serialization seed for the practice camps' contributors (P-TRAINING-CAMPS-1, `world.practice.contributors`):
+/// an admitted Training world with two (practice camp ref, seated player) pairs. The producer oracle is
+/// `systems/training/camps_tests.rs` (a real hit on a console camp); this only lets the audit reach the leaves.
+fn practice_contributors_state() -> (&'static str, Sim) {
+    let (_, sim) = produced_walk_hint_states().swap_remove(0);
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    assert_eq!(cp["world"]["practice"]["contributors"], serde_json::json!([]));
+    let first = rh_sim::constants::PRACTICE_CAMP_FIRST;
+    cp["world"]["practice"]["contributors"] = serde_json::json!([[first, 1], [first + 2, 1]]);
+    (
+        "DECLARED practice camp contributors",
+        Sim::restore(cp).expect("practice refs paired with the seated player"),
+    )
+}
+
 /// Declared serialization controls, NOT earned cards, Mark application, or produced hints.
 /// The source-component tests remain the producer oracle. These coupled seeds let the
 /// generic serde audit reach private fields without a new gameplay/testing input door.
@@ -975,6 +990,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     );
     states.extend(declared);
     states.extend(produced_walk_hint_states());
+    states.push(practice_contributors_state());
     states.push(mob_spacing_off_state());
     states.push(regen_in_combat_off_state());
     states.push(camp_buffs_themed_state());
@@ -1189,6 +1205,14 @@ const VALIDATED: &[(&str, &str)] = &[
     (
         "world.practice",
         "the practice-console counters exist only in a training world; filling them in an arena checkpoint is refused by the arena actor validators",
+    ),
+    (
+        "world.practice.contributors.*.*",
+        "a practice contributor pair is (camp ref 101..=255, a player the run seated: its retained Player origin), each pair once (training.rs `validate_actors`); an accepted edit still has to change the hash",
+    ),
+    (
+        "world.practice.contributors.*.#len",
+        "a practice contributor is a (camp ref, player) pair",
     ),
     (
         "statics.config.training",

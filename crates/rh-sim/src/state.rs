@@ -830,7 +830,7 @@ impl Projectile {
 }
 
 /// The training practice console's counters (legacy world.practice WeakMap): None outside a training world.
-#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PracticeRuntime {
     /// Practice mobs placed so far (bounded by TRAIN_MAX_MOBS_SPAWNED).
@@ -840,6 +840,11 @@ pub(crate) struct PracticeRuntime {
     pub(crate) last_chest_at: Option<f64>,
     /// The camp ref the next practice camp takes (101..=255, wrapping, skipping refs still in use).
     pub(crate) next_camp: u32,
+    /// The practice camps' contributors (legacy `world.campContrib` for the console's camps, `campHeal.ts:13-27`): every
+    /// (camp ref = `Mob::camp`, player) pair, each player once per camp, in first-hit order. A practice camp's clear
+    /// forgets its own pairs (`campHeal.ts:97`), the console's clear all of them (`training.ts:345`). Hashed state: it
+    /// outlives the tick and cannot be derived from the mobs.
+    pub(crate) contributors: Vec<(u32, PlayerId)>,
 }
 
 /// The evolving match state: everything a later tick can depend on. With [`crate::statics::MatchStatic`] it is the whole

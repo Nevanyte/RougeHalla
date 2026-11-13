@@ -90,6 +90,10 @@ pub(crate) enum PayLater {
     CampCleared {
         camp: u32,
     },
+    /// legacy camps.ts `practiceMobDied`: a training console camp's last mob died; its clear reward is paid (no fx, no hook).
+    PracticeCampCleared {
+        camp_ref: u32,
+    },
     MobKill {
         award: super::mob_life::Award,
     },
@@ -157,6 +161,9 @@ impl PayLater {
                     },
                     crate::hooks::HookArgs::CampCleared { camp },
                 );
+            }
+            PayLater::PracticeCampCleared { camp_ref } => {
+                super::camp_heal::pay_practice(k, w, ev, camp_ref)
             }
             PayLater::MobKill { award } => super::mob_life::pay(k, w, ev, award),
             #[cfg(feature = "trusted-status-probes")]

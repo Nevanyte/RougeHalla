@@ -205,6 +205,17 @@ pub(crate) fn hurt(
                 }
             }
         }
+    } else if camp >= 1 {
+        // A practice console camp (legacy `hurtMob` -> `noteCampContributors`, no training gate): the same filter, kept as
+        // (camp ref, player) pairs in first-hit order. A training world has no map camps, so `campEngaged` does nothing.
+        for h in hits.iter().filter(|h| h.amount > 0.) {
+            if let Some(by) = h.by.filter(|by| w.player(*by).is_some()) {
+                let pairs = &mut w.practice.as_mut().expect("practice runtime").contributors;
+                if !pairs.contains(&(camp, by)) {
+                    pairs.push((camp, by));
+                }
+            }
+        }
     }
     {
         let m = w.mobs.get_mut(id).unwrap();
@@ -366,6 +377,21 @@ fn kill_training_mob(
         super::weapons::cancel_action(&mut m.core, now);
         m.core.weapon.held = false;
         m.core.weapon.buffered_until = 0.;
+    }
+    // Legacy `campMobDied` -> `practiceMobDied` (a ref `state.camps` does not know): the camp's last mob pays the clear
+    // reward after the pass. Read after the status flip, as legacy does; the resets above do not touch what it reads.
+    if camp >= 1
+        && !w
+            .mobs
+            .iter()
+            .any(|m| m.camp == camp && m.status == Status::Alive)
+    {
+        super::ledger::pay_later(
+            k,
+            w,
+            ev,
+            PayLater::PracticeCampCleared { camp_ref: camp },
+        );
     }
     ev.push(Event::Death {
         id,

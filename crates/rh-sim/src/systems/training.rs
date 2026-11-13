@@ -314,6 +314,19 @@ pub(crate) fn validate_actors(
     {
         return Err("invalid practice console state");
     }
+    // The practice camps' contributors: a practice camp ref and a player the run has seated (a leaver keeps its pairs, as
+    // legacy keeps its id), each pair once.
+    for (i, &(camp, by)) in practice.contributors.iter().enumerate() {
+        if !(PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&camp)
+            || !matches!(
+                w.actor_origin(by),
+                Some(crate::mob_runtime::ActorOrigin::Player { .. })
+            )
+            || practice.contributors[..i].contains(&(camp, by))
+        {
+            return Err("invalid practice camp contributor");
+        }
+    }
     if !rt.camps.is_empty() || !rt.life.is_empty() {
         return Err("training world has no map camps");
     }

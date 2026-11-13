@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/31";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/32";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -1678,6 +1678,48 @@ mod tests {
         let mut json = serde_json::to_value(&a).unwrap();
         json["statics"]["arena"]["spawns"] = serde_json::json!([{"x": 1e300, "y": -1e300}]);
         assert!(refusal(&json).contains("spawn"));
+    }
+
+    /// P-TRAINING-CAMPS-1: the practice camps' contributors (`PracticeRuntime::contributors`) restore only as practice
+    /// camp refs paired with a seated player, each pair once.
+    #[test]
+    fn a_forged_practice_camp_contributor_is_refused() {
+        let mut a = Sim::new(
+            SimConfig {
+                training: true,
+                ..SimConfig::default()
+            },
+            practice_arena(),
+            Secrets::from_seed(1),
+        );
+        a.add_player("a", Some(FactionId::Holy), false).unwrap();
+        a.step();
+        let first = crate::constants::PRACTICE_CAMP_FIRST;
+        let last = crate::constants::PRACTICE_CAMP_LAST;
+        let base = serde_json::to_value(&a).unwrap();
+        assert_eq!(
+            base["world"]["practice"]["contributors"],
+            serde_json::json!([])
+        );
+        let with = |pairs: serde_json::Value| {
+            let mut json = base.clone();
+            json["world"]["practice"]["contributors"] = pairs;
+            json
+        };
+        let good = Sim::restore(&with(serde_json::json!([[first, 1], [last, 1]])))
+            .expect("practice refs paired with the seated player restore");
+        assert_ne!(good.state_hash(), a.state_hash());
+        for (pairs, why) in [
+            (serde_json::json!([[first - 1, 1]]), "a ref below the practice range"),
+            (serde_json::json!([[last + 1, 1]]), "a ref above the practice range"),
+            (serde_json::json!([[first, 2]]), "an id no player ever had"),
+            (serde_json::json!([[first, 1], [first, 1]]), "a pair twice"),
+        ] {
+            assert!(
+                refusal(&with(pairs)).contains("practice camp contributor"),
+                "{why}"
+            );
+        }
     }
 
     #[test]
