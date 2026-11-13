@@ -16,10 +16,14 @@
 //!   `undefined`), `events[].weapon` of every hit (the dealing weapon is not on the wire), `events[].name` of a player
 //!   with no roster row or of a zombie;
 //! - absent: minimap dots (`[]`), projectile launch/end events, Wish cast events, the owner notices
-//!   (potion/cannon/pickup/chest refusals, wind emblem, camp cleared), `extras.wish` (the source ability `def` record has
-//!   no producer yet) and `extras.skills` (source-only).
+//!   (potion/cannon/pickup/chest refusals, wind emblem, camp cleared) and `extras.skills` (source-only);
+//! - `extras.wish` is the delivered Wish slot with its `def` built from the public catalog (`bots::wish::WISHES` and
+//!   `rh_sim::abilities::definition`), its `rank` `undefined` (not on the wire; source `rankOf` reads it as 1).
 //!
-//! NPC references are per-sample (no cross-frame join), so a mob's velocity is the source's `0` for "no earlier sample".
+//! NPC references are per-sample (no cross-frame join), so a mob's velocity is the source's `0` for "no earlier sample"
+//! and a mob is drawn where the newest sample has it, not interpolated at `viewT` like a player. The camera is always the
+//! newest self position: frames.ts:137-142 keeps it (and the scene) at the old spot until render time reaches a teleport
+//! cut, which needs the pre-cut scene retained (not done; both are proposed deviations for piece 3).
 
 use super::percept::Percept;
 use super::trace::BVal;
@@ -94,12 +98,16 @@ pub(crate) const BRAIN_SELF_DELAY_MS: f64 = 0.;
 
 impl Setup14 {
     /// The setup a `BrainBot` seat uses: only the public map, the room's feature verdicts and the tier's attention share,
-    /// with the pinned delays. STUB (P-BOT-BRAIN-LIVE-2a): placeholder values until implemented.
+    /// with the pinned delays. The server's spawn points are dropped. The map keeps its layers: the composer reads only the
+    /// camp ids (`extras.camps[].id`) and the coliseum gate tiles (`withGates`) from them, both drawn by a client.
     pub(crate) fn public(arena: &Arena, features: Features, attention_central: f64) -> Self {
         Self {
-            arena: Arc::new(arena.clone()),
+            arena: Arc::new(Arena {
+                map: arena.map.clone(),
+                spawns: Vec::new(),
+            }),
             features,
-            world_delay_ms: 0.,
+            world_delay_ms: BRAIN_WORLD_DELAY_MS,
             attention_central,
         }
     }
@@ -193,6 +201,9 @@ pub(crate) struct Composer14 {
     locked: Option<TileMap>,
     samples: Vec<Sample>,
     world: Vec<Queued>,
+    /// Immediate events (toasts, results) of compositions the ring did not cover yet: source `takeImmediate` runs only
+    /// when `compose` returns a percept (frames.ts:131 returns before it), so they wait for the first covered one.
+    held: Vec<BVal>,
 }
 
 impl Composer14 {
@@ -203,6 +214,7 @@ impl Composer14 {
             locked,
             samples: Vec::new(),
             world: Vec::new(),
+            held: Vec::new(),
         }
     }
 
@@ -210,6 +222,7 @@ impl Composer14 {
     pub(crate) fn reset(&mut self) {
         self.samples.clear();
         self.world.clear();
+        self.held.clear();
     }
 
     pub(crate) fn compose(&mut self, frame: &Frame14) -> Result<Composed14, Refusal14> {
@@ -315,6 +328,8 @@ impl Composer14 {
         }
 
         let view_t = now - self.setup.world_delay_ms;
+        // frames.ts:131: no percept while the oldest retained sample is later than the view time.
+        let covered = self.samples[0].time <= view_t;
         let latest = self.samples.len() - 1;
         let eye = me_at;
         let sight = if arena.gates_locked {
@@ -652,6 +667,19 @@ impl Composer14 {
                 events.push(ev);
             }
         }
+        let mut immediate = immediate;
+        if !self.held.is_empty() {
+            immediate.splice(0..0, std::mem::take(&mut self.held));
+        }
+        if !covered {
+            // Kept for the first covered composition, as the source's immediate queue keeps them (bounded alike).
+            self.held = immediate;
+            if self.held.len() > MAX_QUEUED {
+                let excess = self.held.len() - MAX_QUEUED;
+                self.held.drain(..excess);
+            }
+            immediate = Vec::new();
+        }
         let has_toast = immediate
             .iter()
             .any(|e: &BVal| e.get("kind").and_then(BVal::as_str) == Some("toast"));
@@ -659,6 +687,11 @@ impl Composer14 {
 
         // ---- extras, in the declared key order (wish, skills, chests, camps, effects, fields).
         let mut extras: Record = Vec::new();
+        if features.wishes {
+            if let Some(wish) = me.wish.as_ref().and_then(|w| wish_record(w, me.effects)) {
+                extras.push(("wish", wish));
+            }
+        }
         if features.chests {
             let mut chests: Vec<(String, BVal)> = frame
                 .collections
@@ -921,8 +954,8 @@ impl Composer14 {
             me_draw_started_at: f64::from(combat.draw_started_at),
             // Typed header: only a visible target is a key. A redacted held lock is `undefined` in the record.
             me_attack_target: attack_target.as_str().map(str::to_owned),
-            // STUB (P-BOT-BRAIN-LIVE-2a): must be `combat.lock` is `Held`, whatever the target.
-            me_attack_held: false,
+            // brain.ts:218 `attackTarget !== null`: a held lock is held whether or not its target is on the wire.
+            me_attack_held: matches!(combat.lock, WireOwnerLock::Held { .. }),
             hud_phase: phase.to_owned(),
             hud_gates_locked: arena.gates_locked,
             hud_sudden_death_at: arena.sudden_death_at,
@@ -930,11 +963,10 @@ impl Composer14 {
             features: features.clone(),
             raw,
         };
-        // STUB (P-BOT-BRAIN-LIVE-2a): `covered` must be `ring has a sample at or before viewT` (frames.ts:131).
         Ok(Composed14 {
             percept,
             wards,
-            covered: true,
+            covered,
         })
     }
 }
@@ -1462,6 +1494,101 @@ fn set(record: &mut [(&'static str, BVal)], key: &str, value: BVal) {
 
 fn own(record: Record) -> Vec<(String, BVal)> {
     record.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()
+}
+
+/// perception.ts:702-708 `wishView`: the delivered Wish slot as the weapon bar shows it. The source `def` is shared
+/// `ABILITIES[id]`; here it is built from the public catalog only (`bots::wish::WISHES` for what the cast policy reads,
+/// `rh_sim::abilities::definition` for the cooldown and the order flag), in the source's own key order. Members no Brain
+/// reader consumes (blurb, faction, telegraph, icon, colour, shape, cancelledBy, the non-policy effects and effect
+/// durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
+fn wish_record(w: &rh_protocol::WireWishOwner, own_effects: u16) -> Option<BVal> {
+    use crate::bots::wish::{AiIntent, BlockedBy, PolicyEffect, TargetRule};
+    let id = *rh_sim::status_runtime::AbilityId::ALL.get(usize::from(w.ability))?;
+    let row = crate::bots::wish::wish_by_id(id)?;
+    let sim = rh_sim::abilities::definition(id);
+    let ai = row.ai.iter().map(|a| {
+        BVal::text(match a {
+            AiIntent::Escape => "escape",
+            AiIntent::Sustain => "sustain",
+            AiIntent::Engage => "engage",
+            AiIntent::Control => "control",
+            AiIntent::Peel => "peel",
+            AiIntent::Burst => "burst",
+            AiIntent::Zone => "zone",
+            AiIntent::Buff => "buff",
+        })
+    });
+    let blocked = row.blocked_by.iter().map(|b| {
+        BVal::text(match b {
+            BlockedBy::Stun => "stun",
+            BlockedBy::Silence => "silence",
+            BlockedBy::Root => "root",
+        })
+    });
+    let targeting = match row.rank.targeting {
+        TargetRule::Self_ => BVal::obj([("kind", BVal::text("self"))]),
+        TargetRule::Unit {
+            range,
+            los,
+            snap_radius,
+        } => BVal::obj([
+            ("kind", BVal::text("unit")),
+            ("range", BVal::num(range)),
+            ("los", BVal::flag(los)),
+            ("snapRadius", BVal::num(snap_radius)),
+            ("who", BVal::text("enemy")),
+        ]),
+        TargetRule::Point { range, min_range } => BVal::obj([
+            ("kind", BVal::text("point")),
+            ("range", BVal::num(range)),
+            ("minRange", BVal::num(min_range)),
+        ]),
+    };
+    let effects = row.rank.effects.iter().map(|e| match *e {
+        PolicyEffect::HidesCaster => BVal::obj([
+            ("do", BVal::text("status")),
+            ("to", BVal::text("self")),
+            ("status", BVal::text("hidden")),
+        ]),
+        PolicyEffect::Blink { max_dist, min_dist } => BVal::obj([
+            ("do", BVal::text("blink")),
+            ("maxDist", BVal::num(max_dist)),
+            ("minDist", BVal::num(min_dist)),
+        ]),
+    });
+    let def = BVal::obj([
+        ("id", BVal::text(id.as_str())),
+        ("name", BVal::text(row.name)),
+        ("ownOrder", BVal::flag(sim.own_order)),
+        ("dropsLock", BVal::flag(row.drops_lock)),
+        ("blockedBy", BVal::arr(blocked)),
+        ("ai", BVal::arr(ai)),
+        (
+            "ranks",
+            BVal::arr([BVal::obj([
+                ("cooldownMs", BVal::num(sim.cooldown_ms)),
+                ("castMs", BVal::num(row.rank.cast_ms)),
+                ("targeting", targeting),
+                ("effects", BVal::arr(effects)),
+            ])]),
+        ),
+    ]);
+    Some(BVal::obj([
+        ("ability", BVal::text(id.as_str())),
+        ("def", def),
+        ("rank", BVal::Undefined),
+        // perception.ts:706 `u32(me.wishReadyAt ?? 0)` (`>>> 0`).
+        (
+            "readyAt",
+            BVal::num(f64::from(
+                crate::bots::temporal_percept::modules::types::js_to_int32(w.ready_at),
+            )),
+        ),
+        (
+            "casting",
+            BVal::flag(own_effects & crate::bots::wish::EFFECT_CASTING != 0),
+        ),
+    ]))
 }
 
 /// The owner's run result as delivered (shared messages.ts `RunResult`); the profile name and GV parts other than the

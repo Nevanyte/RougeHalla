@@ -31,10 +31,10 @@ pub(crate) struct Percept {
     pub(crate) me_weapons: [Option<WeaponId>; 2],
     /// `percept.self.drawStartedAt` (0 when not drawing).
     pub(crate) me_draw_started_at: f64,
-    /// `percept.self.attackTarget` (`null` when no held lock).
+    /// `percept.self.attackTarget` when it is a key (`None` for `null` and for a held lock's `undefined` target).
     pub(crate) me_attack_target: Option<String>,
     /// `percept.self.attackTarget !== null` (brain.ts:218 `held`): a held lock counts even when its target is `undefined`
-    /// (redacted, not on the wire). STUB (P-BOT-BRAIN-LIVE-2a): not yet read by `is_engaged`.
+    /// (redacted, not on the wire). `is_engaged` reads this, never `me_attack_target`.
     pub(crate) me_attack_held: bool,
     /// `percept.hud.phase` (active/planning/ended/lobby in the declared source domain).
     pub(crate) hud_phase: String,

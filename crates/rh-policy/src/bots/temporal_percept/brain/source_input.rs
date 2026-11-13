@@ -79,7 +79,8 @@ const INTENT_TIMING: [&str; 4] = ["step", "timed", "react", "current"];
 const STATUS_NAMES: [&str; 4] = ["alive", "dead", "mia", "lobby"];
 const FACTION_NAMES: [&str; 5] = ["fire", "sentenced", "plague", "frost", "holy"];
 const WEAPON_NAMES: [&str; 6] = ["sword", "axe", "shield", "bow", "wand", "fists"];
-const MOB_KINDS: [&str; 4] = ["mob", "elite", "dummy", "npc"];
+/// "zombie" is a shared mobs.ts:15 `MobKind` (a plague player's companion) the composer draws.
+const MOB_KINDS: [&str; 5] = ["mob", "elite", "dummy", "npc", "zombie"];
 const PROJECTILE_KINDS: [&str; 2] = ["ball", "arrow"];
 const EVENT_KINDS: [&str; 16] = [
     "windup", "swing", "hit", "block", "stagger", "cancel", "projEnd", "death", "heal", "teleport",
