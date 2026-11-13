@@ -3,7 +3,7 @@
 //! only in the diagnostic measurement wrapper and here for total throughput. Clocks never enter
 //! policy inputs or authoritative simulation.
 use rh_headless::tournament::{
-    aggregate, format_report_with, mean_game_ms, play_measured, sim_config_for, GameSummary,
+    aggregate_with, format_report_with, mean_game_ms, play_measured, sim_config_for, GameSummary,
     ReportMeta,
 };
 use rh_headless::tournament_cli::{
@@ -65,10 +65,16 @@ fn main() -> std::process::ExitCode {
     }
     // The legacy tune.ts diagnostic: the patch is checked before any game (play installs it around every game).
     let plan_check = plan_of(&args);
-    if let Err(message) = rh_headless::tune::plan_tables(&plan_check) {
-        eprintln!("{message}");
-        return std::process::ExitCode::from(2);
-    }
+    // The plan's tables (the compiled ones without --tune) also feed the report's reaction and APM columns.
+    let tables = match rh_headless::tune::plan_tables(&plan_check) {
+        Ok(tables) => tables
+            .copied()
+            .unwrap_or(rh_policy::bots::types::BrainTables::COMPILED),
+        Err(message) => {
+            eprintln!("{message}");
+            return std::process::ExitCode::from(2);
+        }
+    };
     let plan = plan_of(&args);
     let arena = default_arena();
     // The plan stands for the experiment: the run's configuration is derived from it at this call site (the source's
@@ -102,7 +108,7 @@ fn main() -> std::process::ExitCode {
             .map(|summary| {
                 json_payload(
                     &plan,
-                    &aggregate(std::slice::from_ref(summary)),
+                    &aggregate_with(std::slice::from_ref(summary), &tables),
                     std::slice::from_ref(summary),
                     None,
                     None,
@@ -113,7 +119,7 @@ fn main() -> std::process::ExitCode {
     } else {
         Vec::new()
     };
-    let report = aggregate(&games);
+    let report = aggregate_with(&games, &tables);
     if !args.quiet {
         eprintln!(
             "{} games in {:.2?}, {:.1} games/s",
