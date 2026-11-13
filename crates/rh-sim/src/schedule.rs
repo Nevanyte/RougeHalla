@@ -329,6 +329,7 @@ const fn ported_link(legacy: &'static str, mode: Mode, gate: Gate, f: LinkFn) ->
     }
 }
 
+#[allow(dead_code)] // no hook link is partial after P-MECHANICS-SALVAGE-3; kept as the table representation of `Run::Partial`
 const fn partial_link(
     legacy: &'static str,
     mode: Mode,
@@ -1069,11 +1070,10 @@ static AFTER_WEAPONS: [Item<SystemFn>; 3] = [
         Gate::Signatures,
         crate::systems::signatures::after_weapons,
     ),
-    partial(
+    // Frost elite guard; the campClears mirror sync is derived (`bruiser::camp_clears`).
+    ported(
         "bruiserPassives.update",
         Gate::Bruiser,
-        "Frost elite guard",
-        "P-MOBS-2",
         crate::systems::bruiser::update,
     ),
     ported(
@@ -1193,11 +1193,10 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::plague_corpses::system,
     ),
-    partial(
+    // Frost elite guard; the campClears mirror sync is derived (`bruiser::camp_clears`).
+    ported(
         "bruiserPassives.update",
         Gate::Bruiser,
-        "Frost elite guard",
-        "P-MOBS-2",
         crate::systems::bruiser::update,
     ),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
@@ -1598,13 +1597,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Always,
         crate::systems::regen::raid_started,
     ),
-    // Status/field reset only; Wish charges/cooldown/landing remain P-ABIL-1.
-    partial_link(
+    // Casts, statuses, players' effect bits, fields and the DoT chunk reset; the Wish stock clocks armed.
+    ported_link(
         "abilities.armWishes",
         Mode::Append,
         Gate::Always,
-        "status and field reset",
-        "P-ABIL-1",
         crate::systems::status::raid_started,
     ),
     ported_link(
@@ -1631,12 +1628,10 @@ static RAID_STARTED: [Link; 14] = [
         Gate::NotTraining,
         crate::traders::runtime::spawn,
     ),
-    partial_link(
+    ported_link(
         "cardHooks.resetAll",
         Mode::Append,
         Gate::Always,
-        "canonical lazy Wish spend memory",
-        "P-CARDS-1",
         crate::cards::runtime::reset_all,
     ),
     ported_link(
@@ -1645,12 +1640,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::FireRoam,
         crate::systems::fire_roam::raid_started,
     ),
-    partial_link(
+    // Frost guard reset; the campClears mirror sync is derived (`bruiser::camp_clears`).
+    ported_link(
         "bruiserPassives.resetRun",
         Mode::Append,
         Gate::Bruiser,
-        "Frost guard reset",
-        "P-MOBS-2",
         crate::systems::bruiser::reset_run,
     ),
     ported_link(
@@ -1709,12 +1703,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::FireRoam,
         crate::systems::fire_roam::run_ended,
     ),
-    partial_link(
+    // Frost guard reset; the campClears mirror sync is derived (`bruiser::camp_clears`).
+    ported_link(
         "bruiserPassives.resetRun",
         Mode::Append,
         Gate::Bruiser,
-        "Frost guard reset",
-        "P-MOBS-2",
         crate::systems::bruiser::reset_run,
     ),
     ported_link(
@@ -1837,12 +1830,11 @@ static CAMP_CLEARED: [Link; 3] = [
         Gate::Always,
         crate::systems::camp_heal::pay,
     ),
-    partial_link(
+    // Frost guard refresh; the campClears mirror sync is derived (`bruiser::camp_clears`).
+    ported_link(
         "bruiserPassives.<arrow>",
         Mode::Append,
         Gate::Bruiser,
-        "Frost guard refresh",
-        "P-MOBS-2",
         crate::systems::bruiser::camp_cleared,
     ),
 ];

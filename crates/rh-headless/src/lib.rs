@@ -516,6 +516,56 @@ pub fn run_bot_match_with(
     )
 }
 
+/// Which built-in policy a bot-only match seats (P-BOT-BRAIN-LIVE-1).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BotKind {
+    /// The scripted Brawler (the historical default of every headless run).
+    #[default]
+    Brawler,
+    /// The live fill bot: HumanBot with the manager's tier/persona draw.
+    Human,
+    /// The ported legacy Brain on the degraded fair profile, with the same tier/persona draw. It needs the source
+    /// lifecycle (`ArenaMode::Source`); elsewhere it refuses and the seat's fallback plays.
+    Brain,
+}
+
+impl BotKind {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "brawler" => Some(Self::Brawler),
+            "human" => Some(Self::Human),
+            "brain" => Some(Self::Brain),
+            _ => None,
+        }
+    }
+
+    /// The policy for seat `i` of `players` in a match of `seed`.
+    pub fn policy(
+        self,
+        arena: &Arena,
+        sim: &SimConfig,
+        players: usize,
+        seed: u64,
+        i: usize,
+    ) -> Box<dyn Policy> {
+        match self {
+            Self::Brawler => Box::new(scripted::Brawler::new(2 + (i as u32 % 3))),
+            Self::Human | Self::Brain => {
+                let (tier, persona) = rh_policy::bots::assign_seats(seed, players)[i];
+                if self == Self::Human {
+                    Box::new(rh_policy::bots::HumanBot::new(tier, persona))
+                } else {
+                    Box::new(rh_policy::bots::BrainBot::new(
+                        tier,
+                        persona,
+                        rh_policy::bots::brain_features(sim, arena),
+                    ))
+                }
+            }
+        }
+    }
+}
+
 /// [`run_bot_match_with`] on a given configuration (the CLI's `--hitboxes archetypes` runs the ADR0024 boxes).
 pub fn run_bot_match_config(
     arena: &Arena,
@@ -526,13 +576,37 @@ pub fn run_bot_match_config(
     record: bool,
     digest: bool,
 ) -> (Env, MatchSummary) {
+    run_bot_match_kind(
+        arena,
+        sim,
+        players,
+        seed,
+        max_ticks,
+        record,
+        digest,
+        BotKind::Brawler,
+    )
+}
+
+/// [`run_bot_match_config`] with a chosen built-in policy for every seat.
+#[allow(clippy::too_many_arguments)]
+pub fn run_bot_match_kind(
+    arena: &Arena,
+    sim: SimConfig,
+    players: usize,
+    seed: u64,
+    max_ticks: u32,
+    record: bool,
+    digest: bool,
+    kind: BotKind,
+) -> (Env, MatchSummary) {
     let agents = (0..players)
         .map(|i| AgentSpec {
             profile: format!("bot{i}"),
             faction: FactionId::ALL[(i + seed as usize) % 5],
             bot: true,
             agent: Agent::Policy {
-                policy: Box::new(scripted::Brawler::new(2 + (i as u32 % 3))),
+                policy: kind.policy(arena, &sim, players, seed, i),
             },
         })
         .collect();

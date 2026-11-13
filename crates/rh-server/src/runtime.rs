@@ -245,7 +245,10 @@ impl Settings {
         }
     }
 
+    /// The configured map. Parses the shipped dressing rules first (P-DRESS-BAKE-1): every served map is dressed with
+    /// them, so a rules file that fails to parse is a start-up error here, before any map is prepared.
     pub fn arena(&self) -> Result<Arena, String> {
+        shipped_dress_rules().map_err(str::to_owned)?;
         match self.profile {
             Profile::Training => Ok(rh_sim::arenas::practice_arena()),
             Profile::SourceArena => {
@@ -255,6 +258,67 @@ impl Settings {
             }
         }
     }
+}
+
+/// P-DRESS-BAKE-1: the shipped dressing rules (`crates/rh-mapdress/rules/zones.json`), embedded at build time.
+pub const DRESS_RULES_JSON: &str = include_str!("../../rh-mapdress/rules/zones.json");
+
+/// P-DRESS-BAKE-1: parses dressing rules at start-up. A file that fails to parse is an error whose message names the
+/// dressing rules and the parser's reason; the server never serves an undressed map in its place.
+/// A rule set the wire cannot carry (a kind code or a ground variant past the map blob's caps) is refused here too: the
+/// encoder would refuse every dressed map, and the pool would quietly serve only its configured map.
+pub fn dress_rules(text: &str) -> Result<rh_mapdress::Rules, String> {
+    let rules = rh_mapdress::Rules::from_json(text).map_err(|e| format!("dressing rules: {e}"))?;
+    dress_rules_fit_the_wire(&rules).map_err(|e| format!("dressing rules: {e}"))?;
+    Ok(rules)
+}
+
+/// The rules' values against the map blob's dressing caps (`rh_protocol::map`). Every kind a rule places is a declared
+/// kind (the parser resolves names to declared codes), so the declared codes cover them; ground variants come from the
+/// fallback rings, the landmark rings and the terrain rings. A prop's sprite variant is not a rule value: `dress` draws it
+/// in code (`0..=3`), so no rule file can move it.
+fn dress_rules_fit_the_wire(rules: &rh_mapdress::Rules) -> Result<(), String> {
+    use rh_protocol::map::{MAX_GROUND_VARIANT, MAX_PROP_KIND};
+    for k in &rules.kinds {
+        if k.code == 0 || k.code > MAX_PROP_KIND {
+            return Err(format!(
+                "kind \"{}\": code {} is outside the wire's rule kinds 1..={MAX_PROP_KIND}",
+                k.name, k.code
+            ));
+        }
+    }
+    for z in &rules.zones {
+        let rings = z.rings.iter().map(|r| (&r.name, r.ground_variant));
+        let bands = z
+            .landmark
+            .iter()
+            .flat_map(|l| l.rings.iter().map(|r| (&r.name, r.ground_variant)));
+        let terrain = z.terrain_rings.iter().map(|r| (&r.name, r.ground_variant));
+        if let Some((name, v)) = rings
+            .chain(bands)
+            .chain(terrain)
+            .find(|&(_, v)| v > MAX_GROUND_VARIANT)
+        {
+            return Err(format!(
+                "rule \"{name}\": ground variant {v} is above the wire's cap {MAX_GROUND_VARIANT}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The shipped dressing rules ([`DRESS_RULES_JSON`]), parsed once per process and shared by every map preparation
+/// (the fixed map, the pool's worker, the inline take). [`Settings::arena`] calls it before any map is prepared, so a
+/// broken file stops the server at start-up.
+/// The error is the parser's (or the cap check's) whole message, kept for the process, so every caller can name it
+/// (`MapAssets::new` carries it in its `BadMap`).
+pub fn shipped_dress_rules() -> Result<&'static rh_mapdress::Rules, &'static str> {
+    static RULES: std::sync::OnceLock<Result<rh_mapdress::Rules, String>> =
+        std::sync::OnceLock::new();
+    RULES
+        .get_or_init(|| dress_rules(DRESS_RULES_JSON))
+        .as_ref()
+        .map_err(String::as_str)
 }
 
 /// Unlike the core loader, this refuses collision-only maps and validates real gates, coliseum, layers and spawns.
@@ -275,6 +339,47 @@ mod tests {
     use super::*;
     fn parse(s: &str) -> Result<Option<Settings>, String> {
         Settings::from_args(&s.split_whitespace().map(str::to_owned).collect::<Vec<_>>())
+    }
+
+    /// The shipped rules with the first occurrence of `from` replaced by `to` (the edit must hit).
+    fn edited_rules(from: &str, to: &str) -> String {
+        assert!(
+            DRESS_RULES_JSON.contains(from),
+            "the shipped rules contain {from}"
+        );
+        DRESS_RULES_JSON.replacen(from, to, 1)
+    }
+
+    #[test]
+    fn dressing_rules_past_the_wire_caps_stop_start_up_with_a_message() {
+        assert!(dress_rules(DRESS_RULES_JSON).is_ok());
+        let kind = dress_rules(&edited_rules(
+            r#""fire.spire": { "code": 1,"#,
+            r#""fire.spire": { "code": 101,"#,
+        ))
+        .unwrap_err();
+        assert!(
+            kind.contains("dressing rules")
+                && kind.contains("fire.spire")
+                && kind.contains("101")
+                && kind.contains("1..=100"),
+            "{kind}"
+        );
+        // A fallback ring, a landmark band ring (variants 3..=6) and a terrain ring (7: water).
+        for from in [
+            r#""groundVariant": 1"#,
+            r#""groundVariant": 3"#,
+            r#""groundVariant": 7"#,
+        ] {
+            let ground = dress_rules(&edited_rules(from, r#""groundVariant": 16"#)).unwrap_err();
+            assert!(
+                ground.contains("dressing rules")
+                    && ground.contains("rule \"")
+                    && ground.contains("ground variant 16")
+                    && ground.contains("cap 15"),
+                "{from}: {ground}"
+            );
+        }
     }
     #[test]
     fn explicit_profiles_and_invalid_combinations() {

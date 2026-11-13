@@ -637,3 +637,46 @@ async fn an_inflight_old_batch_cannot_clear_a_new_runs_dirty_cells() {
     assert_eq!(backend.loaded().baseline[0].1, 1.99);
     live.close().await;
 }
+
+/// P-BOT-BRAIN-LIVE-1: a Brain seat's own choice keys reach the store in the source order (the brain's choices, then the
+/// manager's faction key) and become entries beside the faction key; `record` alone keeps today's single key.
+#[tokio::test]
+async fn a_brain_seats_choices_are_recorded_before_the_faction_key() {
+    let backend = Fake::default();
+    let (clock, _) = clock(1_000);
+    let live = LiveLearning::start(backend.clone(), clock).await.unwrap();
+    let brain = vec![
+        "opener|fire|plague".to_string(),
+        "spawn|fire|scorch".to_string(),
+    ];
+    live.record_choices(facts(RunOutcome::Won, 1), &brain);
+    live.flush().await;
+    let keys: Vec<String> = backend.loaded().entries.into_iter().map(|e| e.0).collect();
+    let all = [
+        "opener|fire|plague",
+        "spawn|fire|scorch",
+        "faction|farmer|fire",
+    ];
+    for key in all {
+        assert!(keys.iter().any(|k| k == key), "{key} recorded: {keys:?}");
+    }
+    let mut expected = Stats::default();
+    assert!(expected.apply(&summary(
+        Tier::Normal,
+        RunOutcome::Won,
+        1.,
+        4.,
+        &choices(&all)
+    )));
+    for key in all {
+        assert_eq!(
+            live.snapshot().bias(key),
+            expected.snapshot().bias(key),
+            "{key}"
+        );
+    }
+    // The director's trait object forwards the choices too.
+    let sink: &dyn LearningSink = live.as_ref();
+    sink.record_choices(facts(RunOutcome::Died, 4), &brain);
+    live.close().await;
+}

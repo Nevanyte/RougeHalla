@@ -36,13 +36,16 @@ namespace Roguehalla.Client
         bool _worldHudVisible = true;
         GameObject _worldHudFocus;
         bool WorldHudVisible => !BlocksKeyboardInput && !(_map?.IsOpen ?? false);
+        // Panels (plate, champion, hotbar, minimap) read console focus only while the console is open; the closed CONSOLE button takes focus on a plain Tab.
+        bool PanelHudVisible => !BlocksKeyboardInputCore(_trainingConsole?.IsOpen == true) && !(_map?.IsOpen ?? false);
         public TacticalMapController TacticalMap => _map;
         public bool ChestOwnsDigits => _chestFocus || _chestConsumedDigits;
         public bool ConsumesArrowNavigation => _chestFocus || _map != null && _map.ContainsFocus || ReadingPaneSelected;
         bool ReadingPaneSelected => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
-        public bool BlocksKeyboardInput => ResumeChooserVisible || TrainingInputConsumed || TrainingOwnsKeyboard || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
+        public bool BlocksKeyboardInput => BlocksKeyboardInputCore(true);
+        bool BlocksKeyboardInputCore(bool consoleFocus) => ResumeChooserVisible || consoleFocus && TrainingInputConsumed || TrainingOwnsKeyboardCore(consoleFocus) || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
             _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
             PointerHitsUi();
@@ -188,9 +191,9 @@ namespace Roguehalla.Client
             if (_session == null || _session.State != SessionState.InMatch && !runOver) { _phaseStrip.text = ""; return; }
             if (_client != null && _client.LaunchPending) { ApplyPhaseStrip("VERIFYING DESTINATION", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
             if (_client != null && _client.ConfirmedPractice) { ApplyPhaseStrip("PRACTICE · NO RUN REWARDS", Roguehalla.Net.Ui.Indicators.ArenaLineTone.Normal); return; }
-            // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. minPlayers is not on the wire: 0 drops "/min".
+            // Legacy top-centre strip (hud.ts statusLine / updateArena), produced by the library. the room minimum comes from ArenaView.MinPlayers; 0 (not delivered) drops "/min".
             MatchPhase phase = runOver ? MatchPhase.Ended : _session.Collections.Plan != null ? MatchPhase.Planning : (_session.Phase ?? MatchPhase.Lobby);
-            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, 0, runOver ? WinnerLabel() : null, out var lineTone);
+            var text = Roguehalla.Net.Ui.Indicators.PhaseLine(phase, _session.ServerTimeMs, _session.Collections.Arena, _session.Collections.Roster.Count, runOver ? WinnerLabel() : null, out var lineTone);
             if (text == null) { _phaseStrip.text = ""; return; }
             ApplyPhaseStrip(text, lineTone);
         }
@@ -378,7 +381,7 @@ namespace Roguehalla.Client
         }
         void RefreshWorldHudVisibility()
         {
-            bool visible = WorldHudVisible;
+            bool visible = PanelHudVisible;
             if (_worldHudVisible != visible)
             {
                 HudIconHint.CloseAll();

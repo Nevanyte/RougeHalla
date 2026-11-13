@@ -29,7 +29,14 @@ namespace Roguehalla.Net
 
     /// <summary>A camp ward as this viewer sees it (never the owner's id).</summary>
     public enum WardVerdict : byte { None = 0, Yours = 1, Other = 2 }
-    public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
+    public struct InventoryView
+    {
+        public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1;
+        /// <summary>P-WIRE17-HUD-3: when the owner's healing potions end (server ms); null when none runs.</summary>
+        public double? HealingUntil;
+        /// <summary>P-WIRE17-HUD-3: when the owner's wind-emblem speed boost ends (server ms); null when none runs.</summary>
+        public double? SpeedBoostUntil;
+    }
     public struct PropView
     {
         public PickupHandle Handle;
@@ -113,6 +120,8 @@ namespace Roguehalla.Net
         public double? PatienceEndsAt;
         public bool InColiseum, GatesLocked;
         public uint StartedWith;
+        /// <summary>P-WIRE17-HUD-3: the room's minimum players ("Waiting for players n/min").</summary>
+        public byte MinPlayers;
     }
     public sealed class QuestRosterEntryView
     {
@@ -358,7 +367,9 @@ namespace Roguehalla.Net
                         ActiveSlot = inventory.Value.Value.ActiveSlot,
                         PotionSmall=inventory.Value.Value.PotionSmall,PotionLarge=inventory.Value.Value.PotionLarge,PotionsHealing=inventory.Value.Value.PotionsHealing,
                         Slot0 = inventory.Value.Value.Slot0.HasValue ? (WeaponId?)inventory.Value.Value.Slot0.Value : null,
-                        Slot1 = inventory.Value.Value.Slot1.HasValue ? (WeaponId?)inventory.Value.Value.Slot1.Value : null
+                        Slot1 = inventory.Value.Value.Slot1.HasValue ? (WeaponId?)inventory.Value.Value.Slot1.Value : null,
+                        HealingUntil = inventory.Value.Value.HealingUntil,
+                        SpeedBoostUntil = inventory.Value.Value.SpeedBoostUntil
                     } : (InventoryView?)null;
                 }
                 else if (item is PropsState props)
@@ -438,7 +449,7 @@ namespace Roguehalla.Net
                         Arena = new ArenaView { LobbyEndsAt = v.LobbyEndsAt, PlanEndsAt = v.PlanEndsAt,
                             RaidStartedAt = v.RaidStartedAt, PatienceEndsAt = v.PatienceEndsAt,
                             InColiseum = v.InColiseum, GatesLocked = v.GatesLocked,
-                            SuddenDeathAt = v.SuddenDeathAt, StartedWith = v.StartedWith };
+                            SuddenDeathAt = v.SuddenDeathAt, StartedWith = v.StartedWith, MinPlayers = v.MinPlayers };
                     }
                 }
                 else if (item is QuestsState quests)

@@ -1,6 +1,7 @@
 //! Frost: the cave (P-MAPGEN-SIG-FROST-1; no legacy counterpart, DEV-020). A rectangular wall chamber on the Frost zone's
-//! back edge round the zone's far elite camp (the elite camp farthest from the map centre), its interior holding the
-//! camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
+//! back edge round the zone's far elite camp (the elite camp farthest from the map centre; with a reserved site,
+//! P-MAPGEN-SIG-RESERVE-1: the site's camp, the zone's first elite, wholly inside the site's inner rect), its interior
+//! holding the camp's whole halo. As the church: each wall line stands `cave_side` tiles from the camp tile, or the side leans on the
 //! map border, so the chamber may be off-centre. It is closed except for one mouth (`2 * mouth + 1` floor tiles) in the
 //! wall toward the coliseum (the dominant axis of DIR16 toward it, else the other axis), nearer the coliseum than the
 //! camp, its axis up to `door_shift` tiles off the camp's, with `doorway` tiles of free Frost floor beyond it. The cave
@@ -35,10 +36,20 @@ struct Rect {
 /// The cave round the Frost zone's far elite camp, or `None` when the zone has no legal site (the attempt is refused,
 /// G5). The mouth's side: the dominant axis of the front, then the other axis toward the coliseum; first with a
 /// forecourt (the `2 * forecourt + 1` square of Frost just beyond the mouth, room for the styler's lake), then without.
-pub(super) fn place(s: &Site<'_>, camps: &[CampSite], rng: &mut Mulberry32) -> Option<Built> {
-    let mut far = None;
+/// `camp`: the camp tile of the zone's reserved site (P-MAPGEN-SIG-RESERVE-1), which the cave stands round; `None`
+/// without a reservation (the far elite camp).
+pub(super) fn place(
+    s: &Site<'_>,
+    camps: &[CampSite],
+    rng: &mut Mulberry32,
+    camp: Option<usize>,
+) -> Option<Built> {
+    let mut far = camp.map(|t| ((t % W) as i32, (t / W) as i32));
     let mut best = -1i64;
-    for c in camps.iter().filter(|c| c.zone == s.slot && c.elite) {
+    for c in camps
+        .iter()
+        .filter(|c| camp.is_none() && c.zone == s.slot && c.elite)
+    {
         let (x, y) = ((c.site % W) as i64, (c.site / W) as i64);
         let r = (2 * x + 1 - W as i64).pow(2) + (2 * y + 1 - H as i64).pow(2);
         if r >= best {

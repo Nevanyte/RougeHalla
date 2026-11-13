@@ -22,6 +22,8 @@ rh-sim = { path = "../rh-sim" }
 rh-protocol = { path = "../rh-protocol" }
 rh-policy = { path = "../rh-policy" }
 rh-headless = { path = "../rh-headless" }
+# P-DRESS-BAKE-1: the server dresses each map it serves once, off the tick (cosmetic only; never read by the sim).
+rh-mapdress = { path = "../rh-mapdress" }
 rh-persist = { path = "../rh-persist", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 http-body-util = { version = "0.1", optional = true }

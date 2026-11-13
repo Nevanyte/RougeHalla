@@ -24,6 +24,8 @@ pub struct ArenaView {
     pub gates_locked: bool,
     pub sudden_death_at: f64,
     pub started_with: u32,
+    /// P-WIRE17-HUD-3: the room's minimum players (`SimConfig::min_players`, legacy `RaidState.minPlayers`), public.
+    pub min_players: u32,
 }
 pub(crate) fn owner_view(k: &MatchStatic, w: &World, id: PlayerId) -> Option<PlanningView> {
     let plan = plan_for(w, id)?;
@@ -60,6 +62,8 @@ pub(crate) fn arena_view(k: &MatchStatic, w: &World) -> Option<ArenaView> {
         } else {
             0
         },
+        // Public room configuration (legacy world.ts:899 `state.minPlayers = opts.config.minPlayers`).
+        min_players: u32::try_from(k.config.min_players).unwrap_or(u32::MAX),
     })
 }
 

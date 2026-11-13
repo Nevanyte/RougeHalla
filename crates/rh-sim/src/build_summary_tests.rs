@@ -30,6 +30,26 @@ fn room() -> Arena {
 }
 
 fn holy_sim() -> (Sim, PlayerId) {
+    holy_sim_in(SimConfig {
+        quests: false,
+        pvp_rules: false,
+        ..Default::default()
+    })
+}
+
+/// A world that installs `bruiserPassives` (the practice room, `Gates::TRAINING`), so Holy's public camp-clear mirror holds the
+/// canonical count (`systems::bruiser::camp_clears`); without the installer legacy's mirror is 0.
+fn holy_sim_with_bruiser() -> (Sim, PlayerId) {
+    holy_sim_in(SimConfig {
+        quests: false,
+        pvp_rules: false,
+        training: true,
+        faction_mode: crate::FactionMode::EngagementHoly,
+        ..Default::default()
+    })
+}
+
+fn holy_sim_in(config: SimConfig) -> (Sim, PlayerId) {
     let ps = [Placement {
         profile: "holy".into(),
         faction: FactionId::Holy,
@@ -43,11 +63,6 @@ fn holy_sim() -> (Sim, PlayerId) {
         order_salt: 1,
         spawn_seed: 0,
         reward_salt: [1, 2, 3, 4],
-    };
-    let config = SimConfig {
-        quests: false,
-        pvp_rules: false,
-        ..Default::default()
     };
     let sim = Sim::reset_active(config, room(), secrets, &ps);
     let id = sim.players()[0].id;
@@ -72,7 +87,7 @@ fn near(name: &str, got: f64, want: f64) {
 
 #[test]
 fn a_mixed_holy_build_reports_the_legacy_gains() {
-    let (mut sim, id) = holy_sim();
+    let (mut sim, id) = holy_sim_with_bruiser();
     let (k, w) = (&sim.k, &mut sim.w);
     for card in [
         CardId::Ad1,

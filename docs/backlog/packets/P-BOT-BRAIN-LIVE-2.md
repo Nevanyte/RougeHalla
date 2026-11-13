@@ -1,4 +1,4 @@
-# P-BOT-BRAIN-LIVE-2: `BrainBot` policy, shared command mapper, headless selection (piece 2 of 3)
+# P-BOT-BRAIN-LIVE-2 (2b): `BrainBot` policy, production services, shared command mapper, headless selection (piece 2 of 3, second cut)
 
 - **Serves:** not in ORDER_OF_OPERATIONS: owner beta-follow-up decision 7; approval 7, 2026-11-12 (see [P-BOT-BRAIN-LIVE-1](P-BOT-BRAIN-LIVE-1.md))
 - **Implementer tier:** implementer-opus (cross-crate: rh-policy, rh-headless; fairness; determinism)
@@ -6,7 +6,7 @@
 - **Integration base:** feature/unity-rework with P-BOT-BRAIN-LIVE-1 merged
 - **D-rules touched:** D1 loose proof · D2 n/a · D5 none · D9 bots act only through validate + submit
 
-**Status: brief only. Its oracle is written by `oracle-author` after piece 1 lands** (it needs `Composer14`).
+**Status: brief only; starts after [P-BOT-BRAIN-LIVE-2a](P-BOT-BRAIN-LIVE-2a.md) lands (input side and the five review items, which now live there). Its oracle is written by `oracle-author` after piece 1 lands** (it needs `Composer14`).
 
 ## 1. ID and outcome
 A `BrainBot` implements `Policy`: each decision it composes a `Percept` from the seat's accepted `Frame14` with
@@ -79,3 +79,25 @@ High, about 450 lines. Opus, Opus review. Split further at the `Policy::finish` 
   teleport (`frames.ts:137-142`) and draws mobs at the newest sample: decide whether `Composed14` needs a covered flag.
 - Build `Setup14` only from what a client receives (it currently borrows the server's map type, which also holds the
   seed, crate and ground spots and the spawn pool, unread by the composer); call `reset()` on a new session or a clock gap.
+
+## 2026-11-12 (oracle-author): re-check against the tree and the cut
+Tree facts that change this brief:
+- The Brain has **no production services**: `BrainPathService` (`brain/config.rs`) is implemented only in tests
+  (`brain/tests.rs:405`), `BrainMap` is built only from a JSON map fixture (`source_input.rs:1593`, needs the source
+  `GameMap` record as `BVal`, region grid, camps, coliseum), `CallerServices`/`LearnedBias` only in tests. 2b must add a
+  `pub(crate)` constructor from `Arc<Arena>` (layers: `camps`, `coliseum`, `region_grid`, `terrain`) over
+  `RoomPathService`, a null log and a learned-bias sink; `brain.rs` is private (`mod brain` in `temporal_percept.rs`,
+  `#![allow(dead_code)]`), so `bots/temporal_percept.rs` exposes the tick surface.
+- The mapper is `HumanBot::emit` (`bot.rs:782`, a method reading `self.facts` and `self.resolve`, which maps rendered
+  ids to `PlayerId` via `self.ids` filled by `perception.build`). `BrainBot` has no `Frame` ids from `perception`: its id
+  map must come from the same accepted `Frame14` (player and NPC keys from `composer`'s `actor_key`), and `LootFacts`
+  from `perception.rs:408` (built from the same frame). Factor `emit` as `fn map_command(cmd, &LootFacts, &dyn Fn(&str) -> Option<PlayerId>, out)`.
+- `rh-headless` seats a policy through `Agent::Policy { policy: Box<dyn Policy> }` (`lib.rs:520`, `Brawler`);
+  `tournament.rs:551` seats `HumanBot`. Add a `BotKind` there.
+- Decisions pinned by 2a: delays 100/0, `Composed14.covered` (skip the tick when false), `Setup14::public`,
+  `Composer14::reset()` on a new session or clock gap, `me_attack_held`.
+- Seed: the Brain takes the low 32 bits of `MatchStart.seed`.
+Suggested further cut if 2b exceeds ~450 lines: **2b1** `BrainBot` + services + mapper (proved by a unit run on a scripted
+scene: same input twice gives same commands; hidden-state twin; a `Pickup` for a container not in `LootFacts` emits nothing;
+`check_input` refuses before any state or RNG change) and **2b2** `Policy::finish`, headless `BotKind`, the 8-seat match
+in `rh-headless/tests/brain_bots.rs` (no fault, commands accepted, replay verifies, equal state hash on rerun).

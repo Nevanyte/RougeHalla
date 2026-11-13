@@ -44,12 +44,12 @@ fn the_fire_roam_terms_come_from_the_sim_constants() {
 fn identities_move_for_the_new_panel_codes() {
     assert_eq!(
         rh_sim::OBSERVATION_VERSION,
-        27,
-        "Observation.panel gains codes 23-27"
+        28,
+        "Observation.panel gains codes 23-27 (27); 28: P-WIRE17-HUD-3"
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        21,
-        "the projected owner summary gains codes 23-27"
+        22,
+        "the projected owner summary gains codes 23-27 (21); 22: P-WIRE17-HUD-3"
     );
 }

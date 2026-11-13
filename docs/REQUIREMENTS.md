@@ -118,6 +118,13 @@ model registries; cloud or GPU ML resources; any learned model created, trained,
 readiness is limited to authoritative validation and reusable bounded operational/debugging events: no learned detector
 and no model-based bans.
 
+**Narrow exception (owner decision 2026-11-10, approved 2026-11-12; recorded in MIGRATION).** Two things are in
+scope, and nothing else in the list above: (1) the ported legacy bot learner: a decayed mean of placement per choice
+key in eight domains with 5 percent exploration (`rh_policy::bots::learning`), live and headless; (2) an offline,
+seeded parameter search over the existing Brain tier and persona numbers, run headless, whose only product is a
+table that is reviewed and checked in; the live server only reads that table. Neither is a learned model: no neural
+network, no Python, no dataset kept, no inference service, no GPU or cloud ML resource; same seed, same table.
+
 ## R-PERSIST: durable progression
 - R-PERSIST-1. Replace the singleton profile store before independent writers exist: atomic progression and currency,
   idempotent results, concurrent session ownership, retries/recovery, schema versioning, fencing.

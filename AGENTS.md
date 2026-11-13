@@ -58,7 +58,9 @@ it: flag the conflict in the hand-off and keep to the record.
 - Wire changes: bump `PROTOCOL_VERSION` when incompatible, regenerate `protocol/fixtures/v<N>.json` with
   `cargo run -p rh-protocol --bin protocol-fixtures`, and make the Rust, C# and JS decoders pass them, all in one branch.
 - Client and server agree on protocol version and content hash; the server refuses a mismatch.
-- No ML training, models, datasets, Python bindings or inference services (R-ML).
+- No ML training, models, datasets, Python bindings or inference services (R-ML). The one exception, worded in
+  REQUIREMENTS R-ML: the ported legacy bot learner, and an offline seeded search over existing Brain tier and persona
+  numbers that produces a checked-in table.
 
 ## Determinism (anything that runs inside `rh-sim` or a policy)
 

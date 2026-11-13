@@ -6,30 +6,54 @@
     "fire.rocks": { "code": 3 },
     "fire.vent": { "code": 4 },
     "fire.ash": { "code": 5 },
+    "fire.crust": { "code": 6 },
+    "fire.basalt": { "code": 7 },
+    "fire.emberjet": { "code": 8 },
+    "fire.boulder": { "code": 9 },
+    "fire.ashheap": { "code": 10 },
     "sent.tomb": { "code": 11 },
     "sent.cross": { "code": 12 },
     "sent.slab": { "code": 13 },
     "sent.deadtree": { "code": 14, "tall": true },
     "sent.lantern": { "code": 15 },
     "sent.deadgrass": { "code": 16 },
+    "sent.flag": { "code": 17 },
+    "sent.grave": { "code": 18 },
+    "sent.lamp": { "code": 19 },
+    "sent.stump": { "code": 20, "tall": true },
+    "sent.fence": { "code": 61 },
     "plague.column": { "code": 21, "tall": true },
     "plague.rubble": { "code": 22 },
     "plague.tree": { "code": 23, "tall": true },
     "plague.bush": { "code": 24 },
     "plague.fern": { "code": 25 },
     "plague.mushroom": { "code": 26 },
+    "plague.root": { "code": 27 },
+    "plague.reed": { "code": 28 },
+    "plague.fungus": { "code": 29 },
+    "plague.sedge": { "code": 30 },
     "frost.rock2": { "code": 31 },
     "frost.shards": { "code": 32 },
     "frost.pine": { "code": 33, "tall": true },
     "frost.pine2": { "code": 34, "tall": true },
     "frost.drift": { "code": 35 },
     "frost.rock": { "code": 36 },
+    "frost.shelf": { "code": 37 },
+    "frost.crag": { "code": 38 },
+    "frost.snowbank": { "code": 39 },
+    "frost.flurry": { "code": 40 },
+    "frost.spire": { "code": 81, "tall": true },
     "holy.pillar": { "code": 41, "tall": true },
     "holy.rock": { "code": 42 },
     "holy.palm": { "code": 43, "tall": true },
     "holy.shrub": { "code": 44 },
     "holy.flowers": { "code": 45 },
-    "holy.grass": { "code": 46 }
+    "holy.grass": { "code": 46 },
+    "holy.paver": { "code": 47 },
+    "holy.banner": { "code": 48 },
+    "holy.hedge": { "code": 49 },
+    "holy.turf": { "code": 50 },
+    "holy.brazier": { "code": 91 }
   },
   "keepClear": { "campMargin": 2, "coliseumMargin": 1, "corridorWidth": 2 },
   "zones": {
@@ -39,7 +63,16 @@
         "rings": [
           { "name": "fire-ring-core", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "fire.spire", "density": 10.0 }] },
           { "name": "fire-ring-rim", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "fire.crystal", "density": 2.5 }] }
+        ],
+      "landmark": {
+        "feature": "volcano",
+        "rings": [
+          { "name": "fire-core-ember", "band": "core", "groundVariant": 3, "props": [{ "kind": "fire.crust", "density": 14.0 }], "on": ["floor", "ember"] },
+          { "name": "fire-near-basalt", "band": "near", "groundVariant": 4, "props": [{ "kind": "fire.basalt", "density": 8.0 }, { "kind": "fire.emberjet", "density": 3.0 }], "on": ["floor", "ember"] },
+          { "name": "fire-mid-ash", "band": "mid", "groundVariant": 5, "props": [{ "kind": "fire.boulder", "density": 4.0 }], "on": ["floor", "ember"] },
+          { "name": "fire-far-ash", "band": "far", "groundVariant": 6, "props": [{ "kind": "fire.ashheap", "density": 1.5 }], "on": ["floor", "ember"] }
         ]
+      }
       },
       "clusters": [
         { "name": "fire-rock-field", "kinds": ["fire.rocks"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
@@ -57,7 +90,16 @@
         "rings": [
           { "name": "sent-ring-yard", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "sent.tomb", "density": 10.0 }] },
           { "name": "sent-ring-fringe", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "sent.cross", "density": 2.0 }] }
+        ],
+      "landmark": {
+        "feature": "church",
+        "rings": [
+          { "name": "sent-core-flagstone", "band": "core", "groundVariant": 3, "props": [{ "kind": "sent.flag", "density": 14.0 }] },
+          { "name": "sent-near-graves", "band": "near", "groundVariant": 4, "props": [{ "kind": "sent.grave", "density": 7.0 }, { "kind": "sent.fence", "density": 3.0 }] },
+          { "name": "sent-mid-deadgrass", "band": "mid", "groundVariant": 5, "props": [{ "kind": "sent.lamp", "density": 4.0 }] },
+          { "name": "sent-far-deadtrees", "band": "far", "groundVariant": 6, "props": [{ "kind": "sent.stump", "density": 1.0 }] }
         ]
+      }
       },
       "clusters": [
         { "name": "sent-grave-plot", "kinds": ["sent.slab", "sent.deadtree"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
@@ -75,8 +117,21 @@
         "rings": [
           { "name": "plague-ring-court", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "plague.column", "density": 10.0 }] },
           { "name": "plague-ring-ruins", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "plague.rubble", "density": 2.5 }] }
+        ],
+      "landmark": {
+        "feature": "bogTree",
+        "rings": [
+          { "name": "plague-core-roots", "band": "core", "groundVariant": 3, "props": [{ "kind": "plague.root", "density": 14.0 }] },
+          { "name": "plague-near-reeds", "band": "near", "groundVariant": 4, "props": [{ "kind": "plague.reed", "density": 8.0 }] },
+          { "name": "plague-mid-fungus", "band": "mid", "groundVariant": 5, "props": [{ "kind": "plague.fungus", "density": 4.0 }] },
+          { "name": "plague-far-reeds", "band": "far", "groundVariant": 6, "props": [{ "kind": "plague.sedge", "density": 1.5 }] }
         ]
+      }
       },
+      "terrainRings": [
+        { "name": "plague-marsh-water", "around": "bog", "reach": 1, "groundVariant": 7 },
+        { "name": "plague-marsh-mud", "around": "bog", "reach": 3, "groundVariant": 8 }
+      ],
       "clusters": [
         { "name": "plague-grove", "kinds": ["plague.tree", "plague.bush"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8, "moat": 2 }
       ],
@@ -93,7 +148,16 @@
         "rings": [
           { "name": "frost-ring-shore", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "frost.rock2", "density": 10.0 }], "on": ["floor", "ice"] },
           { "name": "frost-ring-field", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "frost.shards", "density": 2.0 }] }
+        ],
+      "landmark": {
+        "feature": "cave",
+        "rings": [
+          { "name": "frost-core-shelf", "band": "core", "groundVariant": 3, "props": [{ "kind": "frost.shelf", "density": 14.0 }], "on": ["floor", "ice"] },
+          { "name": "frost-near-crag", "band": "near", "groundVariant": 4, "props": [{ "kind": "frost.crag", "density": 8.0 }], "on": ["floor", "ice"] },
+          { "name": "frost-mid-snow", "band": "mid", "groundVariant": 5, "props": [{ "kind": "frost.snowbank", "density": 4.0 }, { "kind": "frost.spire", "density": 1.5 }], "on": ["floor", "ice"] },
+          { "name": "frost-far-snow", "band": "far", "groundVariant": 6, "props": [{ "kind": "frost.flurry", "density": 1.5 }], "on": ["floor", "ice"] }
         ]
+      }
       },
       "clusters": [
         { "name": "frost-pine-grove", "kinds": ["frost.pine", "frost.pine2"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 7, "moat": 2 }
@@ -111,7 +175,16 @@
         "rings": [
           { "name": "holy-ring-sanctum", "inner": 0, "outer": 6, "groundVariant": 1, "props": [{ "kind": "holy.pillar", "density": 10.0 }] },
           { "name": "holy-ring-garden", "inner": 6, "outer": 14, "groundVariant": 2, "props": [{ "kind": "holy.rock", "density": 2.0 }] }
+        ],
+      "landmark": {
+        "feature": "hall",
+        "rings": [
+          { "name": "holy-core-paving", "band": "core", "groundVariant": 3, "props": [{ "kind": "holy.paver", "density": 10.0 }], "on": ["floor", "light"] },
+          { "name": "holy-near-banners", "band": "near", "groundVariant": 4, "props": [{ "kind": "holy.banner", "density": 6.0 }, { "kind": "holy.brazier", "density": 2.5 }], "on": ["floor", "light"] },
+          { "name": "holy-mid-lawn", "band": "mid", "groundVariant": 5, "props": [{ "kind": "holy.hedge", "density": 4.0 }], "on": ["floor", "light"] },
+          { "name": "holy-far-lawn", "band": "far", "groundVariant": 6, "props": [{ "kind": "holy.turf", "density": 1.5 }], "on": ["floor", "light"] }
         ]
+      }
       },
       "clusters": [
         { "name": "holy-palm-grove", "kinds": ["holy.palm", "holy.shrub"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8, "moat": 2 }

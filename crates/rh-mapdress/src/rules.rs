@@ -6,6 +6,17 @@
 //! Order rules: a cluster's `moat` (default 2) keeps edge and filler props out of the disk of `radius + moat` tiles round
 //! each of its sites, so a cluster reads as a grove with open ground round it. A filler rule's `minSpacing` (default 2)
 //! keeps filler props that many tiles apart. Both are optional; files without them are still valid.
+//!
+//! Kind code blocks in `rules/zones.json` (the file itself tolerates no unknown keys, so the scheme is recorded here).
+//! Each zone owns ten codes per block: first block Fire 1-10, Sentenced 11-20, Plague 21-30, Frost 31-40, Holy 41-50;
+//! second block Fire 51-60, Sentenced 61-70, Plague 71-80, Frost 81-90, Holy 91-100. Existing codes never move (the
+//! option-off dressing is pinned by hash). Two kinds that look alike are both kept: `fire.vent` (4) is the edge rule's
+//! vent that hugs walls, `fire.emberjet` (8) is the landmark's near-band jet standing in open basalt; a kind belongs to
+//! exactly one rule, so each rule has its own.
+//!
+//! Ground variants (per zone art meanings): 0 none; 1-2 a zone's fallback rings; 3-6 Plague's bog tree bands (core, near,
+//! mid, far); 7 water and 8 mud, Plague's `terrainRings` round bog (P-DRESS-MARSH-1). A terrain ring wins over the
+//! band or fallback ring variant within its reach. A zone's nearest terrain ring round each class also bars tall props.
 use rh_sim::mapdata::{FeatureKind, Zone};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -68,6 +79,44 @@ pub struct RingRule {
     pub on: Vec<TileClass>,
 }
 
+/// P-DRESS-ANCHOR-1: the generator's distance bands (`signature::band`, G4), re-exported so rules and callers name one type.
+pub use rh_sim::mapgen::landmarks::signature::Band;
+
+/// A ring of the landmark path: every tile of the zone whose `signature::band` from the zone's anchor footprint is
+/// `band` (instead of a distance range from a feature centre).
+#[derive(Clone, Debug, PartialEq)]
+pub struct BandRing {
+    pub name: String,
+    pub band: Band,
+    pub ground_variant: u8,
+    pub props: Vec<RingProp>,
+    pub on: Vec<TileClass>,
+}
+
+/// The rings a zone lays round the generator's landmark (`GameMapData.anchors`); used for a zone only when the map has
+/// an anchor for it. Otherwise the zone's `signature_feature` and `rings` (the fallback path) apply as before.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LandmarkRules {
+    /// The landmark's feature kind: `Volcano`, `Church`, `BogTree`, `Cave` or `Hall`. Must equal the anchor's `kind`.
+    pub feature: FeatureKind,
+    pub rings: Vec<BandRing>,
+}
+
+/// P-DRESS-MARSH-1: a ground ring round a terrain class. A tile of the zone's plain floor (class `Floor`) whose Chebyshev
+/// distance in tiles to the nearest tile of class `around` (of the same zone) is at most `reach` gets `ground_variant`.
+/// The rules of a zone are listed from the nearest ring to the farthest: ring k covers the distances above ring k-1's
+/// `reach` and up to its own. Looks only: nothing here changes a tile; the one effect on props is that a TALL prop
+/// never stands on a tile of the zone's nearest ring (Plague: water). A terrain ring overrides the tile's band or
+/// fallback-ring ground variant. Stub: parsed only; refusals (reach 0, reaches not increasing, `around` not one of
+/// ember, bog, ice, light, a reused rule name) and the ground are the implementer's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TerrainRing {
+    pub name: String,
+    pub around: TileClass,
+    pub reach: u32,
+    pub ground_variant: u8,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClusterRule {
     pub name: String,
@@ -115,6 +164,10 @@ pub struct ZoneRules {
     /// The zone's signature feature kind; the largest such feature of the zone is the ring anchor.
     pub signature_feature: FeatureKind,
     pub rings: Vec<RingRule>,
+    /// The landmark path (P-DRESS-ANCHOR-1); `None` for a file without `signature.landmark`.
+    pub landmark: Option<LandmarkRules>,
+    /// Ground rings round a terrain class (P-DRESS-MARSH-1); empty for a file without `terrainRings`.
+    pub terrain_rings: Vec<TerrainRing>,
     pub clusters: Vec<ClusterRule>,
     pub edges: Vec<EdgeRule>,
     pub fillers: Vec<FillerRule>,
@@ -171,6 +224,11 @@ impl Rules {
                     add(&r.on);
                 }
             }
+            for r in z.landmark.iter().flat_map(|l| l.rings.iter()) {
+                if r.props.iter().any(|p| p.kind == code) {
+                    add(&r.on);
+                }
+            }
             for r in &z.clusters {
                 if r.kinds.contains(&code) {
                     add(&r.on);
@@ -215,9 +273,20 @@ struct RawKeepClear {
     corridor_width: u32,
 }
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawTerrainRing {
+    name: String,
+    around: TileClass,
+    reach: u32,
+    #[serde(default)]
+    ground_variant: u8,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawZone {
     signature: RawSignature,
+    #[serde(default)]
+    terrain_rings: Vec<RawTerrainRing>,
     #[serde(default)]
     clusters: Vec<RawCluster>,
     #[serde(default)]
@@ -230,6 +299,25 @@ struct RawZone {
 struct RawSignature {
     feature: FeatureKind,
     rings: Vec<RawRing>,
+    #[serde(default)]
+    landmark: Option<RawLandmark>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLandmark {
+    feature: FeatureKind,
+    rings: Vec<RawBandRing>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawBandRing {
+    name: String,
+    band: String,
+    #[serde(default)]
+    ground_variant: u8,
+    props: Vec<RawRingProp>,
+    #[serde(default = "floor_only")]
+    on: Vec<TileClass>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -365,6 +453,36 @@ impl Raw {
             let Some(rz) = self.zones.get(z.as_str()) else {
                 continue;
             };
+            let mut terrain_rings: Vec<TerrainRing> = Vec::new();
+            for t in &rz.terrain_rings {
+                claim(&t.name)?;
+                if t.reach == 0 {
+                    return Err(format!("rule \"{}\": reach must be >= 1", t.name));
+                }
+                if !matches!(
+                    t.around,
+                    TileClass::Ember | TileClass::Bog | TileClass::Ice | TileClass::Light
+                ) {
+                    return Err(format!(
+                        "rule \"{}\": around must be ember, bog, ice or light",
+                        t.name
+                    ));
+                }
+                if let Some(prev) = terrain_rings.iter().rev().find(|p| p.around == t.around) {
+                    if t.reach <= prev.reach {
+                        return Err(format!(
+                            "rule \"{}\": reach {} must exceed {} of rule \"{}\"",
+                            t.name, t.reach, prev.reach, prev.name
+                        ));
+                    }
+                }
+                terrain_rings.push(TerrainRing {
+                    name: t.name.clone(),
+                    around: t.around,
+                    reach: t.reach,
+                    ground_variant: t.ground_variant,
+                });
+            }
             let mut rings = Vec::new();
             for r in &rz.signature.rings {
                 claim(&r.name)?;
@@ -465,10 +583,61 @@ impl Raw {
                     on: f.on.clone(),
                 });
             }
+            let landmark = match &rz.signature.landmark {
+                None => None,
+                Some(l) => {
+                    let mut band_rings = Vec::new();
+                    for r in &l.rings {
+                        claim(&r.name)?;
+                        let band = match r.band.as_str() {
+                            "core" => Band::Core,
+                            "near" => Band::Near,
+                            "mid" => Band::Mid,
+                            "far" => Band::Far,
+                            other => {
+                                return Err(format!(
+                                "rule \"{}\": unknown band \"{other}\" (core, near, mid or far)",
+                                r.name
+                            ))
+                            }
+                        };
+                        if let Some(first) = band_rings.iter().find(|b: &&BandRing| b.band == band)
+                        {
+                            return Err(format!(
+                                "rule \"{}\": band \"{}\" already has a ring (rule \"{}\")",
+                                r.name, r.band, first.name
+                            ));
+                        }
+                        if r.props.is_empty() {
+                            return Err(format!("rule \"{}\": ring has no props", r.name));
+                        }
+                        let mut props = Vec::new();
+                        for p in &r.props {
+                            props.push(RingProp {
+                                kind: code(&r.name, &p.kind)?,
+                                density: density(&r.name, p.density)?,
+                            });
+                        }
+                        band_rings.push(BandRing {
+                            name: r.name.clone(),
+                            band,
+                            ground_variant: r.ground_variant,
+                            props,
+                            on: r.on.clone(),
+                        });
+                    }
+                    Some(LandmarkRules {
+                        feature: l.feature,
+                        rings: band_rings,
+                    })
+                }
+            };
             zones.push(ZoneRules {
                 zone: z,
                 signature_feature: rz.signature.feature,
                 rings,
+                landmark,
+                terrain_rings,
                 clusters,
                 edges,
                 fillers,

@@ -43,6 +43,9 @@ pub(crate) fn reset_player(p: &mut crate::state::Player) {
     p.card_tank_hp = 0.;
     p.card_boost = crate::cards::Boost::default();
     p.card_crit_acc = 0.;
+    // Legacy `rt.cards = undefined` also drops the damage-over-time crit memory (critAccDot, dotRollTick, dotCrit;
+    // cardState.ts:22-27).
+    p.core.card_dot_crit = None;
     p.card_still_x = 0.;
     p.card_still_y = 0.;
     p.card_still_since = 0.;

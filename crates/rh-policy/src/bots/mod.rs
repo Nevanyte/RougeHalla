@@ -7,6 +7,7 @@
 //! ported here (P-BOTS-1 remainder: perception.ts, memory.ts, strategy.ts, tactics/*, modules/*, mobHunt/chestHunt).
 pub mod bot;
 pub mod brain;
+pub mod brain_bot;
 pub mod build_route;
 pub mod clicks;
 pub mod delay;
@@ -55,6 +56,7 @@ mod wish_module_tests;
 mod wish_parity_tests;
 
 pub use bot::{assign_seats, HumanBot};
+pub use brain_bot::{brain_features, BrainBot};
 pub use build_route::{
     build_of, camp_value, ready_for_elites, type_weight, BuildGoal, FarmStat, RouteCamp,
     BUILD_GOALS, ELITE_AFTER_MS, ELITE_EARLY_POWER, ELITE_MIN_KILLS, ELITE_VALUE, STAT_FLOOR,

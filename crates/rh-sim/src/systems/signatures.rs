@@ -428,10 +428,13 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         } else {
             v.lifesteal_rows
         };
+        // Legacy reads the public mirror `c.s.campClears` (factions.ts:895-896): the canonical count only where the
+        // Bruiser installer keeps it in sync, else 0 (`bruiser::camp_clears`).
         let farm = match w.player(id).filter(|_| holy) {
             Some(pl) => {
                 v.farm_lifesteal_rows
-                    + f64::from(pl.camps_cleared) * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR
+                    + f64::from(super::bruiser::camp_clears(k, pl))
+                        * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR
             }
             None => v.farm_lifesteal_rows,
         };

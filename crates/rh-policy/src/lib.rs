@@ -45,7 +45,9 @@ use std::time::{Duration, Instant};
 /// not decide on them.
 /// Version 21 (observation 27, P-WIRE17-HUD-2c): the owner's champion panel gains codes 23-27 (Fire roam speed bonus and
 /// burst, hit multiplier, weapon scaling split); bots do not decide on them.
-pub const POLICY_CONTRACT_VERSION: u16 = 21;
+/// Version 22 (observation 28, P-WIRE17-HUD-3): the owner's inventory carries its healing-potion and wind-emblem end
+/// times, the arena view the room's minimum players; bots do not decide on them.
+pub const POLICY_CONTRACT_VERSION: u16 = 22;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -172,6 +174,10 @@ pub enum InputRefusal {
     InvalidOwner,
     ClockResetRequired,
     MemoryUnavailable,
+    /// The policy's own decision core refused the composed input (a native invariant, not a frame fact).
+    PolicyFailed,
+    /// The frame carries no source arena lifecycle group, which the policy's HUD needs (a non-source runtime).
+    ArenaUnavailable,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -243,6 +249,12 @@ pub trait Policy: Send {
     /// Called at the start of every match (independent environment resets) with the match's public context. `m.seed` is
     /// the policy's OWN randomness (never a match secret).
     fn reset(&mut self, m: &MatchStart);
+    /// The seat's run resolved (`Some`) or the match closed without a result (`None`): the policy's end-of-run summary
+    /// (source `brain.end(result)`), asked at most once per seat ([`Seat::finish`]). A policy with nothing to report
+    /// answers `None` (the default).
+    fn finish(&mut self, _result: Option<&rh_sim::RunResult>) -> Option<PolicyFinish> {
+        None
+    }
     /// May keep memory of earlier observations; must not depend on anything else about the match.
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand>;
     /// [`Policy::decide`] into a caller-owned buffer (cleared by the caller; the buffer keeps its capacity, so a policy that
@@ -251,6 +263,13 @@ pub trait Policy: Send {
     fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
         out.extend(self.decide(obs));
     }
+}
+
+/// A policy's end-of-run summary: the choice keys its learning record carries (source `RunSummary.choices`, e.g.
+/// `opener|fire|plague`), in the order the policy made them.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PolicyFinish {
+    pub choices: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -309,6 +328,7 @@ pub struct Seat {
     pending: Vec<SeenEvent>,
     results: Vec<rh_protocol::WireEvent>,
     results_tick: Option<u32>,
+    finished: bool,
 }
 
 /// The most events a seat holds between two decisions; past it the OLDEST are dropped (a policy that decides every few
@@ -348,7 +368,26 @@ impl Seat {
             pending: Vec::new(),
             results: Vec::new(),
             results_tick: None,
+            finished: false,
         }
+    }
+
+    /// The policy's end-of-run summary, asked once: a second call, a faulted seat (its fallback played; this includes a
+    /// policy never attached for an incompatible contract or observation) or a policy that panics answers `None`. The fallback never reports (its choices are not the
+    /// policy's).
+    pub fn finish(&mut self, result: Option<&rh_sim::RunResult>) -> Option<PolicyFinish> {
+        if std::mem::replace(&mut self.finished, true) {
+            return None;
+        }
+        // A faulted seat's result was played (at least in part) by its fallback: the policy's choices are not evidence
+        // for that result, so nothing reaches a learning record. This also covers a policy never attached (an
+        // incompatible contract or observation).
+        if self.fault.is_some() {
+            return None;
+        }
+        catch_unwind(AssertUnwindSafe(|| self.policy.finish(result)))
+            .ok()
+            .flatten()
     }
 
     pub fn player(&self) -> PlayerId {
@@ -1854,7 +1893,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 21);
+        assert_eq!(POLICY_CONTRACT_VERSION, 22);
     }
 }
 

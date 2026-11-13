@@ -331,9 +331,13 @@ fn partial_rows_keep_pending_ownership_and_execute_in_source_position() {
             .flat_map(|(_, rows)| rows)
             .find(|r| r.legacy == "abilities.armWishes")
             .unwrap();
+        // A synthetic partial (the real hook tables have none left): a completed part without a pending owner, or a
+        // pending owner with an empty completed part, is refused.
         if missing_pending {
             row.pending = None;
+            row.completed = Some("status and field reset");
         } else {
+            row.pending = Some("P-ABIL-1");
             row.completed = Some("");
         }
         assert!(check_pending(&bad, &packets).is_err());
@@ -451,8 +455,9 @@ fn what_the_slice_has_ported_stays_ported() {
         .iter()
         .find(|e| e.legacy == "abilities.armWishes")
         .unwrap();
-    assert_eq!(reset.pending, Some("P-ABIL-1"));
-    assert_eq!(reset.completed, Some("status and field reset"));
+    // armWishes is fully ported (P-MECHANICS-SALVAGE-3: the players' effect refresh): no pending remainder.
+    assert_eq!(reset.pending, None);
+    assert_eq!(reset.completed, None);
     // P-MECHANICS-SALVAGE-2: Tank Engine, Pocket Sand, Best Offense's block hit and its pending note (every world).
     let blocked = t
         .hooks
@@ -671,7 +676,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("runEnded", "plagueZombies.<arrow>") => {}
                 TraceEntry::Hook("teleported", "plagueZombies.<arrow>") => {}
                 TraceEntry::Hook("hitLanded", "plagueZombies.<arrow>") => {}
-                TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
+                TraceEntry::Hook("raidStarted", "abilities.armWishes") => {}
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }

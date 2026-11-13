@@ -320,6 +320,8 @@ fn state_sample() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 4,
                 potions_healing: 3,
+                healing_until: None,
+                speed_boost_until: None,
             })),
             StateItem::Props(WireProps {
                 rows: vec![
@@ -744,6 +746,7 @@ fn state_all_max_budget() -> ServerMsg {
         gates_locked: true,
         sudden_death_at: f64::MAX,
         started_with: 512,
+        min_players: crate::state::MAX_MIN_PLAYERS,
     };
     let mut msg = ServerMsg::State {
         tick: u32::MAX,
@@ -754,6 +757,8 @@ fn state_all_max_budget() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 5,
                 potions_healing: 3,
+                healing_until: Some(f64::MAX),
+                speed_boost_until: Some(f64::MAX),
             })),
             StateItem::Props(WireProps {
                 rows: props,
@@ -1074,6 +1079,37 @@ fn public_map(all: bool) -> MapBlob {
     )
     .and_then(|map| map.with_public(public))
     .expect("the public sample map is valid")
+}
+
+/// An 8 x 6 map dressed at the wire's boundaries (P-DRESS-BAKE-1): props in `(y, x, kind)` order covering a tall rule
+/// prop, two props on one y, two on one `(y, x)`, the highest legacy kind with an unchecked variant and the highest rule
+/// kind on the last world unit inside the map; with `ground`, every ground variant id 0..=15 row-major.
+fn dressed_map(ground: bool) -> MapBlob {
+    let (w, h) = (8u16, 6u16);
+    let total = usize::from(w) * usize::from(h);
+    let tiles: Vec<u8> = (0..total).map(|i| u8::from(i % 7 == 3)).collect();
+    let prop = |kind, x, y, variant, flags| MapProp {
+        kind,
+        x,
+        y,
+        variant,
+        flags,
+    };
+    let props = vec![
+        prop(41, 48, 40, 0, 1),
+        prop(3, 100, 60, 2, 0),
+        prop(3, 101, 60, 3, 0),
+        prop(7, 101, 60, 0, 0),
+        prop(33, 16, 176, 200, 2),
+        prop(100, 255, 191, 1, 1),
+    ];
+    MapBlob::new(w, h, tiles)
+        .with_public(MapPublic {
+            props,
+            ground_variants: ground.then(|| (0..total).map(|i| (i % 16) as u8).collect()),
+            ..MapPublic::default()
+        })
+        .expect("the dressed sample map is valid")
 }
 
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
@@ -1935,8 +1971,41 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         gates_locked: false,
                         sudden_death_at: 0.,
                         started_with: 7,
+                        // Legacy MIN_PLAYERS_TO_START (packages/shared/src/constants.ts:130).
+                        min_players: 2,
                     })),
                 ],
+            },
+        ),
+        // P-WIRE17-HUD-3: the owner's healing-potion and wind-emblem end times on key 1 (server ms).
+        (
+            "state_inventory_clocks",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::Inventory(Some(WireInventory {
+                    active_slot: 1,
+                    slots: [Some(0), Some(2)],
+                    potion_small: 3,
+                    potion_large: 1,
+                    potions_healing: 2,
+                    healing_until: Some(15_050.),
+                    speed_boost_until: Some(17_000.),
+                }))],
+            },
+        ),
+        (
+            "state_inventory_speed_boost",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::Inventory(Some(WireInventory {
+                    active_slot: 1,
+                    slots: [Some(0), Some(2)],
+                    potion_small: 3,
+                    potion_large: 1,
+                    potions_healing: 0,
+                    healing_until: None,
+                    speed_boost_until: Some(17_000.),
+                }))],
             },
         ),
         (
@@ -2186,6 +2255,15 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         // Protocol 17 public sections: every section, then what the server ships (camps, coliseum, bushes).
         ("welcome_public_all", welcome_map_msg(public_map(true))),
         ("welcome_public_shipped", welcome_map_msg(public_map(false))),
+        // P-DRESS-BAKE-1: a dressed map, with and without its ground-variant plane.
+        (
+            "welcome_dress_props_ground",
+            welcome_map_msg(dressed_map(true)),
+        ),
+        (
+            "welcome_dress_props_only",
+            welcome_map_msg(dressed_map(false)),
+        ),
         (
             "reject",
             ServerMsg::Reject {
@@ -3587,7 +3665,108 @@ pub fn malformed_map() -> Vec<(&'static str, Vec<u8>, &'static str)> {
             welcome_public_raw(2, 0x04, &[raw_list(raw_camps(&[(16, 16, 80, 1)]))], true),
             "semantic hash",
         ),
+        // P-DRESS-BAKE-1: dressing values a decoder refuses (the 4 x 3 map: x < 128, y < 96 world units).
+        (
+            "map17_dress_prop_kind_zero",
+            one_prop((0, 16, 16, 0, 0)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_prop_kind_over",
+            one_prop((101, 16, 16, 0, 0)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_legacy_kind_over",
+            one_prop((34, 16, 16, 0, 2)),
+            "prop kind",
+        ),
+        (
+            "map17_dress_prop_flags",
+            one_prop((1, 16, 16, 0, 4)),
+            "prop flags",
+        ),
+        (
+            "map17_dress_prop_variant",
+            one_prop((1, 16, 16, 4, 0)),
+            "prop variant",
+        ),
+        (
+            "map17_dress_prop_x_outside",
+            one_prop((1, 128, 16, 0, 0)),
+            "prop tile",
+        ),
+        (
+            "map17_dress_prop_y_outside",
+            one_prop((1, 16, 96, 0, 0)),
+            "prop tile",
+        ),
+        (
+            "map17_dress_prop_order",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(
+                    2,
+                    &[(1, 16, 48, 0, 0), (1, 16, 16, 0, 0)],
+                ))],
+                false,
+            ),
+            "prop order",
+        ),
+        (
+            "map17_dress_prop_duplicate",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(
+                    2,
+                    &[(1, 16, 16, 0, 0), (1, 16, 16, 0, 0)],
+                ))],
+                false,
+            ),
+            "prop order",
+        ),
+        (
+            "map17_dress_props_truncated",
+            welcome_public_raw(
+                2,
+                0x20,
+                &[raw_list(raw_props(2, &[(1, 16, 16, 0, 0)]))],
+                false,
+            ),
+            "truncated",
+        ),
+        (
+            "map17_dress_ground_over",
+            welcome_public_raw(2, 0x40, &[raw_plane(&vec![16; cells])], false),
+            "ground variant",
+        ),
+        (
+            "map17_dress_ground_long",
+            welcome_public_raw(2, 0x40, &[raw_plane(&vec![1; cells + 1])], false),
+            "run",
+        ),
     ]
+}
+
+/// A prop section with the given `count` and rows `(kind, x, y, variant, flags)` (a count above the rows is truncated).
+fn raw_props(count: u16, rows: &[(u8, u16, u16, u8, u8)]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u16(count);
+    for &(kind, x, y, variant, flags) in rows {
+        w.u8(kind);
+        w.u16(x);
+        w.u16(y);
+        w.u8(variant);
+        w.u8(flags);
+    }
+    w.finish()
+}
+
+/// A Welcome on the 4 x 3 raw map whose only section is one prop row.
+fn one_prop(row: (u8, u16, u16, u8, u8)) -> Vec<u8> {
+    welcome_public_raw(2, 0x20, &[raw_list(raw_props(1, &[row]))], false)
 }
 
 fn ground_welcome_bytes(
@@ -5031,6 +5210,49 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         (
             "state_bad_potion_count",
             vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0, 0],
+        ),
+        // P-WIRE17-HUD-3: key 1's clocks (finite, non-negative, whole) and key 9's minimum players (at most 32, present).
+        (
+            "state_inventory_healing_nan",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &f64::NAN.to_le_bytes(),
+                &[0],
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_healing_negative",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &(-50f64).to_le_bytes(),
+                &[0],
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_boost_infinite",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1][..],
+                &f64::INFINITY.to_le_bytes(),
+            ]
+            .concat(),
+        ),
+        (
+            "state_inventory_clock_truncated",
+            [
+                &[0x88, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1][..],
+                &1f64.to_le_bytes()[..4],
+            ]
+            .concat(),
+        ),
+        (
+            "state_arena_min_players_over",
+            [&[0x88, 0, 1, 9, 1][..], &[0; 36], &[33]].concat(),
+        ),
+        (
+            "state_arena_min_players_missing",
+            [&[0x88, 0, 1, 9, 1][..], &[0; 36]].concat(),
         ),
         ("state_zero_prop_handle", vec![0x88, 0, 1, 2, 1, 0]),
         ("state_missing_focus", vec![0x88, 0, 1, 2, 0, 1, 0]),

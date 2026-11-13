@@ -800,7 +800,8 @@ fn note1_the_bog_tree_site_keeps_out_of_marked_aprons() {
 
 /// Note 2: the attempt report tells a zone with no legal landmark site (`Refusal::Signature`, refused in the Landmarks
 /// phase: the trace stops at `Prefix`) from a finished map discarded by the end-of-attempt check
-/// (`Refusal::SignatureDiscarded`, refused after `Records`). Seeds 6-10, attempts 0-3, option on; both kinds occur.
+/// (`Refusal::SignatureDiscarded`, refused after `Records`). Seeds 6-10, attempts 0-3, option on; discards occur
+/// (amended by P-MAPGEN-SIG-RESERVE-1: site refusals need not).
 #[test]
 fn note2_refusals_tell_no_site_from_a_discarded_map() {
     let fixed = coliseum::fixed_layout();
@@ -847,9 +848,13 @@ fn note2_refusals_tell_no_site_from_a_discarded_map() {
             }
         }
     }
+    // Amended by P-MAPGEN-SIG-RESERVE-1: with each landmark's site reserved before the camps, a zone with no legal
+    // landmark site is rare (1 refusal over seeds 1-64 in the brief's prototype, none in seeds 6-10, attempts 0-3), so
+    // only the discards must occur here; every site refusal that does occur is still checked above to stop at
+    // `Prefix`. (Was: both kinds occur.)
     eprintln!("no site {no_site}, discarded {discarded}");
     assert!(
-        no_site >= 1 && discarded >= 1,
+        discarded >= 1,
         "seeds 6-10, attempts 0-3: {no_site} site refusals, {discarded} discards"
     );
 }

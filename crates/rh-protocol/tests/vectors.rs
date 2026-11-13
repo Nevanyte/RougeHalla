@@ -76,6 +76,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "state_build_summary_panel_code_unknown" => BadField("summary panel code"),
             "state_build_summary_panel_order" => BadField("summary panel order"),
             "state_build_summary_panel_count_over" => TooMany(0),
+            // P-WIRE17-HUD-3: the owner's inventory clocks (key 1) and the room's minimum players (key 9).
+            "state_inventory_healing_nan"
+            | "state_inventory_healing_negative"
+            | "state_inventory_boost_infinite" => BadField("inventory clock"),
+            "state_inventory_clock_truncated" | "state_arena_min_players_missing" => Truncated,
+            "state_arena_min_players_over" => BadField("arena"),
             "camp_mob_type"
             | "camp_elite"
             | "camp_alive"

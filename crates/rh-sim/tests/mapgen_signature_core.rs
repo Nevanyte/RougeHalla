@@ -9,8 +9,11 @@
 //! * door side of a front: the dominant axis of DIR16[front] (x when |vx| >= |vy|), signed as the vector.
 //! * outer third (Plague): lo, hi the smallest and largest distance of a Plague region cell from the map centre; the
 //!   tree's centre is at least lo + (hi - lo) * 2/3 out.
-//! * far elite camp (Sentenced): the Sentenced camp with `elite_spot >= 0` farthest from the map centre; its clearing is
-//!   every tile within `r` of the camp point.
+//! * far elite camp (Sentenced): the Sentenced camp with `elite_spot >= 0` at the Sentenced anchor's centre (amended by
+//!   P-MAPGEN-SIG-RESERVE-1; was: farthest from the map centre); its clearing is every tile within `r` of the camp point.
+//! * outer third (amended by P-MAPGEN-SIG-RESERVE-1): where the attempt's prefix
+//!   (`attempt::begin_attempt_signature(.., map.attempt, true)`) reserves a Plague site, the tree's centre lies in that
+//!   site instead (the site follows the outer third where one fits; the brief).
 //! * apron: a signature feature's bbox grown by the core band width (`signature::DEFAULT_DEFINITION.bands[0]`).
 //! * styler feature: any feature that is not `Landmark` (legacy landmark stage), a signature kind, `Infill` (repair) or
 //!   `Bush` (elite bushes).
@@ -20,7 +23,7 @@ use rh_sim::mapdata::{
 };
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{band, Band, DEFAULT_DEFINITION};
-use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline};
+use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
@@ -218,11 +221,20 @@ fn anchor(seed: i64, m: &GameMapData, zone: Zone) -> &ZoneAnchor {
         })
 }
 
+/// Amended by P-MAPGEN-SIG-RESERVE-1: the church's camp is the Sentenced elite camp at the Sentenced anchor's centre
+/// (drawn inside the church's reserved site, it need not be the elite farthest from the map centre); a map without a
+/// Sentenced anchor falls back to the farthest elite.
 fn far_elite(seed: i64, m: &GameMapData) -> (Cell, (f64, f64, f64)) {
+    let anchored = m
+        .anchors
+        .iter()
+        .find(|a| a.zone == Zone::Sentenced)
+        .map(|a| (a.centre.x, a.centre.y));
     let c = m
         .camps
         .iter()
         .filter(|c| c.zone == Zone::Sentenced && c.elite_spot >= 0)
+        .filter(|c| anchored.is_none_or(|t| world_cell(c.x, c.y) == t))
         .max_by(|a, b| {
             let da = from_centre(m, world_cell(a.x, a.y));
             let db = from_centre(m, world_cell(b.x, b.y));
@@ -385,10 +397,32 @@ fn shape_bog_tree_stands_in_the_outer_third_ringed_by_bog() {
         let hi = d.iter().copied().fold(0., f64::max);
         let need = lo + (hi - lo) * 2. / 3.;
         let dt = from_centre(m, centre);
-        assert!(
-            dt >= need,
-            "seed {seed}: tree at {centre:?} is {dt:.1} out, the outer third starts at {need:.1} ({lo:.1}..{hi:.1})"
-        );
+        let fixed = coliseum::fixed_layout();
+        let site = attempt::begin_attempt_signature(
+            &attempt::AttemptContext::new(&fixed),
+            seed,
+            m.attempt,
+            true,
+        )
+        .unwrap()
+        .and_then(|f| {
+            f.state
+                .reserved
+                .into_iter()
+                .find(|r| r.zone == Zone::Plague)
+        });
+        if let Some(r) = site {
+            assert!(
+                inside(grow(r.rect, 0), centre),
+                "seed {seed}: tree at {centre:?} outside its reserved site {:?}",
+                r.rect
+            );
+        } else {
+            assert!(
+                dt >= need,
+                "seed {seed}: tree at {centre:?} is {dt:.1} out, the outer third starts at {need:.1} ({lo:.1}..{hi:.1})"
+            );
+        }
         let tiles = owned(m, k);
         let trunk: Vec<Cell> = tiles
             .iter()

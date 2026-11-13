@@ -4,6 +4,168 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, midday): the five blueprints, and the Holy hall at 37
+
+"I approve all 5. Let's have holy hall at size 37." The five landmark blueprint drafts shown in chat (the session's
+sheet and write-up) are approved as drawn: Frost cave 29 x 29, Sentenced church with its graveyard 29 x 29, Plague
+bog tree 29 x 29, Fire volcano 30 x 30 with three outlets on its front row; the grids are checked in under
+[landmarks/blueprints/](landmarks/blueprints/README.md). The Holy hall is **37 x 37** (a 41-tile site), which the
+coordinator put to the owner together with **two Holy camps inside on the nave** (the measured option at about
+today's generation cost: P-MAPGEN-SIG-HOLY-1's brief); its 39 draft is being redrawn at 37. Legacy's elite rule is
+kept for Holy (the hall camps need not be the zone's elites) unless the owner says otherwise. This unblocks the
+oracles of P-MAPGEN-SIG-SCALE-1 to -4 and P-MAPGEN-SIG-HOLY-1, which run one at a time on `signature/mod.rs`.
+
+**Open, put to the owner the same hour:** the land-generation session left
+`coordination/LAND_GENERATION_REQUIREMENTS_ADDENDUM_1.md` (uncommitted, written 10:35) saying the owner chose its
+"Option 1" in that session: a **churchyard fence round the church and graveyard, with a 5-wide main gate on the door
+axis, inside the church's blueprint** (requirement L2a), the outer enclosure dropped, and the rest of the zone's
+fence as straight lanes parallel to the door axis. The church blueprint approved here has no churchyard fence. The
+coordinator takes owner decisions from this chat only: until the owner confirms L2a here, P-MAPGEN-SIG-SCALE-2 (the
+church) is not started; the cave, tree, volcano and hall are unaffected. Coordinator answers to that file's requests
+that do not depend on L2a: option-on pins in the landmark lane's tests are left untouched by that session and
+re-pinned by the coordinator at merge (its option b); a `NON_GAMEPLAY` row in `crates/rh-sim/tests/content.rs` for
+its lane constants is in its scope.
+
+## Beta follow-up integrations 13 to 16 (2026-11-12 night to 2026-11-13 morning): current checkpoint
+
+Integration branch `feature/unity-rework` @ `56549ead` (pushed). Identities: protocol 17 (protocol 18 is stamped on
+the next deployed build), **observation 28, policy contract 22** (both moved by integration 15), checkpoint 31,
+replay 25, content hash unchanged. Last full gate with Postgres: PASS on `56549ead` (EditMode 889 of 889).
+
+| # | Gate | Packet | Merge |
+|---|---|---|---|
+| 13 | quick PASS (EditMode 889) | P-UNITY-TRAINING-HUD-1: in practice a Tab press no longer hides the HUD (the panels ignore console focus while the console is closed); the training console scrolls to its last rows; legacy opens no Tab map in practice (pinned) | `04f43fbd` |
+| 14 | full PASS | P-MECHANICS-SALVAGE-3: derived camp-clear mirror, armWishes effect refresh, resetAll DoT crit memory; the HUD summary, champion panel and kill Trophy read the mirror (review notes 1-2) | `447ba55c` |
+| 15 | full PASS | P-WIRE17-HUD-3: owner-only healing and wind-emblem end times (state key 1), the room's minimum players (key 9); hash tape regenerated, only `observationVersion` moved | `49767960`, carry `b3a8fb51` |
+| 16 | full PASS | P-MAPGEN-SIG-RESERVE-1: a 34-tile site per styled zone reserved in the Prefix before camps; the Sentenced and Frost first elite camp stands inside its site; ADR 0028 decision 12; DEV-028 proposed | `da27fdb7`, carry `56549ead` |
+
+**Existing tests changed in these integrations (flagged to the owner in chat; all set-up or identity pins, no expected
+behaviour changed):** `build_summary_tests.rs` and `observe/panel_tests.rs` (two Holy HUD cases now built in the
+practice-room profile, where the camp-clear mirror is installed; 0.185 and 0.49 unchanged);
+`crates/rh-mapdress/tests/anchor.rs` `NO_ANCHOR_GOLDEN` (4) and `marsh.rs` `SIG_GOLDEN` (16): digests pinned on
+landmark-mode maps, re-pinned because the reservation moves every such map (no option-off digest moved). reviewer-opus
+advises replacing `NO_ANCHOR_GOLDEN` with a direct old-rules-equals-shipped-rules comparison so it stops depending on
+generator output: **owner question, open**; until answered each landmark merge re-pins.
+
+**Measured for integration 16** (seeds 1-64, landmark option on, release probe): a 34-tile site in every zone on 64 of
+64 seeds; attempts 101 (before 104), worst attempt index 5 (before 7); refusals Prefix 11, RadiusPost 8,
+SignatureDiscarded 18, Signature 0; 0.109 s per certified map (before 0.072); Plague's site beyond the outer-third
+line on 20 seeds, the zone's deepest free square on 44; near-band Fire craters on seeds 1-32 fall from 52 to 15 (camps
+are kept out of the volcano's site). The inside camp is 7 tiles from the far side of the site's 30-tile inner rect and
+one tile off its centre line across (34 is even): a mirror-symmetric blueprint is at most 29 wide and is placed
+relative to the camp tile.
+
+**In flight:** P-TRAINING-CAMPS-1 (implementer-opus; practice camp clears pay as legacy and the console's clear resets
+them; **checkpoint 31 -> 32** when it lands, training-world state hashes move, arena hashes do not; scope widened by
+the coordinator for the format pins inside rh-sim); P-DRESS-BAKE-1 (reviewed LAND WITH NOTES, notes being applied:
+the server bakes decoration into the map blob's reserved sections; no identity moves). **Waiting on the owner:** the
+five landmark blueprint drafts (session scratchpad, `blueprints/`), which gate the oracles of P-MAPGEN-SIG-SCALE-1 to
+-4 and P-MAPGEN-SIG-HOLY-1; adding `node tools/protocol-js/check-dressing.mjs` to `scripts/gate.sh`; signatures on
+DEV-022 to DEV-028. **Follow-ups not yet briefed:** the overhead build marks still count camp clears without the
+mirror (`observe.rs`, a shared file); legacy's practice screen has no Kills or GV line, only a "nothing here is
+recorded" banner (Unity only).
+
+**Gate notes.** The main checkout carries an uncommitted `.claude/settings.json` change that is not the coordinator's
+(left untouched, reported to the owner), which the gate refuses as a protected path; since integration 14 merges are
+made and gated in a clean detached worktree and the main checkout is fast-forwarded. The coordinator's gates use their
+own throwaway Postgres (`RH_PGTEST_STATE`), after a shared cluster was restarted under a running gate. One full gate
+was killed by a sub-agent's `pkill` by pattern; sub-agents are now told to stop only their own PIDs.
+
+**Not established:** nothing in these four integrations has been seen in a browser; no client shows the HUD-3 fields
+yet (P-UNITY-HUD-STATUS-2); no landmark is larger yet (the SCALE packets).
+
+## Owner decision 2026-11-12 (chat, midnight): the landmark requirements L1 to L6 ("Yes, apply them")
+
+The land-generation session wrote [coordination/LAND_GENERATION_REQUIREMENTS.md](coordination/LAND_GENERATION_REQUIREMENTS.md)
+from its own requirements session with the owner. The coordinator put its six landmark-lane requirements to the owner
+in this chat and the owner answered "Yes, apply them". They now bind the landmark packets:
+
+- **L1** one size and one blueprint per landmark, all five; the only variation between maps is where it stands within
+  its site rule, its rotation and its mirror; a site that cannot hold the blueprint discards the attempt. This
+  replaces "the largest from 30 down to 28 that fits" in P-MAPGEN-SIG-SCALE-1 to -4.
+- **L2** the graveyard is part of the church's blueprint, in front of the door, inside the reserved site.
+- **L3** the bog tree's own bog is an irregular marsh, closed all round but for two or three dry causeways.
+- **L4** the volcano has exactly three streams on every map: middle about 14-18 tiles, sides about 10-14, each ending
+  in a pool; a site that cannot hold three discards the attempt.
+- **L5** the cave is one blueprint: an enclosed chamber, one mouth toward the coliseum, the elite camp at a fixed spot,
+  a fixed ice floor.
+- **L6** the Holy hall stays an open colonnade walkable from every side, one size, one symmetric interior (lit central
+  nave, shrine at the back, front toward the coliseum).
+
+Two rules go with them (same file): guarantees are hard (an attempt that cannot deliver one is discarded, never served
+downgraded), and the numbers are targets (a size or length that pushes the generator past its attempt budget goes back
+to the owner with the measurement; it is not changed quietly). ADR 0028 gains G9 (a landmark is a fixed blueprint) and
+G10 (every thematic obstacle is placed by a rule that reads the landmark). Also agreed with that session: it owns the
+styler edits in `style_gallows/`, `style_warren/` and `style_rime/` that SCALE-2 and SCALE-3 might need (the
+coordinator passes it the failing test); `style_scorch/` stays with SCALE-4; its packets are `P-LAND-<ZONE>-<n>`,
+worked in `/Users/nevinmckinnon/Documents/Projects/RH-landgen`.
+
+**Not established:** no measurement stands behind the fixed sizes or the three stream lengths; no blueprint exists
+yet. The coordinator drafts the five blueprints as tile grids and shows them to the owner before any size packet's
+implementer starts; site reservation (P-MAPGEN-SIG-RESERVE-1, in flight) is unaffected.
+
+## Owner direction 2026-11-12 (chat, late night): land generation round the landmarks is a separate task
+
+The owner is contracting another agent to "perfect and work on land generation around the landmarks", pushing for a
+more optimised generation, as its own task. The coordinator's landmark plan is written for that agent in
+[coordination/LANDMARK_GENERATION_SPEC.md](coordination/LANDMARK_GENERATION_SPEC.md). The line: the coordinator keeps
+where each landmark stands, its size, anchor, site reservation and the camp and elite rules (P-MAPGEN-SIG-RESERVE-1,
+SCALE-1 to -4, HOLY-1); the land-generation task takes the zone stylers in signature mode and `rh-mapdress`.
+**Held, not started by the coordinator:** P-MAPGEN-SIG-SENTENCED-1, P-MAPGEN-SIG-PLAGUE-1 and P-MAPGEN-SIG-STYLE-1
+(arrangement by band): they are the land-generation task's to take, rewrite or replace. Its work comes back as
+`packet/<ID>` and `agent/<tool>/<ID>` branches under `coordination/prompts/WORKER_RULES.md` and is reviewed and merged
+here, one at a time with the SCALE packets where they share a styler directory.
+
+## Owner approval 2026-11-12 (chat, night): shell commands without prompts
+
+"Yes, apply it": `.claude/settings.json` now allows every `Bash` command, and `git push` and `git merge` are no longer
+in the `ask` list (the owner found the approval prompts were slowing the work). Unchanged: the `deny` list (force
+push; the four CloudFormation commands) and the rest of the `ask` list (`git rebase`, `git reset --hard`,
+`git branch -D`, `gh pr merge`, `aws`, `rm -rf`). The rules in `CLAUDE.md` "Approvals" still bind every session: the
+settings file no longer enforces them for pushes and merges, so they are kept by the coordinator: push only
+`feature/unity-rework` after a green gate; never merge into `main` or `optimization_port` without the owner.
+
+## Beta follow-up integrations 9 to 12 (2026-11-12, evening): current checkpoint
+
+Integration branch `feature/unity-rework` @ `038f83c8`, pushed. Identities: protocol 17 (protocol 18 is stamped on the
+build that is next deployed: until then a client and server built from different commits refuse each other's frames),
+observation 27, policy contract 21, checkpoint 31, replay 25, content hash `4674a176a28e3c7a`. Last full gate with
+Postgres: PASS 22:06 to 22:40 on integration 12 (EditMode 793); the Unity-only merge after it passed the quick gate
+(EditMode 876). Every attempt is in `.agent-runs/log.csv`.
+
+| # | Gate | Landed |
+|---|---|---|
+| 9 | full PASS 17:08 | P-UNITY-NAME-GROUP-2, P-UNITY-HUD-VISUAL-FIX-3, P-WIRE17-HUD-2b (Welcome HUD block: weapon scaling, Wish terms), P-MAPGEN-SIG-FIRE-2 (crater size by band) |
+| 10 | full PASS 17:42 | P-MAPGEN-SIG-FROST-1 (cave; the rh-server landmark post-pass deleted, owner approval), P-BOT-BRAIN-LIVE-1 piece 1 (composer), the gate's reload-proof step (owner approval). Not pushable: see below |
+| 11 | full PASS 20:30 | P-UNITY-HUD-VISUAL-FIX-4, P-MECHANICS-SALVAGE-2, P-WIRE17-HUD-2c (panel codes 23 to 27, terms 19 to 22; observation 27, policy 21), P-CAMP-BUFF-THEMES-1 (live profiles pay zone-themed camp buffs; content hash carried; DEV-027 proposed) |
+| 12 | full PASS 22:06 | P-MAPGEN-SIG-FROST-2 (lake at the mouth; landmark aprons apart, both by discard), P-DRESS-ANCHOR-1 (decoration rings in the landmark's bands), P-UNITY-HUD-BUILD-3 (panel and slots draw the delivered numbers), P-BOT-BRAIN-RECONCILE-1. Quick: P-UNITY-NAME-LEGIBLE-1 |
+
+**The remote divergence (17:43 to 22:40).** A cloud session (`claude/festive-babbage-dkwvrm`) put its own complete
+P-BOT-BRAIN-LIVE-1 on `origin/feature/unity-rework` while this session's composer was in review, so pushes were
+refused. Nothing was force-pushed or reverted. By owner decision the two lines were reconciled
+(P-BOT-BRAIN-RECONCILE-1: this session's reviewed composer as the base, the cloud line's seat policy, server flag,
+headless selection and learning hand-off; reviewed by `reviewer-opus`), which brought the remote's commits into the
+local history, and the branch was pushed as a fast-forward. Rule for outside sessions since then:
+`docs/coordination/prompts/WORKER_RULES.md` (own branches only; never the integration branch).
+
+**Farmed out (owner request; prompts in `docs/coordination/prompts/`):** P-FROST-WALL-1 (sim), P-BOT-BRAIN-CONTINUITY-1
+(Brain seats are passive until it lands: `--bot-brain full` stays off any host), P-BOT-LEARN-ON-1 then P-BOT-TUNER-1
+(R-ML narrow exception worded in REQUIREMENTS and AGENTS.md under owner approval 5), P-HOST-FLAGS-1. Each comes back
+as `packet/<ID>` and `agent/<tool>/<ID>` with a hand-off note; the coordinator reviews and merges.
+
+**In flight here:** P-MECHANICS-SALVAGE-3 (implementer), P-MAPGEN-SIG-RESERVE-1 (oracle: landmark sites reserved
+before camps, the only way the owner's landmark size fits; then P-MAPGEN-SIG-SCALE-1 to -4, P-MAPGEN-SIG-SENTENCED-1,
+-PLAGUE-1, -HOLY-1). **Not started:** marsh rings, decoration baked into served maps and drawn in Unity, per-zone
+landmark art, the visual review and the owner's close and wide pictures, P-WIRE17-HUD-3 and -MAP-2 with their Unity
+packets, Frost Wall on the wire and in Unity, the Brain reading themed camp buffs, practice camps counting as
+clears, the final combined review, the protocol 18 build, browser proof, the beta host and the pull request.
+
+**Unsigned by the owner:** DEV-022 to DEV-027. **Known flake:** `GarbageTests.ASessionReceivingSnapshotsMakesNoGarbage`
+fails in about one whole-suite run in five on any branch (measured on base and branch); fixing it edits an existing
+test and waits for the owner. **Not established:** no screenshot round has yet shown a cleared camp (respawn and
+ward plates, the open drawer's mob rows), the home-ground note, or P-UNITY-NAME-LEGIBLE-1 in the running client; no
+map with the landmark option on has been seen in the Unity client or played.
+
 ## Owner direction 2026-11-12 (chat, late): landmarks larger
 
 After seeing text and picture previews of the five landmarks as the generator builds them (seeds 1 to 3): "All of

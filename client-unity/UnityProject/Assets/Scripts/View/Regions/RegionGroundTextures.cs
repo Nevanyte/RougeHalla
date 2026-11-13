@@ -30,35 +30,54 @@ namespace Roguehalla.Client
             var px = new Color32[Size * Size];
             for (int layer = 0; layer < Layers; layer++)
             {
-                switch (layer)
-                {
-                    case 0: Fire(h, r, g, b); break;
-                    case 1: Sentenced(h, r, g, b); break;
-                    case 2: Plague(h, r, g, b); break;
-                    case 3: Frost(h, r, g, b); break;
-                    case 4: Holy(h, r, g, b); break;
-                    default: Coliseum(h, r, g, b); break;
-                }
-                float relief = layer == 3 ? 1.1f : layer == 4 ? 1.0f : layer == 0 ? .9f : .8f;
-                for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
-                {
-                    int i = y * Size + x;
-                    // Baked relief: light from the top left, height gradient across the wrap-around neighbours.
-                    float nx = h[y * Size + (x + 1) % Size] - h[y * Size + (x + Size - 1) % Size];
-                    float ny = h[((y + 1) % Size) * Size + x] - h[((y + Size - 1) % Size) * Size + x];
-                    float lit = (nx * -.7f + ny * .7f) * 9f * relief;
-                    float rr = Mathf.Clamp01(r[i] + lit * .5f);
-                    px[i] = new Color32((byte)(rr * 255f), (byte)(Mathf.Clamp01(g[i]) * 255f), (byte)(Mathf.Clamp01(b[i]) * 255f), (byte)(Mathf.Clamp01(h[i]) * 255f));
-                    // Normal tilt for the analytic local lights: minus the height gradient (rows grow with tile y, so the tilt is already in tile space).
-                    float tx = Mathf.Clamp(-nx * NormalStrength[layer], -1f, 1f), ty = Mathf.Clamp(-ny * NormalStrength[layer], -1f, 1f);
-                    npx[i] = new Color32((byte)((tx * .5f + .5f) * 255f), (byte)((ty * .5f + .5f) * 255f), (byte)(Mathf.Clamp01(h[i]) * Polish[layer] * 255f), 255);
-                }
+                FillLayer(layer, h, r, g, b, px, npx);
                 array.SetPixelData(px, 0, layer);
                 normals.SetPixelData(npx, 0, layer);
             }
             array.Apply(true, true);
             normals.Apply(true, true);
             return array;
+        }
+
+        /// <summary>Fills one layer's detail pixels (<paramref name="px"/>) and normal pixels (<paramref name="npx"/>) from the generators; the scratch arrays are Size x Size.</summary>
+        static void FillLayer(int layer, float[] h, float[] r, float[] g, float[] b, Color32[] px, Color32[] npx)
+        {
+            switch (layer)
+            {
+                case 0: Fire(h, r, g, b); break;
+                case 1: Sentenced(h, r, g, b); break;
+                case 2: Plague(h, r, g, b); break;
+                case 3: Frost(h, r, g, b); break;
+                case 4: Holy(h, r, g, b); break;
+                default: Coliseum(h, r, g, b); break;
+            }
+            float relief = layer == 3 ? 1.1f : layer == 4 ? 1.0f : layer == 0 ? .9f : .8f;
+            for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
+            {
+                int i = y * Size + x;
+                // Baked relief: light from the top left, height gradient across the wrap-around neighbours.
+                float nx = h[y * Size + (x + 1) % Size] - h[y * Size + (x + Size - 1) % Size];
+                float ny = h[((y + 1) % Size) * Size + x] - h[((y + Size - 1) % Size) * Size + x];
+                float lit = (nx * -.7f + ny * .7f) * 9f * relief;
+                float rr = Mathf.Clamp01(r[i] + lit * .5f);
+                px[i] = new Color32((byte)(rr * 255f), (byte)(Mathf.Clamp01(g[i]) * 255f), (byte)(Mathf.Clamp01(b[i]) * 255f), (byte)(Mathf.Clamp01(h[i]) * 255f));
+                // Normal tilt for the analytic local lights: minus the height gradient (rows grow with tile y, so the tilt is already in tile space).
+                float tx = Mathf.Clamp(-nx * NormalStrength[layer], -1f, 1f), ty = Mathf.Clamp(-ny * NormalStrength[layer], -1f, 1f);
+                npx[i] = new Color32((byte)((tx * .5f + .5f) * 255f), (byte)((ty * .5f + .5f) * 255f), (byte)(Mathf.Clamp01(h[i]) * Polish[layer] * 255f), 255);
+            }
+        }
+
+        /// <summary>
+        /// The readable detail pixels of one layer (0 fire, 1 sentenced, 2 plague, 3 frost, 4 holy, 5 coliseum), exactly what <see cref="Build()"/> uploads
+        /// (r detail with baked relief, g secondary mask, b accent mask, a height), Size x Size row-major. The uploaded array is unreadable on the CPU, so tests and
+        /// measurements sample the floor the player sees through this.
+        /// </summary>
+        public static Color32[] DetailLayer(int layer)
+        {
+            var h = new float[Size * Size]; var r = new float[Size * Size]; var g = new float[Size * Size]; var b = new float[Size * Size];
+            var px = new Color32[Size * Size]; var npx = new Color32[Size * Size];
+            FillLayer(Mathf.Clamp(layer, 0, Layers - 1), h, r, g, b, px, npx);
+            return px;
         }
 
         static float U(int i) { return (i + .5f) / Size; }

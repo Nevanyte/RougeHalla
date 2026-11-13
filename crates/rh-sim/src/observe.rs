@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 27;
+pub const OBSERVATION_VERSION: u16 = 28;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -1586,3 +1586,7 @@ mod panel_tests;
 #[cfg(test)]
 #[path = "observe/panel_tooltip_tests.rs"]
 mod panel_tooltip_tests;
+
+#[cfg(test)]
+#[path = "observe/hud_clock_tests.rs"]
+mod hud_clock_tests;

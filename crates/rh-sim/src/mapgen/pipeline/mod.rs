@@ -139,6 +139,8 @@ impl<'f> Pipeline<'f> {
         }
         let shared = stage::Definitions::default();
         let terrain = terrain_gate::default_definition();
+        // P-MAPGEN-SIG-RESERVE-1: one signature definition for the Prefix's site reservation and the Landmarks phase.
+        let sites = signature::DEFAULT_DEFINITION;
         Ok(Self {
             fixed,
             prefix: attempt::AttemptContext::from_definitions(
@@ -146,9 +148,10 @@ impl<'f> Pipeline<'f> {
                 &attempt::default_definition(),
                 &shared.zones,
                 &shared.camps,
-            ),
+            )
+            .with_signature(&sites),
             landmarks: stage::StageContext::from_definitions(fixed, &shared),
-            signature: signature::SignatureContext::new(fixed),
+            signature: signature::SignatureContext::from_definition(fixed, &sites),
             spawns: spawns::SpawnContext::from_definitions(
                 fixed,
                 &shared.spawns,
@@ -290,8 +293,15 @@ impl<'f> Pipeline<'f> {
         styled: bool,
         observe: &mut impl FnMut(Phase, &Mulberry32, &[usize]),
     ) -> Result<AttemptReport, Error> {
-        let Some(mut frame) =
-            attempt::begin_attempt(&self.prefix, seed, number).map_err(Error::Input)?
+        // P-MAPGEN-SIG-RESERVE-1: with the signature option on a styled attempt, the Prefix reserves each styled zone's
+        // landmark site before its camps; otherwise this is exactly `begin_attempt`.
+        let Some(mut frame) = attempt::begin_attempt_signature(
+            &self.prefix,
+            seed,
+            number,
+            options.signature && styled,
+        )
+        .map_err(Error::Input)?
         else {
             return Ok(AttemptReport::refused(Refusal::Prefix));
         };
@@ -305,6 +315,12 @@ impl<'f> Pipeline<'f> {
         };
         // G1/G2: the signature landmarks join the Landmarks phase before spawns and stylers; own stream only (G6).
         let placed = if options.signature && styled {
+            // The sites were reserved with the definition this phase builds with (`AttemptContext::with_signature`).
+            assert_eq!(
+                self.prefix.signature_definition(),
+                self.signature.definition(),
+                "the Prefix and the Landmarks phase read one signature definition"
+            );
             match self
                 .signature
                 .apply(&frame, &mut landmark)

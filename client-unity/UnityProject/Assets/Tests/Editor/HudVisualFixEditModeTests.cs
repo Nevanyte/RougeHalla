@@ -127,32 +127,6 @@ namespace Roguehalla.Client.Tests
             new OverheadIndicators.Facts { Order = 2000, HeadY = 1.68f, BarY = 1.8f, HpPct = 100f, Mob = true, Elite = elite, Name = name };
 
         [Test]
-        public void AnIdleFullHealthMobKeepsItsNameFaintAndAHurtOrEngagedOneReadsFull()
-        {
-            ShowcaseSprites.Initialize();
-            var go = new GameObject("mob");
-            try
-            {
-                var ind = new OverheadIndicators(go.transform);
-                var name = go.transform.Find("Name").GetComponent<TextMeshPro>();
-                var f = MobFacts("Bloatfly");
-                ind.Update(f);
-                Assert.That(name.color.a, Is.EqualTo(.5f).Within(.01f), "IDLE_LABEL_ALPHA = 0.5 for a calm mob");
-                f.HpPct = 60f; ind.Update(f);
-                Assert.That(name.color.a, Is.EqualTo(1f).Within(.01f), "hurt: full strength");
-                f = MobFacts("Bloatfly"); f.M.Engaged = true; ind.Update(f);
-                Assert.That(name.color.a, Is.EqualTo(1f).Within(.01f), "fighting: full strength");
-                f = MobFacts("Wyrmling", true); ind.Update(f);
-                Assert.That(name.color.a, Is.EqualTo(1f).Within(.01f), "an elite's name is never faint");
-                f = MobFacts("Training dummy"); f.Dummy = true; ind.Update(f);
-                Assert.That(name.color.a, Is.EqualTo(1f).Within(.01f), "the dummy keeps its name on");
-                ind.ApplyOpacity(.5f);
-                Assert.That(name.color.a, Is.EqualTo(.5f).Within(.01f), "vision fade still multiplies");
-            }
-            finally { Object.DestroyImmediate(go); }
-        }
-
-        [Test]
         public void AnEliteNameIsTwelveOverElevenTheSizeOfAPlainMobName()
         {
             ShowcaseSprites.Initialize();

@@ -16,6 +16,7 @@ mod cave;
 mod church;
 mod volcano;
 
+use crate::content::FactionId;
 use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
 use crate::mapdata::{
     FeatureJob, FeatureKind, GameMapData, MapFeature, TilePt, TileRect, Zone, ZoneAnchor,
@@ -112,6 +113,12 @@ pub struct Definition {
     /// The end-of-attempt check (`SignatureContext::intact`): the Frost zone's largest ice body outside the cave lies
     /// within `lake_reach + lake_slack` floor steps of the cave's mouth, else the map is discarded (P-MAPGEN-SIG-FROST-2).
     pub lake_slack: usize,
+    /// P-MAPGEN-SIG-RESERVE-1: the side (tiles) of the square site each styled zone reserves in the Prefix before its
+    /// camps (the landmark's target footprint plus the apron, `bands[0]`, on each side), and the depth (tiles) of the
+    /// church's or the cave's camp from the site's far edge, on the site's centre line (its halo and the landmark's back
+    /// wall stay inside the site's inner rect).
+    pub site_side: i32,
+    pub site_depth: i32,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -168,7 +175,47 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     lake_rounds: 3,
     second_share: 75,
     lake_slack: 2,
+    site_side: 34,
+    site_depth: 9,
 };
+
+/// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
+/// the camps, with the option on only (`SignatureContext::reserve`). `rect` is the whole site (the landmark's footprint
+/// plus its apron); `camp` is the tile of the camp placed inside it (the church's and the cave's elite camp), `None`
+/// for the volcano and the tree. `stream` is the zone's signature stream after the reservation's draws: the Landmarks
+/// phase continues it, never re-using a draw. Generator working state only: nothing reads it after the Landmarks phase
+/// and it is never exported.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReservedSite {
+    pub zone: Zone,
+    pub rect: TileRect,
+    pub camp: Option<usize>,
+    pub stream: Mulberry32,
+}
+
+/// The zones that reserve a site, in the order of `AttemptState::reserved` (Holy keeps its hall rule). A function, not a
+/// const: `tests/content.rs` reads consts as tunables.
+pub fn reserved_zones() -> [Zone; 4] {
+    [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost]
+}
+
+/// The zone's one-based slot in the attempt's faction order.
+fn slot_of(order: &[FactionId], zone: Zone) -> Option<u8> {
+    order
+        .iter()
+        .position(|f| f.as_str() == zone.as_str())
+        .map(|s| (s + 1) as u8)
+}
+
+/// The church's and the cave's door/mouth axis rule: the dominant axis of DIR16 `f` (x on a tie), as a unit vector.
+fn axis(f: u8) -> (i32, i32) {
+    let v = DIR16[usize::from(f)];
+    if v[0].abs() >= v[1].abs() {
+        (v[0].signum(), 0)
+    } else {
+        (0, v[1].signum())
+    }
+}
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.
 #[derive(
@@ -258,6 +305,170 @@ impl<'f> SignatureContext<'f> {
         &self.rules
     }
 
+    /// P-MAPGEN-SIG-RESERVE-1: each reserving zone's signature stream, `hash_seed(seed, attempt, zone slot, stream)`, in
+    /// `reserved_zones` order: the streams the Landmarks phase draws from, begun in the Prefix.
+    pub(crate) fn streams(
+        &self,
+        seed: i64,
+        attempt: u64,
+        order: &[FactionId],
+    ) -> Option<Vec<Mulberry32>> {
+        reserved_zones()
+            .iter()
+            .map(|&z| {
+                slot_of(order, z).map(|slot| {
+                    Mulberry32::new(hash_seed(
+                        seed as u32,
+                        attempt as u32,
+                        u32::from(slot),
+                        self.rules.stream,
+                    ))
+                })
+            })
+            .collect()
+    }
+
+    /// P-MAPGEN-SIG-RESERVE-1: one prefix round's sites, in `reserved_zones` order, on the round's partition `zone`. A
+    /// zone's candidates are the `site_side` squares wholly of its tiles, off `hard` (border, coliseum, road, lanes) and
+    /// off the open map corners, whose centre point lies beyond the zone's line: Fire, Sentenced and Frost the zone
+    /// centroid's distance from the map centre plus `back_slack`, Plague the start of its outer third plus
+    /// `outer_slack`. A Sentenced or Frost square also needs its camp tile (`inside_camp`). One uniform draw among the
+    /// candidates, the zone's one draw of the round on its stream; without a candidate, Plague takes the deepest square
+    /// still beyond its centroid (largest centre distance, first in row order), drawing nothing. `None` when a zone has
+    /// no square: the round fails as a camp failure does. Draws only from `streams` (`reserved_zones` order).
+    pub(crate) fn reserve(
+        &self,
+        zone: &[u8],
+        order: &[FactionId],
+        streams: &mut [Mulberry32],
+    ) -> Option<Vec<ReservedSite>> {
+        let d = &self.rules;
+        let side = usize::try_from(d.site_side)
+            .ok()
+            .filter(|&s| s > 0 && s <= W.min(H))?;
+        let co = spawns::DEFAULT_DEFINITION.corner_open;
+        let corner = |x: usize, y: usize| x.min(W - 1 - x) <= co && y.min(H - 1 - y) <= co;
+        let from_centre = |x: f64, y: f64| {
+            let (dx, dy) = (x - W as f64 / 2.0, y - H as f64 / 2.0);
+            crate::math::sqrt(dx * dx + dy * dy)
+        };
+        let half = side as f64 / 2.0;
+        // Summed-area table of the tiles a site may not hold.
+        let stride = W + 1;
+        let mut bad = vec![0i32; stride * (H + 1)];
+        let mut out = Vec::with_capacity(reserved_zones().len());
+        for (k, &z) in reserved_zones().iter().enumerate() {
+            let slot = slot_of(order, z)?;
+            let (mut sx, mut sy, mut n) = (0i64, 0i64, 0i64);
+            let (mut lo, mut hi) = (f64::MAX, 0.0f64);
+            for y in 0..H {
+                for x in 0..W {
+                    let i = y * W + x;
+                    let no = zone[i] != slot || self.hard[i] != 0 || corner(x, y);
+                    bad[(y + 1) * stride + x + 1] =
+                        i32::from(no) + bad[y * stride + x + 1] + bad[(y + 1) * stride + x]
+                            - bad[y * stride + x];
+                    if zone[i] == slot {
+                        sx += 2 * x as i64 + 1;
+                        sy += 2 * y as i64 + 1;
+                        n += 1;
+                        let r = from_centre(x as f64 + 0.5, y as f64 + 0.5);
+                        lo = lo.min(r);
+                        hi = hi.max(r);
+                    }
+                }
+            }
+            if n == 0 {
+                return None;
+            }
+            let centroid = from_centre(sx as f64 / (2 * n) as f64, sy as f64 / (2 * n) as f64);
+            let line = if z == Zone::Plague {
+                lo + (hi - lo) * 2.0 / 3.0 + d.outer_slack
+            } else {
+                centroid + d.back_slack
+            };
+            let camp_zone = matches!(z, Zone::Sentenced | Zone::Frost);
+            let mut candidates = Vec::new();
+            let mut deepest: Option<(f64, usize, usize)> = None;
+            for y in 0..=H - side {
+                for x in 0..=W - side {
+                    let held = bad[(y + side) * stride + x + side] + bad[y * stride + x]
+                        - bad[y * stride + x + side]
+                        - bad[(y + side) * stride + x];
+                    if held != 0 {
+                        continue;
+                    }
+                    let camp = if camp_zone {
+                        match self.inside_camp(x as i32, y as i32) {
+                            Some(c) => Some(c),
+                            None => continue,
+                        }
+                    } else {
+                        None
+                    };
+                    let r = from_centre(x as f64 + half, y as f64 + half);
+                    if r > line {
+                        candidates.push((x, y, camp));
+                    } else if z == Zone::Plague
+                        && r >= centroid
+                        && deepest.is_none_or(|(best, _, _)| r > best)
+                    {
+                        deepest = Some((r, x, y));
+                    }
+                }
+            }
+            let rng = &mut streams[k];
+            let (x, y, camp) = if candidates.is_empty() {
+                let (_, x, y) = deepest?;
+                (x, y, None)
+            } else {
+                candidates[pick(rng, candidates.len())]
+            };
+            out.push(ReservedSite {
+                zone: z,
+                rect: TileRect {
+                    x: x as i32,
+                    y: y as i32,
+                    w: side as u32,
+                    h: side as u32,
+                },
+                camp,
+                stream: rng.clone(),
+            });
+        }
+        Some(out)
+    }
+
+    /// The camp tile of the church's or the cave's site with top-left (x, y): on the site's centre line along the door
+    /// axis (`axis` of DIR16 from the site's centre tile toward the coliseum), `site_depth` tiles from the far edge.
+    /// Offsets from (x, y) at side 34 and depth 9: (9, 17) with the coliseum toward +x, (24, 17) toward -x, (17, 9)
+    /// toward +y, (17, 24) toward -y.
+    ///
+    /// `None` when the camp tile's own door axis (the church's and the cave's rule) differs. A guard only, not a filter
+    /// on where sites go: the camp moves deeper along the axis that already dominates, which cannot turn it, and at these
+    /// numbers it refuses none of the 16,129 square positions on the 160x160 map (P-MAPGEN-SIG-RESERVE-1 review).
+    fn inside_camp(&self, x: i32, y: i32) -> Option<usize> {
+        let (side, depth) = (self.rules.site_side, self.rules.site_depth);
+        let (mx, my) = (x + side / 2, y + side / 2);
+        let u = axis(front(mx, my));
+        let along = |lo: i32, sign: i32| {
+            if sign > 0 {
+                lo + depth
+            } else {
+                lo + side - 1 - depth
+            }
+        };
+        let (tx, ty) = if u.0 != 0 {
+            (along(x, u.0), my)
+        } else {
+            (mx, along(y, u.1))
+        };
+        if axis(front(tx, ty)) != u {
+            return None;
+        }
+        at(tx, ty)
+    }
+
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
     /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order. Only the
     /// volcano and the bog tree keep their tiles out of the aprons marked before them (`Site::ground`); the church and
@@ -276,21 +487,31 @@ impl<'f> SignatureContext<'f> {
         }
         let mut terrain = vec![0u8; W * H];
         let mut anchors = Vec::new();
-        for zone in [Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost] {
-            let Some(slot) = prefix
-                .order
-                .iter()
-                .position(|&f| f.as_str() == zone.as_str())
-                .map(|s| (s + 1) as u8)
-            else {
+        for zone in reserved_zones() {
+            let Some(slot) = slot_of(&prefix.order, zone) else {
                 return Ok(None);
             };
-            let mut rng = Mulberry32::new(hash_seed(
-                prefix.seed as u32,
-                prefix.attempt as u32,
-                u32::from(slot),
-                self.rules.stream,
-            ));
+            // P-MAPGEN-SIG-RESERVE-1: a zone with a reserved site builds inside it, continuing the stream the Prefix
+            // began; without one (the prefix of `begin_attempt`), today's rules on a fresh stream.
+            let reserved = prefix.reserved.iter().find(|r| r.zone == zone);
+            let mut rng = match reserved {
+                Some(r) => r.stream.clone(),
+                None => Mulberry32::new(hash_seed(
+                    prefix.seed as u32,
+                    prefix.attempt as u32,
+                    u32::from(slot),
+                    self.rules.stream,
+                )),
+            };
+            let b = self.rules.bands[0];
+            let inner = reserved.map(|r| {
+                (
+                    r.rect.x + b,
+                    r.rect.y + b,
+                    r.rect.x + r.rect.w as i32 - 1 - b,
+                    r.rect.y + r.rect.h as i32 - 1 - b,
+                )
+            });
             let site = Site {
                 ctx: self,
                 zone: &prefix.partition.zone,
@@ -300,12 +521,15 @@ impl<'f> SignatureContext<'f> {
                 protect: &stage.protect,
                 apron: &stage.masks.near1,
                 halo: &halo,
+                // The volcano's streams and pools leave its site: only its cone is confined (`volcano::place`).
+                inner: inner.filter(|_| zone != Zone::Fire),
             };
+            let camp = reserved.and_then(|r| r.camp);
             let built = match zone {
-                Zone::Fire => volcano::place(&site, &prefix.layout.camps, &mut rng),
-                Zone::Sentenced => church::place(&site, &prefix.layout.camps, &mut rng),
+                Zone::Fire => volcano::place(&site, &prefix.layout.camps, &mut rng, inner),
+                Zone::Sentenced => church::place(&site, &prefix.layout.camps, &mut rng, camp),
                 Zone::Plague => bog_tree::place(&site, &mut rng),
-                _ => cave::place(&site, &prefix.layout.camps, &mut rng),
+                _ => cave::place(&site, &prefix.layout.camps, &mut rng, camp),
             };
             let Some(built) = built else {
                 return Ok(None);
@@ -596,17 +820,22 @@ pub(crate) struct Site<'a> {
     apron: &'a [u8],
     /// The certifier's camp halo of every camp (no wall may stand there).
     halo: &'a [u8],
+    /// P-MAPGEN-SIG-RESERVE-1: the zone's reserved site less its apron (x0, y0, x1, y1 inclusive), which confines
+    /// `floor` (and with it `wall` and `ground`) for the church, the tree and the cave; `None` without a reservation.
+    inner: Option<(i32, i32, i32, i32)>,
 }
 
 impl Site<'_> {
-    /// Free floor of this zone, owned by no feature, off the coliseum, road and lanes.
+    /// Free floor of this zone, owned by no feature, off the coliseum, road and lanes (and inside `inner`, if any).
     fn floor(&self, x: i32, y: i32) -> bool {
-        at(x, y).is_some_and(|i| {
-            self.zone[i] == self.slot
-                && self.tiles[i] == TILE_FLOOR
-                && self.owner[i] == 0
-                && self.ctx.hard[i] == 0
-        })
+        self.inner
+            .is_none_or(|r| x >= r.0 && x <= r.2 && y >= r.1 && y <= r.3)
+            && at(x, y).is_some_and(|i| {
+                self.zone[i] == self.slot
+                    && self.tiles[i] == TILE_FLOOR
+                    && self.owner[i] == 0
+                    && self.ctx.hard[i] == 0
+            })
     }
     /// Floor of any zone, owned by no feature, off the coliseum, road and lanes: walkable ground beside a landmark.
     fn open(&self, x: i32, y: i32) -> bool {

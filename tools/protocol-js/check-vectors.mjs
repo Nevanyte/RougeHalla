@@ -115,7 +115,7 @@ const collectionTracker = new Tracker();
 const state = collectionTracker.decode(stateBytes);
 const publicField = {kind:2,ability:3,owner:null,subject:1,x:20,y:30,x2:40,y2:50,r:12,vx:-2,vy:0,startedAt:1000.5,endsAt:6000.5};
 eq(JSON.stringify(state.items), JSON.stringify([
-  {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionLarge:4,potionsHealing:3}},
+  {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionLarge:4,potionsHealing:3,healingUntil:null,speedBoostUntil:null}},
   {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"},{handle:4,x:803,y:904,kind:5}],focus:{handle:3,bodyHint:4}}},
   {key:3,value:[publicField,publicField]},
   {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
@@ -131,6 +131,21 @@ eq(JSON.stringify(planning.items[0].value.options.map(o => o.zone)), JSON.string
 eq(planning.items[0].value.options[1].walkSeconds, null, "typed absent walk");
 eq(planning.items[1].value.startedWith, 7, "arena starter count");
 eq(planning.items[1].value.patienceEndsAt, 601000, "arena patience deadline");
+// P-WIRE17-HUD-3: key 9 appends the room's minimum players (legacy RaidState.minPlayers; MIN_PLAYERS_TO_START = 2).
+eq(planning.items[1].value.minPlayers, 2, "arena room minimum players");
+// P-WIRE17-HUD-3: key 1 appends the owner's healing-potion and wind-emblem end times (server ms; null = not running).
+const clockVector = fx.server.find(v => v.name === "state_inventory_clocks");
+if (!clockVector) throw new Error("missing Rust-generated state_inventory_clocks vector");
+const clockState = decode(bytes(clockVector.hex));
+eq(clockState.tick, 216, "inventory clock vector tick");
+eq(JSON.stringify(clockState.items), JSON.stringify([
+  {key:1,value:{activeSlot:1,slots:[0,2],potionSmall:3,potionLarge:1,potionsHealing:2,healingUntil:15050,speedBoostUntil:17000}},
+]), "owner inventory with both clocks");
+const boostVector = fx.server.find(v => v.name === "state_inventory_speed_boost");
+if (!boostVector) throw new Error("missing Rust-generated state_inventory_speed_boost vector");
+eq(JSON.stringify(decode(bytes(boostVector.hex)).items), JSON.stringify([
+  {key:1,value:{activeSlot:1,slots:[0,2],potionSmall:3,potionLarge:1,potionsHealing:0,healingUntil:null,speedBoostUntil:17000}},
+]), "owner inventory with the boost clock only");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
 eq(collectionTracker.collections.size, 11, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
@@ -533,6 +548,10 @@ const allMaxStateFrame = bytes(allMaxStateVector.hex);
 eq(allMaxStateFrame.byteLength, 247696, "all eleven maximum collections remain within the exact aggregate byte bound");
 eq(allMaxStateFrame.byteLength < 262144, true, "all-key maximum State remains below MAX_SERVER_FRAME");
 eqJson(decode(allMaxStateFrame).items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10,11,13], "max aggregate State decodes every replacement collection");
+const allMaxItems = decode(allMaxStateFrame).items;
+eq(allMaxItems[0].value.healingUntil, Number.MAX_VALUE, "max inventory healing clock");
+eq(allMaxItems[0].value.speedBoostUntil, Number.MAX_VALUE, "max inventory boost clock");
+eq(allMaxItems.find(item => item.key === 9).value.minPlayers, 32, "max arena room minimum");
 // P-WIRE17-HUD-1: camp reward/ward verdicts and the owner build summary (State key 13), quantized integers kept.
 const campHud = decode(bytes(fx.server.find(v => v.name === "state_camp_hud").hex)).items[0].value;
 eqJson(campHud.map(c => [c.reward, c.ward]), [
@@ -784,6 +803,10 @@ const reason = {
   welcome_hud_scaling_order: /bad scaling order/, welcome_hud_term_count: /bad hud term count/,
   welcome_hud_term_code: /bad hud term code/, welcome_hud_term_infinite: /bad hud term$/,
   welcome_hud_term_over_max: /bad hud term$/, welcome_hud_term_order: /bad hud term order/, welcome_hud_truncated: /./,
+  // P-WIRE17-HUD-3: the owner's inventory clocks (key 1) and the room's minimum players (key 9).
+  state_inventory_healing_nan: /inventory clock/, state_inventory_healing_negative: /inventory clock/,
+  state_inventory_boost_infinite: /inventory clock/, state_inventory_clock_truncated: /./,
+  state_arena_min_players_over: /min players/, state_arena_min_players_missing: /./,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];

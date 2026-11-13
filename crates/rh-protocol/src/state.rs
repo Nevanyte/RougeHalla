@@ -10,6 +10,8 @@ pub const MAX_ROSTER: usize = 32;
 pub const MAX_ROSTER_NAME: usize = 24;
 /// Roster row flag: the seat is a bot.
 pub const ROSTER_FLAG_BOT: u8 = 1;
+/// Largest room minimum players State key 9 accepts (P-WIRE17-HUD-3): the roster bound; a match seats at most 8.
+pub const MAX_MIN_PLAYERS: u8 = MAX_ROSTER as u8;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
 pub const MAX_REWARD_CHESTS: usize = 512;
@@ -258,7 +260,7 @@ impl Default for WireBuild {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WireInventory {
     pub active_slot: u8,
     /// Carried weapon codes0..4; an empty slot is distinct from fists.
@@ -266,6 +268,10 @@ pub struct WireInventory {
     pub potion_small: u8,
     pub potion_large: u8,
     pub potions_healing: u8,
+    /// P-WIRE17-HUD-3: server ms the running healing potions end (legacy `healingUntil`); `None` when none runs.
+    pub healing_until: Option<f64>,
+    /// P-WIRE17-HUD-3: server ms the wind emblem's speed boost ends (legacy `speedBoostUntil`); `None` when none runs.
+    pub speed_boost_until: Option<f64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -480,6 +486,16 @@ impl WirePlan {
         }
     }
 }
+/// An owner inventory clock (P-WIRE17-HUD-3) is server milliseconds: finite and non-negative, refused otherwise.
+fn inventory_clock_ok(v: f64) -> bool {
+    v.is_finite() && v >= 0.
+}
+fn read_inventory_clock(r: &mut Reader<'_>) -> Result<Option<f64>, DecodeError> {
+    match r.opt(Reader::f64)? {
+        Some(v) if !inventory_clock_ok(v) => Err(DecodeError::BadField("inventory clock")),
+        clock => Ok(clock),
+    }
+}
 /// The public source arena lifecycle view (key 9). Timers are server milliseconds; a typed absent deadline is `None`, never
 /// Infinity.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -492,6 +508,8 @@ pub struct WireArena {
     pub gates_locked: bool,
     pub sudden_death_at: f64,
     pub started_with: u32,
+    /// P-WIRE17-HUD-3: the room's minimum players (legacy `RaidState.minPlayers`), 0..=[`MAX_MIN_PLAYERS`].
+    pub min_players: u8,
 }
 impl WireArena {
     fn valid(&self) -> bool {
@@ -502,6 +520,7 @@ impl WireArena {
             .all(|v| v.is_finite() && v >= 0.)
             && self.patience_ends_at.is_none_or(|v| v >= 0.)
             && self.started_with <= 512
+            && self.min_players <= MAX_MIN_PLAYERS
     }
     fn len(&self) -> usize {
         8 + 8
@@ -512,6 +531,7 @@ impl WireArena {
             + 1
             + 8
             + varint_len(self.started_with)
+            + 1
     }
     fn write(&self, w: &mut Writer) {
         w.f64(self.lobby_ends_at);
@@ -522,6 +542,7 @@ impl WireArena {
         w.u8(u8::from(self.gates_locked));
         w.f64(self.sudden_death_at);
         w.varint(self.started_with);
+        w.u8(self.min_players);
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let result = Self {
@@ -533,6 +554,7 @@ impl WireArena {
             gates_locked: bool_flag(r)?,
             sudden_death_at: r.f64()?,
             started_with: r.varint()?,
+            min_players: r.u8()?,
         };
         if result.valid() {
             Ok(result)
@@ -1924,7 +1946,14 @@ impl StateItem {
     pub(crate) fn encoded_len(&self) -> usize {
         varint_len(self.key())
             + match self {
-                Self::Inventory(value) => 1 + usize::from(value.is_some()) * 6,
+                Self::Inventory(value) => {
+                    1 + value.as_ref().map_or(0, |v| {
+                        6 + [v.healing_until, v.speed_boost_until]
+                            .iter()
+                            .map(|c| 1 + usize::from(c.is_some()) * 8)
+                            .sum::<usize>()
+                    })
+                }
                 Self::Props(value) => value.len(),
                 Self::Fields(value) => {
                     varint_len(value.len() as u32) + value.iter().map(WireField::len).sum::<usize>()
@@ -1965,6 +1994,13 @@ impl StateItem {
                 }
                 for slot in value.slots {
                     check_weapon(slot)?;
+                }
+                if ![value.healing_until, value.speed_boost_until]
+                    .into_iter()
+                    .flatten()
+                    .all(inventory_clock_ok)
+                {
+                    return Err(EncodeError::BadValue("inventory clock"));
                 }
             }
             Self::Inventory(None) => {}
@@ -2077,6 +2113,8 @@ impl StateItem {
                     w.u8(value.potion_small);
                     w.u8(value.potion_large);
                     w.u8(value.potions_healing);
+                    w.opt(value.healing_until.as_ref(), |w, v| w.f64(*v));
+                    w.opt(value.speed_boost_until.as_ref(), |w, v| w.f64(*v));
                 });
             }
             Self::Props(value) => value.write(w),
@@ -2147,12 +2185,17 @@ impl StateItem {
                 if potion_small > 5 || potion_large > 5 || potions_healing > 3 {
                     return Err(DecodeError::BadField("potion count"));
                 }
+                // The counts are checked before the clocks are read (`state_bad_potion_count` keeps its reason).
+                let healing_until = read_inventory_clock(r)?;
+                let speed_boost_until = read_inventory_clock(r)?;
                 Ok(WireInventory {
                     active_slot,
                     slots,
                     potion_small,
                     potion_large,
                     potions_healing,
+                    healing_until,
+                    speed_boost_until,
                 })
             })?),
             2 => Self::Props(WireProps::read(r)?),

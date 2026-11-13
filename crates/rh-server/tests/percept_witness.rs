@@ -343,6 +343,7 @@ fn observation_has_no_legacy_run_summary_aggregates_but_keeps_started_with() {
         gates_locked: false,
         sudden_death_at: 0.0,
         started_with: 3,
+        min_players: 0,
     };
     let arena_json = serde_json::to_value(arena).expect("ArenaView is serializable");
     assert_eq!(

@@ -114,7 +114,9 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
 
     let holy = faction == Some(crate::FactionId::Holy);
     if holy {
-        farm_ls += f64::from(p.camps_cleared) * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR;
+        // The public camp-clear mirror legacy's HUD reads (`PlayerState.campClears`): 0 without the Bruiser installer.
+        farm_ls += f64::from(crate::systems::bruiser::camp_clears(&sim.k, p))
+            * crate::constants::HOLY_CAMP_LIFESTEAL_PER_CLEAR;
     }
     let max_hp = p.core.vitals.max_hp;
     let hp_frac = if max_hp > 0. {
@@ -384,14 +386,16 @@ pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
                 1.
             };
             let bloodthirst = p.build.count(crate::cards::CardId::Bloodthirst) > 0 && hp_frac < 0.5;
-            let camp_leech = f64::from(p.camps_cleared)
+            // The public camp-clear mirror (`PlayerState.campClears`): 0 without the Bruiser installer.
+            let clears = crate::systems::bruiser::camp_clears(&sim.k, p);
+            let camp_leech = f64::from(clears)
                 * HOLY_CAMP_LIFESTEAL_PER_CLEAR
                 * if bloodthirst { 2. } else { 1. };
             panel.set(
                 C::HolyLifeSteal,
                 crate::content::holy_lifesteal_fraction(hp_frac) + camp_leech,
             );
-            panel.set(C::HolyCampClears, f64::from(p.camps_cleared));
+            panel.set(C::HolyCampClears, f64::from(clears));
             panel.set(C::HolyCampLeech, camp_leech);
         }
     }

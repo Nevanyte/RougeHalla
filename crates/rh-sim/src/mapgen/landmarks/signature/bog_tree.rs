@@ -1,6 +1,7 @@
 //! Plague: the giant bog tree. A solid trunk (wall) on dry ground in the outer third of the zone's radial extent from
 //! the map centre, ringed by two bands of bog (floor, terrain bog), one feature. The site is a uniform draw over every
-//! legal centre tile.
+//! legal centre tile. With a reserved site (P-MAPGEN-SIG-RESERVE-1) the tree stands wholly in the site's inner rect,
+//! and the site carries the outer-third rule (beyond the outer third where one fits, else the zone's deepest square).
 use super::{at, front, pick, Built, Piece, Site};
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
@@ -41,7 +42,8 @@ pub(super) fn place(s: &Site<'_>, rng: &mut Mulberry32) -> Option<Built> {
     let mut sites = Vec::new();
     for i in (0..W * H).filter(|&i| s.zone[i] == s.slot) {
         let (x, y) = ((i % W) as i32, (i / W) as i32);
-        if from_centre(x, y) < need
+        // P-MAPGEN-SIG-RESERVE-1: a reserved site carries the outer-third rule (`Site::floor` confines the tree to it).
+        if (s.inner.is_none() && from_centre(x, y) < need)
             || !trunk
                 .iter()
                 .all(|&(dx, dy)| s.wall(x + dx, y + dy) && s.ground(x + dx, y + dy))

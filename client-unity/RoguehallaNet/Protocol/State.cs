@@ -47,7 +47,14 @@ namespace Roguehalla.Net
 
 namespace Roguehalla.Net.Protocol
 {
-    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1; }
+    public struct WireInventory
+    {
+        public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1;
+        /// <summary>P-WIRE17-HUD-3: server ms the running healing potions end (legacy healingUntil); null when none runs.</summary>
+        public double? HealingUntil;
+        /// <summary>P-WIRE17-HUD-3: server ms the wind emblem's speed boost ends (legacy speedBoostUntil); null when none runs.</summary>
+        public double? SpeedBoostUntil;
+    }
     public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6, QuestItem = 7 }
     public struct WireProp
     {
@@ -172,6 +179,10 @@ namespace Roguehalla.Net.Protocol
         public bool InColiseum, GatesLocked;
         public double SuddenDeathAt;
         public uint StartedWith;
+        /// <summary>P-WIRE17-HUD-3: the room's minimum players (legacy RaidState.minPlayers), 0..<see cref="MaxMinPlayers"/>.</summary>
+        public byte MinPlayers;
+        /// <summary>Largest accepted <see cref="MinPlayers"/> (Rust <c>state::MAX_MIN_PLAYERS</c>).</summary>
+        public const byte MaxMinPlayers = 32;
     }
 
     public enum QuestRowState : byte { Preview = 0, Open = 1, Done = 2, Expired = 3 }
@@ -454,7 +465,16 @@ namespace Roguehalla.Net.Protocol
                 {
                     case 1:
                         var inv = new InventoryState();
-                        if (r.Flag()) inv.Value = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionLarge=r.U8(),PotionsHealing=r.U8() };
+                        if (r.Flag())
+                        {
+                            var v = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionLarge=r.U8(),PotionsHealing=r.U8() };
+                            // P-WIRE17-HUD-3: the slot, weapons and counts are checked before the clocks are read, as Rust and
+                            // JS do, so a bad count stays BadField ("potion count") rather than Truncated.
+                            try { new InventoryState { Value = v }.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
+                            v.HealingUntil = r.Flag() ? r.F64() : (double?)null;
+                            v.SpeedBoostUntil = r.Flag() ? r.F64() : (double?)null;
+                            inv.Value = v;
+                        }
                         item = inv; break;
                     case 2:
                         var props = new PropsState { Rows = new WireProp[Count(ref r, MaxRows)] };
@@ -562,7 +582,7 @@ namespace Roguehalla.Net.Protocol
                             LobbyEndsAt = r.F64(), PlanEndsAt = r.F64(), RaidStartedAt = r.F64(),
                             PatienceEndsAt = r.Flag() ? r.F64() : (double?)null,
                             InColiseum = r.Flag(), GatesLocked = r.Flag(),
-                            SuddenDeathAt = r.F64(), StartedWith = r.Varint() };
+                            SuddenDeathAt = r.F64(), StartedWith = r.Varint(), MinPlayers = r.U8() };
                         item = arena; break;
                     case 10:
                         int questPayloadStart = r.Position;
@@ -622,8 +642,24 @@ namespace Roguehalla.Net.Protocol
     {
         public override uint Key { get { return 1; } }
         public WireInventory? Value;
-        internal override void Check() { if (Value.HasValue) { Require(Value.Value.ActiveSlot < 2, "active slot"); Require(Value.Value.PotionSmall<=5 && Value.Value.PotionLarge<=5 && Value.Value.PotionsHealing<=3,"potion count"); CheckWeapon(Value.Value.Slot0); CheckWeapon(Value.Value.Slot1); } }
-        internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.U8(Value.Value.ActiveSlot); WriteWeapon(w, Value.Value.Slot0); WriteWeapon(w, Value.Value.Slot1); w.U8(Value.Value.PotionSmall); w.U8(Value.Value.PotionLarge); w.U8(Value.Value.PotionsHealing); } }
+        internal override void Check()
+        {
+            if (!Value.HasValue) return;
+            var v = Value.Value;
+            Require(v.ActiveSlot < 2, "active slot"); Require(v.PotionSmall<=5 && v.PotionLarge<=5 && v.PotionsHealing<=3,"potion count"); CheckWeapon(v.Slot0); CheckWeapon(v.Slot1);
+            // P-WIRE17-HUD-3: server ms, finite and non-negative; refused, never clamped.
+            Require(ClockOk(v.HealingUntil) && ClockOk(v.SpeedBoostUntil), "inventory clock");
+        }
+        static bool ClockOk(double? t) { return !t.HasValue || (Finite(t.Value) && t.Value >= 0); }
+        internal override void Write(Writer w)
+        {
+            w.U8(Value.HasValue ? (byte)1 : (byte)0);
+            if (!Value.HasValue) return;
+            var v = Value.Value;
+            w.U8(v.ActiveSlot); WriteWeapon(w, v.Slot0); WriteWeapon(w, v.Slot1); w.U8(v.PotionSmall); w.U8(v.PotionLarge); w.U8(v.PotionsHealing);
+            if (v.HealingUntil.HasValue) { w.U8(1); w.F64(v.HealingUntil.Value); } else w.U8(0);
+            if (v.SpeedBoostUntil.HasValue) { w.U8(1); w.F64(v.SpeedBoostUntil.Value); } else w.U8(0);
+        }
     }
     public sealed class PropsState : StateItem
     {
@@ -828,6 +864,7 @@ namespace Roguehalla.Net.Protocol
                 && v.LobbyEndsAt >= 0 && v.PlanEndsAt >= 0 && v.RaidStartedAt >= 0 && v.SuddenDeathAt >= 0, "arena time");
             Require(!v.PatienceEndsAt.HasValue || (Finite(v.PatienceEndsAt.Value) && v.PatienceEndsAt.Value >= 0), "arena patience");
             Require(v.StartedWith <= 512, "arena starters");
+            Require(v.MinPlayers <= WireArena.MaxMinPlayers, "arena min players");
         }
         internal override void Write(Writer w)
         {
@@ -837,7 +874,7 @@ namespace Roguehalla.Net.Protocol
             w.F64(v.LobbyEndsAt); w.F64(v.PlanEndsAt); w.F64(v.RaidStartedAt);
             if (v.PatienceEndsAt.HasValue) { w.U8(1); w.F64(v.PatienceEndsAt.Value); } else w.U8(0);
             w.U8((byte)(v.InColiseum ? 1 : 0)); w.U8((byte)(v.GatesLocked ? 1 : 0));
-            w.F64(v.SuddenDeathAt); w.Varint(v.StartedWith);
+            w.F64(v.SuddenDeathAt); w.Varint(v.StartedWith); w.U8(v.MinPlayers);
         }
     }
 
