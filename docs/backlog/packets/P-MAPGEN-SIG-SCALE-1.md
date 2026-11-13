@@ -8,6 +8,34 @@
 - **D-rules touched:** D1: option off byte-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim tick or
   wire change
 
+## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L5; supersedes everything below where they differ)
+
+Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision
+2026-11-12 (chat, midnight)"; ADR 0028 rule G9.
+
+- **The cave is one blueprint** (L1, L5): one size, an enclosed chamber, one 3-tile mouth in the middle of the side
+  facing the coliseum, the elite camp at a fixed spot inside (the spot P-MAPGEN-SIG-RESERVE-1 gives it: on the site's
+  centre line, 9 tiles from the site's far edge, so 7 inside the footprint's far side), a fixed ice floor. "The largest
+  square from 30 down to 28 that fits" below is withdrawn: there is no size search and no `floor_side`. Target side:
+  30 (the site's inner rect), fixed by the approved drawing.
+- The size rule this packet was to put in `mod.rs` for SCALE-2 becomes the **blueprint placement rule** (a grid, eight
+  orientations, the fit test against the site, the camp spot) that SCALE-2, -3 and -4 reuse.
+- `style_rime/` is not this packet's: the land-generation task builds the lake in front of the mouth
+  (`P-LAND-FROST-*`: 3 dry tiles between mouth and shore, a dry way at least 3 wide round the lake to the mouth). If
+  the fixed cave needs a styler change, pass that session the failing test.
+- **Guarantees are hard, numbers are targets** (same owner decision): an attempt that cannot deliver the blueprint is
+  refused (`Refusal::Signature`) and the next is tried; nothing is served smaller or with a part missing. If the fixed
+  size pushes seeds 1-64 past the attempt bounds, the measurement goes to the owner; the size is not changed quietly.
+- **The blueprint is drawn first.** The coordinator drafts it as a tile grid and the owner approves it before the
+  oracle is written or amended. It is data (a grid in `signature::Definition` or a table beside it, no new `const`),
+  placed in one of eight orientations (four rotations by the front's dominant axis, mirrored or not: the mirror is one
+  draw of the zone's signature stream).
+- **The oracle** then pins equality: on every seed of 1-32 the landmark's tiles equal the blueprint under one of the
+  eight orientations, inside the site's inner rect, front toward the coliseum; plus the attempt bounds, measured once.
+- The existing oracle (`mapgen_signature_scale.rs`: `floor_side()` 28, `target_side()` 30, `mean_side_min()`,
+  `ice_share_min()`) is amended by the oracle author after RESERVE-1 lands and the drawing is approved: the size and
+  ice-share statistics are replaced by blueprint equality.
+
 ## Amendment 2026-11-12 (coordinator decision; supersedes the rule and numbers below where they differ)
 
 - **Depends on P-MAPGEN-SIG-RESERVE-1** (`packet/P-MAPGEN-SIG-RESERVE-1`): each landmark's 34-tile site is reserved in

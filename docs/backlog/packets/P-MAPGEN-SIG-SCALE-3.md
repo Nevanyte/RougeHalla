@@ -9,6 +9,26 @@
   wire change
 - **Status:** brief only; the oracle is written when SCALE-2 has landed (oracle-author, Opus).
 
+## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L3; supersedes everything below where they differ)
+
+Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision
+2026-11-12 (chat, midnight)"; ADR 0028 rule G9.
+
+- **The bog tree is one blueprint** (L1, L3): the trunk with its root walls, and its own bog as an **irregular marsh**
+  (not concentric rings), closed all the way round but for **two or three dry causeways** to the trunk (the drawing
+  fixes which). One size: the site's inner rect (30 x 30 target). "Target 30, floor 28" is withdrawn.
+- `style_warren/` is not this packet's (agreed with the land-generation session): the free bog pools round the tree
+  are `P-LAND-PLAGUE-*`; where the styler assumes the old tree, pass that session the failing test.
+- **Guarantees are hard, numbers are targets** (same owner decision): an attempt that cannot deliver the blueprint is
+  refused (`Refusal::Signature`) and the next is tried; nothing is served smaller or with a part missing. If the fixed
+  size pushes seeds 1-64 past the attempt bounds, the measurement goes to the owner; the size is not changed quietly.
+- **The blueprint is drawn first.** The coordinator drafts it as a tile grid and the owner approves it before the
+  oracle is written or amended. It is data (a grid in `signature::Definition` or a table beside it, no new `const`),
+  placed in one of eight orientations (four rotations by the front's dominant axis, mirrored or not: the mirror is one
+  draw of the zone's signature stream).
+- **The oracle** then pins equality: on every seed of 1-32 the landmark's tiles equal the blueprint under one of the
+  eight orientations, inside the site's inner rect, front toward the coliseum; plus the attempt bounds, measured once.
+
 ## 1. ID and outcome
 Amended 2026-11-12 (coordinator decision): the tree is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
 tiles, no camp halo inside), **target 30, floor 28** a side for its footprint (the site less its apron). The Plague

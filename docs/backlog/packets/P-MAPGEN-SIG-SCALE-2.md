@@ -9,6 +9,31 @@
   wire change
 - **Status:** brief only; the oracle is written when SCALE-1 has landed (oracle-author, Opus).
 
+## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L2; supersedes everything below where they differ)
+
+Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision
+2026-11-12 (chat, midnight)"; ADR 0028 rule G9.
+
+- **Church and graveyard are one blueprint** (L1, L2): the graveyard stands in front of the door, inside the reserved
+  site; together they fill the site's inner rect (30 x 30 target) and together they are the landmark. The anchor's
+  footprint is their common box (the land-generation task measures its fence enclosures from it). The question "must
+  the graveyard fit inside the site" is closed: yes.
+- Fixed in the drawing: the wall ring, the 3-tile door on the centre line, the pillar rows, the elite camp's spot (9
+  tiles from the site's far edge), the fenced plots mirrored about the door axis with a path on that axis from the
+  door to the front edge (the land-generation task's spine continues it: inner gate, outer gate, gallows square).
+  "Target 30, floor 28" is withdrawn: one size.
+- `style_gallows/` is not this packet's (agreed with the land-generation session): where the styler assumes the old
+  church, pass that session the failing test (`P-LAND-SENTENCED-*`).
+- **Guarantees are hard, numbers are targets** (same owner decision): an attempt that cannot deliver the blueprint is
+  refused (`Refusal::Signature`) and the next is tried; nothing is served smaller or with a part missing. If the fixed
+  size pushes seeds 1-64 past the attempt bounds, the measurement goes to the owner; the size is not changed quietly.
+- **The blueprint is drawn first.** The coordinator drafts it as a tile grid and the owner approves it before the
+  oracle is written or amended. It is data (a grid in `signature::Definition` or a table beside it, no new `const`),
+  placed in one of eight orientations (four rotations by the front's dominant axis, mirrored or not: the mirror is one
+  draw of the zone's signature stream).
+- **The oracle** then pins equality: on every seed of 1-32 the landmark's tiles equal the blueprint under one of the
+  eight orientations, inside the site's inner rect, front toward the coliseum; plus the attempt bounds, measured once.
+
 ## 1. ID and outcome
 Amended 2026-11-12 (coordinator decision): the church is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
 tiles, the church's elite camp inside it 9 tiles from the far edge). It takes the size rule SCALE-1 puts in

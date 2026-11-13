@@ -9,6 +9,33 @@
   wire change
 - **Status:** brief only; the oracle is written when SCALE-3 has landed (oracle-author, Opus).
 
+## Amendment 2026-11-13 (owner decision "Yes, apply them": requirements L1 and L4; supersedes everything below where they differ)
+
+Source: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` on the integration branch; MIGRATION, "Owner decision
+2026-11-12 (chat, midnight)"; ADR 0028 rule G9.
+
+- **The cone is one blueprint** (L1): a solid stepped cone with its crater lake, one size (the site's inner rect, 30 x
+  30 target). "Target 30, floor 28" is withdrawn.
+- **Exactly three streams on every map, never two** (L4). They leave the rim in a fan toward the coliseum: one down
+  the middle, one each side. The middle stream is the longest, about 14-18 path tiles; the side streams about 10-14.
+  Natural bends (the streams' paths are the random part); two lava tiles wide; each ends in a pool; no fords (lava is
+  LOW: walkers go round the pool). A site that cannot hold three discards the attempt. In `Definition`: `streams`
+  becomes exactly three, with one heading set and the two length ranges.
+- **Lava budget:** re-measured by the oracle author for the crater lake plus three streams and three pools (the
+  streams alone are 68-92 lava tiles at these lengths); today's 80-150 ceiling does not hold.
+- `style_scorch/` stays in this packet's scope (agreed: the land-generation session rebases after it). Its own rule
+  for Fire, decided by the owner: every Fire camp keeps its crater, craters keep clear of all three streams, size
+  falls with distance and none is dropped.
+- **Guarantees are hard, numbers are targets** (same owner decision): an attempt that cannot deliver the blueprint is
+  refused (`Refusal::Signature`) and the next is tried; nothing is served smaller or with a part missing. If the fixed
+  size pushes seeds 1-64 past the attempt bounds, the measurement goes to the owner; the size is not changed quietly.
+- **The blueprint is drawn first.** The coordinator drafts it as a tile grid and the owner approves it before the
+  oracle is written or amended. It is data (a grid in `signature::Definition` or a table beside it, no new `const`),
+  placed in one of eight orientations (four rotations by the front's dominant axis, mirrored or not: the mirror is one
+  draw of the zone's signature stream).
+- **The oracle** then pins equality: on every seed of 1-32 the landmark's tiles equal the blueprint under one of the
+  eight orientations, inside the site's inner rect, front toward the coliseum; plus the attempt bounds, measured once.
+
 ## 1. ID and outcome
 Amended 2026-11-12 (coordinator decision): the cone is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
 tiles on the back edge, no camp halo inside), **target 30, floor 28** a side for the cone's footprint (the site less its
