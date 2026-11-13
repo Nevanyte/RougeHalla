@@ -208,7 +208,9 @@ pub enum ReplayError {
     },
 }
 
-/// Replays from the reset and checks every step's hash. Returns the final sim and all events.
+/// Replays from the reset and checks every step's hash. Returns the final sim and all events. The one buffer is not
+/// cleared between steps: a step reads back only the events it appends itself, so it computes what the live room's
+/// step (which clears) computed.
 pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
     if r.format != REPLAY_FORMAT {
         return Err(ReplayError::Format {

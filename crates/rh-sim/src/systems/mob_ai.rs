@@ -207,8 +207,9 @@ pub(crate) fn think(cx: &mut Cx) {
     if !enabled(cx.w) {
         return;
     }
-    // Event reads do not submit actions; the shared Block event wakes an idle shield holder.
-    for i in 0..cx.ev.len() {
+    // Event reads do not submit actions; the shared Block event wakes an idle shield holder. Only this step's events
+    // (legacy `world.events`, emptied every step): never a Block an earlier step left in the caller's buffer.
+    for i in cx.s.step_event_start..cx.ev.len() {
         if let crate::events::Event::Block { id, by, .. } = cx.ev[i] {
             if cx
                 .w

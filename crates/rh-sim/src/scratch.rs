@@ -12,6 +12,7 @@
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds, with `slot_head`/`slot_tail`: all `NONE` between ledger passes);
 //! * `bodies`, `victims`, `ledger_mults`, `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`, `mob_spacing`, `spacing_diag`: the working lists of one
 //!   system call, cleared by the system before it fills them and never read by another.
+//! * `step_event_start`: written at the entry of every step (`Sim::step_into_with`) and read only within that step.
 //!
 //! Every buffer is cleared, never taken, so its capacity survives across ticks: after the first few ticks a step allocates
 //! nothing (`tests/no_alloc.rs` counts it). A new system that needs a list adds a field here.
@@ -109,6 +110,11 @@ pub(crate) struct TickScratch {
     pub(crate) spacing_diag: crate::archetype::SpacingDiagnostics,
     /// The fighter whose inputs are being applied: its queue, drained here so the handlers can borrow the world.
     pub(crate) drained: Drained,
+    /// Where the current step's events begin in the caller's output buffer (`Sim::step_into_with`, written at step
+    /// entry, before the waiting leave events are appended). A system that reads events back (`mobAI.thinkMobs`'s Block
+    /// wake) reads only `ev[step_event_start..]`, so whatever an earlier step left in a buffer the caller did not clear
+    /// is never seen. Zero for a caller that clears. Never serialized or hashed.
+    pub(crate) step_event_start: usize,
 }
 
 impl Default for TickScratch {
@@ -166,6 +172,7 @@ impl Default for TickScratch {
             mob_spacing: Vec::new(),
             spacing_diag: Default::default(),
             drained: Drained::default(),
+            step_event_start: 0,
         }
     }
 }
