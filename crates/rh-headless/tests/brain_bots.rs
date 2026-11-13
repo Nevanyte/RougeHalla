@@ -7,7 +7,7 @@
 //!
 //! P-BOT-BRAIN-CONTINUITY-1 adds the passivity floors: the same seeds are played by eight HumanBot seats (the live fill
 //! bot) and the Brain seats must reach a stated fraction of that baseline (see [`floors`]). Measured before the packet
-//! (2026-11-12, seeds 3 and 11, 6,000 ticks): Brain 4 resolved deaths, 16 mob kills, 1,773 proposals, the quietest seat
+//! (2026-11-12, seeds 3 and 11, 6,000 ticks; the window is now 16,000 ticks, see [`MAX_TICKS`]): Brain 4 resolved deaths, 16 mob kills, 1,773 proposals, the quietest seat
 //! 7; HumanBot 13 deaths, 52 mob kills, 2,175 proposals (136 a seat), the quietest seat 23 (seed 3 ends at tick 3,209).
 //!
 //! The matches take about a minute on four cores in release and over ten in debug, so a debug build skips them (the
@@ -18,7 +18,12 @@ use rh_sim::archetype::HitboxMode;
 use rh_sim::replay::run_replay;
 use rh_sim::{abilities, mob_runtime::MobMode, terrain, ArenaMode, Event, FactionMode, SimConfig};
 
-const MAX_TICKS: u32 = 6000;
+/// Long enough to reach the coliseum: on this configuration the raid's patience ends 600 s after the raid starts (about
+/// tick 12,300), and the legacy Brain farms through the raid and fights in the coliseum, where HumanBot hunts players
+/// from the start. Measured 2026-11-12 (P-BOT-BRAIN-CONTINUITY-1, with the tracker): Brain seats resolve 2 player deaths
+/// by tick 6,000 and 11 by tick 16,000 over seeds 3 and 11; HumanBot's matches end with a winner at ticks 3,209 and
+/// 6,961 (13 deaths).
+const MAX_TICKS: u32 = 16_000;
 
 /// What "plays" means against the HumanBot baseline on the same seeds, summed over both seeds: (resolved deaths, mob
 /// kills credited to a seat, the quietest Brain seat's proposals against the mean HumanBot seat's), each a fraction.
@@ -132,7 +137,7 @@ fn run(kind: BotKind, seed: u64) -> Run {
 #[test]
 #[cfg_attr(
     debug_assertions,
-    ignore = "four 6,000-tick 8-Brain matches: run with `cargo test --release -p rh-headless --test brain_bots`"
+    ignore = "four 16,000-tick 8-Brain matches: run with `cargo test --release -p rh-headless --test brain_bots`"
 )]
 fn eight_brain_seats_play_the_source_arena_deterministically() {
     // The six runs (two seeds, the Brain twice each, HumanBot once each) are independent matches: play them side by side.

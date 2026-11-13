@@ -103,7 +103,10 @@ the oracle pins:
 - Release floors, measured first (seeds 3 and 11, 6,000 ticks, 2026-11-12): Brain 4 resolved deaths, 16 mob kills,
   1,773 proposals, quietest seat 7; HumanBot 13 deaths, 52 kills, 2,175 proposals (136 a seat), quietest 23 (its
   seed 3 ends at tick 3,209). Floors over both seeds: Brain deaths >= 0.5 x HumanBot's, mob kills >= 0.5 x, and the
-  quietest Brain seat >= 0.25 x the mean HumanBot seat's proposals. Per-seat decision cost is reported (the ignored
+  quietest Brain seat >= 0.25 x the mean HumanBot seat's proposals. Correction (same day, after implementing): the
+  matches run 16,000 ticks, not 6,000. The raid's patience ends about tick 12,300 on this configuration; the Brain,
+  like legacy, farms through the raid and fights in the coliseum (with the tracker: 2 player deaths by tick 6,000,
+  11 by tick 16,000; HumanBot's matches end at ticks 3,209 and 6,961 with 13). The fractions are unchanged. Per-seat decision cost is reported (the ignored
   `profile_brain_seats` diagnostic), not gated: wall-clock floors are not stable on shared CI cores.
 
 ## 9. Validation commands
