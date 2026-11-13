@@ -31,6 +31,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 | G6 | **Seeded, local randomness.** Every choice is drawn from a stream of (map seed, attempt, zone, step). |
 | G7 | **Clusters and edges, not scatter.** |
 | G8 | **Legacy stays reachable.** With the option off the generator's output is byte-identical to today's. |
+| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Not yet built: decisions 4, 5, 10 and 11 below describe today's variable shapes until P-MAPGEN-SIG-SCALE-1 to -4 and P-MAPGEN-SIG-HOLY-1 land. |
+| G10 | **Every thematic obstacle is placed by a rule that reads the landmark** (its anchor, bands and front). No styler lays its obstacles as if the landmark were not there. Built for Fire's craters and Frost's first lake; the rest is the land-generation task (`P-LAND-*`). |
 
 ## Decision
 

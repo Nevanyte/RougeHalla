@@ -4,6 +4,36 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-12 (chat, midnight): the landmark requirements L1 to L6 ("Yes, apply them")
+
+The land-generation session wrote [coordination/LAND_GENERATION_REQUIREMENTS.md](coordination/LAND_GENERATION_REQUIREMENTS.md)
+from its own requirements session with the owner. The coordinator put its six landmark-lane requirements to the owner
+in this chat and the owner answered "Yes, apply them". They now bind the landmark packets:
+
+- **L1** one size and one blueprint per landmark, all five; the only variation between maps is where it stands within
+  its site rule, its rotation and its mirror; a site that cannot hold the blueprint discards the attempt. This
+  replaces "the largest from 30 down to 28 that fits" in P-MAPGEN-SIG-SCALE-1 to -4.
+- **L2** the graveyard is part of the church's blueprint, in front of the door, inside the reserved site.
+- **L3** the bog tree's own bog is an irregular marsh, closed all round but for two or three dry causeways.
+- **L4** the volcano has exactly three streams on every map: middle about 14-18 tiles, sides about 10-14, each ending
+  in a pool; a site that cannot hold three discards the attempt.
+- **L5** the cave is one blueprint: an enclosed chamber, one mouth toward the coliseum, the elite camp at a fixed spot,
+  a fixed ice floor.
+- **L6** the Holy hall stays an open colonnade walkable from every side, one size, one symmetric interior (lit central
+  nave, shrine at the back, front toward the coliseum).
+
+Two rules go with them (same file): guarantees are hard (an attempt that cannot deliver one is discarded, never served
+downgraded), and the numbers are targets (a size or length that pushes the generator past its attempt budget goes back
+to the owner with the measurement; it is not changed quietly). ADR 0028 gains G9 (a landmark is a fixed blueprint) and
+G10 (every thematic obstacle is placed by a rule that reads the landmark). Also agreed with that session: it owns the
+styler edits in `style_gallows/`, `style_warren/` and `style_rime/` that SCALE-2 and SCALE-3 might need (the
+coordinator passes it the failing test); `style_scorch/` stays with SCALE-4; its packets are `P-LAND-<ZONE>-<n>`,
+worked in `/Users/nevinmckinnon/Documents/Projects/RH-landgen`.
+
+**Not established:** no measurement stands behind the fixed sizes or the three stream lengths; no blueprint exists
+yet. The coordinator drafts the five blueprints as tile grids and shows them to the owner before any size packet's
+implementer starts; site reservation (P-MAPGEN-SIG-RESERVE-1, in flight) is unaffected.
+
 ## Owner direction 2026-11-12 (chat, late night): land generation round the landmarks is a separate task
 
 The owner is contracting another agent to "perfect and work on land generation around the landmarks", pushing for a

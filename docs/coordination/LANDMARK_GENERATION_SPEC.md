@@ -9,6 +9,18 @@ Read first: [prompts/WORKER_RULES.md](prompts/WORKER_RULES.md) (branches, scope,
 [ADR 0028](../adr/0028-signature-landmarks.md) (the rules G1-G8 and every landmark's exact shape; this file does not
 repeat them), `crates/rh-sim/AGENTS.md`, and the top of [MIGRATION](../MIGRATION.md).
 
+## Update 2026-11-12, midnight: requirements L1 to L6 are accepted
+
+The owner confirmed to the coordinator the six landmark requirements in
+[LAND_GENERATION_REQUIREMENTS.md](LAND_GENERATION_REQUIREMENTS.md). Where this file's section 2 says "the largest from
+30 down to 28", read **one fixed blueprint per landmark** (L1); the church's graveyard is inside its site as part of
+the blueprint (L2); the volcano always has three streams (L4); the Holy hall stays an open colonnade of one size (L6).
+Section 6's third and fourth open points are closed (graveyard inside the site; every Fire camp keeps its crater).
+The blueprints themselves are not drawn yet: the coordinator drafts them as tile grids for the owner first, so each
+landmark's exact footprint is known only after that. Your requests in section 4 of your file are agreed: you own the
+`style_gallows/`, `style_warren/` and `style_rime/` edits (the coordinator passes the failing test), `style_scorch/`
+stays with SCALE-4, the yard box and the superseded packets are as you wrote them.
+
 ## 1. What is merged today
 
 **Order (G1, owner rule):** zones and camps (the Prefix) → one landmark per zone (the Landmarks phase) → thematic
