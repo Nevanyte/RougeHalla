@@ -1294,3 +1294,28 @@ fn a_full_lobby_explicit_seat_returns_none_without_consuming_a_draw_or_an_id() {
     assert_eq!(first, fresh_first);
     assert_eq!(first.number, 1);
 }
+
+/// P-BOT-BRAIN-LIVE-1: `--bot-brain off|full`, off by default; anything else (or twice) refuses to start.
+#[test]
+fn the_bot_brain_flag_defaults_off_and_takes_off_or_full() {
+    use crate::bot_fill::{bot_brain_flag, BotBrain};
+    let args = |s: &str| s.split_whitespace().map(String::from).collect::<Vec<_>>();
+    assert_eq!(bot_brain_flag(&args("--fill-bots 8")), Ok(BotBrain::Off));
+    assert_eq!(BotFillConfig::default().brain, BotBrain::Off);
+    assert_eq!(bot_brain_flag(&args("--bot-brain off")), Ok(BotBrain::Off));
+    assert_eq!(
+        bot_brain_flag(&args("--bot-brain full")),
+        Ok(BotBrain::Full)
+    );
+    assert_eq!(
+        bot_brain_flag(&args("--bot-brain=full")),
+        Ok(BotBrain::Full)
+    );
+    for bad in [
+        "--bot-brain",
+        "--bot-brain on",
+        "--bot-brain full --bot-brain off",
+    ] {
+        assert!(bot_brain_flag(&args(bad)).is_err(), "{bad}");
+    }
+}

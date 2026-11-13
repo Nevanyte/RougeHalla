@@ -13,7 +13,7 @@ use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::bots::delay::DelayLine;
 use rh_policy::bots::random::Rng;
-use rh_policy::bots::HumanBot;
+use rh_policy::bots::{BrainBot, HumanBot};
 use rh_policy::{drive_seats_queued, scripted, MatchStart, Policy, Seat};
 use rh_protocol::map::EncodedMap;
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
@@ -170,6 +170,9 @@ pub enum RoomReport {
         /// A bot's fill spec when it is a managed fill bot (the learning record caller's tier/persona/faction); None
         /// for a human or an unmanaged bot.
         bot_spec: Option<BotSeatSpec>,
+        /// A bot seat's own choice keys for the learning record (`Policy::finish`); empty for a human or a policy that
+        /// keeps none.
+        bot_choices: Vec<String>,
         fence: Option<i64>,
         result: RunResult,
         roster: Roster,
@@ -1174,14 +1177,40 @@ impl Room {
             return;
         };
         self.report_bot(&name, true);
-        let policy: Box<dyn Policy> = Box::new(HumanBot::new(spec.tier, spec.persona));
+        let brain = self
+            .fill
+            .as_ref()
+            .filter(|fill| fill.config().brain == crate::bot_fill::BotBrain::Full)
+            .map(|fill| fill.config().learned.clone());
+        let budgeted = brain.is_some();
+        let (policy, fallback, replay_name): (Box<dyn Policy>, Box<dyn Policy>, &str) = match brain
+        {
+            // P-BOT-BRAIN-LIVE-1: the Brain plays the seat; a faulted Brain hands it to HumanBot, not to Idle.
+            Some(learned) => (
+                Box::new(
+                    BrainBot::new(
+                        spec.tier,
+                        spec.persona,
+                        rh_policy::bots::brain_features(self.sim.config(), self.sim.shared_arena()),
+                    )
+                    .with_learned(learned),
+                ),
+                Box::new(HumanBot::new(spec.tier, spec.persona)),
+                "brain",
+            ),
+            None => (
+                Box::new(HumanBot::new(spec.tier, spec.persona)),
+                Box::new(scripted::Idle),
+                "human",
+            ),
+        };
         let interval = policy.spec().decision_interval_ticks;
         self.record(ReplayInput::Join {
             profile: name,
             faction: Some(spec.faction),
             bot: true,
             policy: Some(BotPolicy {
-                name: "human".into(),
+                name: replay_name.into(),
                 interval,
                 seed: u64::from(spec.seed),
             }),
@@ -1189,8 +1218,11 @@ impl Room {
         let mut seat = Seat::new(
             &MatchStart::of(&self.sim, id, u64::from(spec.seed)),
             policy,
-            Box::new(scripted::Idle),
+            fallback,
         );
+        if budgeted {
+            seat.budget = Some(crate::bot_fill::BRAIN_DECISION_BUDGET);
+        }
         seat.bind_fx(&self.sim).expect("new bot is unbound");
         self.bots.push(seat);
         self.bot_specs.push((id, spec));
@@ -1621,12 +1653,24 @@ impl Room {
                         continue;
                     }
                 }
+                // Source BotManager.onResult: the seat's `runner.end(result)` summary, asked once.
+                let bot_choices = if *bot {
+                    self.bots
+                        .iter_mut()
+                        .find(|seat| seat.player() == *id)
+                        .and_then(|seat| seat.finish(Some(result)))
+                        .map(|finish| finish.choices)
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
                 let _ = self.reports.send(RoomReport::Result {
                     admission,
                     match_id: self.id,
                     profile: result.profile.clone(),
                     bot: *bot,
                     bot_spec,
+                    bot_choices,
                     fence,
                     result: result.clone(),
                     roster: Roster {
@@ -3700,6 +3744,94 @@ mod tests {
             rx.try_recv().is_err(),
             "one managed seat records at most one result"
         );
+    }
+
+    /// P-BOT-BRAIN-LIVE-1: `--bot-brain full` seats BrainBot with a decision budget, HumanBot as its fault fallback and the
+    /// replay name "brain"; `off` keeps HumanBot, Idle and no budget. On this core (non-source) runtime the Brain finds no
+    /// source arena group, refuses, and its HumanBot fallback plays on.
+    #[test]
+    fn a_brain_fill_room_seats_budgeted_brains_that_fall_back_to_humanbot() {
+        let run = |brain: crate::bot_fill::BotBrain| {
+            let start = Instant::now();
+            let tick = Duration::from_millis(50);
+            let (tx, _rx) = mpsc::unbounded_channel();
+            let mut config = cfg(tick);
+            config.fill_bots_to = 0;
+            config.record = true;
+            config.fixed_bot_seed = Some(105);
+            config.fixed_secrets = Some(Secrets::from_seed(7));
+            let mut room = Room::new([22; 16], config, tx, start).with_bot_fill(BotFillConfig {
+                fill_to: 4,
+                arrival_seconds: 0.,
+                jitter_ms: 0.,
+                seed: Some(5),
+                brain,
+                ..BotFillConfig::default()
+            });
+            for i in 0..2u64 {
+                room.join(
+                    format!("human{i}"),
+                    None,
+                    Arc::new(Outbox::default()),
+                    i + 1,
+                    1,
+                    None,
+                )
+                .unwrap();
+            }
+            let mut at = start;
+            for _ in 0..600 {
+                at += tick;
+                room.wake(at);
+                if room.sim.phase() == Phase::Active {
+                    break;
+                }
+            }
+            for _ in 0..200 {
+                at += tick;
+                room.wake(at);
+            }
+            room
+        };
+        let names = |room: &Room| -> Vec<String> {
+            room.recorder
+                .as_ref()
+                .expect("recording")
+                .replay
+                .ticks
+                .iter()
+                .flat_map(|t| &t.inputs)
+                .filter_map(|input| match input {
+                    ReplayInput::Join {
+                        policy: Some(p), ..
+                    } => Some(p.name.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let brain = run(crate::bot_fill::BotBrain::Full);
+        assert!(!brain.bots.is_empty(), "the fill seated bots");
+        for seat in &brain.bots {
+            assert_eq!(seat.budget, Some(crate::bot_fill::BRAIN_DECISION_BUDGET));
+            assert_eq!(
+                seat.fault,
+                Some(rh_policy::Fault::Input(
+                    rh_policy::InputRefusal::ArenaUnavailable
+                ))
+            );
+            assert!(seat.stats.fallback_decisions > 0, "HumanBot plays on");
+        }
+        assert!(
+            brain.bots.iter().any(|s| s.stats.proposed > 0),
+            "the HumanBot fallback proposes"
+        );
+        assert!(!names(&brain).is_empty() && names(&brain).iter().all(|n| n == "brain"));
+        let human = run(crate::bot_fill::BotBrain::Off);
+        for seat in &human.bots {
+            assert_eq!(seat.budget, None);
+            assert_eq!(seat.fault, None);
+        }
+        assert!(!names(&human).is_empty() && names(&human).iter().all(|n| n == "human"));
     }
 
     /// P-BOTS-7 remainder: a fill room with a running raid, for the delay-line and name-seam tests.

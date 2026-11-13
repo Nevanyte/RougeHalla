@@ -53,8 +53,8 @@ pub trait Backend {
     fn disable(&self) {}
 }
 
-/// One bot run as the learning store consumes it (source `RunSummary`, minus the brain's choice list, which the server
-/// does not retain yet: the manager's own managed faction key is the only choice it adds).
+/// One bot run as the learning store consumes it (source `RunSummary` without its choice list: a Brain seat's choices
+/// travel beside it through [`LearningSink::record_choices`]; the manager's faction key is always added).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BotRunFacts {
     pub tier: Tier,
@@ -99,6 +99,11 @@ pub fn learning_tier(tier: rh_policy::bots::TierId) -> Tier {
 pub trait LearningSink: Send + Sync {
     fn snapshot(&self) -> LearnedBias;
     fn record(&self, facts: BotRunFacts);
+    /// [`LearningSink::record`] with the bot policy's own choice keys (source `[...summary.choices, factionKey]`). A sink
+    /// that keeps no choices records the facts alone.
+    fn record_choices(&self, facts: BotRunFacts, _choices: &[String]) {
+        self.record(facts);
+    }
 }
 
 /// The pure in-memory state of the store (source `entries`/`baseline`/`dirty`/`lastWriteAt`): synchronous, so the live
@@ -588,8 +593,13 @@ impl<B: Backend + Send + Sync + 'static> LiveLearning<B> {
         }
     }
     pub fn record(&self, facts: BotRunFacts) {
+        self.record_choices(facts, &[]);
+    }
+    /// Source `BotManager.onResult`: the brain's choices in its order, then the manager's faction key.
+    pub fn record_choices(&self, facts: BotRunFacts, brain_choices: &[String]) {
         let now = (self.clock)();
-        let choices = [facts.faction_key()];
+        let mut choices = brain_choices.to_vec();
+        choices.push(facts.faction_key());
         let summary = RunSummary {
             tier: facts.tier,
             outcome: facts.outcome,
@@ -686,6 +696,9 @@ impl<B: Backend + Send + Sync + 'static> LearningSink for LiveLearning<B> {
     }
     fn record(&self, facts: BotRunFacts) {
         self.record(facts)
+    }
+    fn record_choices(&self, facts: BotRunFacts, choices: &[String]) {
+        LiveLearning::record_choices(self, facts, choices)
     }
 }
 #[cfg(test)]

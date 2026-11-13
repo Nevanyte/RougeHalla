@@ -124,6 +124,46 @@ pub struct BotFillConfig {
     pub stats_file: StatsFile,
     /// Which lobby timing the room follows (P-LOBBY-TIMING-1). `Legacy` is every rule above, unchanged.
     pub lobby_timing: LobbyTiming,
+    /// Which policy plays the fill bots (P-BOT-BRAIN-LIVE-1, `--bot-brain`). `Off` keeps HumanBot exactly as before.
+    pub brain: BotBrain,
+}
+
+/// The fill bots' decision core (`--bot-brain off|full`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BotBrain {
+    /// HumanBot, its scripted fallback and no decision budget: today's live fill bot, byte for byte.
+    #[default]
+    Off,
+    /// The ported legacy Brain on the degraded fair profile (BrainBot), HumanBot as its fault fallback, and a
+    /// wall-clock budget per decision ([`BRAIN_DECISION_BUDGET`]) so a slow Brain faults over instead of stalling a room.
+    Full,
+}
+
+/// The live per-decision wall-clock budget of a Brain seat: past it the seat faults and HumanBot plays on. A fault
+/// detector only (never a decision input), far above the measured release cost (p99 under 2 ms per seat).
+pub const BRAIN_DECISION_BUDGET: std::time::Duration = std::time::Duration::from_millis(40);
+
+/// `--bot-brain off|full` (absent: off).
+pub fn bot_brain_flag(args: &[String]) -> Result<BotBrain, String> {
+    let mut found = None;
+    for (i, arg) in args.iter().enumerate() {
+        let value = if arg == "--bot-brain" {
+            Some(args.get(i + 1).map(String::as_str).unwrap_or(""))
+        } else {
+            arg.strip_prefix("--bot-brain=")
+        };
+        if let Some(value) = value {
+            if found.is_some() {
+                return Err("--bot-brain given twice".into());
+            }
+            found = Some(match value {
+                "off" => BotBrain::Off,
+                "full" => BotBrain::Full,
+                _ => return Err("--bot-brain must be off or full".into()),
+            });
+        }
+    }
+    Ok(found.unwrap_or_default())
 }
 
 /// The lobby timing a fill room follows. New owner direction (2026-11-10), not legacy: see P-LOBBY-TIMING-1.
@@ -187,6 +227,7 @@ impl Default for BotFillConfig {
             seed: None,
             stats_file: StatsFile::Default,
             lobby_timing: LobbyTiming::Legacy,
+            brain: BotBrain::Off,
         }
     }
 }
@@ -756,6 +797,7 @@ impl BotFillConfig {
             latency_ms: non_negative(env("BOTS_LATENCY_MS").as_deref(), default.latency_ms),
             jitter_ms: non_negative(env("BOTS_JITTER_MS").as_deref(), default.jitter_ms),
             learned: default.learned,
+            brain: default.brain,
             // Source A: undefined, a whitespace-only value or a non-finite Number keeps the default seed; B: the finite
             // number is truncated and converted with the specification's ToUint32 (so -1 wraps to 4294967295).
             seed: env("BOTS_SEED").and_then(|raw| {

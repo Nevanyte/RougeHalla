@@ -12,7 +12,8 @@
 //! this subsystem (`strategy/`, `tactics.rs`, `modules/`, `memory.rs`, `../humanizer.rs`, `../knowledge.rs`, `../paths.rs`).
 
 mod adapters;
-mod compose14;
+#[cfg(test)]
+mod brain_input_tests;
 #[cfg(test)]
 mod compose14_review_tests;
 #[cfg(test)]
@@ -31,6 +32,19 @@ mod source_input;
 #[cfg(test)]
 mod tests;
 mod trace;
+
+pub(crate) mod compose14;
+pub(crate) mod room_paths;
+
+pub(crate) use super::modules::types::CfgToken as BrainCfgToken;
+pub(crate) use super::strategy::types::LearnedBias as SeatLearnedBias;
+pub(crate) use config::{
+    BrainConfig as SeatBrainConfig, CallerServices as SeatCallerServices,
+    PathHandle as SeatPathHandle, RoomFrame as SeatRoomFrame, RunResult as SeatRunResult,
+};
+pub(crate) use host::ModuleHost as SeatModuleHost;
+#[cfg(test)]
+pub(crate) use trace::BVal as SeatBVal;
 
 use config::{
     BrainConfig, BrainError, BrainMap, BrainRngs, BrainStats, CallerServices, ReleasedCommand,
@@ -390,6 +404,12 @@ impl Brain {
 
     pub(crate) fn id(&self) -> &str {
         &self.id
+    }
+
+    /// The live seat's mob ids are sample-scoped references (P-BOT-BRAIN-LIVE-1): Memory drops a mob record once the
+    /// percept no longer carries its reference (it can never be refreshed), instead of keeping it for the run.
+    pub(crate) fn use_sample_scoped_mob_ids(&mut self) {
+        self.memory.set_sample_scoped_mobs(true);
     }
 
     pub(crate) fn goal(&self) -> &Goal {
@@ -1285,9 +1305,7 @@ fn is_engaged(
     let trade = |at: Option<ServerMs>| {
         at.is_some_and(|at| now - at <= rh_sim::constants::ENGAGE_TRADE_SECONDS * 1000.)
     };
-    (p.me_attack_target.is_some() && last_tactics.attacking)
-        || trade(last_hit_at)
-        || trade(last_dealt_at)
+    (p.me_attack_held && last_tactics.attacking) || trade(last_hit_at) || trade(last_dealt_at)
 }
 
 fn tactics_intents(intents: Vec<TacticsIntent>) -> Vec<HandIntent> {
