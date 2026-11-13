@@ -10,6 +10,8 @@ pub const MAX_ROSTER: usize = 32;
 pub const MAX_ROSTER_NAME: usize = 24;
 /// Roster row flag: the seat is a bot.
 pub const ROSTER_FLAG_BOT: u8 = 1;
+/// Largest room minimum players State key 9 accepts (P-WIRE17-HUD-3): the roster bound; a match seats at most 8.
+pub const MAX_MIN_PLAYERS: u8 = MAX_ROSTER as u8;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
 pub const MAX_REWARD_CHESTS: usize = 512;
@@ -258,7 +260,7 @@ impl Default for WireBuild {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WireInventory {
     pub active_slot: u8,
     /// Carried weapon codes0..4; an empty slot is distinct from fists.
@@ -266,6 +268,10 @@ pub struct WireInventory {
     pub potion_small: u8,
     pub potion_large: u8,
     pub potions_healing: u8,
+    /// P-WIRE17-HUD-3: server ms the running healing potions end (legacy `healingUntil`); `None` when none runs.
+    pub healing_until: Option<f64>,
+    /// P-WIRE17-HUD-3: server ms the wind emblem's speed boost ends (legacy `speedBoostUntil`); `None` when none runs.
+    pub speed_boost_until: Option<f64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -492,6 +498,8 @@ pub struct WireArena {
     pub gates_locked: bool,
     pub sudden_death_at: f64,
     pub started_with: u32,
+    /// P-WIRE17-HUD-3: the room's minimum players (legacy `RaidState.minPlayers`), 0..=[`MAX_MIN_PLAYERS`].
+    pub min_players: u8,
 }
 impl WireArena {
     fn valid(&self) -> bool {
@@ -533,6 +541,8 @@ impl WireArena {
             gates_locked: bool_flag(r)?,
             sudden_death_at: r.f64()?,
             started_with: r.varint()?,
+            // Stub (P-WIRE17-HUD-3): neither written nor read yet.
+            min_players: 0,
         };
         if result.valid() {
             Ok(result)
@@ -2153,6 +2163,9 @@ impl StateItem {
                     potion_small,
                     potion_large,
                     potions_healing,
+                    // Stub (P-WIRE17-HUD-3): neither written nor read yet.
+                    healing_until: None,
+                    speed_boost_until: None,
                 })
             })?),
             2 => Self::Props(WireProps::read(r)?),

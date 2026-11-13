@@ -47,6 +47,9 @@ fn inventory(value: Inventory) -> WireInventory {
         potion_small: value.potion_small,
         potion_large: value.potion_large,
         potions_healing: value.potions_healing,
+        // Stub (P-WIRE17-HUD-3): the owner's clocks are not projected yet.
+        healing_until: None,
+        speed_boost_until: None,
     }
 }
 
@@ -639,6 +642,8 @@ fn arena(observation: &Observation) -> Option<WireArena> {
         gates_locked: a.gates_locked,
         sudden_death_at: a.sudden_death_at,
         started_with: a.started_with,
+        // Stub (P-WIRE17-HUD-3): not projected yet.
+        min_players: 0,
     })
 }
 
@@ -945,6 +950,8 @@ mod tests {
                 potion_small: 5,
                 potion_large: 4,
                 potions_healing: 3,
+                healing_until: None,
+                speed_boost_until: None,
             }),
             ..Observation::default()
         };

@@ -15,6 +15,8 @@ fn view() -> Observation {
             potion_small: 0,
             potion_large: 0,
             potions_healing: 0,
+            healing_until: None,
+            speed_boost_until: None,
         }),
         trade: Some(TradeView {
             trade_used: false,

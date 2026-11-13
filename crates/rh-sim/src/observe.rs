@@ -1586,3 +1586,7 @@ mod panel_tests;
 #[cfg(test)]
 #[path = "observe/panel_tooltip_tests.rs"]
 mod panel_tooltip_tests;
+
+#[cfg(test)]
+#[path = "observe/hud_clock_tests.rs"]
+mod hud_clock_tests;

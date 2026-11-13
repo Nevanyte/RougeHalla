@@ -250,6 +250,7 @@ pub fn document() -> serde_json::Value {
                 gates_locked: false,
                 sudden_death_at: 0.,
                 started_with: 0,
+                min_players: 0,
             }));
             frames[1] = ServerMsg::State { tick, items }.try_encode().unwrap();
         }

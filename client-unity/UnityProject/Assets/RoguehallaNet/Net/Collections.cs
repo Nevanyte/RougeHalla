@@ -29,7 +29,14 @@ namespace Roguehalla.Net
 
     /// <summary>A camp ward as this viewer sees it (never the owner's id).</summary>
     public enum WardVerdict : byte { None = 0, Yours = 1, Other = 2 }
-    public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
+    public struct InventoryView
+    {
+        public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1;
+        /// <summary>P-WIRE17-HUD-3: when the owner's healing potions end (server ms); null when none runs.</summary>
+        public double? HealingUntil;
+        /// <summary>P-WIRE17-HUD-3: when the owner's wind-emblem speed boost ends (server ms); null when none runs.</summary>
+        public double? SpeedBoostUntil;
+    }
     public struct PropView
     {
         public PickupHandle Handle;
@@ -113,6 +120,8 @@ namespace Roguehalla.Net
         public double? PatienceEndsAt;
         public bool InColiseum, GatesLocked;
         public uint StartedWith;
+        /// <summary>P-WIRE17-HUD-3: the room's minimum players ("Waiting for players n/min").</summary>
+        public byte MinPlayers;
     }
     public sealed class QuestRosterEntryView
     {

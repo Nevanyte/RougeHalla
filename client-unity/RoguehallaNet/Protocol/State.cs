@@ -47,7 +47,14 @@ namespace Roguehalla.Net
 
 namespace Roguehalla.Net.Protocol
 {
-    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1; }
+    public struct WireInventory
+    {
+        public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1;
+        /// <summary>P-WIRE17-HUD-3: server ms the running healing potions end (legacy healingUntil); null when none runs.</summary>
+        public double? HealingUntil;
+        /// <summary>P-WIRE17-HUD-3: server ms the wind emblem's speed boost ends (legacy speedBoostUntil); null when none runs.</summary>
+        public double? SpeedBoostUntil;
+    }
     public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6, QuestItem = 7 }
     public struct WireProp
     {
@@ -172,6 +179,10 @@ namespace Roguehalla.Net.Protocol
         public bool InColiseum, GatesLocked;
         public double SuddenDeathAt;
         public uint StartedWith;
+        /// <summary>P-WIRE17-HUD-3: the room's minimum players (legacy RaidState.minPlayers), 0..<see cref="MaxMinPlayers"/>.</summary>
+        public byte MinPlayers;
+        /// <summary>Largest accepted <see cref="MinPlayers"/> (Rust <c>state::MAX_MIN_PLAYERS</c>).</summary>
+        public const byte MaxMinPlayers = 32;
     }
 
     public enum QuestRowState : byte { Preview = 0, Open = 1, Done = 2, Expired = 3 }

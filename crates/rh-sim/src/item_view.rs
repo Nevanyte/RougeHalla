@@ -27,13 +27,19 @@ impl PickupHandle {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Inventory {
     pub active_slot: u8,
     pub potion_small: u8,
     pub potion_large: u8,
     pub potions_healing: u8,
     pub slots: [Option<WeaponId>; 2],
+    /// P-WIRE17-HUD-3: when the owner's running healing potions end (server ms, legacy `healingUntil`); `None` when none
+    /// runs. The owner's own clock: another seat never receives it.
+    pub healing_until: Option<f64>,
+    /// P-WIRE17-HUD-3: when the owner's wind-emblem speed boost ends (server ms, legacy `speedBoostUntil`); `None` when
+    /// none runs.
+    pub speed_boost_until: Option<f64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
@@ -503,6 +509,9 @@ impl ItemObserver {
             potion_large: me.potion_large,
             potions_healing: me.potions_healing,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
+            // Stub (P-WIRE17-HUD-3): the owner's clocks are not observed yet.
+            healing_until: None,
+            speed_boost_until: None,
         });
         if changed {
             out.props.clear();
@@ -993,7 +1002,9 @@ mod tests {
                 potion_large: 0,
                 potions_healing: 0,
                 active_slot: 0,
-                slots: [None, Some(Wand)]
+                slots: [None, Some(Wand)],
+                healing_until: None,
+                speed_boost_until: None,
             })
         );
         assert_eq!(view.props.len(), 5);

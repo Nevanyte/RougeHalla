@@ -320,6 +320,8 @@ fn state_sample() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 4,
                 potions_healing: 3,
+                healing_until: None,
+                speed_boost_until: None,
             })),
             StateItem::Props(WireProps {
                 rows: vec![
@@ -744,6 +746,7 @@ fn state_all_max_budget() -> ServerMsg {
         gates_locked: true,
         sudden_death_at: f64::MAX,
         started_with: 512,
+        min_players: 0,
     };
     let mut msg = ServerMsg::State {
         tick: u32::MAX,
@@ -754,6 +757,8 @@ fn state_all_max_budget() -> ServerMsg {
                 potion_small: 5,
                 potion_large: 5,
                 potions_healing: 3,
+                healing_until: None,
+                speed_boost_until: None,
             })),
             StateItem::Props(WireProps {
                 rows: props,
@@ -1935,6 +1940,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         gates_locked: false,
                         sudden_death_at: 0.,
                         started_with: 7,
+                        min_players: 0,
                     })),
                 ],
             },
