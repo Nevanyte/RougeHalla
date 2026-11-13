@@ -29,7 +29,8 @@ const USAGE: &str = "usage: cargo run --release -p rh-headless --bin tune -- [op
                     crates/rh-policy/data/brain_tuning.json is this file)
   --help
 
-Brain seats are passive until P-BOT-BRAIN-CONTINUITY-1 lands: until then a search's scores mean nothing.";
+Brain seats move and fight (P-BOT-BRAIN-CONTINUITY-1). They do not yet record learning choices
+(P-BOT-BRAIN-CHOICES-1).";
 
 fn value(args: &mut std::slice::Iter<'_, String>, flag: &str) -> Result<String, String> {
     args.next()
@@ -152,7 +153,7 @@ fn run(argv: &[String]) -> Result<(), String> {
     };
     for row in rows {
         println!(
-            "{}: {} ({basis}; best {}/{} vs shipped {}/{} wins)",
+            "{}: {} ({basis}; best {}/{} vs shipped {}/{} wins; tier win share, not the band objective)",
             row.tier.as_str(),
             row.verdict.as_str(),
             row.best.k,
