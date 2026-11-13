@@ -331,3 +331,169 @@ fn side(
     }
     None
 }
+
+/// `lake_at_mouth` on small synthetic maps: the branches no generated seed reaches (P-MAPGEN-SIG-FROST-2 review).
+/// Every map is the full grid, all Frost wall but for the floor each test opens; feature 1 is the cave, the Frost
+/// anchor's mouth is one tile.
+#[cfg(test)]
+mod tests {
+    use super::super::DEFAULT_DEFINITION;
+    use super::*;
+    use crate::mapdata::{ColiseumDef, MapFeature, TileRect, WorldPt};
+
+    fn reach() -> i32 {
+        (DEFAULT_DEFINITION.lake_reach + DEFAULT_DEFINITION.lake_slack) as i32
+    }
+
+    fn map(mouth: (i32, i32)) -> GameMapData {
+        let n = W * H;
+        let rect = TileRect {
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+        };
+        let pt = TilePt {
+            x: mouth.0,
+            y: mouth.1,
+        };
+        GameMapData {
+            tiles: vec![TILE_WALL; n],
+            seed: 0,
+            w: W as u32,
+            h: H as u32,
+            terrain: vec![0; n],
+            props: Vec::new(),
+            region_grid: vec![Zone::Frost.code(); n],
+            attempt: 0,
+            territory_grid: vec![0; n],
+            coliseum: ColiseumDef {
+                rect,
+                centre: WorldPt { x: 0.0, y: 0.0 },
+                gates: Vec::new(),
+                inner_spawns: Vec::new(),
+            },
+            regions: Vec::new(),
+            camps: Vec::new(),
+            spawn_pool: Vec::new(),
+            buildings: Vec::new(),
+            spawns: Vec::new(),
+            crate_spots: Vec::new(),
+            ground_spots: Vec::new(),
+            features: vec![MapFeature {
+                kind: FeatureKind::Cave,
+                variant: String::new(),
+                zone: Zone::Frost,
+                jobs: vec![FeatureJob::Landmark],
+                ax: mouth.0,
+                ay: mouth.1,
+                p: Vec::new(),
+                bbox: rect,
+                tiles: 0,
+            }],
+            feature_grid: vec![0; n],
+            anchors: vec![ZoneAnchor {
+                zone: Zone::Frost,
+                kind: FeatureKind::Cave,
+                centre: pt,
+                footprint: rect,
+                front: 0,
+                entrance: vec![pt],
+            }],
+        }
+    }
+
+    /// Floor along row `y` from `x0` to `x1` inclusive.
+    fn corridor(m: &mut GameMapData, y: i32, x0: i32, x1: i32) {
+        for x in x0..=x1 {
+            m.tiles[at(x, y).unwrap()] = TILE_FLOOR;
+        }
+    }
+
+    /// Ice floor at (x, y), owned by the cave (feature 1) when `cave`.
+    fn ice(m: &mut GameMapData, x: i32, y: i32, cave: bool) {
+        let i = at(x, y).unwrap();
+        m.tiles[i] = TILE_FLOOR;
+        m.terrain[i] = DEFAULT_DEFINITION.ice;
+        m.feature_grid[i] = u8::from(cave);
+    }
+
+    fn ok(m: &GameMapData) -> bool {
+        lake_at_mouth(m, &DEFAULT_DEFINITION)
+    }
+
+    #[test]
+    fn no_unowned_ice_passes_and_the_caves_own_ice_is_never_the_lake() {
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 20);
+        assert!(ok(&m), "no ice at all");
+        for x in 11..=16 {
+            ice(&mut m, x, 20, true);
+        }
+        assert!(ok(&m), "only the cave's own ice, beside the mouth");
+        // A lone unowned tile with no floor path is now the lake, however large the cave's ice.
+        ice(&mut m, 100, 100, false);
+        assert!(!ok(&m), "the cave's ice stood in for a far lake");
+    }
+
+    #[test]
+    fn on_equal_sizes_the_first_body_in_row_order_is_the_lake() {
+        // Near body on the mouth's row, an unreachable body of the same size on a later row: the near one is first.
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 20);
+        ice(&mut m, 12, 20, false);
+        ice(&mut m, 13, 20, false);
+        ice(&mut m, 50, 30, false);
+        ice(&mut m, 51, 30, false);
+        assert!(ok(&m), "the near body comes first in row order");
+        // The same, with the unreachable body on an earlier row: it is the lake, and the map fails.
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 20);
+        ice(&mut m, 12, 20, false);
+        ice(&mut m, 13, 20, false);
+        ice(&mut m, 50, 10, false);
+        ice(&mut m, 51, 10, false);
+        assert!(!ok(&m), "the far body comes first in row order");
+    }
+
+    #[test]
+    fn the_lake_passes_at_exactly_the_reach_and_fails_one_step_beyond() {
+        let r = reach();
+        assert_eq!(r, 10, "lake_reach + lake_slack");
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 10 + r + 5);
+        ice(&mut m, 10 + r, 20, false);
+        assert!(ok(&m), "{r} floor steps");
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 10 + r + 5);
+        ice(&mut m, 10 + r + 1, 20, false);
+        assert!(!ok(&m), "{} floor steps", r + 1);
+        // Walked steps, not straight-line distance: two rows below the mouth across a wall, 3 + 2 + 3 = 8 steps round.
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 13);
+        corridor(&mut m, 21, 13, 13);
+        corridor(&mut m, 22, 10, 13);
+        ice(&mut m, 10, 22, false);
+        assert!(ok(&m), "8 walked steps round the wall");
+        // The same detour stretched past the reach (5 + 2 + 5 = 12 steps) fails though the lake is 2 tiles away.
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 15);
+        corridor(&mut m, 21, 15, 15);
+        corridor(&mut m, 22, 10, 15);
+        ice(&mut m, 10, 22, false);
+        assert!(!ok(&m), "12 walked steps round the wall");
+    }
+
+    #[test]
+    fn a_mouth_with_no_floor_path_to_the_lake_fails() {
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 10, 14);
+        ice(&mut m, 16, 20, false);
+        assert!(!ok(&m), "a wall between the mouth and the lake");
+        // A mouth that is not floor starts no walk.
+        let mut m = map((10, 20));
+        corridor(&mut m, 20, 11, 14);
+        ice(&mut m, 12, 20, false);
+        assert!(!ok(&m), "the mouth tile is wall");
+    }
+}

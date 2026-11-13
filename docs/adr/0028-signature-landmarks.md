@@ -37,7 +37,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 1. **Where.** `rh_sim::mapgen::landmarks::signature`, a step inside the Landmarks phase: `pipeline::build_attempt`
    runs it right after the legacy landmark stage and before the spawn preparation, only when
    `pipeline::Options::signature` (serde default `false`) and the attempt is styled. Zones in order Fire, Sentenced,
-   Plague, Frost; each keeps out of the aprons marked before it. All four landmarks are generator-placed; nothing is
+   Plague, Frost; the volcano and the bog tree keep out of the aprons marked before them, and the end-of-attempt
+   discard keeps every landmark out of every other's apron (decision 6). All four landmarks are generator-placed; nothing is
    added after generation. Not a landmark recipe: the legacy
    stage admits only floor-to-wall writes owned by `FeatureKind::Landmark`, whose certifier rules and `map.buildings`
    records belong to the legacy buildings.
@@ -73,8 +74,10 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    rule (P-MAPGEN-SIG-FROST-2) is symmetric: for every ordered pair of the five landmarks (the volcano, whose streams
    and pools count as its tiles while its apron is the cone's box grown by the core band; the church with its
    graveyard; the bog tree; the cave; the Holy hall on the Holy anchor's footprint), no tile of one lies in the other's
-   boxes grown by the core band. Placement keeps each landmark's walls out of the aprons marked before it, never the
-   earlier landmarks out of its own, so only the discard makes the rule independent of the placement order.
+   boxes grown by the core band. At placement only the volcano and the bog tree keep out of the aprons marked before
+   them (`Site::ground`); the church and the cave read no apron (`Site::wall` only; seed 46's cave stood in the
+   volcano's apron), and no landmark keeps the earlier ones out of its own. The end-of-attempt discard is the rule for
+   all five, independent of the placement order.
 7. **Anchors (G3).** `GameMapData.anchors` only, zone-code order, omitted from JSON when empty. They are not on the
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the

@@ -259,9 +259,11 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
-    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order, each keeping
-    /// out of the aprons marked before it. `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
-    /// never built without it; the pipeline tries the next attempt).
+    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order. Only the
+    /// volcano and the bog tree keep their tiles out of the aprons marked before them (`Site::ground`); the church and
+    /// the cave place their walls on any free wall tile (`Site::wall`). The rule that no landmark lies in another's
+    /// apron is the end-of-attempt discard (`intact`). `Ok(None)` refuses the attempt (G5: a zone that cannot hold its
+    /// landmark is never built without it; the pipeline tries the next attempt).
     pub fn apply(
         &self,
         frame: &AttemptFrame,
@@ -493,8 +495,10 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// G1, G5 (P-MAPGEN-SIG-FROST-2): no tile of one landmark lies in another landmark's apron, for every ordered pair
-    /// of the five. Placement keeps each landmark's walls out of the aprons marked before it (`Site::ground`) but not
-    /// the earlier landmarks out of its own; this check is symmetric, so the placement order decides nothing. The
+    /// of the five. At placement only the volcano and the bog tree keep out of the aprons marked before them
+    /// (`Site::ground`); the church and the cave read no apron (`Site::wall` only), and no landmark keeps the earlier
+    /// ones out of its own apron. This check is the rule for all five, and symmetric, so the placement order decides
+    /// nothing. The
     /// landmarks: the volcano (its streams and pools count as its tiles; its apron is the cone's box), the church with
     /// its graveyard, the bog tree, the cave, and the Holy hall (the Holy `Hall` on the Holy anchor's footprint). An
     /// apron is each of the landmark's boxes grown by the core band.
