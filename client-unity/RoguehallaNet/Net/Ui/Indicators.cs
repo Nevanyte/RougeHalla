@@ -198,11 +198,11 @@ namespace Roguehalla.Net.Ui
 
         /// <summary>
         /// P-UNITY-HUD-STATUS-2: as the overload above, the room's minimum read from <see cref="ArenaView.MinPlayers"/> (legacy hud.ts:44, :193
-        /// <c>state.minPlayers</c>; 0 = not delivered, which drops the "/min" part). STUB: passes 0 until the packet lands.
+        /// <c>state.minPlayers</c>; 0 = not delivered, which drops the "/min" part).
         /// </summary>
         public static string PhaseLine(MatchPhase phase, double serverMs, ArenaView? arena, int playerCount, string winnerLabel, out ArenaLineTone tone)
         {
-            return PhaseLine(phase, serverMs, arena, playerCount, 0, winnerLabel, out tone);
+            return PhaseLine(phase, serverMs, arena, playerCount, arena.HasValue ? arena.Value.MinPlayers : 0, winnerLabel, out tone);
         }
 
         /// <summary>Quest giver mark: "!" for an offer not yet accepted, "?" for one held (QuestView.ts:64).</summary>

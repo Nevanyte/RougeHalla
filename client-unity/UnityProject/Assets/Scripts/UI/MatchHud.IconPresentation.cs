@@ -70,7 +70,9 @@ namespace Roguehalla.Client
                 _damageHint.Text = DamageUnavailable + (rows.Auto.Detail.Length > 0 ? "\n" + rows.Auto.Detail : "") + (rows.Roam.Length > 0 ? "\n" + rows.Roam : "");
         }
 
-        struct PotionKey { public bool Delivered; public int Large, Small, Healing; public bool Equals(PotionKey o) { return Delivered == o.Delivered && Large == o.Large && Small == o.Small && Healing == o.Healing; } }
+        struct PotionKey { public bool Delivered; public int Large, Small, Healing, HealSec, WindSec; public bool Equals(PotionKey o) { return Delivered == o.Delivered && Large == o.Large && Small == o.Small && Healing == o.Healing && HealSec == o.HealSec && WindSec == o.WindSec; } }
+        /// <summary>The whole seconds shown for a delivered end time (rounded up, 0 once it has passed); -1 when no clock is delivered. The texts redraw when this changes.</summary>
+        static int ShownSecond(double? until, double now) { return !until.HasValue ? -1 : until.Value > now ? (int)System.Math.Ceiling((until.Value - now) / 1000d) : 0; }
         PotionKey _potionKey; bool _potionKeyValid;
 
         static string WishIconText(WishView? wish, double serverTimeMs)
@@ -85,7 +87,9 @@ namespace Roguehalla.Client
         readonly Roguehalla.Net.Protocol.WireHudContent[] _slotBlock = new Roguehalla.Net.Protocol.WireHudContent[2];
         readonly WeaponId?[] _slotWeapon = new WeaponId?[2];
 
-        void UpdateInventoryHints(InventoryView? inventory)
+        void UpdateInventoryHints(InventoryView? inventory) { ApplyInventoryHints(inventory, _session != null ? _session.ServerTimeMs : 0d); }
+
+        void ApplyInventoryHints(InventoryView? inventory, double now)
         {
             for (int i = 0; i < 2; i++)
             {
@@ -102,15 +106,16 @@ namespace Roguehalla.Client
                 string title = !weapon.HasValue ? "Empty weapon slot" : scaling.Length > 0 ? HudContentText.SlotTip(block, weapon.Value) : weapon.ToString();
                 if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " \u00b7 " + title + (equipped ? " \u00b7 equipped" : "\nSelect weapon slot");
             }
-            // Cache on the values shown: the texts rebuild only when delivery, a count or the healing count changes.
-            var key = new PotionKey { Delivered = inventory.HasValue, Large = inventory.HasValue ? inventory.Value.PotionLarge : 0, Small = inventory.HasValue ? inventory.Value.PotionSmall : 0, Healing = inventory.HasValue ? inventory.Value.PotionsHealing : 0 };
+            // Cache on the values shown: the texts rebuild only when delivery, a count, the healing count or a shown second changes (the per-frame owner refresh re-runs this).
+            var key = new PotionKey { Delivered = inventory.HasValue, Large = inventory.HasValue ? inventory.Value.PotionLarge : 0, Small = inventory.HasValue ? inventory.Value.PotionSmall : 0, Healing = inventory.HasValue ? inventory.Value.PotionsHealing : 0,
+                HealSec = inventory.HasValue ? ShownSecond(inventory.Value.HealingUntil, now) : -1, WindSec = inventory.HasValue ? ShownSecond(inventory.Value.SpeedBoostUntil, now) : -1 };
             if (_potionKeyValid && key.Equals(_potionKey)) return;
             _potionKey = key; _potionKeyValid = _healText != null && _potionHint != null;
             if (_healText != null)
             {
-                // Healing end time is not on the wire: count-only status (SlotText.HealingStatus with a null end).
                 Set(_healText, SlotText.PotionCounts(key.Large, key.Small, key.Delivered));
-                Set(_healStatus, SlotText.HealingStatus(key.Healing, null, 0d));
+                Set(_healStatus, SlotText.HealingSlot(inventory, now));
+                if (_windText != null) Set(_windText, SlotText.WindEmblem(inventory, now));
             }
             if (_potionHint != null) _potionHint.Text = key.Delivered ? "E · Drink potion\n" + key.Small + " small / " + key.Large + " camp / " + key.Healing + " healing" : "E · Drink potion\nAwaiting inventory";
         }

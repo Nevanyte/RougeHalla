@@ -314,6 +314,8 @@ namespace Roguehalla.Client
         internal void RefreshOwnerPresentation(SelfView me, double serverTimeMs)
         {
             RefreshDamageReadout(me);
+            // The healing and wind seconds count down with the clock: re-run the (cached) texts every frame.
+            if (_session != null) ApplyInventoryHints(_session.Collections.Inventory, serverTimeMs);
             if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
             {
                 Set(_vitals, ShowcasePalette.GetFactionName((int)me.Faction) + " · HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#"));
