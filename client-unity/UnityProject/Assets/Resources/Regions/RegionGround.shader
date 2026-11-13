@@ -563,7 +563,7 @@ Shader "Roguehalla/RegionGround"
                 {
                     float2 vuv = (floor(t + warp * 0.35) + 0.5) / _Map.xy;
                     half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_VariantTex, vuv, 0);
-                    col = lerp(col, vt.rgb * vt.rgb, vt.a);        // stored as sRGB bytes; the table colours are linear-agnostic as the palette is
+                    col = lerp(col, vt.rgb, vt.a);                  // raw bytes, the same convention as the palette colours
                 }
 
                 float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
