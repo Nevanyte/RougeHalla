@@ -4,6 +4,53 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-13 (chat, evening): the landmark generator lane goes to the map generator session
+
+The owner told the coordinator "I still have the map generator finishing up, you just need to make sure unity front
+end is ready", and, asked who builds the four remaining landmark generator packets (bog tree, volcano, Holy hall,
+church), answered **"Map generator session"**. From here that session owns the generator code that places each
+approved drawing (P-MAPGEN-STYLE-REFUSE-1, P-MAPGEN-SIG-SCALE-2 to -4, P-MAPGEN-SIG-HOLY-1 and the cave's follow-up);
+the coordinator stops after the cave (P-MAPGEN-SIG-SCALE-1), keeps review and merge, the shared records, the wire and
+all Unity work. Hand-over: [coordination/LANDMARK_LANE_HANDOVER.md](coordination/LANDMARK_LANE_HANDOVER.md).
+The coordinator's Unity list: landmark anchors on the wire (P-WIRE17-MAP-3, in flight), landmark art
+(P-UNITY-LANDMARK-1 framework and cave, then the other four), the world marks (P-UNITY-WORLD-MARKS-2, reviewed LAND),
+decoration art for the 25 stand-in kinds, Frost Wall's drawing, screenshot rounds with a visual review, the Web build
+and the browser proof. The bot packets and Frost Wall's sim and wire parts continue behind that.
+
+## Owner decision 2026-11-13 (chat, evening): P-BOT-BRAIN-CONTINUITY-1's two points ("Accept both")
+
+The coordinator asked the owner to confirm two things reviewer-opus raised on the worker session's
+P-BOT-BRAIN-CONTINUITY-1 branch, with a recommendation to accept both; the owner answered **"Accept both"**:
+(1) the 7-line fix in `tactics/kite.rs`, outside the packet's write scope (a bow pull with an unknown start time is
+no longer treated as a shot; before, it froze the seat's orders for the rest of the run); (2) the two oracle edits
+the worker made after implementing (the floors window lengthened from 6,000 to 16,000 ticks; the replay check
+shortened). The branch merges on that basis. Recorded with it, as an open weakness and not as proof: the Brain farms
+camps but fights less than the simple bots (11 deaths over 32,000 ticks against 14 over about 10,200), and the
+shortened replay check exists only because of the sim's replay fault (P-SIM-REPLAY-LONG-1, in flight: the claim in
+that branch's hand-off that it is "not established whether the divergence predates this branch" is superseded: it
+does predate it; the cause is `systems/mob_ai.rs:228` scanning the whole output event buffer).
+
+## Owner decision 2026-11-13 (chat, evening): the church with its churchyard is approved
+
+The coordinator showed the redrawn church (the session's picture and write-up) and asked "Is the redrawn church with
+its churchyard approved?"; the owner answered **"Approve"**. The grid is checked in as
+`docs/landmarks/blueprints/church.txt`: the building is 23 x 14 (it was 29 x 17), 8 pillars, no altar; the graveyard
+is 11 rows deep; the churchyard fence has the 5-wide main gate and eleven 3-wide gates (a 29-tile side cannot hold a
+fence run over 9 tiles or a closed corner arm over 5, so each side has three gates); the door line to the main gate
+line is 12 rows, which the land-generation session's lanes need. All five blueprints are now approved. Still open
+with the owner the same hour: the two P-BOT-BRAIN-CONTINUITY-1 confirmations.
+
+## Owner decision 2026-11-13 (chat, late afternoon): "Finish everything first"
+
+The coordinator told the owner that the plan's three unfinished parts (larger landmarks with their art, Frost Wall
+beyond the sim, bots that actually learn) all sit behind switches that are off by default, and asked whether to cut
+the release now without them. The owner answered **"Finish everything first"**: no release is cut until those are
+done. The finish steps (final combined review, protocol 18 stamp, Web build, browser proof, one beta host, the PR to
+`main`) wait for them. Order from here: the landmark packets one at a time on `signature/mod.rs` (bog tree, volcano,
+Holy hall, then the church once its redraw is approved and P-MAPGEN-STYLE-REFUSE-1 has landed); the landmark anchors
+on the wire (P-WIRE17-MAP-3) and the Unity landmark art; Frost Wall parts 1b, 2 and the Unity packet; the Brain
+recording its choices, the tuner's evidence, and the runs; then the screenshot rounds and the finish steps.
+
 ## Owner decision 2026-11-13 (chat, afternoon): the churchyard ("Yes, add churchyard")
 
 The coordinator put requirement L2a to the owner (the land-generation session's

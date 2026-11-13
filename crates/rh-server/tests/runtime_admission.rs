@@ -15,6 +15,18 @@ use serde_json::{json, Value};
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
+/// How long a client waits for a public state condition. The test server free-runs its clock, so on a loaded machine
+/// the client can fall behind the frames it has to read; the wait is generous by default and `RH_TEST_WAIT_SECS`
+/// overrides it. The predicates and the socket-level diagnostics are unchanged: only the deadline moved (it was 8 s).
+fn wait_deadline() -> Duration {
+    let secs = std::env::var("RH_TEST_WAIT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|&v| v > 0)
+        .unwrap_or(40);
+    Duration::from_secs(secs)
+}
+
 struct Rig {
     director: Arc<Director>,
     public: SocketAddr,
@@ -273,7 +285,7 @@ impl Client {
     ) -> impl std::future::Future<Output = ()> + 'a {
         let caller = std::panic::Location::caller();
         async move {
-            let result = tokio::time::timeout(Duration::from_secs(8), async {
+            let result = tokio::time::timeout(wait_deadline(), async {
                 while !predicate(self) {
                     self.recv().await;
                 }

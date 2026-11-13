@@ -450,6 +450,15 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-ALLOC-CLONE-WARM-1 | the first step after a clone or a restore allocates nothing, and the test that says so runs under the gate | P-TRAINING-CAMPS-1 | Brief ([spec](packets/P-ALLOC-CLONE-WARM-1.md)); needs oracle | none |
 | P-UNITY-DRESS-1 | the client draws the decoration the server sends and rolls none of its own | P-DRESS-BAKE-1 | Brief ([spec](packets/P-UNITY-DRESS-1.md)); oracle being written | none |
 | P-SIM-REPLAY-LONG-1 | a replay steps exactly as the live room does, so a long recording verifies (stale events in an uncleared buffer wake shield mobs) | none | Brief ([spec](packets/P-SIM-REPLAY-LONG-1.md)); needs oracle | none |
+| P-MAPGEN-STYLE-REFUSE-1 | a styler that cannot build round its landmark refuses the attempt; it does not fail generation | P-LAND-SENTENCED-1 | Brief ([spec](packets/P-MAPGEN-STYLE-REFUSE-1.md)); needs oracle; before P-MAPGEN-SIG-SCALE-2 | none |
+| P-WIRE17-MAP-3 | the map blob carries each zone's landmark anchor, so the client can draw landmarks as landmarks | P-WIRE17-MAP-2 | Brief ([spec](packets/P-WIRE17-MAP-3.md)); oracle being written | none |
+| P-UNITY-WORLD-MARKS-2 | the client draws each camp's patience range and the quest carrier's flag | P-WIRE17-MAP-2 | Brief ([spec](packets/P-UNITY-WORLD-MARKS-2.md)); oracle being written | client/src/render/CampPatience.ts, QuestView.ts |
+| P-FROST-WALL-1b | Frost Wall, second sim part: fighters it lands on, walks under way, mobs and blinks | P-FROST-WALL-1 | Brief ([spec](packets/P-FROST-WALL-1b.md)); needs oracle | legacy patch 78dd8bd4 |
+| P-FROST-WALL-2 | Frost Wall on the wire, and the live profiles select it | P-FROST-WALL-1b, P-WIRE17-MAP-3 | Brief ([spec](packets/P-FROST-WALL-2.md)); needs oracle | legacy patch 78dd8bd4, cde6f785 |
+| P-BOT-BRAIN-CHOICES-1 | a Brain seat records the choices it makes, so the learner has something to learn from | P-BOT-BRAIN-CONTINUITY-1, P-BOT-LEARN-ON-1 | Brief ([spec](packets/P-BOT-BRAIN-CHOICES-1.md)); needs oracle | server/src/bots/brain.ts |
+| P-BOT-TUNER-2 | the search's output can tell an improvement from noise (per-tier intervals, a held-out re-score) | P-BOT-TUNER-1 | Brief ([spec](packets/P-BOT-TUNER-2.md)); needs oracle | none |
+| P-UNITY-LANDMARK-1 | the client draws a zone's landmark as a landmark: the framework (art derived from the delivered tiles inside the anchor's footprint; a roof that fades when you are inside) and the Frost cave | P-WIRE17-MAP-3, P-MAPGEN-SIG-SCALE-1 | Brief ([spec](packets/P-UNITY-LANDMARK-1.md)); needs oracle | none |
+| P-UNITY-LANDMARK-2 to -5 | landmark art for the volcano, the church with its churchyard, the bog tree and the Holy hall, one packet each on the framework | P-UNITY-LANDMARK-1 | Coarse: briefs written when the framework lands | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
