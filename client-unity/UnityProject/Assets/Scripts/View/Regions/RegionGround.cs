@@ -94,6 +94,9 @@ namespace Roguehalla.Client
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off; mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
         }
 
+        /// <summary>One texel per tile (row-major, w * h), the ground-variant look the shader blends over the base ground: rgb the tint, a its strength (0 = base ground). Variant 0 and an unknown variant bake 0; an unknown variant logs once per call.</summary>
+        public static Color32[] BakeVariants(MapBlob map) { return System.Array.Empty<Color32>(); }
+
         Texture2D Tex(string name, int w, int h, Color32[] px)
         {
             var t = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = name, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };

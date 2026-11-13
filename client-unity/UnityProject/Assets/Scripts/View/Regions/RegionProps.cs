@@ -12,7 +12,9 @@ namespace Roguehalla.Client
 {
     public sealed class RegionProps : System.IDisposable
     {
-        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias; }
+        public struct Placement { public string Art; public float X, Y, Scale; public bool Flip; public int Tx, Ty; public int Bias;
+            /// <summary>Set only for a prop the server sent (MapBlob.Props): its kind code, variant and flags (tall 1, legacy 2). Kind 0 means a client-rolled placement.</summary>
+            public byte Kind, Variant, Flags; }
 
         struct Prop
         {
