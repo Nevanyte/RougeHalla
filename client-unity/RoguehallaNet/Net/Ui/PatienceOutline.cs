@@ -31,7 +31,17 @@ namespace Roguehalla.Net.Ui
         public static void Edges(byte[] plane, int w, int h, int campRef, List<PatienceEdge> into)
         {
             into.Clear();
-            // stub: the implementer builds the edge list.
+            if (plane == null || w <= 0 || h <= 0 || campRef <= 0 || campRef > 255 || (long)w * h != plane.Length) return;
+            byte c = (byte)campRef;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    if (plane[y * w + x] != c) continue;
+                    if (y == 0 || plane[(y - 1) * w + x] != c) into.Add(new PatienceEdge(x, y, x + 1, y));
+                    if (y == h - 1 || plane[(y + 1) * w + x] != c) into.Add(new PatienceEdge(x, y + 1, x + 1, y + 1));
+                    if (x == 0 || plane[y * w + x - 1] != c) into.Add(new PatienceEdge(x, y, x, y + 1));
+                    if (x == w - 1 || plane[y * w + x + 1] != c) into.Add(new PatienceEdge(x + 1, y, x + 1, y + 1));
+                }
         }
 
         /// <summary>Legacy draws a camp's outline and label exactly while the phase is active, the run is not training and the camp has a living mob
@@ -39,7 +49,7 @@ namespace Roguehalla.Net.Ui
         /// local player's position or combat enters.</summary>
         public static bool Visible(MatchPhase? phase, bool training, uint alive)
         {
-            return false; // stub
+            return phase == MatchPhase.Active && !training && alive > 0;
         }
     }
 }

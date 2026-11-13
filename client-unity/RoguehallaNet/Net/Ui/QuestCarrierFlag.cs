@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net.Ui
 {
@@ -27,7 +28,15 @@ namespace Roguehalla.Net.Ui
         public static void Rows(QuestView quests, double serverMs, List<CarrierFlagRow> into)
         {
             into.Clear();
-            // stub: the implementer fills the rows.
+            if (quests == null || !quests.Available) return;
+            var rows = quests.Rows;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                if (r.State != QuestRowState.Open || !r.CarrierActor.HasValue) continue;
+                if (r.ExpiresAt > 0 && serverMs >= r.ExpiresAt) continue;
+                into.Add(new CarrierFlagRow { Actor = r.CarrierActor.Value, GiverX = r.GiverX, GiverY = r.GiverY });
+            }
         }
     }
 }
