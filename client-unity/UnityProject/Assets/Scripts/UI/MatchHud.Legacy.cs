@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Roguehalla.Net;
+using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
 
@@ -29,7 +30,7 @@ namespace Roguehalla.Client
         readonly RectTransform[] _buildCells = new RectTransform[9];
         bool _extrasOpen, _plateActive;
         // Weapon bar.
-        readonly TMP_Text[] _slotNames = new TMP_Text[2];
+        readonly TMP_Text[] _slotNames = new TMP_Text[2], _slotScaling = new TMP_Text[2];
         readonly UnityEngine.UI.Image[] _slotSweeps = new UnityEngine.UI.Image[2];
         readonly CanvasGroup[] _slotGroups = new CanvasGroup[2];
         UnityEngine.UI.Button _swapChip, _potionButton, _windChip;
@@ -268,7 +269,7 @@ namespace Roguehalla.Client
                 _championLabel[i] = HudUi.Label(HudUi.At(row, "Name", 6, 2, 72, 14), "Label", labels[i], theme.SizeTiny, theme.TextSecondary, bold: true);
                 _championLabel[i].GetComponent<MythicTextScale>().MinSize = 8f;
                 _championValue[i] = HudUi.Label(HudUi.At(row, "Value", 80, 1, 152, 15), "Value", "—", 12f, theme.TextPrimary, bold: true);
-                _championValue[i].GetComponent<MythicTextScale>().MinSize = 10f;
+                _championValue[i].GetComponent<MythicTextScale>().MinSize = i == 2 ? 8f : 10f;   // the longest Wish value needs the smaller floor
                 _championScaling[i] = HudUi.Label(HudUi.At(row, "Scaling", 6, 17, 224, 11), "Scaling", "", theme.SizeMicro, theme.TextSecondary);
             }
             _damageHit = _championValue[0]; _damageRate = _championScaling[0];
@@ -278,12 +279,29 @@ namespace Roguehalla.Client
             _damageHint = HudIconHint.Attach(focus, _root, DamageUnavailable);
         }
 
-        /// <summary>P-UNITY-HUD-BUILD-3: the Welcome's HUD content block the panel and slots read (null until delivered). STUB: nothing reads it yet.</summary>
-        public Roguehalla.Net.Protocol.WireHudContent HudContent { get; set; }
+        Roguehalla.Net.Protocol.WireHudContent _hudContent;
+        /// <summary>P-UNITY-HUD-BUILD-3: the Welcome's HUD content block the panel and slots read (null until delivered). Unset, it is the session's.</summary>
+        public Roguehalla.Net.Protocol.WireHudContent HudContent
+        {
+            get { return _hudContent ?? _session?.Welcome?.Hud; }
+            set { _hudContent = value; }
+        }
 
-        /// <summary>P-UNITY-HUD-BUILD-3: draws the Wish row (label, value, scaling) for <paramref name="me"/>. STUB: draws nothing; the implementer moves
-        /// the Wish-row lines of <c>RefreshLegacyHud</c> here.</summary>
-        void ApplyWishRow(SelfView me) { }
+        /// <summary>P-UNITY-HUD-BUILD-3: draws the Wish row (label, value, scaling) for <paramref name="me"/>. With the HUD block the label is the
+        /// ability name and the lines are legacy's numbers; without it, the stock "Ability · charges/max" text under the label "Wish".</summary>
+        void ApplyWishRow(SelfView me)
+        {
+            if (_championValue[2] == null || me == null) return;
+            var block = HudContent;
+            if (block != null)
+            {
+                var row = HudContentText.Wish(block, me.Faction);
+                Set(_championLabel[2], row.Name); Set(_championValue[2], row.Value); Set(_championScaling[2], row.Scaling);
+                return;
+            }
+            Set(_championLabel[2], "Wish"); Set(_championScaling[2], "");
+            Set(_championValue[2], me.Wish.HasValue ? me.Wish.Value.Ability + " \u00b7 " + me.Wish.Value.Charges + "/" + me.Wish.Value.MaxCharges : "\u2014");
+        }
 
         const string DamageUnavailable = "Combat overview\nRaw values are before target mitigation; this is not measured DPS.";
 
@@ -326,7 +344,7 @@ namespace Roguehalla.Client
                 _weaponIcons[i].rectTransform.anchorMin = _weaponIcons[i].rectTransform.anchorMax = new Vector2(.5f, 1f);
                 _weaponIcons[i].rectTransform.pivot = new Vector2(.5f, 1f); _weaponIcons[i].rectTransform.anchoredPosition = new Vector2(0, -12);
                 _slotNames[i] = HudUi.Label(HudUi.At(rect, "Name", 4, 42, SlotWidth - 8, 14), "Label", "Empty", theme.SizeSmall, theme.TextPrimary, TextAlignmentOptions.Center);
-                HudUi.Label(HudUi.At(rect, "Scaling", 4, 59, SlotWidth - 8, 11), "Label", "", theme.SizeMicro, theme.TextSecondary, TextAlignmentOptions.Center);
+                _slotScaling[i] = HudUi.Label(HudUi.At(rect, "Scaling", 2, 59, SlotWidth - 4, 11), "Label", "", theme.SizeMicro, theme.TextSecondary, TextAlignmentOptions.Center, wrap: true);
                 var sweep = HudUi.Fill(rect, "CooldownSweep", Tone(theme.OutlineDark, .62f));
                 sweep.rectTransform.offsetMin = new Vector2(1f, 1f); sweep.rectTransform.offsetMax = new Vector2(-1f, -1f);
                 sweep.sprite = UiSprites.Flat(); sweep.type = UnityEngine.UI.Image.Type.Filled;
@@ -485,9 +503,8 @@ namespace Roguehalla.Client
                 _championName.color = theme.FactionColor((int)me.Faction);
                 if (_championIcon != null) { _championIcon.sprite = MapGlyphs.Sprite(LaunchCopy.Houses[Mathf.Clamp((int)me.Faction, 0, 4)].Shape); _championIcon.color = theme.FactionColor((int)me.Faction); }
             }
-            // Wish row of the champion HUD: the ability name and stock the server delivered.
-            if (_championValue[2] != null)
-                Set(_championValue[2], me.Wish.HasValue ? me.Wish.Value.Ability + " · " + me.Wish.Value.Charges + "/" + me.Wish.Value.MaxCharges : "—");
+            // Wish row of the champion HUD: the ability name and numbers the server delivered.
+            ApplyWishRow(me);
             RefreshWishTile(me.Wish, serverTimeMs, theme);
             RefreshCooldownSweep(me);
             RefreshHudElementVisibility();

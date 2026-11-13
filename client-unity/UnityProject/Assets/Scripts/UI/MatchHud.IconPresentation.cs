@@ -35,7 +35,7 @@ namespace Roguehalla.Client
 
         // The panel is re-sent as often as every tick: rows are rebuilt only when a value they show changes.
         readonly Roguehalla.Net.Protocol.WirePanelValue[] _panelShown = new Roguehalla.Net.Protocol.WirePanelValue[Roguehalla.Net.Protocol.Hud.MaxPanelValues];
-        int _panelShownCount = -1;
+        int _panelShownCount = -1; Roguehalla.Net.Protocol.WireHudContent _panelHud; double? _panelAs;
         FactionId _panelFaction; WeaponId _panelWeapon;
 
         /// <summary>Draws the auto and passive rows from the owner's panel values (legacy championCombatModel). Before the first
@@ -53,17 +53,20 @@ namespace Roguehalla.Client
                 if (_damageHint != null) _damageHint.Text = DamageUnavailable;
                 return;
             }
-            bool same = _panelShownCount == panel.Length && _panelFaction == me.Faction && _panelWeapon == me.Weapon;
+            var block = HudContent; double? asMilli = me.OwnerCombat.HasValue ? me.OwnerCombat.Value.AsMilli : (double?)null;
+            bool same = _panelShownCount == panel.Length && _panelFaction == me.Faction && _panelWeapon == me.Weapon && ReferenceEquals(_panelHud, block) && _panelAs == asMilli;
             for (int i = 0; same && i < panel.Length; i++)
                 same = _panelShown[i].Code == panel[i].Code && _panelShown[i].Value == panel[i].Value;
             if (same) return;
-            _panelShownCount = panel.Length; _panelFaction = me.Faction; _panelWeapon = me.Weapon;
+            _panelShownCount = panel.Length; _panelFaction = me.Faction; _panelWeapon = me.Weapon; _panelHud = block; _panelAs = asMilli;
             for (int i = 0; i < panel.Length; i++) _panelShown[i] = panel[i];
             var rows = ChampionPanelText.Rows(summary, me.Faction, me.Weapon);
             Set(_championLabel[0], rows.Auto.Name); Set(_championLabel[1], rows.Passive.Name);
-            Set(_championValue[0], rows.Auto.Value); Set(_championScaling[0], rows.Auto.Scaling);
+            Set(_championValue[0], rows.Auto.Value); Set(_championScaling[0], block != null ? HudContentText.AutoScaling(block, me.Weapon) : rows.Auto.Scaling);
             Set(_championValue[1], rows.Passive.Value); Set(_championScaling[1], rows.Passive.Scaling);
-            if (_damageHint != null)
+            if (_damageHint != null && block != null)
+                _damageHint.Text = DamageUnavailable + "\n" + HudContentText.AutoTooltip(summary, block, me.Faction, me.Weapon, asMilli);
+            else if (_damageHint != null)
                 _damageHint.Text = DamageUnavailable + (rows.Auto.Detail.Length > 0 ? "\n" + rows.Auto.Detail : "") + (rows.Roam.Length > 0 ? "\n" + rows.Roam : "");
         }
 
@@ -85,7 +88,9 @@ namespace Roguehalla.Client
                 var weapon = !inventory.HasValue ? null : i == 0 ? inventory.Value.Slot0 : inventory.Value.Slot1;
                 Set(_slots[i].GetComponentInChildren<TMP_Text>(true), (i + 1).ToString());
                 if (_slotNames[i] != null) Set(_slotNames[i], weapon.HasValue ? weapon.Value.ToString() : "Empty");
-                if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " · " + (weapon.HasValue ? weapon.ToString() : "Empty weapon slot") +
+                if (_slotScaling[i] != null) Set(_slotScaling[i], weapon.HasValue ? HudContentText.SlotScaling(HudContent, weapon.Value) : "");
+                string tip = weapon.HasValue ? HudContentText.SlotTip(HudContent, weapon.Value) : "";
+                if (_weaponHints[i] != null) _weaponHints[i].Text = (i + 1) + " · " + (weapon.HasValue ? (tip.Contains("\n") ? tip : weapon.ToString()) : "Empty weapon slot") +
                     (inventory.HasValue && inventory.Value.ActiveSlot == i ? " · equipped" : "\nSelect weapon slot");
             }
             // Cache on the values shown: the texts rebuild only when delivery, a count or the healing count changes.
