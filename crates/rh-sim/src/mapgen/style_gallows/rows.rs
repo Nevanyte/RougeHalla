@@ -62,34 +62,32 @@ fn close_segment(
     seg.clear();
     *cut_start = false;
 }
+/// Lays one open stretch of a row: `gate(s)` marks the gate tiles, `skip(s)` the tiles left open without a gate (the
+/// square's window), a stretch shorter than `min_run` lays nothing and a segment shorter than `min_piece` is dropped.
 #[allow(clippy::too_many_arguments)]
-fn flush(
+pub(super) fn flush(
     c: &ShapeContext<'_, '_>,
-    grid: &Grid,
     entry_s: &mut Vec<i32>,
     entry_i: &mut Vec<i32>,
     rp: &mut RowPlan,
     start_closed: bool,
     end_tile: i32,
-    win: &Option<Square>,
-    d: &Dials,
-    rules: &Definition<'_>,
+    gate: &dyn Fn(i32) -> bool,
+    skip: &dyn Fn(i32) -> bool,
+    min_run: i32,
+    min_piece: usize,
 ) {
     let len = entry_s.len();
     let base = c.base();
     let closed =
         |i: i32| i < 0 || base.mask[i as usize] == 0 || base.tiles[i as usize] != TILE_FLOOR;
-    if len > 0 && entry_s[len - 1] - entry_s[0] + 1 >= d.min_run {
+    if len > 0 && entry_s[len - 1] - entry_s[0] + 1 >= min_run {
         let mut seg = Vec::new();
         let (mut start_flank, mut prev_gate, mut cut_start) = (false, false, start_closed);
         for e in 0..len {
             let (s, i) = (entry_s[e], entry_i[e]);
-            let gate = gate_open(s - grid.s_lo, rp.phase, d.period, d.width);
-            let skip = win.as_ref().is_some_and(|win| {
-                (rp.index == win.k || rp.index == win.k + 1)
-                    && s >= grid.s_lo + win.s
-                    && s < grid.s_lo + win.s + rules.square_window
-            });
+            let gate = gate(s);
+            let skip = skip(s);
             if gate {
                 rp.gates.push(i);
                 close_segment(
@@ -99,7 +97,7 @@ fn flush(
                     true,
                     &mut cut_start,
                     false,
-                    rules.min_piece,
+                    min_piece,
                 );
             } else if skip {
                 close_segment(
@@ -109,7 +107,7 @@ fn flush(
                     false,
                     &mut cut_start,
                     false,
-                    rules.min_piece,
+                    min_piece,
                 );
             } else {
                 if seg.is_empty() {
@@ -126,7 +124,7 @@ fn flush(
             false,
             &mut cut_start,
             closed(end_tile),
-            rules.min_piece,
+            min_piece,
         );
     }
     entry_s.clear();
@@ -147,6 +145,14 @@ impl Callbacks<'_> {
         let mut corridor_opened = 0;
         for (r, &t0) in base.iter().enumerate() {
             let phase = row_phase(r as i32, &d.phases).expect("admitted phases");
+            let gate = |s: i32| gate_open(s - grid.s_lo, phase, d.period, d.width);
+            let skip = |s: i32| {
+                win.as_ref().is_some_and(|win| {
+                    (r == win.k || r == win.k + 1)
+                        && s >= grid.s_lo + win.s
+                        && s < grid.s_lo + win.s + rules.square_window
+                })
+            };
             let path = viterbi_path(
                 grid.n_s,
                 rules.wiggle,
@@ -198,15 +204,15 @@ impl Callbacks<'_> {
                     }
                     flush(
                         c,
-                        grid,
                         &mut entry_s,
                         &mut entry_i,
                         &mut rp,
                         start_closed,
                         here,
-                        win,
-                        d,
-                        rules,
+                        &gate,
+                        &skip,
+                        d.min_run,
+                        rules.min_piece,
                     );
                     prev_t = -1;
                     stop_tile = here;
@@ -214,15 +220,15 @@ impl Callbacks<'_> {
             }
             flush(
                 c,
-                grid,
                 &mut entry_s,
                 &mut entry_i,
                 &mut rp,
                 start_closed,
                 -1,
-                win,
-                d,
-                rules,
+                &gate,
+                &skip,
+                d.min_run,
+                rules.min_piece,
             );
             row_plans.push(rp);
         }
