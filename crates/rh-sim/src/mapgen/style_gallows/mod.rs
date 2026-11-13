@@ -1,5 +1,6 @@
 //! Sentenced stage-six Rows. The source has no surface callback; the registry must preserve that absence.
 mod detours;
+mod lanes;
 mod rows;
 mod rules;
 mod shape;
@@ -13,6 +14,7 @@ use crate::mapgen::style_runtime::{
     noise_hash, BlockKind, Error, FeatureSpec, Mode, PropContext, ShapeContext,
 };
 use crate::mapgen::terrain_gate::PropKind;
+pub use lanes::{Lanes, LANES};
 pub use rules::{
     default_definition, default_dials, gate_open, max_gate_distance, resolve_dials, row_phase,
     visit_content, Definition, Dials, PartialDials, Route,
@@ -176,6 +178,32 @@ impl<'a> Callbacks<'a> {
     ) -> Result<(), Error> {
         let n = c.w * c.h;
         let good = |v: &Vec<i32>| v.len() <= n * 2 && v.iter().all(|&i| i >= 0 && (i as usize) < n);
+        // Signature mode (P-LAND-SENTENCED-1): the rows are lanes in the door orientation (`plan.axis`), while the
+        // base rows and the square keep today's orientation; option off both are `plan.axis`, as today.
+        let lanes = lanes::frame(c);
+        let base_axis = if lanes.is_some() {
+            u8::from(!shape::legacy_horizontal(c))
+        } else {
+            p.axis
+        };
+        let row_ok = |r: &Row| match &lanes {
+            Some(f) => {
+                r.index < n
+                    && r.phase == LANES.phase
+                    && f.on_line(r.t0)
+                    && r.t0 >= 0
+                    && (r.t0 as usize) < if p.axis == 0 { c.h } else { c.w }
+            }
+            None => {
+                r.index < p.base_rows.len()
+                    && r.t0 == p.base_rows[r.index]
+                    && Some(r.phase)
+                        == row_phase(
+                            i32::try_from(r.index).unwrap_or(i32::MAX),
+                            &self.dials.phases,
+                        )
+            }
+        };
         if p.axis > 1
             || p.s_lo < 0
             || p.t_lo < 0
@@ -192,13 +220,14 @@ impl<'a> Callbacks<'a> {
             || !good(&p.gallows)
             || !good(&p.dropped)
             || (!p.gallows.is_empty() && p.gallows.len() != 9)
+            || lanes.is_some_and(|f| f.axis() != p.axis)
             || p.base_rows
                 .iter()
-                .any(|&t| t < 0 || t as usize >= if p.axis == 0 { c.h } else { c.w })
+                .any(|&t| t < 0 || t as usize >= if base_axis == 0 { c.h } else { c.w })
             || p.square.as_ref().is_some_and(|s| {
                 s.k.checked_add(1).is_none_or(|k| k >= p.base_rows.len())
                     || s.s < 0
-                    || s.s as usize >= if p.axis == 0 { c.w } else { c.h }
+                    || s.s as usize >= if base_axis == 0 { c.w } else { c.h }
             })
             || p.base_rows.windows(2).any(|v| {
                 let gap = i64::from(v[1]) - i64::from(v[0]);
@@ -206,13 +235,7 @@ impl<'a> Callbacks<'a> {
             })
             || p.rows.iter().any(|r| {
                 r.axis != p.axis
-                    || r.index >= p.base_rows.len()
-                    || r.t0 != p.base_rows[r.index]
-                    || Some(r.phase)
-                        != row_phase(
-                            i32::try_from(r.index).unwrap_or(i32::MAX),
-                            &self.dials.phases,
-                        )
+                    || !row_ok(r)
                     || !good(&r.tiles)
                     || !good(&r.posts)
                     || !good(&r.gates)

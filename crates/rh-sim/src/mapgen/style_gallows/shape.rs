@@ -1,3 +1,4 @@
+use super::lanes;
 use super::rows::Grid;
 use super::*;
 use crate::mapgen::landmarks::recipe_support::js_round;
@@ -6,6 +7,14 @@ struct Candidate {
     score: f64,
     k: usize,
     s: i32,
+}
+/// Today's row orientation: along x when the zone's centroid lies at least as far from the map centre in x as in y.
+pub(super) fn legacy_horizontal(b: &crate::mapgen::style_runtime::BaseContext<'_>) -> bool {
+    let (vx, vy) = (
+        b.zone.centroid.x - b.w as f64 / 2.0,
+        b.zone.centroid.y - b.h as f64 / 2.0,
+    );
+    vx.abs() >= vy.abs()
 }
 impl Callbacks<'_> {
     fn square(
@@ -133,13 +142,12 @@ impl Callbacks<'_> {
     pub fn shape(&self, c: &mut ShapeContext<'_, '_>) -> Result<Plan, Error> {
         let mut plan = Plan::default();
         let b = c.base();
-        let (w, h) = (b.w, b.h);
+        let w = b.w;
         let bb = b.zone.bbox;
-        let (vx, vy) = (
-            b.zone.centroid.x - w as f64 / 2.0,
-            b.zone.centroid.y - h as f64 / 2.0,
-        );
-        let horizontal = vx.abs() >= vy.abs();
+        // Signature mode (P-LAND-SENTENCED-1): `Some` only when the zone holds a signature `Church`; option off this is
+        // `None` and every line below runs as today.
+        let lanes = lanes::frame(&b);
+        let horizontal = legacy_horizontal(&b);
         let (t_lo, n_t, s_lo, n_s) = if horizontal {
             (bb.y, bb.h as usize, bb.x, bb.w as usize)
         } else {
@@ -197,12 +205,21 @@ impl Callbacks<'_> {
             self.dials.gap_penalty,
         );
         plan.base_rows = base.clone();
-        if base.is_empty() {
+        if base.is_empty() && lanes.is_none() {
             return Ok(plan);
         }
         self.square(c, &mut grid, &base, &mut plan)?;
-        let (mut row_plans, corridor_opened) =
-            self.row_plans(c, &grid, &base, &plan.square, corridor.as_deref());
+        // The square keeps today's rows and orientation; the lanes are laid on a second grid in the door orientation,
+        // built after it so that its tiles are closed there too.
+        let (mut row_plans, corridor_opened) = if let Some(f) = &lanes {
+            let lane_grid = self.lane_grid(c, f, corridor.as_deref());
+            plan.axis = f.axis();
+            plan.s_lo = lane_grid.s_lo;
+            plan.t_lo = lane_grid.t_lo;
+            self.lane_plans(c, &lane_grid, f, corridor.as_deref())
+        } else {
+            self.row_plans(c, &grid, &base, &plan.square, corridor.as_deref())
+        };
         plan.corridor_opened = corridor_opened;
         plan.planned = self.plan_detours(
             c,
