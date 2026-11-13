@@ -118,7 +118,8 @@ pub fn split_learning_args(argv: &[String]) -> Result<(Vec<String>, LearningArgs
 pub fn check_learning(policy: SeatPolicy, learn: bool) -> Result<(), String> {
     if learn && !policy.reports_choices() {
         return Err(format!(
-            "--learn on needs seats that report their choices; --policy {} reports none (use --policy brain)",
+            "--learn on needs seats that report their choices; --policy {} reports none, so no learning store is \
+             activated (use --policy brain)",
             policy.as_str()
         ));
     }
