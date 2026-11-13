@@ -4,6 +4,69 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integrations 17 to 23 (2026-11-13): current checkpoint
+
+Integration branch `feature/unity-rework` @ `aa66da83` (pushed). Identities: protocol 17 (protocol 18 is stamped on
+the next deployed build), observation 28, policy contract 22, **checkpoint 32** (moved by integration 19), replay 25,
+content hash `4674a176a28e3c7a`. Last full gate with Postgres: PASS on `aa66da83` (EditMode 930 of 930).
+
+| # | Gate | Packet | Merge |
+|---|---|---|---|
+| 17 | full PASS (third run) | P-DRESS-BAKE-1: the server bakes `rh_mapdress::dress` into the map blob's reserved sections (props, ground variants), off the tick; rules past the wire caps stop start-up | `3f2f42b8` |
+| 18 | same gate | P-UNITY-HUD-STATUS-2: the lobby's "n/min", the healing and wind-emblem timers (the RESTING chip cut: needs a wire fact) | `ceeb4746` |
+| 19 | full PASS | P-TRAINING-CAMPS-1: a practice camp clear pays the camp-clear count and a large potion as legacy; the console's clear resets them; practice contributors are saved state | `754c6877`, carry `0378bf17` |
+| 20 | full PASS | P-HOST-FLAGS-1 (worker session): three optional launch settings for the beta host (map pool, landmarks, lobby timing); nothing deployed | `044d4844` |
+| 21 | same gate | P-UNITY-TRAINING-BANNER-1: the practice plate shows legacy's "TRAINING — nothing here is recorded: no GV, no stats" and no Kills or GV row | `f0474a6c` |
+| 22 | same gate | P-UNITY-DRESS-1: the client draws the shipped props and ground-variant tints and rolls no scatter on a dressed map; 25 of 53 kinds use a stand-in sprite | `b913a74d`, carries `072782d3` |
+| 23 | full PASS | P-FROST-WALL-1 (worker session) with P-FROST-WALL-1-fix: Frost Wall behind `SimConfig::frost_wish` (default `Freeze`; no profile selects it); DEV-029 proposed | `2acf7e42`, carries `aa66da83` |
+
+**Existing tests changed (set-up or identity pins only; each flagged to the owner in chat):**
+`crates/rh-protocol/tests/map_public.rs` `prop_count_over_the_cap_is_refused` (its props placed inside the map in
+order; cap and expectations unchanged); the checkpoint-format pins for 32 in `crates/rh-sim/tests/checkpoint.rs`,
+`systems/sentenced/npc_tests.rs` and `systems/mob_spacing_tests.rs` `LEGACY_FOLD` (the practice-world fold moved by
+one length word: proven by reviewer-opus's own probe to hide no behaviour change); `systems/training/tests.rs:380`
+(a compile fix: `PracticeRuntime` is no longer `Copy`); `parity/abilities/hash-tape.json` regenerated twice by its
+command (observation 28; checkpoint 32 and the one practice case's fold).
+
+**In flight:** P-BOT-LEARN-ON-1 and P-BOT-TUNER-1 (worker session; reviewed LAND WITH NOTES, notes applied as
+P-BOT-LEARN-TUNE-fix; merged in the integration worktree, full gate running; DEV-030 and DEV-031 proposed);
+P-WIRE17-MAP-2 (implementer-opus: patience plane as map section version 3, quest carrier id; observation 29, policy
+23 when it lands); P-MAPGEN-SIG-SCALE-1 (implementer-opus: the cave as the approved 29 x 29 blueprint, with every
+tile of a site that has an inside camp given that camp's territory label before repair: without that rule the fixed
+cave costs 396 attempts on seeds 1-64 and loses 7 seeds; with it 132 against today's 101, worst index 9, none lost;
+seeds 1-32 stay inside the reservation oracle's bounds).
+
+**Reviewed, waiting on the owner:** P-BOT-BRAIN-CONTINUITY-1 (worker session; reviewer-opus LAND WITH NOTES): the
+owner is asked to confirm a 7-line fix outside its scope (`tactics/kite.rs`: a bow pull with an unknown start froze a
+seat's orders) and two oracle edits made after implementation (the floors window 6,000 to 16,000 ticks; a shorter
+replay check). **The replay divergence it reported is not its own:** `systems/mob_ai.rs:228` scans the whole output
+event buffer and `run_replay` never clears it, so stale `Block` events wake shield mobs during a replay; live rooms
+clear the buffer each step and are right. Brief: P-SIM-REPLAY-LONG-1 (not started).
+
+**Findings that change what "done" means in the bot lane:** with continuity merged in a scratch tree Brain seats
+still record no choices of their own, so the learner's store holds only faction keys and has nothing to learn from;
+the tuner's search file records one scalar per candidate and in a short run every candidate tied the baseline: no
+searched table is shown to be better. The live server can write learning data to Postgres `bot_stats` under
+`--bot-learning single-writer` (off by default; predates these packets): owner question.
+
+**Other findings recorded as briefs, not started:** P-ALLOC-CLONE-WARM-1 (a 32-byte allocation on the first step
+after a clone or restore, in a test neither the gate nor CI runs; and a mob fight allocates in steps: six sites);
+P-MECHANICS-SALVAGE-3-fix (build marks read the camp-clear mirror); P-UNITY-HUD-RESTING-1 (needs a wire fact).
+Frost Wall's follow-ups (P-FROST-WALL-1b): setting down fighters the wall lands on, re-planning walks, mob paths,
+and a blink landing on a wall tile; then the wire and Unity packets.
+
+**Gate notes.** Two flaky tests each cost a full gate run: `GarbageTests.ASessionReceivingDeltasMakesNoGarbage(1)`
+(0.376 B per call once in 2 of 12 whole-suite runs after P-DRESS-BAKE-1 added 30 tests; 0 of 12 without those tests
+in the run; the measured path has no map code) and `rh-server` `runtime_admission`
+`source_endpoint_hello_planning_ready_and_live_quest_trade_state` (an 8 s wall-clock wait under a load average near
+10; 0 of 6 alone). Fixing either edits an existing test: owner question, open. Two JS vector checks are not in the
+gate yet (`tools/protocol-js/check-dressing.mjs`, `check-map-patience.mjs`): owner approval for `scripts/gate.sh`,
+open; run by hand at each merge.
+
+**Not established:** nothing in integrations 13 to 23 has been seen in a browser. In particular no client has drawn
+a decorated map on screen (tints, stand-in sprites, the placeholder, Plague's two waters), and Frost Wall is neither
+on the wire nor drawn.
+
 ## Owner decision 2026-11-13 (chat, midday): the five blueprints, and the Holy hall at 37
 
 "I approve all 5. Let's have holy hall at size 37." The five landmark blueprint drafts shown in chat (the session's
