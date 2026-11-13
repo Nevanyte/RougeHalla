@@ -1706,3 +1706,156 @@ fn closed_gates(map: &TileMap) -> Option<TileMap> {
     }
     TileMap::new(map.w, map.h, tiles).ok()
 }
+
+#[cfg(test)]
+mod live2a_tests {
+    //! P-BOT-BRAIN-LIVE-2a, beyond the oracle: a held lock with a redacted target reaches every component as held without a
+    //! key, and an immediate event of a composition the ring does not cover yet is delivered by the first covered one.
+    use super::super::adapters;
+    use super::{Composer14, Setup14, BRAIN_WORLD_DELAY_MS};
+    use crate::bots::view::Features;
+    use crate::delivery::DeliverySession;
+    use rh_sim::observe::SeenEvent;
+    use rh_sim::{
+        FactionId, ItemObserver, Observation, OwnerCombatView, OwnerLockView, Placement, PlayerId,
+        Secrets, Sim, SimConfig, Vec2, WeaponId,
+    };
+
+    const OWNER: PlayerId = PlayerId(1);
+
+    fn sim() -> Sim {
+        let at = |profile: &str, faction, x: f64| Placement {
+            profile: profile.into(),
+            faction,
+            bot: false,
+            at: Vec2::new(x, 272.),
+            hp: None,
+            weapon0: Some(WeaponId::Wand),
+            weapon1: None,
+        };
+        Sim::reset_active(
+            SimConfig {
+                consumables: false,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &[
+                at("owner", FactionId::Fire, 300.),
+                at("other", FactionId::Holy, 440.),
+            ],
+        )
+    }
+
+    fn scene(sim: &Sim, time: f64, tick: u32) -> Observation {
+        let mut obs = Observation::default();
+        ItemObserver::new(OWNER)
+            .prepare_into(sim, &[], &mut obs, None)
+            .expect("owner scene")
+            .commit();
+        obs.tick = tick;
+        obs.server_time = time;
+        obs.arena = Some(rh_sim::ArenaView {
+            lobby_ends_at: 0.,
+            plan_ends_at: 0.,
+            raid_started_at: 500.,
+            patience_ends_at: Some(60_000.),
+            in_coliseum: false,
+            gates_locked: false,
+            sudden_death_at: 0.,
+            started_with: 2,
+        });
+        obs
+    }
+
+    fn composer(sim: &Sim) -> Composer14 {
+        Composer14::new(Setup14::public(
+            sim.shared_arena(),
+            Features {
+                message_types: ["move", "stop", "target", "attack"]
+                    .map(String::from)
+                    .to_vec(),
+                ..Features::default()
+            },
+            0.6,
+        ))
+    }
+
+    #[test]
+    fn a_redacted_held_lock_reaches_every_component_as_held_without_a_key() {
+        let sim = sim();
+        let mut obs = scene(&sim, 1000., 20);
+        obs.owner_combat = Some(OwnerCombatView {
+            lock: OwnerLockView::Held { target: None },
+            draw_started_at: 0,
+            ready_at: 0,
+            as_milli: 1000.,
+            windup_milli: 1000.,
+            speed_milli: 1000.,
+        });
+        let mut session = DeliverySession::new(OWNER);
+        let prepared = session.prepare(&obs, true, true, &[]).expect("scene");
+        let frame = session.commit(prepared);
+        let p = composer(&sim)
+            .compose(frame.frame())
+            .expect("composes")
+            .percept;
+        // `!== null` holds (memory.ts:776, strategy.ts:354, hazards.ts:123) and the target equals no key (fight.ts:176,
+        // humanizer.ts:210): the one typed stand-in is `Some("")`.
+        let held = Some(String::new());
+        let memory = adapters::memory_percept(&p).expect("memory");
+        assert_eq!(memory.self_.attack_target, held);
+        let strategy = adapters::strategy_percept(&p).expect("strategy");
+        assert_eq!(strategy.self_.attack_target, held);
+        let tactic = adapters::tactic_percept(&p).expect("tactic");
+        assert_eq!(tactic.self_.attack_target, held);
+        let module = adapters::module_percept(&p).expect("module");
+        assert_eq!(module.self_.attack_target, held);
+        let hand = adapters::hand_percept(&p).expect("hand");
+        assert_eq!(hand.self_view.attack_target, held);
+        // The always-undefined numbers read as NaN (`+undefined`), never as a plausible 0.
+        assert!(strategy.self_.mob_kills.is_nan() && tactic.self_.immune_until.is_nan());
+        assert!(memory.minimap.t.is_nan() && tactic.hud.min_players.is_nan());
+    }
+
+    #[test]
+    fn a_toast_before_the_ring_covers_the_view_time_is_delivered_once_covered() {
+        let sim = sim();
+        let mut composer = composer(&sim);
+        let mut session = DeliverySession::new(OWNER);
+        let mut seen = Vec::new();
+        for (i, t) in [1000., 1050., 1100., 1150.].into_iter().enumerate() {
+            let mut obs = scene(&sim, t, 20 + i as u32);
+            if i == 0 {
+                obs.events.push(SeenEvent::Toast {
+                    text: "hello".into(),
+                });
+            }
+            let prepared = session.prepare(&obs, true, true, &[]).expect("scene");
+            let frame = session.commit(prepared);
+            let c = composer.compose(frame.frame()).expect("composes");
+            let toasts = c
+                .percept
+                .raw
+                .get("events")
+                .and_then(|e| e.as_arr())
+                .map_or(0, |e| {
+                    e.iter()
+                        .filter(|e| e.get("kind").and_then(|k| k.as_str()) == Some("toast"))
+                        .count()
+                });
+            seen.push((c.covered, toasts, c.percept.has_toast));
+        }
+        assert_eq!(BRAIN_WORLD_DELAY_MS, 100.);
+        assert_eq!(
+            seen,
+            [
+                (false, 0, false),
+                (false, 0, false),
+                (true, 1, true),
+                (true, 0, false)
+            ],
+            "frames.ts:131 composes nothing before coverage; takeImmediate delivers the toast at the first percept"
+        );
+    }
+}
