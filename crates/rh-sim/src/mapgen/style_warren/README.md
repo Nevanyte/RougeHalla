@@ -11,7 +11,7 @@ Planning preserves source road order, quarter-tile radius shrink, candidate scor
 classification, noisy rock order, core/fringe clip fallback, wet-side tie, four-connected crescent
 piece discovery, route pruning, tunnel priority/fallback and trim transactions. Surface and decor use
 only their phase contexts. Fresh owned disc lists replace source global caches; output order is unchanged.
-No callback consumes RNG; all variation uses accepted stateless `Noise`.
+No callback consumes RNG; all variation uses accepted stateless `Noise` (signature mode excepted, below).
 
 Two narrow proposed shared seams are excluded from this leaf's handoff: `recipe_support::CampNodeInputs`
 and `camp_nodes_from` share the existing camp-node body with the old landmark wrapper, and the existing
@@ -46,6 +46,13 @@ callback leaf and genuine injected inputs; it is not a full native styled-genera
 
 Set `RH_STYLE_WARREN_OUTPUT` to write or check a separate capture destination; the default remains the
 checked-in `style-warren.json` fixture.
+
+Signature mode (P-LAND-PLAGUE-1, no legacy counterpart, `pipeline::Options::signature` only): when the zone holds
+the bog tree, `pools.rs` lays the bog as free pools of overlapping rough discs by band round the tree (one `BogPool`
+feature each, a reserved ring of plain floor round each pool), keeping off the rock today's rule would site where it
+can; the barrows are then sited by today's rule with no crescent on what the pools leave. That path draws from the
+shape stream; with the option off nothing in it runs and the legacy capture above is unchanged. Its tunables are
+`pools::POOLS`, outside `visit_content`.
 
 Admitted jitter definitions keep `512 * jitter_scale / jitter_divisor` finite and below 3.5, so the
 source sampling/cache and guaranteed/possible disc shortcuts stay within their exact -3..3 envelope.

@@ -1,5 +1,6 @@
 //! Plague stage-six Barrows callbacks. Landmark selection remains in the accepted stage-four recipe.
 mod planning;
+mod pools;
 mod rules;
 mod shape;
 use crate::map::{TILE_FLOOR, TILE_WALL};
@@ -26,6 +27,10 @@ pub struct Plan {
     pub bog: Vec<i32>,
     pub roads: usize,
     pub placed: usize,
+    /// Signature mode only (P-LAND-PLAGUE-1): the free bog pools' tiles, each owned by its `BogPool` feature. Empty,
+    /// and absent from the serialized plan, with the option off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pools: Vec<i32>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -183,7 +188,7 @@ impl<'a> Callbacks<'a> {
             || p.barrows.len() > n
             || p.roads > n
             || p.tunnels.len() > p.barrows.len()
-            || [&p.crescent, &p.mouths, &p.bog]
+            || [&p.crescent, &p.mouths, &p.bog, &p.pools]
                 .iter()
                 .any(|v| v.len() > n || v.iter().any(|i| !valid(i)))
             || p.tunnels
@@ -212,7 +217,7 @@ impl<'a> Callbacks<'a> {
     }
     pub fn surface(&self, c: &mut SurfaceContext<'_, '_>, plan: &mut Plan) -> Result<(), Error> {
         self.validate_plan(&c.base(), plan)?;
-        for &i in &plan.crescent {
+        for &i in plan.crescent.iter().chain(&plan.pools) {
             if c.base().is_owned(i) && c.surface(i, SurfaceKind::Bog) {
                 plan.bog.push(i)
             }

@@ -28,7 +28,10 @@ impl Callbacks<'_> {
         let mut blocks = Vec::new();
         for &i in &site.rock {
             if tunnel && in_slot(site, i, w, &self.definition) {
-                slot.push(i)
+                // Signature mode: a pool's ring is reserved and stays unowned floor; the tunnel does not claim it.
+                if !c.is_reserved(i) {
+                    slot.push(i)
+                }
             } else {
                 blocks.push((i, BlockKind::Wall))
             }
@@ -100,11 +103,60 @@ impl Callbacks<'_> {
             sites.remove(worst);
         }
     }
+    /// Today's siting: one barrow per road, in road order, up to `most`; `crescents` off in signature mode.
+    // Preserve the source helper argument roles for parity auditing.
+    #[allow(clippy::too_many_arguments)]
+    fn site_all(
+        &self,
+        c: &ShapeContext<'_, '_>,
+        corridor: Vec<u8>,
+        has_members: bool,
+        roads: &[warren::Road],
+        nodes: &[crate::mapgen::landmarks::recipe_support::Node],
+        most: usize,
+        crescents: bool,
+    ) -> Vec<Site> {
+        let mut ground = Ground::new(c, corridor, has_members, &self.definition);
+        let mut sites = Vec::new();
+        for road in roads {
+            if sites.len() >= most {
+                break;
+            }
+            if let Some(site) = site_of(
+                &mut ground,
+                c,
+                road,
+                nodes,
+                sites.len(),
+                crescents,
+                &self.definition,
+            ) {
+                ground.take(&site);
+                sites.push(site)
+            }
+        }
+        sites
+    }
     pub fn shape(&self, c: &mut ShapeContext<'_, '_>) -> Result<Plan, Error> {
         let mut plan = Plan::default();
         let guard = c.route_guard();
         let corridor = guard.corridor().to_vec();
         let has_members = !guard.members().is_empty();
+        // Signature mode (P-LAND-PLAGUE-1): `pools::tree` is `Some` only when the Landmarks phase placed the bog tree in
+        // this zone. The bog is then laid first, as free pools by band round the tree, keeping off where today's rule
+        // would site the barrows where it can; the barrows are then sited by today's rule, without a crescent, on what
+        // the pools leave. Option off this is `None`: no pool, no draw, today's barrows and crescents (G8).
+        let tree = super::pools::tree(c.base());
+        let pools = tree.is_some();
+        let pool_corridor = if pools { corridor.clone() } else { Vec::new() };
+        let lay = |c: &mut ShapeContext<'_, '_>, plan: &mut Plan, sites: &[Vec<i32>]| match &tree {
+            Some(tree) => {
+                plan.pools =
+                    super::pools::lay(c, tree, &pool_corridor, sites, &super::pools::POOLS)?;
+                Ok(())
+            }
+            None => Ok(()),
+        };
         let b = c.base();
         let nodes = camp_nodes_from(
             CampNodeInputs {
@@ -120,6 +172,7 @@ impl Callbacks<'_> {
             &self.scale,
         );
         if nodes.len() < 2 {
+            lay(c, &mut plan, &[])?;
             return Ok(plan);
         }
         let scale = self.scale.area_scale(b.zone.painted);
@@ -152,22 +205,24 @@ impl Callbacks<'_> {
             .collect();
         plan.roads = all.len();
         if barrows_max == 0 || all.is_empty() {
+            lay(c, &mut plan, &[])?;
             return Ok(plan);
         }
         let w = b.w;
-        let mut ground = Ground::new(c, corridor, has_members, &self.definition);
-        let mut sites = Vec::new();
-        for road in all {
-            if sites.len() >= barrows_max {
-                break;
-            }
-            if let Some(site) =
-                site_of(&mut ground, c, &road, &nodes, sites.len(), &self.definition)
-            {
-                ground.take(&site);
-                sites.push(site)
-            }
+        if pools {
+            let ahead = self.site_all(
+                c,
+                corridor.clone(),
+                has_members,
+                &all,
+                &nodes,
+                barrows_max,
+                false,
+            );
+            let rock: Vec<Vec<i32>> = ahead.into_iter().map(|s| s.rock).collect();
+            lay(c, &mut plan, &rock)?;
         }
+        let mut sites = self.site_all(c, corridor, has_members, &all, &nodes, barrows_max, !pools);
         if has_members {
             self.prune_route(c, &mut sites, tunnels_max)
         }
