@@ -20,6 +20,29 @@ for the practice contributors), so the test passes; (b) the test runs where the 
 run of that one test (an edit to `scripts/gate.sh` and `.github/workflows/rust.yml`: owner approval, named in the
 hand-off, not made by the implementer).
 
+## Second finding (2026-11-13, P-TRAINING-CAMPS-1's implementer): a fight against mobs allocates in steps
+
+Measured with `crates/rh-sim/tests/no_alloc_training.rs` (committed `#[ignore]` by P-TRAINING-CAMPS-1; `RH_TRACE_ALLOC=1`
+prints each allocating step): a seated Holy player with a wand fighting a console Ember Imp camp to its clear
+allocates 29 blocks over 165 measured steps on the original world and 39 on a clone and on a restore; identical on
+the sources before P-TRAINING-CAMPS-1, so the practice contributors add none. The existing `no_alloc` fixtures never
+reach these sites: they are arena worlds where no mob is fought or killed. The sites (a throwaway probe, since
+deleted):
+
+| Blocks | Site |
+|---|---|
+| 15 x 32 B | `World::actor_label` building an `Arc<str>` from `cards::on_hit::run_on_hit`, on every player hit on a mob |
+| 3 x 544 B | `ledger::apply_victim` collecting `OverkillHit`s |
+| 3 x 64 B | `mob_ai::add_threat` |
+| 3 x 16 B | the threat clone on a lethal hit in `mob_life::hurt` (the shared kill path, arena included) |
+| 2 x 16 B | `mob_life::reap` |
+| 3 x 64 B | `Path::set_from` from the wand lock |
+
+This is larger than the clone-and-restore finding above and is the same contract: split it into its own packet
+(`P-ALLOC-MOB-FIGHT-1`) if the oracle author finds it does not fit one change. Its oracle is that ignored test with
+the `#[ignore]` removed and all three windows at zero. No behaviour, hash or draw may change: every fix is a buffer
+kept, a label interned once, or a scratch vector reused.
+
 ## 5. Exclusive write scope
 - `crates/rh-sim/tests/pack_leader_warm.rs`, and the state type that owns the buffer (the oracle author names it)
 
