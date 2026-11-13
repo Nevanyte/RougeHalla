@@ -33,8 +33,8 @@ Rendered ExecStart (paths swapped for local ones), `--map crates/rh-sim/src/mapd
 hosting/technical-demo/bootstrap.py, config.example.json, README.md, test_offline.py
 
 ## git diff --stat packet/P-HOST-FLAGS-1
- .../Assets/Resources/Showcase/NunitoRegular.asset  | 7380 ++++++++++++++++++++
- hosting/technical-demo/README.md                   |   24 +
- hosting/technical-demo/bootstrap.py                |   21 +-
- hosting/technical-demo/config.example.json         |    5 +-
- 4 files changed, 7426 insertions(+), 4 deletions(-)
+ hosting/technical-demo/README.md           | 24 ++++++++++++++++++++++++
+ hosting/technical-demo/bootstrap.py        | 21 ++++++++++++++++++---
+ hosting/technical-demo/config.example.json |  5 ++++-
+ 3 files changed, 46 insertions(+), 4 deletions(-)
+(plus this hand-off file)
