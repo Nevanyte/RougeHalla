@@ -4,9 +4,28 @@
   them (except holy temple) to be a lot larger, maybe just a little smaller than the temple."
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework (P-MAPGEN-SIG-FROST-2 merged)
+- **Integration base:** feature/unity-rework **after P-MAPGEN-SIG-RESERVE-1** (rebase this branch onto it first)
 - **D-rules touched:** D1: option off byte-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim tick or
   wire change
+
+## Amendment 2026-11-12 (coordinator decision; supersedes the rule and numbers below where they differ)
+
+- **Depends on P-MAPGEN-SIG-RESERVE-1** (`packet/P-MAPGEN-SIG-RESERVE-1`): each landmark's 34-tile site is reserved in
+  the Prefix before the camps; the cave's elite camp stands inside its site, 9 tiles from the far edge; no other camp's
+  halo touches the site. The adaptive 20-28 cave below is **not** built as an interim.
+- **Numbers (from RESERVE-1's measurements): target 30, floor 28** (each footprint side; the site less its apron).
+  The cave takes the largest square chamber from 30 down to 28 that fits its site with today's rules (mouth, doorway,
+  forecourt, wall lines off every halo, unsplit zone floor, wall pieces of at least 6). It never leans on the border
+  (sites keep off it). A cave that cannot reach 28 refuses the attempt; RESERVE-1's sites make that rare.
+- **The territory rule** (below, "The rule") is no longer assumed: RESERVE-1 brings `Repair(RadiusPost)` to 7 on seeds
+  1-64 at today's sizes (today 18). Measure first with the full-size cave; add the rule only if `RadiusPost` returns
+  (it then stays in `signature/mod.rs` for SCALE-2).
+- **The oracle**, amended in the same commit: `floor_side()` 28, `target_side()` 30 (footprint, no border tolerance),
+  the cave's camp is the elite at the Frost anchor's centre; `mean_side_min()`, `ice_share_min()`,
+  `worst_attempt_allowed()` and `attempts_allowed()` are marked **RE-MEASURE AFTER RESERVE-1**: they keep provisional
+  values (28.0, 45, 8, 80) and the next oracle amendment, on the real RESERVE-1 implementation, measures them before
+  the implementer starts. The size and ice tests are red today (caves 9-15 a side, ice 10-40 %).
+- The "Read this first", "Measurements" and "Three ways" sections below are the history that led to RESERVE-1.
 
 The owner's request covers four landmarks. Measured (below), it is cut into ordered packets that share
 `signature/mod.rs` serially: **SCALE-1 (this packet): the size rule and the territory rule in `mod.rs`, and the
@@ -342,6 +361,8 @@ loses 0.5 of mean side; 24 loses seeds. The oracle pins the floor, the ceiling (
    ring and dry causeways. Its solid room is 8-21 among today's camps: the trunk fits, the rings must skirt halos and
    camp clearings. Re-pins: `shape_bog_tree_*` in core, the bog-tree notes in `mapgen_signature_fire.rs`,
    P-MAPGEN-SIG-PLAGUE-1's oracle.
+(Amended: every piece depends on P-MAPGEN-SIG-RESERVE-1 and builds at target 30, floor 28.)
+
 4. **SCALE-4: the volcano** (`volcano.rs`, `mod.rs`, `style_scorch/` crater bands and the lava budget): last, because
    it moves every Fire band and the Fire statistics (`mapgen_signature_fire_bands.rs`, the lava budget in
    `mapgen_signature_fire.rs`) and every earlier piece shifts which attempts land, so the Fire statistics are

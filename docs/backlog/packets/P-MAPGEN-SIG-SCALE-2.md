@@ -4,33 +4,35 @@
   smaller than the temple". Second of four (P-MAPGEN-SIG-SCALE-1 is the plan and the measurements).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-SCALE-1
+- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-RESERVE-1 and P-MAPGEN-SIG-SCALE-1
 - **D-rules touched:** D1: option off byte-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim tick or
   wire change
 - **Status:** brief only; the oracle is written when SCALE-1 has landed (oracle-author, Opus).
 
 ## 1. ID and outcome
-The Sentenced church takes the size rule SCALE-1 puts in `signature/mod.rs` (the largest chamber between a floor and a
-target that fits round the far elite camp, plus the territory rule): about 28 wide by up to 32 long where the site
-allows, never under the floor, one 3-tile door facing the coliseum, the far elite camp near the far end. Inside, rows
+Amended 2026-11-12 (coordinator decision): the church is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
+tiles, the church's elite camp inside it 9 tiles from the far edge). It takes the size rule SCALE-1 puts in
+`signature/mod.rs`: **target 30, floor 28** a side (the footprint, the church's wall ring; the site less its apron),
+never under the floor, one 3-tile door facing the coliseum, the elite camp near the far end. The graveyard stands
+beyond the door as today and may leave the site (its stones keep the halo and apron rules); whether it must fit inside
+the site (then the church is shorter than 30 along the door axis) is the oracle author's to measure. Inside, rows
 of pillars (cover) that never cut the room in two (every interior floor tile reachable from the door with all pillars
 standing; a 3-wide way from the door to the camp). Beside it, a graveyard scaled to match: fenced plots (LOW fence or
 wall pieces of at least `R.piece_min`) in rows mirrored about the door axis, not four headstones.
 
 ## 2. Dependencies
-- P-MAPGEN-SIG-SCALE-1 merged (the size and territory rules in `mod.rs`).
-- Owner decisions 1 and 2 of SCALE-1 (site reservation; other camps inside) change the room: if the owner takes
-  either, write this oracle after it.
+- P-MAPGEN-SIG-RESERVE-1 merged (sites reserved before camps; the church's camp inside its site).
+- P-MAPGEN-SIG-SCALE-1 merged (the size rule, and the territory rule if SCALE-1 needed it, in `mod.rs`).
+- Other camps stay out of the church (coordinator decision 2026-11-12).
 
 ## 3. Relevant paths
 - `crates/rh-sim/src/mapgen/landmarks/signature/church.rs:29-216` (`place`: wall lines `church_side` 4-7 from the camp,
   border lean, door on the dominant axis of the front, the graveyard layouts and `grave_gap`, the redraw rules).
 - `crates/rh-sim/src/mapgen/landmarks/signature/mod.rs:52-63` (`church_side`, `border_max`, `border_gap`,
   `graveyards`, `grave_gap`, `door_shift`).
-- Measured room (SCALE-1, table 1, attempt 0, seeds 1-64): 28 round today's far Sentenced camp on 6 seeds, 24 on 32,
-  20 on 50; with other camps enclosed 28 on 39; with sites reserved before camps 28 on 62. (a) at 20-28 is expected to
-  behave as the cave's (mean side about 23); the graveyard needs room beyond the door and may push the church to a
-  smaller size: measure it.
+- Measured room: RESERVE-1 reserves a 34-tile Sentenced site on the back edge on 64 of 64 seeds (its brief, table A);
+  the history (SCALE-1, table 1: 28 round today's far camp on 6 of 64 seeds) is why. Measure the graveyard's room
+  beyond the door with the church at 30.
 
 ## 5. Exclusive write scope
 - `crates/rh-sim/src/mapgen/landmarks/signature/{church.rs,mod.rs}`

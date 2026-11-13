@@ -4,22 +4,23 @@
   smaller than the temple". Last of four (P-MAPGEN-SIG-SCALE-1 is the plan and the measurements).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase and the Fire styler)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-SCALE-3
+- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-RESERVE-1 and P-MAPGEN-SIG-SCALE-3
 - **D-rules touched:** D1: option off byte-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim tick or
   wire change
-- **Status:** brief only; the oracle is written when SCALE-3 has landed and the owner has answered SCALE-1's
-  decision 1 (oracle-author, Opus).
+- **Status:** brief only; the oracle is written when SCALE-3 has landed (oracle-author, Opus).
 
 ## 1. ID and outcome
-The Fire volcano: a cone about 28-32 across, an impassable rock mass with stepped flanks and a crater lake of lava in
+Amended 2026-11-12 (coordinator decision): the cone is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
+tiles on the back edge, no camp halo inside), **target 30, floor 28** a side for the cone's footprint (the site less its
+apron); the streams and pools leave the site as today. The Fire volcano: a cone about 28-30 across, an impassable rock mass with stepped flanks and a crater lake of lava in
 the middle (not enterable); its 2-3 streams leave from the rim and still end in pools; total lava inside a budget the
 oracle author re-measures (the crater lake now holds part of it).
 
 ## 2. Dependencies
-- P-MAPGEN-SIG-SCALE-3 merged. **Owner decision 1 of SCALE-1** (reserve landmark sites before camps): among today's
-  camps the largest solid square on the Fire back edge at least 6 tiles from every Fire camp is 12-23 tiles (20 on 9
-  of 64 seeds, 24 on none); with sites reserved 28 fits on 59 of 64. Without it this packet cannot meet more than about
-  half the target: the oracle author states the achievable size or the packet waits.
+- P-MAPGEN-SIG-RESERVE-1 merged (among today's camps a solid back-edge square was 12-23 tiles; RESERVE-1 reserves a
+  34-tile Fire site on the back edge on 64 of 64 seeds). The `camp_room` tiers (cone 6-12 tiles from every Fire camp)
+  are re-measured: the site already keeps every halo out.
+- P-MAPGEN-SIG-SCALE-3 merged.
 
 ## 3. Relevant paths
 - `crates/rh-sim/src/mapgen/landmarks/signature/volcano.rs` (cone `cone_d2`, crater `crater_d2`, back-edge sites in

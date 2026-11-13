@@ -9,8 +9,13 @@
 //! * cave: the one feature of kind `Cave` (zone Frost); footprint: its bbox (the Frost anchor's `footprint`); side: the
 //!   footprint's width or height; mouth: the Frost anchor's `entrance` tiles.
 //! * hall side: the smaller side of the Holy anchor's footprint (the temple hall, 38-39 today).
-//! * far elite camp: the Frost camp with `elite_spot >= 0` farthest from the map centre (last in camp order on a tie, as the
-//!   generator picks it); its tile: the tile of the camp point.
+//! * far elite camp: the Frost camp with `elite_spot >= 0` at the Frost anchor's centre (amended after
+//!   P-MAPGEN-SIG-RESERVE-1; was: farthest from the map centre); its tile: the tile of the camp point.
+//!
+//! Amended 2026-11-12 (coordinator decision): this packet depends on P-MAPGEN-SIG-RESERVE-1 (each landmark's site
+//! reserved before the camps); the size floor and target are 28 and 30 (were 20 and 28); the bounds marked
+//! "RE-MEASURE AFTER RESERVE-1" are provisional until the next oracle amendment measures them on the real
+//! implementation.
 //! * interior: the floor tiles reached by a 4-connected flood over floor from the far elite camp's tile with the mouth
 //!   tiles blocked; enclosed: the interior lies inside the footprint and every mouth tile touches it.
 //! * box floor: every floor tile strictly inside the footprint (off its edge rows and columns).
@@ -34,22 +39,22 @@ type Cell = (i32, i32);
 // The numbers (the brief's "Rule"; functions, not consts: `tests/content.rs` reads consts as unregistered tunables).
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// The rule's floor: the fewest tiles on each side of the chamber (wall line to wall line, a side leaning on the map
-/// border counted to the border wall). An attempt whose cave cannot reach it is refused. The footprint (the cave's own
-/// walls) of a side that leans on the border is one tile shorter, so the test reads `floor_side() - 1` on the footprint.
+/// The rule's floor: the fewest tiles on each side of the cave's footprint (amended 2026-11-12 after
+/// P-MAPGEN-SIG-RESERVE-1's measurements: 28, was 20). The cave stands inside its reserved 34-tile site, which keeps
+/// off the map border, so no side leans on the border.
 fn floor_side() -> u32 {
-    20
-}
-
-/// The rule's target: the size the cave takes where the site allows (each side). Not met on most seeds (the brief:
-/// camps every 20-odd tiles); the test pins the mean the brief measured instead, `mean_side_min()`.
-fn target_side() -> u32 {
     28
 }
 
-/// The least mean of the footprint's smaller side over seeds 1-32 (the brief's prototype: 23.7; today 11.3).
+/// The rule's target: the size the cave takes in its reserved site (each side; 30, was 28): the site less its apron.
+fn target_side() -> u32 {
+    30
+}
+
+/// The least mean of the footprint's smaller side over seeds 1-32. RE-MEASURE AFTER RESERVE-1: provisional, the floor
+/// (the brief's prototype of the adaptive cave without reserved sites gave 23.7; today 11.3).
 fn mean_side_min() -> f64 {
-    22.0
+    28.0
 }
 
 /// The largest side of the cave's footprint is at most the hall side minus this ("a little smaller than the temple").
@@ -57,7 +62,8 @@ fn below_hall() -> u32 {
     2
 }
 
-/// The least ice share of the interior, percent.
+/// The least ice share of the interior, percent. RE-MEASURE AFTER RESERVE-1 (the prototype without reserved sites:
+/// at least 50, mean 64).
 fn ice_share_min() -> usize {
     45
 }
@@ -72,13 +78,15 @@ fn attempt_limit() -> u64 {
     16
 }
 
-/// The worst attempt index over seeds 1-32 allowed (the brief's prototype: 5, seeds 1 and 23; today 3; plus 3).
+/// The worst attempt index over seeds 1-32 allowed. RE-MEASURE AFTER RESERVE-1 (provisional: RESERVE-1's prototype
+/// at today's sizes 4, the adaptive cave without reserved sites 5; today 3).
 fn worst_attempt_allowed() -> u64 {
     8
 }
 
-/// The most attempts seeds 1-32 may use in all, accepted ones included (the brief's prototype: 66; today 43; the same
-/// prototype without the territory rule 119, mostly `Repair(RadiusPost)`).
+/// The most attempts seeds 1-32 may use in all, accepted ones included. RE-MEASURE AFTER RESERVE-1 (provisional:
+/// RESERVE-1's prototype at today's sizes 54; the adaptive cave without reserved sites 66, 119 without its territory
+/// rule; today 43).
 fn attempts_allowed() -> u64 {
     80
 }
@@ -177,15 +185,22 @@ fn anchor(seed: i64, m: &GameMapData, zone: Zone) -> &ZoneAnchor {
         .unwrap_or_else(|| panic!("seed {seed}: no {zone:?} anchor"))
 }
 
-/// The far elite camp's tile (doubled integer distance from the map centre; the last in camp order on a tie, as the
-/// generator's `cave::place` picks it).
+/// The cave's camp tile: the Frost elite camp at the Frost anchor's centre (amended after P-MAPGEN-SIG-RESERVE-1,
+/// whose inside camp need not be the elite farthest from the map centre); without a Frost anchor, the farthest elite
+/// (doubled integer distance from the map centre; the last in camp order on a tie).
 fn far_elite(seed: i64, m: &GameMapData) -> Cell {
     let d = |c: Cell| {
         i64::from(2 * c.0 + 1 - m.w as i32).pow(2) + i64::from(2 * c.1 + 1 - m.h as i32).pow(2)
     };
+    let anchored = m
+        .anchors
+        .iter()
+        .find(|a| a.zone == Zone::Frost)
+        .map(|a| (a.centre.x, a.centre.y));
     m.camps
         .iter()
         .filter(|c| c.zone == Zone::Frost && c.elite_spot >= 0)
+        .filter(|c| anchored.is_none_or(|t| world_cell(c.x, c.y) == t))
         .map(|c| world_cell(c.x, c.y))
         .fold(None, |best: Option<Cell>, c| match best {
             Some(b) if d(b) > d(c) => Some(b),
@@ -289,7 +304,7 @@ fn from_mouth_edge(cv: &Cave, c: Cell) -> i32 {
 // The size (red today: caves are 9-15 tiles a side).
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// Every cave's footprint has both sides at least `floor_side() - 1` (see there) and at most the hall side minus
+/// Every cave's footprint has both sides at least `floor_side()` and at most the hall side minus
 /// `below_hall()`, and none exceeds `target_side()`; the mean smaller side over seeds 1-32 is at least `mean_side_min()`.
 /// Red today: footprints of 9 to 15 tiles a side, mean 11.3.
 #[test]
@@ -302,7 +317,7 @@ fn the_cave_is_a_lot_larger_but_smaller_than_the_hall() {
         let (w, h) = ((c.fp.2 - c.fp.0 + 1) as u32, (c.fp.3 - c.fp.1 + 1) as u32);
         let hall = anchor(seed, m, Zone::Holy).footprint;
         let ceiling = (hall.w.min(hall.h) - below_hall()).min(target_side());
-        if w.min(h) + 1 < floor_side() || w.max(h) > ceiling {
+        if w.min(h) < floor_side() || w.max(h) > ceiling {
             off.push(format!(
                 "seed {seed}: {w}x{h} (hall side {})",
                 hall.w.min(hall.h)
@@ -313,7 +328,7 @@ fn the_cave_is_a_lot_larger_but_smaller_than_the_hall() {
     assert!(
         off.is_empty(),
         "caves outside [{}, min({}, hall side - {})] a side: {off:?}",
-        floor_side() - 1,
+        floor_side(),
         target_side(),
         below_hall()
     );

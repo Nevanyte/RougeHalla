@@ -4,23 +4,23 @@
   smaller than the temple". Third of four (P-MAPGEN-SIG-SCALE-1 is the plan and the measurements).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-SCALE-2
+- **Integration base:** feature/unity-rework after P-MAPGEN-SIG-RESERVE-1 and P-MAPGEN-SIG-SCALE-2
 - **D-rules touched:** D1: option off byte-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim tick or
   wire change
-- **Status:** brief only; the oracle is written when SCALE-2 has landed and the owner has answered SCALE-1's
-  decision 1 (oracle-author, Opus).
+- **Status:** brief only; the oracle is written when SCALE-2 has landed (oracle-author, Opus).
 
 ## 1. ID and outcome
-The Plague bog tree: a trunk about 9-11 across (wall) with root walls reaching out, inside bog rings that bring the
-footprint to about 28-30; the outer ring closed all the way round (today it is broken on some seeds) except for dry
+Amended 2026-11-12 (coordinator decision): the tree is built in its site reserved by P-MAPGEN-SIG-RESERVE-1 (34
+tiles, no camp halo inside), **target 30, floor 28** a side for its footprint (the site less its apron). The Plague
+bog tree: a trunk about 9-11 across (wall) with root walls reaching out, inside bog rings that bring the footprint to
+28-30; the outer ring closed all the way round (today it is broken on some seeds) except for dry
 causeways in, so the trunk can be reached; still in the outer third of the zone.
 
 ## 2. Dependencies
-- P-MAPGEN-SIG-SCALE-2 merged. **Owner decision 1 of SCALE-1** (reserve landmark sites before camps): among today's
-  camps a solid square of clear ground in the Plague outer third is 8-21 tiles (20 on 1 of 64 seeds); with sites
-  reserved 28 fits on 32 of 64 and 24 on 54. Without the reservation the trunk (9-11) fits, but rings of 28-30 must
-  skirt camp halos and clearings (bog terrain may not lie there) and so cannot be closed on most seeds: say so in the
-  oracle if the owner declines.
+- P-MAPGEN-SIG-RESERVE-1 merged (the reason this packet can reach the target: among today's camps the clear room in
+  the Plague outer third was 8-21 tiles). Its Plague site lies beyond the outer-third line on 24 of 64 seeds and is the
+  zone's deepest free square elsewhere (RESERVE-1's owner decision 2): the tree keeps no outer-third test of its own.
+- P-MAPGEN-SIG-SCALE-2 merged.
 
 ## 3. Relevant paths
 - `crates/rh-sim/src/mapgen/landmarks/signature/bog_tree.rs:10-105` (`place`: trunk, dry ring, two bog bands by
