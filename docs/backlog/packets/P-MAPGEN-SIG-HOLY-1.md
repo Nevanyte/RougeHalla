@@ -36,6 +36,35 @@
 - `style_sanctum/` in signature mode builds round the placed hall and places none of its own; the land-generation
   task leaves Holy until this packet lands.
 
+## Measurement 2026-11-13 (throwaway probe after P-MAPGEN-SIG-RESERVE-1; seeds 1-64, option on, release; 1-128 in brackets)
+
+Baseline today: 101 attempts [225], worst attempt index 5; Holy camp nearest-neighbour mean 20.2, spread 31.7.
+Today's hall: 38-39 a side on 60 of 64 maps; 1 to 4 Holy camps under it (mean 2.3); 32 piers planned, 4 to 14
+skipped per map (24.3 built on average). The drafted fixed grid has 38 piers.
+
+| Option | Site (hall) | Attempts | Worst index | Holy nearest-neighbour mean | Holy spread (min) | Notes |
+|---|---|---|---|---|---|---|
+| A: no camp inside | 43 (39) | 144 [294] | 8 | 16.2 | 33.8 (30.4) | breaks RESERVE-1's bounds on seeds 1-32 (76 attempts, worst 8, mean 16.4 under the 17.0 floor) |
+| A | 41 (37) | 134 [270] | 6 | 17.0 | 34.1 (29.9) | |
+| A | 39 (35) | 120 [249] | 5 | 17.2 | 33.5 (28.9) | |
+| B: 1 camp on the nave axis | 43 (39) | 152 [308] | 7 | 18.1 | 33.6 (29.3) | `Repair(RadiusPost)` 37 (today 8): a pinned camp's territory stretches |
+| B: 2 camps on the nave axis | 43 (39) | 123 [269] | 5 | 18.0 | 31.9 (27.8) | all 38 piers kept |
+| B: 2 camps | 41 (37) | 103 [239] | 3 | 18.3 | 31.7 (25.1) | about today's cost; camp spots scaled (no 37 grid drawn) |
+| B: 2 camps | 39 (35) | 105 [244] | 4 | 18.3 | 31.2 (26.8) | |
+| B: 4 camps (2 x 2) | 43 (39) | 112 [227] | 5 | 16.7 | 28.7 (24.6) | does not fit the grid: 8 piers removed; crowds Holy |
+
+Every run gave a map on all 64 seeds and certified with zero failures. The certifier's camp halo reaches 3 tiles (a
+7x7 block without its corners), so only the 9-wide nave holds a camp: on the axis, rows 11-35 from the back, at most
+three by the 9-tile camp gap. With legacy's elite rule kept, the hall camps are almost never the zone's elites (0 of
+64 seeds at k = 1 and 2); making one the elite is a DEV-028-style rule change that moves no camp. Stamping the real
+38 piers in the Landmarks phase cost about the same as open ground (126 attempts at k = 2) and every pier survived.
+Run-to-run noise is about 10% of attempts at 64 seeds. Not measured: the shrine walls, the eight orientations, the
+certifier with a hall camp as elite, decoration. Full report: the session scratchpad, `holy-site/REPORT.txt`; the
+probe branch `probe/holy-site` is local and discarded.
+
+**Probe's recommendation, for the owner:** two camps inside on the nave axis. At 37 a side it costs about what
+today's generator costs; at the drafted 39 about 20% more attempts.
+
 ## 1. ID and outcome
 Today Holy's anchor is written after records by `SignatureContext::finish` (`landmarks/signature/mod.rs:366`): the
 largest Holy `Hall` feature (`:380-395`), which the Holy styler placed in step 3 (`style_sanctum/mod.rs:298-317`). Every
