@@ -4,6 +4,18 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-12 (chat, late night): land generation round the landmarks is a separate task
+
+The owner is contracting another agent to "perfect and work on land generation around the landmarks", pushing for a
+more optimised generation, as its own task. The coordinator's landmark plan is written for that agent in
+[coordination/LANDMARK_GENERATION_SPEC.md](coordination/LANDMARK_GENERATION_SPEC.md). The line: the coordinator keeps
+where each landmark stands, its size, anchor, site reservation and the camp and elite rules (P-MAPGEN-SIG-RESERVE-1,
+SCALE-1 to -4, HOLY-1); the land-generation task takes the zone stylers in signature mode and `rh-mapdress`.
+**Held, not started by the coordinator:** P-MAPGEN-SIG-SENTENCED-1, P-MAPGEN-SIG-PLAGUE-1 and P-MAPGEN-SIG-STYLE-1
+(arrangement by band): they are the land-generation task's to take, rewrite or replace. Its work comes back as
+`packet/<ID>` and `agent/<tool>/<ID>` branches under `coordination/prompts/WORKER_RULES.md` and is reviewed and merged
+here, one at a time with the SCALE packets where they share a styler directory.
+
 ## Owner approval 2026-11-12 (chat, night): shell commands without prompts
 
 "Yes, apply it": `.claude/settings.json` now allows every `Bash` command, and `git push` and `git merge` are no longer
