@@ -589,15 +589,16 @@ pub(crate) fn packet(
         crate::content::faction(p.faction_id().expect("attack-capable faction")).hp,
     )
 }
-pub(crate) fn packet_with_sheet(
+/// Legacy `scalingDamage` (shared/weapons.ts:203-219): the weapon scaling's `(phys, magic)` additions per hit, before the
+/// hit multiplier. A dominant weapon takes the SO side only when it is strictly higher. The hit packet and the champion
+/// panel (codes 26-27, championCombatModel.ts:100-103,:128) both read it.
+pub(crate) fn weapon_scaling(
     p: &crate::fighter::FighterCore,
     weapon: crate::WeaponId,
     f: &crate::content::FactionSpec,
     base_max_hp: f64,
-) -> crate::state::Packet {
+) -> (f64, f64) {
     let m = p.modifiers.mirrors();
-    let base = crate::content::damage_per_hit(f, weapon, m.as_mult);
-    let shares = crate::content::damage_shares(f);
     let sc = DEFINITION.weapon_scaling[weapon.code() as usize];
     let per = m.as_mult * crate::content::attack_interval(f, weapon, m.as_mult);
     let hp = (p.vitals.max_hp - base_max_hp).max(0.);
@@ -610,6 +611,18 @@ pub(crate) fn packet_with_sheet(
     } else {
         0.
     };
+    (phys, magic)
+}
+pub(crate) fn packet_with_sheet(
+    p: &crate::fighter::FighterCore,
+    weapon: crate::WeaponId,
+    f: &crate::content::FactionSpec,
+    base_max_hp: f64,
+) -> crate::state::Packet {
+    let m = p.modifiers.mirrors();
+    let base = crate::content::damage_per_hit(f, weapon, m.as_mult);
+    let shares = crate::content::damage_shares(f);
+    let (phys, magic) = weapon_scaling(p, weapon, f, base_max_hp);
     if phys == 0. && magic == 0. {
         return crate::state::Packet {
             raw: base,
