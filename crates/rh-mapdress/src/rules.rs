@@ -98,6 +98,21 @@ pub struct LandmarkRules {
     pub rings: Vec<BandRing>,
 }
 
+/// P-DRESS-MARSH-1: a ground ring round a terrain class. A tile of the zone's plain floor (class `Floor`) whose Chebyshev
+/// distance in tiles to the nearest tile of class `around` (of the same zone) is at most `reach` gets `ground_variant`.
+/// The rules of a zone are listed from the nearest ring to the farthest: ring k covers the distances above ring k-1's
+/// `reach` and up to its own. Looks only: nothing here changes a tile; the one effect on props is that a TALL prop
+/// never stands on a tile of the zone's nearest ring (Plague: water). A terrain ring overrides the tile's band or
+/// fallback-ring ground variant. Stub: parsed only; refusals (reach 0, reaches not increasing, `around` not one of
+/// ember, bog, ice, light, a reused rule name) and the ground are the implementer's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TerrainRing {
+    pub name: String,
+    pub around: TileClass,
+    pub reach: u32,
+    pub ground_variant: u8,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClusterRule {
     pub name: String,
@@ -147,6 +162,8 @@ pub struct ZoneRules {
     pub rings: Vec<RingRule>,
     /// The landmark path (P-DRESS-ANCHOR-1); `None` for a file without `signature.landmark`.
     pub landmark: Option<LandmarkRules>,
+    /// Ground rings round a terrain class (P-DRESS-MARSH-1); empty for a file without `terrainRings`.
+    pub terrain_rings: Vec<TerrainRing>,
     pub clusters: Vec<ClusterRule>,
     pub edges: Vec<EdgeRule>,
     pub fillers: Vec<FillerRule>,
@@ -252,9 +269,20 @@ struct RawKeepClear {
     corridor_width: u32,
 }
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawTerrainRing {
+    name: String,
+    around: TileClass,
+    reach: u32,
+    #[serde(default)]
+    ground_variant: u8,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawZone {
     signature: RawSignature,
+    #[serde(default)]
+    terrain_rings: Vec<RawTerrainRing>,
     #[serde(default)]
     clusters: Vec<RawCluster>,
     #[serde(default)]
@@ -575,6 +603,16 @@ impl Raw {
                 signature_feature: rz.signature.feature,
                 rings,
                 landmark,
+                terrain_rings: rz
+                    .terrain_rings
+                    .iter()
+                    .map(|t| TerrainRing {
+                        name: t.name.clone(),
+                        around: t.around,
+                        reach: t.reach,
+                        ground_variant: t.ground_variant,
+                    })
+                    .collect(),
                 clusters,
                 edges,
                 fillers,

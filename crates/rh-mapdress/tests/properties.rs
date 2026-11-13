@@ -361,6 +361,10 @@ fn the_ground_variant_plane_is_width_times_height_and_follows_the_ring_bands() {
                     if v == 0 || zone_at(&c.map, i) != Some(zone) {
                         continue;
                     }
+                    // P-DRESS-MARSH-1: Plague's water (7) and mud (8) are not signature rings; `marsh.rs` pins them.
+                    if zone == Zone::Plague && [7, 8].contains(&v) {
+                        continue;
+                    }
                     let dd = dist(centre(tx, ty), a) / TILE;
                     let k = z
                         .rings
