@@ -691,10 +691,12 @@ fn truncated_ground_variant_plane_is_refused() {
 
 #[test]
 fn prop_count_over_the_cap_is_refused() {
+    // Positions inside the 8x6 map (256 x 192 world units), strictly increasing by (y, x): P-DRESS-BAKE-1's decoder
+    // checks a prop's tile and order, so the cap is tested with props that are otherwise legal.
     let prop = |i: usize| MapProp {
         kind: 1,
-        x: i as u16,
-        y: 0,
+        x: (i % 256) as u16,
+        y: (i / 256) as u16,
         variant: 0,
         flags: 0,
     };
