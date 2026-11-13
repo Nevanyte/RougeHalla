@@ -128,6 +128,10 @@
         ]
       }
       },
+      "terrainRings": [
+        { "name": "plague-marsh-water", "around": "bog", "reach": 1, "groundVariant": 7 },
+        { "name": "plague-marsh-mud", "around": "bog", "reach": 3, "groundVariant": 8 }
+      ],
       "clusters": [
         { "name": "plague-grove", "kinds": ["plague.tree", "plague.bush"], "radius": 3, "minSpacing": 12, "clearing": 0.6, "sites": 8, "members": 8, "moat": 2 }
       ],

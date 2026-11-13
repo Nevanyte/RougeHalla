@@ -104,6 +104,13 @@ fn the_ground_plane_follows_the_band_of_each_floor_tile() {
         for ty in 0..c.map.h as usize {
             for tx in 0..c.map.w as usize {
                 let i = idx(&c.map, tx, ty);
+                // P-DRESS-MARSH-1: a Plague tile in a marsh ring shows the water or mud variant instead of its
+                // band's (ids 7 and 8; `marsh.rs` pins where, and that the band variant shows everywhere else).
+                if zone_at(&c.map, i) == Some(Zone::Plague)
+                    && [7, 8].contains(&d.ground_variants[i])
+                {
+                    continue;
+                }
                 let expect = match zone_at(&c.map, i) {
                     Some(zone) if c.map.tiles[i] == 0 => {
                         let b = tile_band(anchor_of(&c.map, zone), tx, ty);
@@ -305,6 +312,18 @@ const NO_ANCHOR_GOLDEN: [u64; 4] = [
     0x922f_491e_02e0_6411,
 ];
 
+/// The shipped file without any `terrainRings` list (P-DRESS-MARSH-1): the marsh rings change Plague's ground, so the
+/// pre-marsh golden values below are checked against the shipped file in this form.
+fn shipped_without_marsh() -> rh_mapdress::Rules {
+    let mut v: serde_json::Value =
+        serde_json::from_str(include_str!("../rules/zones.json")).expect("shipped file is JSON");
+    for z in v["zones"].as_object_mut().expect("zones").values_mut() {
+        z.as_object_mut().expect("zone").remove("terrainRings");
+    }
+    rh_mapdress::Rules::from_json(&v.to_string())
+        .expect("the shipped file minus terrainRings parses")
+}
+
 fn legacy_rules() -> rh_mapdress::Rules {
     rh_mapdress::Rules::from_json(include_str!("fixtures/zones_v1_legacy.json"))
         .expect("the pre-packet file parses")
@@ -314,6 +333,7 @@ fn legacy_rules() -> rh_mapdress::Rules {
 #[test]
 fn with_the_option_off_the_dressing_is_todays_byte_for_byte() {
     let old = legacy_rules();
+    let shipped = shipped_without_marsh();
     for (c, golden) in cases().iter().zip(OFF_GOLDEN) {
         assert!(c.map.anchors.is_empty(), "seed {}: option off", c.seed);
         assert_eq!(
@@ -323,9 +343,9 @@ fn with_the_option_off_the_dressing_is_todays_byte_for_byte() {
             c.seed
         );
         assert_eq!(
-            fnv(&dress(&c.map, c.hash, rules())),
+            fnv(&dress(&c.map, c.hash, &shipped)),
             golden,
-            "seed {} (shipped file)",
+            "seed {} (shipped file, no terrainRings)",
             c.seed
         );
     }
@@ -335,6 +355,7 @@ fn with_the_option_off_the_dressing_is_todays_byte_for_byte() {
 #[test]
 fn a_signature_map_stripped_of_its_anchors_is_dressed_as_today() {
     let old = legacy_rules();
+    let shipped = shipped_without_marsh();
     for (c, golden) in sig_cases().iter().zip(NO_ANCHOR_GOLDEN) {
         let mut map = c.map.clone();
         map.anchors.clear();
@@ -345,9 +366,9 @@ fn a_signature_map_stripped_of_its_anchors_is_dressed_as_today() {
             c.seed
         );
         assert_eq!(
-            fnv(&dress(&map, c.hash, rules())),
+            fnv(&dress(&map, c.hash, &shipped)),
             golden,
-            "seed {} (shipped file)",
+            "seed {} (shipped file, no terrainRings)",
             c.seed
         );
     }

@@ -13,6 +13,10 @@
 //! option-off dressing is pinned by hash). Two kinds that look alike are both kept: `fire.vent` (4) is the edge rule's
 //! vent that hugs walls, `fire.emberjet` (8) is the landmark's near-band jet standing in open basalt; a kind belongs to
 //! exactly one rule, so each rule has its own.
+//!
+//! Ground variants (per zone art meanings): 0 none; 1-2 a zone's fallback rings; 3-6 Plague's bog tree bands (core, near,
+//! mid, far); 7 water and 8 mud, Plague's `terrainRings` round bog (P-DRESS-MARSH-1). A terrain ring wins over the
+//! band or fallback ring variant within its reach. A zone's nearest terrain ring round each class also bars tall props.
 use rh_sim::mapdata::{FeatureKind, Zone};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -98,6 +102,21 @@ pub struct LandmarkRules {
     pub rings: Vec<BandRing>,
 }
 
+/// P-DRESS-MARSH-1: a ground ring round a terrain class. A tile of the zone's plain floor (class `Floor`) whose Chebyshev
+/// distance in tiles to the nearest tile of class `around` (of the same zone) is at most `reach` gets `ground_variant`.
+/// The rules of a zone are listed from the nearest ring to the farthest: ring k covers the distances above ring k-1's
+/// `reach` and up to its own. Looks only: nothing here changes a tile; the one effect on props is that a TALL prop
+/// never stands on a tile of the zone's nearest ring (Plague: water). A terrain ring overrides the tile's band or
+/// fallback-ring ground variant. Stub: parsed only; refusals (reach 0, reaches not increasing, `around` not one of
+/// ember, bog, ice, light, a reused rule name) and the ground are the implementer's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TerrainRing {
+    pub name: String,
+    pub around: TileClass,
+    pub reach: u32,
+    pub ground_variant: u8,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClusterRule {
     pub name: String,
@@ -147,6 +166,8 @@ pub struct ZoneRules {
     pub rings: Vec<RingRule>,
     /// The landmark path (P-DRESS-ANCHOR-1); `None` for a file without `signature.landmark`.
     pub landmark: Option<LandmarkRules>,
+    /// Ground rings round a terrain class (P-DRESS-MARSH-1); empty for a file without `terrainRings`.
+    pub terrain_rings: Vec<TerrainRing>,
     pub clusters: Vec<ClusterRule>,
     pub edges: Vec<EdgeRule>,
     pub fillers: Vec<FillerRule>,
@@ -252,9 +273,20 @@ struct RawKeepClear {
     corridor_width: u32,
 }
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RawTerrainRing {
+    name: String,
+    around: TileClass,
+    reach: u32,
+    #[serde(default)]
+    ground_variant: u8,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawZone {
     signature: RawSignature,
+    #[serde(default)]
+    terrain_rings: Vec<RawTerrainRing>,
     #[serde(default)]
     clusters: Vec<RawCluster>,
     #[serde(default)]
@@ -421,6 +453,36 @@ impl Raw {
             let Some(rz) = self.zones.get(z.as_str()) else {
                 continue;
             };
+            let mut terrain_rings: Vec<TerrainRing> = Vec::new();
+            for t in &rz.terrain_rings {
+                claim(&t.name)?;
+                if t.reach == 0 {
+                    return Err(format!("rule \"{}\": reach must be >= 1", t.name));
+                }
+                if !matches!(
+                    t.around,
+                    TileClass::Ember | TileClass::Bog | TileClass::Ice | TileClass::Light
+                ) {
+                    return Err(format!(
+                        "rule \"{}\": around must be ember, bog, ice or light",
+                        t.name
+                    ));
+                }
+                if let Some(prev) = terrain_rings.iter().rev().find(|p| p.around == t.around) {
+                    if t.reach <= prev.reach {
+                        return Err(format!(
+                            "rule \"{}\": reach {} must exceed {} of rule \"{}\"",
+                            t.name, t.reach, prev.reach, prev.name
+                        ));
+                    }
+                }
+                terrain_rings.push(TerrainRing {
+                    name: t.name.clone(),
+                    around: t.around,
+                    reach: t.reach,
+                    ground_variant: t.ground_variant,
+                });
+            }
             let mut rings = Vec::new();
             for r in &rz.signature.rings {
                 claim(&r.name)?;
@@ -575,6 +637,7 @@ impl Raw {
                 signature_feature: rz.signature.feature,
                 rings,
                 landmark,
+                terrain_rings,
                 clusters,
                 edges,
                 fillers,
