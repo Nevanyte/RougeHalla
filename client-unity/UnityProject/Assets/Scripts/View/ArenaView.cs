@@ -126,6 +126,7 @@ namespace Roguehalla.Client
             ShowcaseSprites.Initialize();
             _catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");
             _actors = new SpriteActorPresenter(transform, _catalog);
+            _actors.Surfaces = Surfaces;   // name colours follow the ground under a name (P-UNITY-NAME-LEGIBLE-1)
             _visionFog = new VisionFog(transform); _actors.Delivered = _membership; _actors.OnDeparted = _visionFog.AuditDeparture; _actors.OnArrived = _visionFog.AuditArrival;
             _visionFog.AuditLog = Application.absoluteURL != null && Application.absoluteURL.Contains("vision.audit=1");
             _visionFog.DebugRadiusTiles = DebugRadiusFlag(Application.absoluteURL);

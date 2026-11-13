@@ -59,6 +59,12 @@ namespace Roguehalla.Client
         /// </summary>
         public void SetCamps(MapCamp[] camps, IReadOnlyList<CampView> rows) { _camps = camps; _campRows = rows; }
         MapCamp[] _camps; IReadOnlyList<CampView> _campRows;
+        /// <summary>
+        /// The room's surface lookup (region and terrain plane plus decorative layers), set by the owning ArenaView. A world name asks it what lies under
+        /// the name's anchor so its face and outline colours read on that ground (P-UNITY-NAME-LEGIBLE-1, <see cref="Roguehalla.Net.Ui.NamePalette"/>).
+        /// Null (no map, tests): every name keeps the dark-ground colours it has today. Stub: nothing reads it yet.
+        /// </summary>
+        public SurfaceMap Surfaces;
         public int ActiveCount { get { return _active.Count; } }
         /// <summary>True when the actor's overhead name label is drawn this frame (test-visible; P-UNITY-HUD-VISUAL-FIX-2).</summary>
         public bool NameShown(uint id) { return _active.TryGetValue(id, out var art) && art.Ind.NameActive; }
@@ -180,7 +186,89 @@ namespace Roguehalla.Client
         readonly List<uint> _packNameIds = new List<uint>();
         readonly List<Rect> _nameRects = new List<Rect>();
         /// <summary>World rects of the fighter names drawn this frame (after stacking), for the camp labels to keep clear of.</summary>
-        public void FighterNameRects(List<Rect> into) { into.AddRange(_nameRects); }
+        public void FighterNameRects(List<Rect> into)
+        {
+            // The elite names step clear of other mobs' bars here, the seam the camp labels read after the frame's actors are placed, then every fighter, elite and pack name is reported.
+            _nameRects.Clear();
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                var f = art.IndFacts;
+                if (f.Dead || !art.Ind.NameActive) continue;
+                bool elite = f.Mob && f.Elite;
+                if (elite) ClearOfBars(art);
+                if (f.Mob && !elite && !_packNameIds.Contains(pair.Key)) continue;
+                var nb = art.Ind.NameDrawnBounds;
+                _nameRects.Add(new Rect(nb.min.x - .03f, nb.min.y, nb.size.x + .06f, nb.size.y));
+            }
+            into.AddRange(_nameRects);
+        }
+
+        // Luminance of what a player sees on each surface, for NamePalette.IsPale: the averages measured for P-UNITY-NAME-LEGIBLE-1 (ground texels through the
+        // ground shader, scaled by the drawn-light ratio). Every SurfaceKind has an explicit entry; NameLegibleTableEditModeTests keeps the measured ones
+        // in step with the texels. The kinds with no texel source are decisions, not measurements:
+        //   Ember, Lava, Bog: dark. Charred floor, obsidian crust and murky green with a glow; a light face reads on them, and the glow is not modelled.
+        //   Grass: the Plague mud average (the grass patches are part of the Plague sample, the brightest decile of Mud).
+        //   ShallowWater: dark. There is no water terrain in the ground table; legacy draws it a deep blue, below the .18 switch.
+        //   None: dark. No region (outside the map): the palette of today.
+        const float AssumedDark = .05f;
+        static readonly float Basalt = Lum(0x46251C), Flagstone = Lum(0x272223), Mud = Lum(0x394C23), Snow = Lum(0xA1BED0), Sand = Lum(0xCC9F55),
+            Limestone = Lum(0x9C9183), Ice = Lum(0xA6CAE3), HolyLight = Lum(0xAC8B4B), TempleFloor = Lum(0xBEAA86);
+        static float Lum(uint srgb) { return (float)NamePalette.Luminance(srgb); }
+
+        /// <summary>The relative luminance the name palette assumes for the ground of <paramref name="kind"/>. No allocation.</summary>
+        public static float FloorLuminance(SurfaceKind kind)
+        {
+            switch (kind)
+            {
+                case SurfaceKind.Basalt: return Basalt;
+                case SurfaceKind.Flagstone: return Flagstone;
+                case SurfaceKind.Mud: return Mud;
+                case SurfaceKind.Snow: return Snow;
+                case SurfaceKind.Sand: return Sand;
+                case SurfaceKind.Limestone: return Limestone;
+                case SurfaceKind.Ice: return Ice;
+                case SurfaceKind.HolyLight: return HolyLight;
+                case SurfaceKind.TempleFloor: return TempleFloor;
+                case SurfaceKind.Grass: return Mud;
+                case SurfaceKind.Ember: case SurfaceKind.Lava: case SurfaceKind.Bog: case SurfaceKind.ShallowWater: case SurfaceKind.None: return AssumedDark;
+            }
+            throw new System.ArgumentOutOfRangeException(nameof(kind), kind, "a SurfaceKind with no floor luminance");
+        }
+
+        const float BarClearance = .15f;
+
+        // Last step of the name pass, once every name is placed: each name takes the colours that read on the ground under its anchor.
+        void FinishNames()
+        {
+            if (Surfaces == null) return;
+            foreach (var pair in _active)
+            {
+                var art = pair.Value;
+                if (art.Stamp != _stamp || art.Dead || art.Ind == null) continue;
+                if (art.IndFacts.Dead || !art.Ind.NameActive) continue;
+                art.Ind.SetNameGround(FloorLuminance(Surfaces.SurfaceAt(art.Ind.NameWorldPosition)));
+            }
+        }
+
+        void ClearOfBars(Art self)
+        {
+            for (int pass = 0; pass < 4; pass++)
+            {
+                var nb = self.Ind.NameDrawnBounds; float lift = 0f;
+                foreach (var pair in _active)
+                {
+                    var o = pair.Value;
+                    if (o == self || o.Stamp != _stamp || o.Dead || o.HpBack == null || !o.HpBack.enabled) continue;
+                    var b = o.HpBack.bounds;
+                    if (b.max.x + BarClearance <= nb.min.x || b.min.x - BarClearance >= nb.max.x || b.max.y + BarClearance <= nb.min.y || b.min.y - BarClearance >= nb.max.y) continue;
+                    lift = Mathf.Max(lift, b.max.y + BarClearance - nb.min.y);
+                }
+                if (lift <= 0f) return;
+                self.Ind.LiftName(lift);
+            }
+        }
 
         /// <summary>
         /// Mobs of one camp that stand together show exactly one name (P-UNITY-NAME-GROUP-2): over the pack, or over the hovered or locked member.
@@ -235,12 +323,14 @@ namespace Roguehalla.Client
                     if (!_active.TryGetValue(_mergeIds[i], out var art)) continue;
                     if (!_mergeShown[i]) { art.Ind.HideName(); continue; }
                     bool pack = _packSize[_mergeScratch[i]] > 1;
-                    art.Ind.NameFullAlpha(pack ? _packFade[_mergeScratch[i]] : art.Ind.TextFade);   // every mob name reads at full strength (DEV-024)
+                    // Strength is set in OverheadIndicators.Update (full for every shown mob name, DEV-024); only a pack's one name takes the fade of its most visible member.
+                    if (pack) art.Ind.NameFullAlpha(_packFade[_mergeScratch[i]]);
                     if (_anchorX[i] != _mergeItems[i].X || _anchorY[i] != _mergeItems[i].Y) art.Ind.MoveName(_anchorX[i], _anchorY[i]);
                     if (pack) _packNameIds.Add(_mergeIds[i]);
                 }
             }
             StackFighterNames(fighters);
+            FinishNames();
         }
 
         // Fighters whose names would overlap are stacked, the one nearest the local fighter lowest. Names are never merged.
@@ -286,7 +376,6 @@ namespace Roguehalla.Client
             {
                 var item = _stackItems[i];
                 if (_lift[i] > 0f && _active.TryGetValue(_stackIds[i], out var art)) art.Ind.LiftName(_lift[i]);
-                if (i < fighterCount) _nameRects.Add(new Rect(item.X - item.W * .5f, item.Y + _lift[i], item.W, item.H));
             }
         }
 

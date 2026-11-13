@@ -15,6 +15,7 @@ namespace Roguehalla.Client
     {
         RectTransform _panel;
         TMP_Text _body;
+        MythicTextScale _scale;
         MatchClient _client;
         LobbyActivityTransport _transport;
         LobbyActivityModel _model = LobbyActivityModel.Empty;
@@ -35,8 +36,11 @@ namespace Roguehalla.Client
             _transport = gameObject.GetComponent<LobbyActivityTransport>() ?? gameObject.AddComponent<LobbyActivityTransport>();
             _panel = MythicUi.Panel(root, "HubLobbyActivityPanel", new Vector2(.76f, .06f), new Vector2(.99f, .46f), ShowcasePalette.Panel, false);
             _body = MythicUi.Text(_panel, "LobbyActivityBody", "", new Vector2(.02f, .02f), new Vector2(.98f, .98f), 15, ShowcasePalette.Text, TextAlignmentOptions.TopLeft);
-            // The unavailable state is nine lines; it shrinks to fit the card (never below 11) instead of running off its bottom edge.
-            _body.enableAutoSizing = true; _body.fontSizeMin = 11f; _body.fontSizeMax = 15f;
+            // The unavailable state is nine lines. MythicUi.Text attached a MythicTextScale (and MatchHud.ApplyTextScale rewrites size and minimum through it on every
+            // settings change, which undid plain auto-size): put it in fit-to-box mode so the size is the largest from 15 x scale down to 11 at which the text fits the card.
+            _scale = _body.GetComponent<MythicTextScale>();
+            if (_scale != null) { _scale.BaseSize = 15f; _scale.FitBox = true; _scale.MinSize = 11f; }
+            _body.enableAutoSizing = true; _body.fontSizeMin = 11f; _body.fontSizeMax = 15f;   // until the first Apply
             _panel.gameObject.SetActive(false);
         }
 
@@ -52,6 +56,7 @@ namespace Roguehalla.Client
             _panel.anchorMin = new Vector2(1f - (InsetRight + width) / w, 1f - (InsetTop + height) / h);
             _panel.anchorMax = new Vector2(1f - InsetRight / w, 1f - InsetTop / h);
             _panel.offsetMin = _panel.offsetMax = Vector2.zero;
+            if (_scale != null && _panel.gameObject.activeInHierarchy) _scale.Refit();   // the box changed with the window
         }
 
         /// <summary>Called every frame by the hub: <paramref name="inHub"/> while the join menu is up, <paramref name="shown"/> when no other hub panel covers the card.</summary>
