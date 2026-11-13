@@ -499,7 +499,8 @@ impl Sim {
 
     /// Advances by exactly one fixed step, appending its events to `out`: first the events that waited since the last step
     /// (a leave's result), then the step's own, in order. `out` is not cleared, so a caller that loops reuses one buffer
-    /// (`out.clear()` between steps) and a steady-state step allocates nothing (`tests/no_alloc.rs`).
+    /// (`out.clear()` between steps) and a steady-state step allocates nothing (`tests/no_alloc.rs`). What `out` already
+    /// holds never changes the step: it reads back only the events it appends itself (`tests/step_event_window.rs`).
     pub fn step_into(&mut self, out: &mut Vec<Event>) {
         self.step_into_with(
             out,
@@ -517,6 +518,9 @@ impl Sim {
         >,
     ) {
         let event_start = out.len();
+        // The step reads back only its own events (the waiting leave events below included), never what an earlier step
+        // left in a buffer its caller did not clear: a replay then steps exactly as the live room does.
+        self.s.step_event_start = event_start;
         self.s.fx.ops.clear();
         self.w.server_time += TICK_MS;
         // A restored checkpoint may legitimately sit one step below the maximum; the tick is the
