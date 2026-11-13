@@ -4,6 +4,54 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Beta follow-up integrations 13 to 16 (2026-11-12 night to 2026-11-13 morning): current checkpoint
+
+Integration branch `feature/unity-rework` @ `56549ead` (pushed). Identities: protocol 17 (protocol 18 is stamped on
+the next deployed build), **observation 28, policy contract 22** (both moved by integration 15), checkpoint 31,
+replay 25, content hash unchanged. Last full gate with Postgres: PASS on `56549ead` (EditMode 889 of 889).
+
+| # | Gate | Packet | Merge |
+|---|---|---|---|
+| 13 | quick PASS (EditMode 889) | P-UNITY-TRAINING-HUD-1: in practice a Tab press no longer hides the HUD (the panels ignore console focus while the console is closed); the training console scrolls to its last rows; legacy opens no Tab map in practice (pinned) | `04f43fbd` |
+| 14 | full PASS | P-MECHANICS-SALVAGE-3: derived camp-clear mirror, armWishes effect refresh, resetAll DoT crit memory; the HUD summary, champion panel and kill Trophy read the mirror (review notes 1-2) | `447ba55c` |
+| 15 | full PASS | P-WIRE17-HUD-3: owner-only healing and wind-emblem end times (state key 1), the room's minimum players (key 9); hash tape regenerated, only `observationVersion` moved | `49767960`, carry `b3a8fb51` |
+| 16 | full PASS | P-MAPGEN-SIG-RESERVE-1: a 34-tile site per styled zone reserved in the Prefix before camps; the Sentenced and Frost first elite camp stands inside its site; ADR 0028 decision 12; DEV-028 proposed | `da27fdb7`, carry `56549ead` |
+
+**Existing tests changed in these integrations (flagged to the owner in chat; all set-up or identity pins, no expected
+behaviour changed):** `build_summary_tests.rs` and `observe/panel_tests.rs` (two Holy HUD cases now built in the
+practice-room profile, where the camp-clear mirror is installed; 0.185 and 0.49 unchanged);
+`crates/rh-mapdress/tests/anchor.rs` `NO_ANCHOR_GOLDEN` (4) and `marsh.rs` `SIG_GOLDEN` (16): digests pinned on
+landmark-mode maps, re-pinned because the reservation moves every such map (no option-off digest moved). reviewer-opus
+advises replacing `NO_ANCHOR_GOLDEN` with a direct old-rules-equals-shipped-rules comparison so it stops depending on
+generator output: **owner question, open**; until answered each landmark merge re-pins.
+
+**Measured for integration 16** (seeds 1-64, landmark option on, release probe): a 34-tile site in every zone on 64 of
+64 seeds; attempts 101 (before 104), worst attempt index 5 (before 7); refusals Prefix 11, RadiusPost 8,
+SignatureDiscarded 18, Signature 0; 0.109 s per certified map (before 0.072); Plague's site beyond the outer-third
+line on 20 seeds, the zone's deepest free square on 44; near-band Fire craters on seeds 1-32 fall from 52 to 15 (camps
+are kept out of the volcano's site). The inside camp is 7 tiles from the far side of the site's 30-tile inner rect and
+one tile off its centre line across (34 is even): a mirror-symmetric blueprint is at most 29 wide and is placed
+relative to the camp tile.
+
+**In flight:** P-TRAINING-CAMPS-1 (implementer-opus; practice camp clears pay as legacy and the console's clear resets
+them; **checkpoint 31 -> 32** when it lands, training-world state hashes move, arena hashes do not; scope widened by
+the coordinator for the format pins inside rh-sim); P-DRESS-BAKE-1 (reviewed LAND WITH NOTES, notes being applied:
+the server bakes decoration into the map blob's reserved sections; no identity moves). **Waiting on the owner:** the
+five landmark blueprint drafts (session scratchpad, `blueprints/`), which gate the oracles of P-MAPGEN-SIG-SCALE-1 to
+-4 and P-MAPGEN-SIG-HOLY-1; adding `node tools/protocol-js/check-dressing.mjs` to `scripts/gate.sh`; signatures on
+DEV-022 to DEV-028. **Follow-ups not yet briefed:** the overhead build marks still count camp clears without the
+mirror (`observe.rs`, a shared file); legacy's practice screen has no Kills or GV line, only a "nothing here is
+recorded" banner (Unity only).
+
+**Gate notes.** The main checkout carries an uncommitted `.claude/settings.json` change that is not the coordinator's
+(left untouched, reported to the owner), which the gate refuses as a protected path; since integration 14 merges are
+made and gated in a clean detached worktree and the main checkout is fast-forwarded. The coordinator's gates use their
+own throwaway Postgres (`RH_PGTEST_STATE`), after a shared cluster was restarted under a running gate. One full gate
+was killed by a sub-agent's `pkill` by pattern; sub-agents are now told to stop only their own PIDs.
+
+**Not established:** nothing in these four integrations has been seen in a browser; no client shows the HUD-3 fields
+yet (P-UNITY-HUD-STATUS-2); no landmark is larger yet (the SCALE packets).
+
 ## Owner decision 2026-11-12 (chat, midnight): the landmark requirements L1 to L6 ("Yes, apply them")
 
 The land-generation session wrote [coordination/LAND_GENERATION_REQUIREMENTS.md](coordination/LAND_GENERATION_REQUIREMENTS.md)
