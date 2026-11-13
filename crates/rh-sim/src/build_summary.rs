@@ -189,10 +189,21 @@ pub enum PanelCode {
     HolyCampClears,
     /// Holy: earned camp leech, a fraction (Bloodthirst doubles it below half health).
     HolyCampLeech,
+    /// P-WIRE17-HUD-2c, Fire: the roam move-speed bonus for the code-8 charge, `speed_mult(charge) - 1` (a fraction;
+    /// legacy prints it x 100 as "% move speed"). Follows the charge, not the armed flag (legacy :116).
+    RoamSpeedBonus,
+    /// P-WIRE17-HUD-2c, Fire: the armed burst's raw physical damage, `FIRE_ROAM_BURST_BASE + AD_SHARE x max(0, Offense)`.
+    RoamBurstDamage,
+    /// P-WIRE17-HUD-2c, every champion: the card fold's hit multiplier (the `h` of codes 0-2).
+    HitMult,
+    /// P-WIRE17-HUD-2c, every champion: the weapon scaling's physical addition per hit, before the hit multiplier.
+    ScalingPhysical,
+    /// P-WIRE17-HUD-2c, every champion: the weapon scaling's magic addition per hit, before the hit multiplier.
+    ScalingMagic,
 }
 
 /// How many panel codes exist (`PanelCode::ALL.len()`).
-pub const PANEL_CODE_COUNT: usize = 23;
+pub const PANEL_CODE_COUNT: usize = 28;
 
 impl PanelCode {
     pub const ALL: [PanelCode; PANEL_CODE_COUNT] = [
@@ -219,6 +230,11 @@ impl PanelCode {
         PanelCode::HolyLifeSteal,
         PanelCode::HolyCampClears,
         PanelCode::HolyCampLeech,
+        PanelCode::RoamSpeedBonus,
+        PanelCode::RoamBurstDamage,
+        PanelCode::HitMult,
+        PanelCode::ScalingPhysical,
+        PanelCode::ScalingMagic,
     ];
     /// Wire code (the variant index).
     pub fn code(self) -> u8 {
@@ -261,9 +277,9 @@ impl ChampionPanel {
 /// The champion panel for one player; `None` when `id` is not seated. Read-only, allocation-free (stack array).
 ///
 /// Legacy: `packages/client/src/ui/championCombatModel.ts:91-216` (auto row and passive row, value and scaling lines,
-/// the auto tooltip's three per-hit components, the Fire roam charge). Codes 0-3 for every champion, then exactly the
-/// owner's faction codes; units per code in the P-WIRE17-HUD-2 brief. Only the owner's own `Player` (and its own
-/// zombie) is read (C-OBS).
+/// the auto tooltip's three per-hit components, the Fire roam charge). Codes 0-3 and 25-27 (P-WIRE17-HUD-2c) for every
+/// champion, then exactly the owner's faction codes (Fire adds 23-24); units per code in the P-WIRE17-HUD-2 and -2c
+/// briefs. Only the owner's own `Player` (and its own zombie) is read (C-OBS).
 pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
     use crate::constants::{
         CHILL_MOVE_MULT, DUEL_PACE, FIRE_BURN_DPS, FROST_ELITE_GUARD_BONUS,
@@ -294,6 +310,13 @@ pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
     panel.set(C::HitMagic, pk.raw * pk.magic * h);
     panel.set(C::HitTrue, pk.raw * pk.true_ * h);
     panel.set(C::AttacksPerSecond, aps);
+    // Auto tooltip (:100-108, :128): the hit multiplier and the weapon scaling's additions before it, from the same
+    // split the hit packet uses (paced sheet, unpaced base hp).
+    let (scaling_phys, scaling_magic) =
+        crate::modifiers::weapon_scaling(&p.core, w, &f, crate::content::faction(faction).hp);
+    panel.set(C::HitMult, h);
+    panel.set(C::ScalingPhysical, scaling_phys);
+    panel.set(C::ScalingMagic, scaling_magic);
 
     let flag = |b: bool| if b { 1. } else { 0. };
     match faction {
@@ -312,6 +335,15 @@ pub fn champion_panel(sim: &Sim, id: PlayerId) -> Option<ChampionPanel> {
             });
             panel.set(C::RoamCharge, charge);
             panel.set(C::RoamArmed, flag(p.roam.ready));
+            // :116 reads the charge, not the armed flag: armed after a reset shows 0 % (legacy pinned).
+            panel.set(
+                C::RoamSpeedBonus,
+                crate::systems::fire_roam::speed_mult(charge) - 1.,
+            );
+            panel.set(
+                C::RoamBurstDamage,
+                crate::systems::fire_roam::burst_damage(m.ad_bonus),
+            );
         }
         FactionId::Sentenced => {
             // Sentence (:157-175): a tier-1 near pulse as a fraction of target max hp.

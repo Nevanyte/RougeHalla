@@ -556,8 +556,21 @@ eqJson(panelSummary.mobRows, [], "panel vector has no mob rows");
 eqJson(panelSummary.panel.map(p => [p.code, p.quanta]),
   [[0,18182],[1,473697],[2,0],[3,19800],[4,643750],[5,6000],[6,5000],[7,12500],[8,2500000],[9,0]], "Fire panel codes and quanta");
 eq(Math.abs(panelSummary.panel[8].value - 250) < 1e-9, true, "roam charge scaled to 250, no recomputation");
+// P-WIRE17-HUD-2c: codes 23-27 (Fire roam speed bonus and burst, hit mult, weapon scaling physical and magic) after the
+// Fire codes, for the worked owner of crates/rh-sim/src/observe/panel_tooltip_tests.rs.
+const tooltipVector = fx.server.find(v => v.name === "state_build_summary_panel_tooltip");
+if (!tooltipVector) throw new Error("missing Rust-generated state_build_summary_panel_tooltip vector");
+const tooltipState = decode(bytes(tooltipVector.hex));
+eq(tooltipState.tick, 216, "tooltip panel vector tick");
+eqJson(tooltipState.items[0].value.panel.map(p => [p.code, p.quanta]),
+  [[0,18182],[1,473697],[2,0],[3,19800],[4,643750],[5,6000],[6,5000],[7,12500],[8,2500000],[9,0],
+    [23,1250],[24,548000],[25,25000],[26,36364],[27,121212]], "panel codes 23-27 and quanta");
+eq(Math.abs(tooltipState.items[0].value.panel[11].value - 54.8) < 1e-9, true, "burst scaled to 54.8, no recomputation");
+if (fx.malformedServer.some(v => v.name === "state_build_summary_panel_code_23")) {
+  throw new Error("state_build_summary_panel_code_23 is retired (code 23 is valid since P-WIRE17-HUD-2c)");
+}
 for (const name of ["state_camp_reward_stat_10", "state_camp_ward_verdict_3", "state_camp_ward_missing_expiry",
-  "state_build_summary_gains_short", "state_build_summary_mob_stat_9", "state_build_summary_panel_code_23",
+  "state_build_summary_gains_short", "state_build_summary_mob_stat_9", "state_build_summary_panel_code_unknown",
   "state_build_summary_panel_order", "state_build_summary_panel_count_over"]) {
   if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
 }
@@ -568,7 +581,8 @@ const hudScaling = (id, ad, ap, bonusHp, bonusDefense, dominant) => ({ id, ad, a
 exactJson(decode(bytes(fx.server.find(v => v.name === "welcome").hex)).hud, {
   scaling: [hudScaling(0, 1, 1, 0, 0, true), hudScaling(1, 1, 0, 0, 0, false), hudScaling(2, 0.3, 1, 0, 0, false),
     hudScaling(3, 0, 0.3, 0, 0.4, false), hudScaling(4, 1, 0, 0.02, 0, false), hudScaling(5, 0.6, 0.6, 0, 0, false)],
-  terms: [1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1]
+  // P-WIRE17-HUD-2c: codes 19-22, the Fire roam constants (fireRoam.ts:2-7).
+  terms: [1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1, 20000, 1000, 50, 0.4]
     .map((value, code) => ({ code, value })),
 }, "welcome HUD content block (legacy weapon scaling and Wish numbers)");
 for (const name of ["welcome_hud_scaling_count", "welcome_hud_scaling_dominant", "welcome_hud_scaling_nan",
@@ -762,7 +776,7 @@ const reason = {
   // P-WIRE17-HUD-2: shared negative vectors for the HUD fields (camp reward/ward, key 13 summary and panel).
   state_camp_reward_stat_10: /camp reward/, state_camp_ward_verdict_3: /camp ward/, state_camp_ward_missing_expiry: /./,
   state_build_summary_gains_short: /./, state_build_summary_mob_stat_9: /summary stat code/,
-  state_build_summary_panel_code_23: /summary panel code/, state_build_summary_panel_order: /summary panel order/,
+  state_build_summary_panel_code_unknown: /summary panel code/, state_build_summary_panel_order: /summary panel order/,
   state_build_summary_panel_count_over: /too many summary panel values/,
   // P-WIRE17-HUD-2b: the Welcome's HUD content block.
   welcome_hud_scaling_count: /bad scaling count/, welcome_hud_scaling_dominant: /bad scaling dominant/,

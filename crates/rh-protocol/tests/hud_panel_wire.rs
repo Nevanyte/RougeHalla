@@ -81,8 +81,11 @@ fn frame(s: &WireBuildSummary) -> Vec<u8> {
 
 #[test]
 fn the_panel_is_appended_to_key_13_after_the_mob_rows() {
-    assert_eq!(PANEL_CODE_COUNT, 23, "codes 0..=22 (brief, Field list)");
-    assert_eq!(MAX_PANEL_VALUES, 23, "at most one value per code");
+    assert_eq!(
+        PANEL_CODE_COUNT, 28,
+        "codes 0..=22 (brief, Field list), 23..=27 (P-WIRE17-HUD-2c)"
+    );
+    assert_eq!(MAX_PANEL_VALUES, 28, "at most one value per code");
     let s = fire_summary();
     assert_eq!(
         round_trip(&state(vec![StateItem::BuildSummary(Some(s.clone()))])),
@@ -115,7 +118,7 @@ fn the_panel_refuses_unknown_codes_disorder_and_an_over_cap_count() {
     let mut cases = Vec::new();
     let mut s = fire_summary();
     s.panel.push(pv(PANEL_CODE_COUNT, 1));
-    cases.push(("panel code 23", s, "summary panel code"));
+    cases.push(("panel code 28", s, "summary panel code"));
     let mut s = fire_summary();
     s.panel.swap(0, 1);
     cases.push(("panel codes out of order", s, "summary panel order"));
@@ -141,15 +144,15 @@ fn the_panel_refuses_unknown_codes_disorder_and_an_over_cap_count() {
         ..WireBuildSummary::default()
     };
     match state(vec![StateItem::BuildSummary(Some(over.clone()))]).try_encode() {
-        Err(EncodeError::TooMany { n, max, .. }) => assert_eq!((n, max), (24, 23)),
-        other => panic!("24 panel values must be refused as TooMany, got {other:?}"),
+        Err(EncodeError::TooMany { n, max, .. }) => assert_eq!((n, max), (29, 28)),
+        other => panic!("29 panel values must be refused as TooMany, got {other:?}"),
     }
     assert!(
         matches!(
             ServerMsg::decode(&frame(&over)),
             Err(DecodeError::TooMany(_))
         ),
-        "the decoder refuses a panel count of 24 before reading the rows"
+        "the decoder refuses a panel count of 29 before reading the rows"
     );
 }
 
@@ -200,7 +203,7 @@ fn the_golden_vectors_carry_the_panel() {
     assert_eq!(
         summary.panel.iter().map(|p| p.code).collect::<Vec<_>>(),
         (0..PANEL_CODE_COUNT).collect::<Vec<_>>(),
-        "max State summary carries all 23 panel codes"
+        "max State summary carries all 28 panel codes"
     );
     assert!(summary.panel.iter().all(|p| p.value == i32::MIN));
 }
@@ -242,8 +245,8 @@ fn wanted_negatives() -> Vec<(&'static str, Vec<u8>, DecodeError)> {
     };
     let mut over = summary_prefix();
     over.push(0);
-    over.push(24);
-    for c in 0..24 {
+    over.push(29);
+    for c in 0..29 {
         over.extend(panel_row(c));
     }
     vec![
@@ -269,8 +272,9 @@ fn wanted_negatives() -> Vec<(&'static str, Vec<u8>, DecodeError)> {
             BadField("summary stat code"),
         ),
         (
-            "state_build_summary_panel_code_23",
-            with(with(summary_prefix(), &[0, 1]), &panel_row(23)),
+            // P-WIRE17-HUD-2c: code 23 is valid now; the bound-neutral name carries code PANEL_CODE_COUNT = 28.
+            "state_build_summary_panel_code_unknown",
+            with(with(summary_prefix(), &[0, 1]), &panel_row(28)),
             BadField("summary panel code"),
         ),
         (
@@ -281,7 +285,7 @@ fn wanted_negatives() -> Vec<(&'static str, Vec<u8>, DecodeError)> {
             ),
             BadField("summary panel order"),
         ),
-        ("state_build_summary_panel_count_over", over, TooMany(24)),
+        ("state_build_summary_panel_count_over", over, TooMany(29)),
     ]
 }
 

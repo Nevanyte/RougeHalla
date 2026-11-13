@@ -464,7 +464,7 @@ function readWeapons(r) {
   return rows;
 }
 // P-WIRE17-HUD-2b: the HUD content block, between the weapon table and the map: scaling count u8 (<= 32), rows of id u8,
-// ad f64, ap f64, bonusHp f64, bonusDefense f64, dominant u8 (0/1); term count u8 (<= 19), rows of code u8 (< 19),
+// ad f64, ap f64, bonusHp f64, bonusDefense f64, dominant u8 (0/1); term count u8 (<= 23), rows of code u8 (< 23),
 // value f64. Ids and codes strictly ascend; every value finite in 0..=1e6. Checked in the Rust order: a count over its cap
 // before any row, a dominant byte or a code as soon as read, then values, then order.
 function readHud(r) {
@@ -480,11 +480,11 @@ function readHud(r) {
   for (const s of scaling) if (![s.ad, s.ap, s.bonusHp, s.bonusDefense].every(ok)) throw new Error("bad scaling");
   for (let i = 1; i < n; i++) if (scaling[i].id <= scaling[i - 1].id) throw new Error("bad scaling order");
   const m = r.u8();
-  if (m > 19) throw new Error("bad hud term count");
+  if (m > 23) throw new Error("bad hud term count");
   const terms = [];
   for (let i = 0; i < m; i++) {
     const code = r.u8();
-    if (code >= 19) throw new Error("bad hud term code");
+    if (code >= 23) throw new Error("bad hud term code");
     terms.push({ code, value: r.f64() });
   }
   for (const t of terms) if (!ok(t.value)) throw new Error("bad hud term");
@@ -845,7 +845,7 @@ function readRoster(r) {
 // P-WIRE17-HUD-1: every HUD number is an integer count of HUD_QUANTUM (1e-4); stat codes 0 Offense, 1 Soul Offense,
 // 2 Damage, 3 Attack speed, 4 Life steal, 5 Health, 6 Defense, 7 Soul Defense, 8 Move speed. Each quantized integer is
 // kept, with `value` its scaled double (no recomputation).
-const HUD_QUANTUM = 1e-4, HUD_STAT_COUNT = 9, MAX_SUMMARY_MOB_ROWS = 20, PANEL_CODE_COUNT = 23, MAX_PANEL_VALUES = 23;
+const HUD_QUANTUM = 1e-4, HUD_STAT_COUNT = 9, MAX_SUMMARY_MOB_ROWS = 20, PANEL_CODE_COUNT = 28, MAX_PANEL_VALUES = 28;
 // A camp row's HUD tail: reward u8 (0 none / 1 + stat code) [+ amount u16 > 0], then ward u8 (0 none / 1 yours /
 // 2 another player's) [+ expiresAt f64, finite, >= 0]. A ward is a verdict for this viewer, never an owner id.
 function readCampHud(r, c) {

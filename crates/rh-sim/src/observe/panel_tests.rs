@@ -221,7 +221,11 @@ fn a_holy_build_shows_the_legacy_auto_and_radiant_numbers() {
             C::AttacksPerSecond,
             C::HolyLifeSteal,
             C::HolyCampClears,
-            C::HolyCampLeech
+            C::HolyCampLeech,
+            // P-WIRE17-HUD-2c: the auto tooltip's hit mult and scaling split, every champion.
+            C::HitMult,
+            C::ScalingPhysical,
+            C::ScalingMagic
         ],
         "a Holy panel prints the auto row and the Radiant row"
     );
@@ -286,7 +290,13 @@ fn a_fire_build_shows_the_legacy_auto_dragonslayer_and_roam_numbers() {
             C::BurnOffenseRatio,
             C::DotMult,
             C::RoamCharge,
-            C::RoamArmed
+            C::RoamArmed,
+            // P-WIRE17-HUD-2c: the roam line (Fire only), then the auto tooltip's numbers.
+            C::RoamSpeedBonus,
+            C::RoamBurstDamage,
+            C::HitMult,
+            C::ScalingPhysical,
+            C::ScalingMagic
         ],
         "a Fire panel prints the auto row, the Dragonslayer row and the roam charge"
     );
@@ -319,6 +329,8 @@ fn a_fresh_champion_of_every_faction_carries_exactly_its_codes() {
                 C::DotMult,
                 C::RoamCharge,
                 C::RoamArmed,
+                C::RoamSpeedBonus,
+                C::RoamBurstDamage,
             ],
         ),
         (FactionId::Sentenced, &[C::MarkPulse, C::MarkKillStack]),
@@ -342,7 +354,9 @@ fn a_fresh_champion_of_every_faction_carries_exactly_its_codes() {
         let sim = sim_with(&[seat("p", faction, None, Vec2::new(112., 112.))]);
         let p = sim.players()[0].clone();
         let panel = panel_of(&sim, p.id);
-        let want: Vec<C> = auto.iter().chain(own).copied().collect();
+        // P-WIRE17-HUD-2c: every panel ends with the auto tooltip's hit mult and scaling split.
+        let tooltip = [C::HitMult, C::ScalingPhysical, C::ScalingMagic];
+        let want: Vec<C> = auto.iter().chain(own).chain(&tooltip).copied().collect();
         assert_eq!(codes(&panel), want, "{faction:?} panel codes");
         assert_auto(&panel, &p);
         match faction {
@@ -434,7 +448,7 @@ fn each_seat_observes_only_its_own_champion_panel() {
 #[test]
 fn the_observation_identity_moves_for_the_panel() {
     assert_eq!(
-        OBSERVATION_VERSION, 26,
-        "Observation gains the owner's champion panel"
+        OBSERVATION_VERSION, 27,
+        "Observation gains the owner's champion panel (26), then its codes 23-27 (27, P-WIRE17-HUD-2c)"
     );
 }

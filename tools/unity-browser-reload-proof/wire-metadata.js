@@ -15,7 +15,7 @@ const MAX_MAP_RUNS = 5 * MAX_MAP_TILES;
 const PROTOCOL = 17;
 const MAX_ARCHETYPES = 32, MAX_ARCHETYPE_KEY = 24, MAX_WEAPONS = 32, WEAPON_ROW_LEN = 34;
 // P-WIRE17-HUD-2b HUD content block (crates/rh-protocol/src/hud_content.rs).
-const MAX_SCALING_ROWS = 32, SCALING_ROW_LEN = 34, MAX_HUD_TERMS = 19, HUD_TERM_ROW_LEN = 9;
+const MAX_SCALING_ROWS = 32, SCALING_ROW_LEN = 34, MAX_HUD_TERMS = 23, HUD_TERM_ROW_LEN = 9;
 const CLIENT_TAGS = new Set([1, 2, 3, 4, 5]);
 const SERVER_TAGS = new Set([0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88]);
 

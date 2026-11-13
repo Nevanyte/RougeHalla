@@ -971,9 +971,9 @@ pub struct WireBuildSummary {
 }
 
 /// P-WIRE17-HUD-2: how many champion panel codes exist (`rh_sim::build_summary::PanelCode`; append only).
-pub const PANEL_CODE_COUNT: u8 = 23;
+pub const PANEL_CODE_COUNT: u8 = 28;
 /// P-WIRE17-HUD-2: the most panel values a build summary carries (one per code).
-pub const MAX_PANEL_VALUES: usize = 23;
+pub const MAX_PANEL_VALUES: usize = 28;
 
 /// P-WIRE17-HUD-2: one champion panel number: its code and its value in [`HUD_QUANTUM`] units.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

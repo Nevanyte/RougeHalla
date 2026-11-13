@@ -39,8 +39,9 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void PanelConstantsMatchTheBrief()
         {
-            Assert.AreEqual(23, Hud.PanelCodeCount);
-            Assert.AreEqual(23, Hud.MaxPanelValues);
+            // P-WIRE17-HUD-2c: codes 23-27 appended.
+            Assert.AreEqual(28, Hud.PanelCodeCount);
+            Assert.AreEqual(28, Hud.MaxPanelValues);
         }
 
         [Test]
@@ -63,12 +64,12 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void TheEncoderRefusesABadPanel()
         {
-            var unknown = FirePanel().Concat(new[] { P(23, 1) }).ToArray();
-            Assert.Throws<EncodeException>(() => Frame(unknown).Encode(), "code 23");
+            var unknown = FirePanel().Concat(new[] { P(28, 1) }).ToArray();
+            Assert.Throws<EncodeException>(() => Frame(unknown).Encode(), "code 28");
             var dup = FirePanel(); dup[1].Code = 0;
             Assert.Throws<EncodeException>(() => Frame(dup).Encode(), "duplicate code");
-            var over = Enumerable.Range(0, 24).Select(i => P((byte)i, 1)).ToArray();
-            Assert.Throws<EncodeException>(() => Frame(over).Encode(), "24 values");
+            var over = Enumerable.Range(0, 29).Select(i => P((byte)i, 1)).ToArray();
+            Assert.Throws<EncodeException>(() => Frame(over).Encode(), "29 values");
         }
 
         [Test]
@@ -89,7 +90,7 @@ namespace Roguehalla.Net.Tests
         static readonly string[] NewNegatives = {
             "state_camp_reward_stat_10", "state_camp_ward_verdict_3", "state_camp_ward_missing_expiry",
             "state_build_summary_gains_short", "state_build_summary_mob_stat_9",
-            "state_build_summary_panel_code_23", "state_build_summary_panel_order", "state_build_summary_panel_count_over",
+            "state_build_summary_panel_code_unknown", "state_build_summary_panel_order", "state_build_summary_panel_count_over",
         };
 
         [Test]

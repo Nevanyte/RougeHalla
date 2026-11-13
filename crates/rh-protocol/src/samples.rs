@@ -900,7 +900,8 @@ pub fn sample_weapons() -> Vec<WireWeapon> {
 /// The sample HUD content block (P-WIRE17-HUD-2b): exactly what the server sends (`rh_policy::delivery::projection::
 /// wire_hud`, held equal by the rh-policy oracle): the six weapons' scaling rows and every [`crate::HudTerm`] code.
 /// Scaling: legacy `WEAPONS[w].scaling` / `.dominant` (packages/shared/src/weapons.ts:96-124) by wire id (sword, bow, wand,
-/// shield, axe, fists). Terms: the legacy Wish constants (packages/shared/src/abilities.ts:140-167) by `HudTerm` code.
+/// shield, axe, fists). Terms: the legacy Wish constants (packages/shared/src/abilities.ts:140-167) and the Fire roam
+/// constants (packages/shared/src/fireRoam.ts:2-7) by `HudTerm` code.
 pub fn sample_hud() -> crate::WireHudContent {
     use crate::{WireHudTerm, WireWeaponScaling};
     let row = |id, ad, ap, bonus_hp, bonus_defense, dominant| WireWeaponScaling {
@@ -931,6 +932,11 @@ pub fn sample_hud() -> crate::WireHudContent {
         0.3,    // LastStandSpeedBonus
         0.3,    // LastStandHealShare
         1.0,    // LastStandFloorHp
+        // P-WIRE17-HUD-2c: the legacy Fire roam constants (packages/shared/src/fireRoam.ts:2-7).
+        20000.0, // FireRoamRampMs
+        1000.0,  // FireRoamChargeMax
+        50.0,    // FireRoamBurstBase
+        0.4,     // FireRoamBurstAdShare
     ];
     crate::WireHudContent {
         scaling: vec![
@@ -1285,6 +1291,39 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         (7, 12_500),
                         (8, 2_500_000),
                         (9, 0),
+                    ]
+                    .into_iter()
+                    .map(|(code, value)| WirePanelValue { code, value })
+                    .collect(),
+                }))],
+            },
+        ),
+        // P-WIRE17-HUD-2c: the same Fire owner with the roam line and auto tooltip codes (Wand, Here Comes the Boom,
+        // Offense I, SO I, 5 s out of combat): roam bonus 0.125, burst 54.8, hit mult 2.5, scaling 3.6 / 0.99 physical
+        // and 12 / 0.99 magic.
+        (
+            "state_build_summary_panel_tooltip",
+            ServerMsg::State {
+                tick: 216,
+                items: vec![StateItem::BuildSummary(Some(WireBuildSummary {
+                    gains: [25_000, 15_000, 0, -5_000, 0, 0, 0, 0, 0],
+                    mob_rows: Vec::new(),
+                    panel: [
+                        (0, 18_182),
+                        (1, 473_697),
+                        (2, 0),
+                        (3, 19_800),
+                        (4, 643_750),
+                        (5, 6_000),
+                        (6, 5_000),
+                        (7, 12_500),
+                        (8, 2_500_000),
+                        (9, 0),
+                        (23, 1_250),
+                        (24, 548_000),
+                        (25, 25_000),
+                        (26, 36_364),
+                        (27, 121_212),
                     ]
                     .into_iter()
                     .map(|(code, value)| WirePanelValue { code, value })
@@ -3165,9 +3204,10 @@ fn malformed_hud_content() -> Vec<(&'static str, Vec<u8>)> {
             scaling(vec![crate::WireWeaponScaling { ap: -0.5, ..sword }]),
         ),
         ("welcome_hud_scaling_order", scaling(vec![bow, sword])),
-        // No rows, then a term count of 20, refused before any term is read: the map follows.
-        ("welcome_hud_term_count", welcome_hud_bytes(&[0, 20])),
-        ("welcome_hud_term_code", terms(&[(19, 1.0)])),
+        // No rows, then a term count of 24 (MAX_HUD_TERMS + 1), refused before any term is read: the map follows.
+        ("welcome_hud_term_count", welcome_hud_bytes(&[0, 24])),
+        // The first unknown code (HUD_TERM_COUNT).
+        ("welcome_hud_term_code", terms(&[(23, 1.0)])),
         ("welcome_hud_term_infinite", terms(&[(0, f64::INFINITY)])),
         (
             "welcome_hud_term_over_max",
@@ -5191,13 +5231,15 @@ fn malformed_hud() -> Vec<(&'static str, Vec<u8>)> {
     let mut mob_stat_9 = vec![1];
     mob_stat_9.extend(row(&[0, 9, 1], 1));
     mob_stat_9.push(0);
-    let mut code_23 = vec![0, 1];
-    code_23.extend(row(&[23], 1));
+    // The first unknown code (PANEL_CODE_COUNT): bound-neutral name, the bytes follow the bound.
+    let mut code_unknown = vec![0, 1];
+    code_unknown.extend(row(&[crate::state::PANEL_CODE_COUNT], 1));
     let mut order = vec![0, 2];
     order.extend(row(&[3], 1));
     order.extend(row(&[3], 1));
-    let mut over = vec![0, 24];
-    for code in 0..24u8 {
+    // MAX_PANEL_VALUES + 1 rows, codes 0..=28.
+    let mut over = vec![0, crate::state::MAX_PANEL_VALUES as u8 + 1];
+    for code in 0..=crate::state::PANEL_CODE_COUNT {
         over.extend(row(&[code], 1));
     }
     vec![
@@ -5206,7 +5248,10 @@ fn malformed_hud() -> Vec<(&'static str, Vec<u8>)> {
         ("state_camp_ward_missing_expiry", camp(&[0, 1])),
         ("state_build_summary_gains_short", gains_short),
         ("state_build_summary_mob_stat_9", summary(&mob_stat_9)),
-        ("state_build_summary_panel_code_23", summary(&code_23)),
+        (
+            "state_build_summary_panel_code_unknown",
+            summary(&code_unknown),
+        ),
         ("state_build_summary_panel_order", summary(&order)),
         ("state_build_summary_panel_count_over", summary(&over)),
     ]

@@ -687,8 +687,8 @@ pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
 
 /// The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): one scaling row per `rh_sim::WeaponId::ALL`
 /// (wire id `code()`) from `rh_sim::modifiers::rules::DEFINITION.weapon_scaling`, and every `rh_protocol::HudTerm` code
-/// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list"). All public content constants,
-/// the same for every viewer (no C-OBS concern).
+/// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list") and Fire roam constants
+/// (P-WIRE17-HUD-2c). All public content constants, the same for every viewer (no C-OBS concern).
 ///
 /// A term whose sim source is missing (a content change that drops the value) is left out rather than sent as a made-up
 /// number; `crates/rh-policy/tests/hud_content.rs` requires every code.
@@ -738,6 +738,20 @@ pub fn wire_hud() -> rh_protocol::WireHudContent {
         (LastStandSpeedBonus, Some(ab::LAST_STAND_HASTE)),
         (LastStandHealShare, Some(ab::LAST_STAND_HEAL)),
         (LastStandFloorHp, Some(ab::LAST_STAND_FLOOR)),
+        // P-WIRE17-HUD-2c: the Fire roam line's constants (shared/fireRoam.ts:2-7, championCombatModel.ts:115-116).
+        (FireRoamRampMs, Some(rh_sim::constants::FIRE_ROAM_RAMP_MS)),
+        (
+            FireRoamChargeMax,
+            Some(rh_sim::constants::FIRE_ROAM_CHARGE_MAX),
+        ),
+        (
+            FireRoamBurstBase,
+            Some(rh_sim::constants::FIRE_ROAM_BURST_BASE),
+        ),
+        (
+            FireRoamBurstAdShare,
+            Some(rh_sim::constants::FIRE_ROAM_BURST_AD_SHARE),
+        ),
     ]
     .into_iter()
     .filter_map(|(code, value)| {
