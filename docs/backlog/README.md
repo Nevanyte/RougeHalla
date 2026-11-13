@@ -401,7 +401,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-CAMP-BUFF-THEMES-1 | each zone's camps pay a themed stat, spread evenly, as a sim switch the live profiles turn on | P-WIRE17-HUD-1, P-REGEN-COMBAT-1-fix | Done (819f2cf2; [spec](packets/P-CAMP-BUFF-THEMES-1.md)) | see spec |
 | P-CARD-BLEED-FEEDBACK-1 | grouped card DoT hit feedback | none | Brief from before the beta follow-up; status not re-checked on 2026-11-12 ([spec](packets/P-CARD-BLEED-FEEDBACK-1.md)) | see spec |
 | P-DRESS-ANCHOR-1 | decoration rings are anchored on each zone's landmark, in the generator's bands | P-MAPGEN-SIG-FROST-1, P-MAPGEN-SIG-SENTENCED-1 | Done (552044db; [spec](packets/P-DRESS-ANCHOR-1.md)) | see spec |
-| P-DRESS-BAKE-1 | decoration is baked on the server with each map and sent to clients in the map blob | P-DRESS-ANCHOR-1, P-WIRE17-HUD-3, P-WIRE17-MAP-2 | Brief ([spec](packets/P-DRESS-BAKE-1.md)); needs oracle | see spec |
+| P-DRESS-BAKE-1 | decoration is baked on the server with each map and sent to clients in the map blob | P-DRESS-ANCHOR-1, P-WIRE17-HUD-3, P-WIRE17-MAP-2 | Done (3f2f42b8; [spec](packets/P-DRESS-BAKE-1.md)) | see spec |
 | P-DRESS-ENGINE-1 | `rh-mapdress`, a pure rule engine that decorates a generated map in order | none | Done (c6b8ec55; [spec](packets/P-DRESS-ENGINE-1.md)) | see spec |
 | P-DRESS-MARSH-1 | Plague marsh rings as decoration ground variants round bog terrain | P-DRESS-ANCHOR-1 | Done (86806e01; [spec](packets/P-DRESS-MARSH-1.md)) | see spec |
 | P-FROST-WALL-1 | Frost Wall in the sim: a placed barrier that stops bodies and swings, as a switch the live profile turns on | P-REGEN-COMBAT-1-fix, P-CAMP-BUFF-THEMES-1 | Farmed out to a worker session ([spec](packets/P-FROST-WALL-1.md); prompt in docs/coordination/prompts/) | see spec |
@@ -442,12 +442,13 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-WIRE17-HUD-2c | protocol 17 carries the Fire roam line and the auto tooltip's missing numbers | P-WIRE17-HUD-2, P-WIRE17-HUD-2b | Done (183690e0; [spec](packets/P-WIRE17-HUD-2c.md)) | see spec |
 | P-WIRE17-HUD-3 | protocol 17 carries the room's minimum players and the owner's healing and wind-emblem end times | P-WIRE17-HUD-2, P-UNITY-HUD-STATUS-1 | Done (49767960; [spec](packets/P-WIRE17-HUD-3.md)) | see spec |
 | P-WIRE17-MAP-2 | protocol 17 carries the camp patience plane and the quest carrier's actor id | P-WIRE17-HUD-3 | Brief ([spec](packets/P-WIRE17-MAP-2.md)); needs oracle | see spec |
-| P-UNITY-HUD-STATUS-2 | the HUD shows the lobby's "n/min" and the healing and wind-emblem timers | P-WIRE17-HUD-3 | In flight ([spec](packets/P-UNITY-HUD-STATUS-2.md)) | client/src/ui/hud.ts, weaponBar.ts |
+| P-UNITY-HUD-STATUS-2 | the HUD shows the lobby's "n/min" and the healing and wind-emblem timers | P-WIRE17-HUD-3 | Done (ceeb4746; [spec](packets/P-UNITY-HUD-STATUS-2.md)) | client/src/ui/hud.ts, weaponBar.ts |
 | P-UNITY-HUD-RESTING-1 | the RESTING chip: needs a wire fact (a redacted attacker and arena damage arrive as the same value, so the client cannot tell a combat hit) | P-UNITY-HUD-STATUS-2 | Coarse: no brief yet; cut from P-UNITY-HUD-STATUS-2 by its oracle author | client/src/render/zoneArt/terrainFeedback.ts |
 | P-MECHANICS-SALVAGE-3-fix | the overhead build marks read the camp-clear mirror | P-MECHANICS-SALVAGE-3 | Brief ([spec](packets/P-MECHANICS-SALVAGE-3-fix.md)); needs oracle | see spec |
 | P-UNITY-TRAINING-BANNER-1 | the practice screen shows legacy's "nothing here is recorded" banner, not Kills and GV | none | Brief ([spec](packets/P-UNITY-TRAINING-BANNER-1.md)); needs oracle | see spec |
 | P-MAPGEN-SIG-HOLY-1 | Holy's temple hall is one fixed open-colonnade blueprint placed in the Landmarks phase, with its own reserved site | P-MAPGEN-SIG-RESERVE-1 | Brief ([spec](packets/P-MAPGEN-SIG-HOLY-1.md)); measurement first | see spec |
 | P-ALLOC-CLONE-WARM-1 | the first step after a clone or a restore allocates nothing, and the test that says so runs under the gate | P-TRAINING-CAMPS-1 | Brief ([spec](packets/P-ALLOC-CLONE-WARM-1.md)); needs oracle | none |
+| P-UNITY-DRESS-1 | the client draws the decoration the server sends and rolls none of its own | P-DRESS-BAKE-1 | Brief ([spec](packets/P-UNITY-DRESS-1.md)); oracle being written | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
