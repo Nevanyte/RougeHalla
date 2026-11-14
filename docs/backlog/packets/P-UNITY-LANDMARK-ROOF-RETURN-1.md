@@ -26,6 +26,64 @@ roof returns at the usual fade rate. If the established cause is that live camp 
 standing outside (so the roof is open whenever the player is near), say so in the brief with the vision facts and
 stop for a ruling: that is a design question (the roof would rarely be seen from close by), not a bug to patch.
 
+## Established facts (oracle author, 2026-11-13): the cause is (d), a design ruling, NOT a bug to patch
+**Status: BLOCKED for a ruling. No oracle test is written, on purpose.** Established by reading (no EditMode reproduction was
+needed: three of the four candidates cannot reach the call sites at all).
+
+What the three call sites iterate (`ArenaView.cs`):
+- `:291-305` `remote` (the `Present` argument): once a membership exists, only `ActorKind.Player` rows whose id is in
+  `_membership` (`:294`, `:297`); `:322` the local player drawn from `me`/`motion` (`:307`); `:485-492` `PresentLatestNpcs`
+  over `_latestNpcs`, filled in `RetainObservedActors` (`:392-401`) from `Snapshots.Sample(NewestMs)` (`:376-379`).
+- Every row of those sets is an actor in the NEWEST snapshot the server delivered. `Emit` (`SnapshotBuffer.cs:132-166`) copies
+  exactly the wire actors; nothing the client remembers is added.
+
+Candidates:
+- (a) lingering tracks: not actors. ADR 0025's "tracks" are footprints (`FootTracker`, `SurfaceFx`), drawn by the surface
+  layer; no mob "last seen" record feeds either loop. Cannot hold the roof.
+- (b) corpses: a dead mob is delivered only for `MOB_CORPSE_MS = 1500` ms (`crates/rh-sim/src/constants.rs:329`); the
+  presenter's lingering death art (P-UNITY-MOB-DEATH-1) is not noted. At most 1.5 s of hold, not 30 s. Not the cause.
+- (c) memory-drawn art (vision-fade tail, ghosts, `MobContinuity` candidates): they live in the actor presenter and are never
+  passed to `NoteActor`. Not the cause.
+- (d) LIVE camp mobs the server keeps delivering to a viewer outside: **this is the cause.** Two server rules:
+  1. `crates/rh-sim/src/observe.rs:1097-1117`: every mob that passes `vision::point_visible` is delivered
+     (unless hidden by a status). `point_with` (`vision.rs:357-370`) is true when the point is within
+     `VISION_RADIUS = 900 u` (28.1 tiles; `TILE = 32 u`, `constants.rs:65,73`) on a clear `MASK_SIGHT` line
+     (`scene_line_blocked`, `vision.rs:303-355`; only `TILE_WALL` blocks, `TILE_LOW` does not), OR when the point lies in
+     the viewer's reveal trail, OR in an owned ward's sight.
+  2. The reveal trail (`vision.rs:127-216`, `VISION_TRAIL_MS = 30_000`, `constants.rs:85`): every tile the viewer could see
+     from any origin in the last 30 s stays visible for 30 s from that origin (refreshed about every `VISION_UPDATE_MS`).
+     So for 30 s after the player has stood inside the cave, a camp mob standing on a tile seen from there is still delivered
+     live, walls or not.
+- The cave geometry (`docs/landmarks/blueprints/cave.txt`; walls `#` and `R` are TILE_WALL, so sight is blocked): the camp
+  centre is at (14, 7) of 29 x 29 and the mouth is the three tiles x = 13..15 at the bottom row (y = 28), on the camp's
+  column, with a clear floor corridor between (columns 11..17 are plain floor). From a viewer outside on the mouth axis the
+  camp centre is 21 tiles from the mouth plus the viewer's distance beyond it, so the camp centre is delivered while the
+  viewer is at most 28.1 - 21 = about 7 tiles beyond the mouth, the nearer halo mobs (y 8..10, 18..20 tiles from the mouth)
+  up to about 8-10 tiles, within a cone the mouth's width allows. Off the axis, or from any side of the closed walls, no mob
+  inside is delivered by sight (this is why shot 90, roof opaque with the camp inside undelivered, is consistent).
+- Match to the shots: 92 inside (faded, correct); 94 five seconds after leaving: inside the 30 s trail and near the mouth;
+  95 "about 30 s" after, "8+ tiles" away: at the edge of the trail's 30 s and inside the sight cone beyond the mouth
+  (the report's timings are estimates; the mouth axis points toward the coliseum, which is where the player walked).
+- Not reproduced end to end (no running server in this job): the exact seconds in 94/95 and the player's bearing from the
+  mouth are not recorded in the shots' notes. The rule above is from the code, and the client cannot tell these rows from any
+  other live, visible mob: the Rust server deliberately delivers them (C-OBS: the viewer may see them).
+
+`RegionProps.NoteActor` (tall-prop fade): called at the same three sites (`ArenaView.cs:302, :321, :491`) with the same
+sets, so it reacts to the same delivered mobs. It has no separate fault; it would behave identically under any ruling.
+
+Consequence for this packet: with the brief's rule ("faded exactly while a live actor the server is delivering stands inside")
+the roof is faded today by definition, so the client already implements it; there is no failing assertion to write. A fix is
+a design change: pick one (owner and coordinator):
+  1. Leave as is (the roof means "someone you can see is inside"; it is open near the mouth axis and for 30 s after leaving).
+  2. Fade only for the local player (and allies), ignoring other actors; trivial: drop the NPC and remote notes at `:303` and
+     `:492`, keep `:322`. The cave then never shows what is inside to an outside viewer.
+  3. Fade for the local player, and for other actors only while the viewer is also inside the cover (the roof hides the
+     interior from outside viewers although the server shows them). A view rule only, no wire change; tell the owner it
+     draws mobs the viewer sees as a roof-hidden shape, which is a visible-information question for C-OBS.
+  4. Trim the memory part only: no client change can do this (the client cannot see the trail); Rust-side, out of scope.
+Whichever is chosen, the oracle then is: fixed-map EditMode test through the real `ArenaView` path (rig:
+`TrainingHudRig.cs`; map as `LandmarkViewEditModeTests`): live mob inside + local player outside; local player in, then out.
+
 ## 2. Dependencies
 P-UNITY-LANDMARK-1 and P-UNITY-LANDMARK-SEAMS-1 (merged).
 
@@ -48,6 +106,9 @@ none (DEV-020)
   becomes whatever the established cause is (a lingering track, a corpse), the roof returns to opaque within the fade
   time; the local player walking in and out fades and restores it. Red today for the cause found.
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-LANDMARK-ROOF-RETURN-1` passes.
+
+## Oracle files (read-only for implementers)
+none yet: blocked for a design ruling (see Established facts); no test file was added.
 
 ## 9. Validation commands
 - `bash client-unity/UnityProject/Tools/editmode.sh`; then `git checkout --` any modified font asset under
