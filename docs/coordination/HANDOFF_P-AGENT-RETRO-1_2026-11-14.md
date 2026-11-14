@@ -67,3 +67,24 @@ is empty). The two hook scripts stay in `.claude/hooks/` but are registered nowh
   settings file. It is offered to the owner as one entry for their own settings; until then the per-command
   `export PATH="$HOME/.cargo/bin:$PATH"` prefix stays.
 The full gate was not re-run for this commit: it changes one file the gate only path-checks.
+
+## Amendment 2 (same day): the coordinator's review of `14130fd1b` (its reviewer-opus: LAND after these fixes)
+- `card_bleed_alloc` and `card_bleed_alloc_public_output` (ignored, CI-only) under the new profile, by CI's command
+  (`cargo test --locked -p rh-sim --features trusted-status-probes --lib card_bleed_alloc -- --ignored
+  --test-threads=1`): 2 passed.
+- `--oracle-check` prints `GATE ORACLE-CHECK PASS`, never `GATE PASS` (its tree is red by design and coordinators grep
+  `^GATE (PASS|FAIL)`); `gate.test.sh` asserts it. It reads cargo test targets only: `oracle-author.md` makes it the
+  GATE line for Rust oracles and keeps `--quick` for C# and JS oracles; the mode's "no Rust crate changed" failure says
+  so.
+- `.claude/hooks/guard-kill.sh` is withdrawn from this branch: on the reviewer's 23 commands it refused 6 of 13 kills
+  and wrongly refused a commit message that mentions the word; the coordinator's `no-pattern-kill.sh` refused 12 and no
+  safe command. One hook, theirs. (The file never reached the integration branch.)
+- The routing row says "inside `rh-sim` alone (single crate)": rule 2 still sends a refactor that touches a second crate
+  to Opus.
+- Still to do when the coordinator's P-ENV-RETRO-1 is on origin (a merge commit, not a rebase, by its reviewer's plan):
+  the gate's flag block and rustfmt placement, `--oracle-check` refusing `--keep-going`, the combined
+  `oracle-author.md`, reviewer and `CLAUDE.md` pipeline texts, and `docs/agent/LANES.md` corrected from the
+  coordinator's list (the one full gate is the coordinator's on the merged tree; its own reviewer reviews every merge;
+  re-pins after a merge are its; lane-chat approvals are confirmed in its chat; each push is its own approval; nothing
+  is left untracked in the main checkout; worktree registration; no kill by pattern in main sessions; notice before
+  touching shared files in general).

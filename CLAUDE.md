@@ -24,7 +24,7 @@ a merge: [docs/agent/LANES.md](docs/agent/LANES.md).
 | Packet brief plus one failing oracle test (loose proof; see AGENTS.md) | `oracle-author` | Sonnet / medium; Opus / high (model override) for `rh-sim` state, tick, RNG, hash and wire packets |
 | Mechanical work with a clear oracle: renames, fixture refresh by documented command, docs, small tests outside `rh-sim` | `implementer` | Haiku / medium |
 | **Default implementer**: any single-area task with an oracle; C#/Unity; CI, `hosting/`, scripts; L1 escalation | `implementer-sonnet` | Sonnet / medium |
-| Map-generator refactor in `rh-sim` that changes no generated map and no draw, proven by a digest guard in its oracle | `implementer-sonnet` | Sonnet / medium; `reviewer-opus` reviews |
+| Map-generator refactor inside `rh-sim` alone (single crate) that changes no generated map and no draw, proven by a digest guard in its oracle | `implementer-sonnet` | Sonnet / medium; `reviewer-opus` reviews |
 | `rh-sim` tick order, state, RNG or save/hash; wire format; migrations; security; cross-crate; L2 escalation | `implementer-opus` | Opus / high |
 | Determinism, replay, state-hash or parity divergence that Opus failed twice (L3) | `debugger` | Fable 5.2 / high |
 | Review of a gate-green branch | `reviewer` | Sonnet / medium |

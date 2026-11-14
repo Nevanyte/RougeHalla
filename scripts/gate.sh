@@ -6,6 +6,7 @@
 #   scripts/gate.sh --oracle packet/<ID>        also: oracle files (packet commits, captures, golden vectors, packages/) untouched
 #   scripts/gate.sh --oracle-check              on packet/<ID>, before an implementer starts: oracle: commits hold no
 #                                               source file; fmt and clippy clean; the tests build; red only in oracle files
+#                                               (Rust oracles; prints GATE ORACLE-CHECK PASS, never GATE PASS)
 #   scripts/gate.sh --base <ref>                compare against <ref> instead of the integration branch
 #
 # Exceptions (each needs the approval named in AGENTS.md "Protected paths"; say which you used in the hand-off):
@@ -29,7 +30,7 @@ while (($#)); do
     --allow-protected) ALLOW_PROTECTED=1 ;;
     --coordinator) COORD=1 ;;
     --regen-fixtures) REGEN=1 ;;
-    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1 (see --help)"; exit 2 ;;
   esac
   shift
@@ -243,7 +244,7 @@ if [[ "$MODE" == oracle-check ]]; then
   # target is red on the stub, and every red target is an oracle file of this packet. What it cannot see: whether a
   # red test fails for the reason the brief gives (read the assertion messages it prints).
   if ((WORKSPACE_WIDE)); then CRATES="$(ls crates)"; fi
-  [[ -n "$CRATES" ]] || fail "no Rust crate changed since $BASE: nothing for --oracle-check to run"
+  [[ -n "$CRATES" ]] || fail "no Rust crate changed since $BASE: --oracle-check reads cargo test targets only; for a C# or JS oracle run --quick and confirm the red tests by hand"
   RED=()
   for c in $CRATES; do
     [[ -f "crates/$c/Cargo.toml" ]] || continue
@@ -269,7 +270,8 @@ if [[ "$MODE" == oracle-check ]]; then
     grep -E "panicked at|^assertion |^  left: |^ right: " "$STEP_LOG" | grep -vE '^\s*$' | head -n 12 | sed 's/^/     | /' || true
   done
   ((${#RED[@]})) || fail "the oracle is green on the stub: no test target fails, so there is nothing for an implementer to make pass"
-  echo; echo "GATE PASS (oracle-check) — red on the stub, in oracle files only: ${RED[*]}"; echo "log: $LOG"
+  # Not "GATE PASS": this tree is red by design, and coordinators grep for ^GATE (PASS|FAIL).
+  echo; echo "GATE ORACLE-CHECK PASS — red on the stub, in oracle files only: ${RED[*]}"; echo "log: $LOG"
   exit 0
 fi
 

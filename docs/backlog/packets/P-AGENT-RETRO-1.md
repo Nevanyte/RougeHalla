@@ -26,8 +26,9 @@ Evidence for each item is in the session's retrospective (transcript counts, `.a
 4. **A brief may name the worktree to work in** (step 1 of the implementer, debugger and oracle-author definitions; the
    reviewers' inputs; `CLAUDE.md`). **`cargo` is on PATH from the session's start** (`.claude/hooks/session-env.sh`, a
    `SessionStart` hook writing to `CLAUDE_ENV_FILE`).
-5. **A process is stopped by its id** (`.claude/hooks/guard-kill.sh`, a `PreToolUse` hook on Bash that refuses `pkill`,
-   `killall` and kills fed by `pgrep`).
+5. **A process is stopped by its id.** This branch's own hook (`guard-kill.sh`) was withdrawn: the coordinator's
+   `no-pattern-kill.sh` (P-ENV-RETRO-1) does the same job better (12 of 13 kills refused against 6; no safe command
+   refused) and is the one registered.
 6. **`docs/agent/LANES.md`**: the rules for a session working beside the coordinator, with a pointer in `CLAUDE.md`.
 7. **`print_goldens`**, an ignored test in each of `crates/rh-mapdress/tests/{anchor.rs, marsh.rs,
    sentenced_rings.rs}` that prints its golden constants ready to paste, for `re-pin:` commits.
@@ -41,7 +42,7 @@ None.
 None.
 
 ## 4. New paths
-`.claude/hooks/guard-kill.sh`, `.claude/hooks/session-env.sh`, `docs/agent/LANES.md`, this brief.
+`.claude/hooks/session-env.sh` (registered nowhere: see the hand-off), `docs/agent/LANES.md`, this brief.
 
 ## 5. Exclusive write scope
 `Cargo.toml` (the two profile tables); `.claude/agents/*.md`; `.claude/settings.json` (two hook entries);

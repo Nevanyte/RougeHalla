@@ -32,6 +32,7 @@ behaviour is right, including the cases legacy actually has.
 Pin legacy even where it looks like a bug, and flag it in the packet. Leave existing tests and captures exactly as they
 are; a packet that must change one says so for the owner to approve.
 
-Report with the hand-off block in `AGENTS.md`; GATE is the result of `scripts/gate.sh --oracle-check` on `packet/<ID>`
-(add `--base <branch>` when the packet is stacked on an unmerged one). PASS means the commits, the formatter and clippy
-are clean, every test builds, and the suite is red only in your oracle files.
+Report with the hand-off block in `AGENTS.md`. For a Rust oracle, GATE is the result of `scripts/gate.sh --oracle-check` on
+`packet/<ID>` (add `--base <branch>` when the packet is stacked on an unmerged one): `GATE ORACLE-CHECK PASS` means the
+commits, the formatter and clippy are clean, every test builds, and the suite is red only in your oracle files. For a
+C# or JS oracle, GATE is the result of `scripts/gate.sh --quick` (red only in your new oracle tests).

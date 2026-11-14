@@ -81,6 +81,13 @@ echo 1 >crates/a/src/lib.rs; git commit -q -am "stub: P3 stubs only"
 rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --oracle-check --base main 2>&1)" || rc=$?
 if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"no oracle commit"* ]]; then ok "oracle-check: a branch with only stub commits has no oracle"; else bad "oracle-check no oracle commit (rc=$rc)" "$out"; fi
 
+# The oracle-check mode never prints the plain pass line: its tree is red by design, and "^GATE PASS" is what
+# coordinators grep for.
+if sed -n '/^if \[\[ "\$MODE" == oracle-check \]\]; then$/,/^fi$/p' "$SRC/scripts/gate.sh" | grep -q 'GATE PASS'; then
+  bad "oracle-check: the mode's block holds the plain GATE PASS string"
+elif grep -q 'GATE ORACLE-CHECK PASS' "$SRC/scripts/gate.sh"; then ok "oracle-check: its success line is GATE ORACLE-CHECK PASS, never GATE PASS"
+else bad "oracle-check: no GATE ORACLE-CHECK PASS line found"; fi
+
 # Environment preflight: DATABASE_URL set, PGBIN unusable -> fail before any build, naming the variable.
 git checkout -q -B work main
 rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 DATABASE_URL=postgres://x@127.0.0.1:1/postgres PGBIN=/nonexistent/pg/bin bash scripts/gate.sh --quick --base main 2>&1)" || rc=$?
