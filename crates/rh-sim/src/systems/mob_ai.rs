@@ -290,17 +290,16 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     } else {
         MASK_SIGHT
     };
+    // The map bodies and swings read now: a standing Frost Wall's tiles are LOW (legacy mobAI.ts:271 `collisionMap(world)`
+    // carries the barrier overlay in 78dd8bd4), so a melee mob across one has no line of sight and chases round it.
+    let held = crate::barriers::held(cx.w);
+    let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
     let out = crate::combat_policy::decide(
         crate::combat_policy::Input {
             from,
             to: at,
             vel,
-            los: crate::geometry::has_line_of_sight(
-                cx.k.collision_map(cx.w.rt.gates_locked),
-                from,
-                at,
-                mask,
-            ),
+            los: crate::geometry::has_line_of_sight(map, from, at, mask),
             weapon,
             windup: tm.windup,
             lock: false,
@@ -309,13 +308,7 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
         |a, to| {
             leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
                 && distance(to, at) > distance(a, at)
-                && crate::geometry::segment_clear(
-                    cx.k.collision_map(cx.w.rt.gates_locked),
-                    a,
-                    to,
-                    PLAYER_RADIUS,
-                    MASK_MOVE,
-                )
+                && crate::geometry::segment_clear(map, a, to, PLAYER_RADIUS, MASK_MOVE)
         },
     );
     if b.last_aim
@@ -445,7 +438,8 @@ fn spacing_step(
         },
         hi: p.far - MOB_SPACING_BAND_SLACK,
     };
-    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    let held = crate::barriers::held(cx.w);
+    let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
     super::mob_spacing::step(&cx.s.mob_spacing, id, room, from, at, band, |to| {
         foot.segment_clear(map, from, to, MASK_MOVE)
             && leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
@@ -474,7 +468,8 @@ fn chase_goal(cx: &mut Cx, id: PlayerId, from: Vec2, to: Vec2, at: Vec2, mask: u
         return to;
     };
     let goal = Vec2::new(to.x + off.x, to.y + off.y);
-    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    let held = crate::barriers::held(cx.w);
+    let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
     if foot.clear(map, goal, MASK_MOVE)
         && foot.segment_clear(map, to, goal, MASK_MOVE)
         && crate::geometry::has_line_of_sight(map, goal, at, mask)

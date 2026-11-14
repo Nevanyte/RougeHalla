@@ -52,10 +52,14 @@ fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
             crate::map::MASK_SIGHT,
         )
 }
+/// Where a blink from `from` toward `point` lands, on the map bodies read now: a standing Frost Wall's tiles are LOW, so a
+/// blink may pass it but never lands on it (legacy 78dd8bd4 `abilities.ts:154`, `:423`: `blinkLanding(collisionMap(world),
+/// ...)`, P-FROST-WALL-1b). With no wall up this is the arena's collision map, as before.
 fn blink(cx: &Cx, from: Vec2, point: Vec2) -> Option<Vec2> {
+    let held = crate::barriers::held(cx.w);
     a::blink::landing(
         &cx.k.arena.map,
-        cx.k.collision_map(cx.w.rt.gates_locked),
+        crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked),
         &cx.k.blink_ring,
         cx.w.rt.gates_locked,
         from,
