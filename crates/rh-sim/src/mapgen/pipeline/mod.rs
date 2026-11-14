@@ -12,6 +12,9 @@ use crate::mapdata::{GameMapData, MapProp, WorldPt, Zone};
 use crate::math::Vec2;
 use crate::pathfind::Pathfinder;
 use crate::rng::Mulberry32;
+pub mod plague_pools;
+#[cfg(test)]
+mod plague_pools_tests;
 mod rules;
 mod style_contract;
 #[cfg(test)]
@@ -87,6 +90,10 @@ pub enum Refusal {
     /// the Styler phase before the Styler trace and the style contract; the next attempt is tried. Only with
     /// `Options::signature`. Every other styler error still fails the call (`Error::Style`).
     StyleLandmark,
+    /// P-LAND-PLAGUE-1-fix-2: a signature map discarded at the end of the attempt, after the check above, because on the
+    /// finished map a Plague spawn's walk to the coliseum grows by more than the pools' detour when styler bog is
+    /// avoided, or a `BogPool` owns no bog (`plague_pools::keeps`; only with `Options::signature`).
+    SignaturePools,
 }
 #[derive(Debug)]
 pub enum Error {
@@ -131,6 +138,8 @@ pub struct Pipeline<'f> {
     /// Test seam (P-MAPGEN-STYLE-REFUSE-1): the styler pass of attempt `.0` returns `.1` instead of its own result.
     #[cfg(test)]
     style_fault: Option<(u64, style_runtime::Error)>,
+    /// The most steps styler bog may add to a Plague spawn's walk on the finished map (`POOLS.walk_detour`).
+    pool_detour: i32,
 }
 impl<'f> Pipeline<'f> {
     /// Test seam (P-MAPGEN-STYLE-REFUSE-1): every attempt runs as usual, but the styler pass of attempt `attempt`
@@ -186,7 +195,15 @@ impl<'f> Pipeline<'f> {
             styles: style_zones::Registry::new(fixed).map_err(Error::Style)?,
             #[cfg(test)]
             style_fault: None,
+            pool_detour: super::style_warren::POOLS.walk_detour,
         })
+    }
+    /// Test seam (P-LAND-PLAGUE-1-fix-2): the end-of-attempt pool check with another detour.
+    #[cfg(test)]
+    #[allow(dead_code)] // Read by `plague_pools_tests` only.
+    pub(crate) fn with_pool_detour(mut self, detour: i32) -> Self {
+        self.pool_detour = detour;
+        self
     }
     pub fn plain_attempt(
         &self,
@@ -703,6 +720,10 @@ impl<'f> Pipeline<'f> {
         // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
         if placed_any && (!self.signature.intact(&map) || !certifies(&map)) {
             return Ok(AttemptReport::refused(Refusal::SignatureDiscarded));
+        }
+        // P-LAND-PLAGUE-1-fix-2: the Plague pools keep the spawns' walks on the finished map, and no pool is dry.
+        if placed_any && !plague_pools::keeps(&map, self.pool_detour) {
+            return Ok(AttemptReport::refused(Refusal::SignaturePools));
         }
         observe(Phase::Gates, &frame.rng, &kept);
         Ok(AttemptReport {

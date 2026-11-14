@@ -4,6 +4,8 @@ mod pools;
 mod rules;
 mod shape;
 mod walk;
+#[cfg(test)]
+mod walk_tests;
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind};
 use crate::mapgen::coliseum::{FixedDefinition, FixedLayout};
@@ -17,6 +19,8 @@ use crate::mapgen::style_runtime::{
     SurfaceKind,
 };
 use crate::mapgen::terrain_gate::PropKind;
+/// The pool tunables, for the pipeline's end-of-attempt check (P-LAND-PLAGUE-1-fix-2: `walk_detour`).
+pub(crate) use pools::POOLS;
 pub use rules::{default_definition, visit_content, Definition};
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
