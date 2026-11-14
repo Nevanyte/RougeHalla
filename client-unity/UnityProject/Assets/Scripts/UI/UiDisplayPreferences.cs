@@ -20,6 +20,11 @@ namespace Roguehalla.Client
         public bool ShowFps { get; private set; }
         public bool ShowPing { get; private set; }
         public float MinimapScale { get; private set; }
+        /// <summary>P-UNITY-FROST-WALL-1: Quick cast (legacy settings.ts quickCast, off by default): a placed Wish casts on the key with
+        /// no preview. STUB: always off, never stored.</summary>
+        public bool QuickCast { get { return false; } }
+        /// <summary>P-UNITY-FROST-WALL-1. STUB: no-op.</summary>
+        public void SetQuickCast(bool value) { }
 
         public UiDisplayPreferences()
         {
