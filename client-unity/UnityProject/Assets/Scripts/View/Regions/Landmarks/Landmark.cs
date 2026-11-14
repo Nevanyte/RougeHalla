@@ -50,6 +50,8 @@ namespace Roguehalla.Client
         readonly List<Object> _owned = new List<Object>();
         /// <summary>Set by LandmarkView.NoteActor for the frame; cleared by Tick.</summary>
         internal bool ActorInside;
+        /// <summary>Set by LandmarkView.NoteOtherActor for the frame (another delivered actor); cleared by Tick.</summary>
+        internal bool OtherInside;
 
         /// <summary>True for a wall tile (collision plane) inside the footprint; false anywhere else.</summary>
         public bool IsWall(int x, int y) { return Local(x, y, out int i) && _wall[i]; }
