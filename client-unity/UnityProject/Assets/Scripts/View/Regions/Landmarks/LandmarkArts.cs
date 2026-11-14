@@ -19,6 +19,7 @@ namespace Roguehalla.Client
             switch (kind)
             {
                 case MapBlob.AnchorKindCave: builder = CaveLandmark.Build; return true;
+                case MapBlob.AnchorKindVolcano: builder = VolcanoLandmark.Build; return true;
                 default: builder = null; return false;
             }
         }
