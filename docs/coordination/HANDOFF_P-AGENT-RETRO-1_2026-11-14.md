@@ -55,3 +55,15 @@ RISKS:           `.claude/settings.json` has an uncommitted local change in the 
 - New sessions get the two hooks. In the first one, run `command -v cargo` in the main session and in a sub-agent; if
   both resolve, the per-command `export PATH=…` prefix can go from briefs.
 - The implementer definitions still say "iterate with `scripts/gate.sh --quick`": unchanged here.
+
+## Amendment (same day): `.claude/settings.json` is left as it was
+The coordinator reported that the owner's checkout carries an uncommitted local change to `.claude/settings.json` and
+that the owner has said that file is not to be committed or edited: a commit touching it would block the checkout's
+fast-forward. This branch therefore restores the committed file byte for byte (`git diff 947958208 -- .claude/settings.json`
+is empty). The two hook scripts stay in `.claude/hooks/` but are registered nowhere by this branch:
+- `guard-kill.sh`: the coordinator's P-ENV-RETRO-1 has a hook for the same purpose, registered in the agent
+  definitions' frontmatter; its merge plan keeps one of the two.
+- `session-env.sh` (cargo on PATH from the session's start): a `SessionStart` hook has no registration point but a
+  settings file. It is offered to the owner as one entry for their own settings; until then the per-command
+  `export PATH="$HOME/.cargo/bin:$PATH"` prefix stays.
+The full gate was not re-run for this commit: it changes one file the gate only path-checks.

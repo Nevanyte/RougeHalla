@@ -98,25 +98,6 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-oracles.sh"
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-kill.sh"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-env.sh"
-          }
-        ]
       }
     ]
   }
