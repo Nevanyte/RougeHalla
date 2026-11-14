@@ -387,6 +387,7 @@ pub(super) fn site_of(
     road: &Road,
     nodes: &[Node],
     k: usize,
+    crescents: bool,
     d: &Definition<'_>,
 ) -> Option<Site> {
     use crate::mapgen::landmarks::recipe_support::NodeKind;
@@ -440,12 +441,16 @@ pub(super) fn site_of(
                 } else {
                     -1
                 };
-                let mut crescent =
-                    crescent_of(g, c, cand.cx, cand.cy, r4, road.dx, road.dy, wet, d);
-                let other = crescent_of(g, c, cand.cx, cand.cy, r4, road.dx, road.dy, -wet, d);
-                if other.len() > crescent.len() {
-                    crescent = other;
-                    wet = -wet
+                // Signature mode (P-LAND-PLAGUE-1) lays no crescent: the bog is the free pools, and the wet side stays
+                // the noise coin.
+                let mut crescent = Vec::new();
+                if crescents {
+                    crescent = crescent_of(g, c, cand.cx, cand.cy, r4, road.dx, road.dy, wet, d);
+                    let other = crescent_of(g, c, cand.cx, cand.cy, r4, road.dx, road.dy, -wet, d);
+                    if other.len() > crescent.len() {
+                        crescent = other;
+                        wet = -wet
+                    }
                 }
                 let cross = (cand.cx as f64 - nodes[road.a].x) * road.dy
                     - (cand.cy as f64 - nodes[road.a].y) * road.dx;

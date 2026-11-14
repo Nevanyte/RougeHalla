@@ -1,7 +1,11 @@
 //! Plague stage-six Barrows callbacks. Landmark selection remains in the accepted stage-four recipe.
 mod planning;
+mod pools;
 mod rules;
 mod shape;
+mod walk;
+#[cfg(test)]
+mod walk_tests;
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind};
 use crate::mapgen::coliseum::{FixedDefinition, FixedLayout};
@@ -15,6 +19,8 @@ use crate::mapgen::style_runtime::{
     SurfaceKind,
 };
 use crate::mapgen::terrain_gate::PropKind;
+/// The pool tunables, for the pipeline's end-of-attempt check (P-LAND-PLAGUE-1-fix-2: `walk_detour`).
+pub(crate) use pools::POOLS;
 pub use rules::{default_definition, visit_content, Definition};
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -26,6 +32,10 @@ pub struct Plan {
     pub bog: Vec<i32>,
     pub roads: usize,
     pub placed: usize,
+    /// Signature mode only (P-LAND-PLAGUE-1): the free bog pools' tiles, each owned by its `BogPool` feature. Empty,
+    /// and absent from the serialized plan, with the option off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pools: Vec<i32>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -183,7 +193,7 @@ impl<'a> Callbacks<'a> {
             || p.barrows.len() > n
             || p.roads > n
             || p.tunnels.len() > p.barrows.len()
-            || [&p.crescent, &p.mouths, &p.bog]
+            || [&p.crescent, &p.mouths, &p.bog, &p.pools]
                 .iter()
                 .any(|v| v.len() > n || v.iter().any(|i| !valid(i)))
             || p.tunnels
@@ -212,7 +222,7 @@ impl<'a> Callbacks<'a> {
     }
     pub fn surface(&self, c: &mut SurfaceContext<'_, '_>, plan: &mut Plan) -> Result<(), Error> {
         self.validate_plan(&c.base(), plan)?;
-        for &i in &plan.crescent {
+        for &i in plan.crescent.iter().chain(&plan.pools) {
             if c.base().is_owned(i) && c.surface(i, SurfaceKind::Bog) {
                 plan.bog.push(i)
             }
