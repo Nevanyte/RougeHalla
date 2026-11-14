@@ -6,6 +6,9 @@
 //! `(x, y)` for every kind but a trail (78dd8bd4 `client/src/render/FieldView.ts` `update`; in-repo
 //! `server/src/bots/brain/perception.ts:816` `seeFields`). The wall carries its tiles: the barrier row the sim blocks on.
 //! The landing cue's centre follows its own point rule (`observe.rs` `to_seen`, `wish_point_permissions`).
+//! Amended by P-FROST-WALL-PUBLIC-1 (owner decision 2026-11-14: a standing wall is temporary terrain, public like the
+//! map): every seated viewer is sent every standing wall, whole; the owner is named only to a viewer who sees it, and
+//! the landing centre keeps its own rule. The far viewer below now receives the wall.
 //!
 //! Scene: a 40 x 80 open room with a wall border. Frost at tile (5, 40) aims east at tile (12, 40): the wall stands
 //! across column 12, rows 37..=43 (indices `y * 40 + 12`), its first end at (400, 1408), its second at (400, 1184), its
@@ -191,8 +194,10 @@ fn a_viewer_in_sight_of_the_wall_receives_it_with_its_tiles_owner_and_end_time()
     assert_eq!(walls(&last[NEAR])[0].tiles.len(), 7);
 }
 
+/// Amended by P-FROST-WALL-PUBLIC-1: the far viewer (out of sight of the wall and of the caster) receives the whole
+/// wall, unnamed, and still never the landing centre.
 #[test]
-fn a_viewer_out_of_sight_receives_neither_the_wall_nor_its_landing_centre() {
+fn a_viewer_out_of_sight_receives_the_wall_but_neither_its_owner_nor_its_landing_centre() {
     let mut s = rig(FrostWish::Wall);
     let obs = cast_and_watch(&mut s, LANDED);
     // The wall did stand, and the near viewer was told where it landed: the test is not vacuous.
@@ -206,11 +211,23 @@ fn a_viewer_out_of_sight_receives_neither_the_wall_nor_its_landing_centre() {
         !walls(&obs[LANDED - 1][NEAR]).is_empty(),
         "the wall stands for the near viewer"
     );
+    let far = walls(&obs[LANDED - 1][FAR]);
+    assert_eq!(
+        far.len(),
+        1,
+        "the far viewer receives the standing wall: it is public like the map"
+    );
+    assert_eq!(far[0].tiles, the_tiles(), "with all its tiles");
+    assert_eq!(
+        (far[0].x, far[0].y, far[0].x2, far[0].y2),
+        (400., 1408., 400., 1184.),
+        "and both ends"
+    );
+    assert_eq!(
+        far[0].owner, None,
+        "the caster is out of its sight: no owner"
+    );
     for o in &obs {
-        assert!(
-            walls(&o[FAR]).is_empty(),
-            "the far viewer never receives the wall"
-        );
         assert!(
             landing_points(&o[FAR]).iter().all(Option::is_none),
             "the far viewer never receives the landing centre: {:?}",
