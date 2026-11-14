@@ -58,14 +58,24 @@ Kinds of oracle, for reference, strongest first:
 3. **Invariant tests** (proptest, `hash_coverage`, `no_alloc`, `check_world` refusals) for state and determinism.
 4. **Unit tests** for everything else.
 
+Three habits that each cost a day when skipped (2026-11-14):
+- **Facts first.** The brief's established facts are committed as `brief:` before any stub or test, and the oracle in
+  layers, so a turn limit loses nothing.
+- **Survey before pinning.** The brief lists the existing tests that already pin what the packet changes, with what
+  each asserts. A conflict is the coordinator's to settle before an implementer starts; an amended expectation goes in
+  its own `oracle-amend:` commit and is listed for the owner.
+- **Rare events over a sweep.** A test on one seed asserts what holds on every seed; an event that happens on some
+  seeds is asserted over a sweep with a floor (release-only if slow).
+
 When legacy behaviour looks like a bug, the oracle pins legacy and the brief flags it. Security packets skip this step:
 `implementer-opus` writes the failing tests first.
 
 ### 4. Implement
 
 The implementer checks out `agent/<model>/<ID>` from `packet/<ID>` in its own worktree, reads the packet and the crate's
-`AGENTS.md`, iterates with `scripts/gate.sh --quick`, and finishes with `scripts/gate.sh --oracle packet/<ID>`. It stops
-and reports when the oracle contradicts legacy, the scope is too small, or the second full gate fails. The escalation
+`AGENTS.md`, iterates with `scripts/gate.sh --quick`, and finishes with `scripts/gate.sh --quick --oracle packet/<ID>`. It stops
+and reports when the oracle contradicts legacy, the scope is too small, or the gate is red a second time. The full gate
+runs once, on the merged tree, in step 6: an implementer's own full gate costs an hour that step repeats. The escalation
 ladder is in `CLAUDE.md`.
 
 ### 5. Review
@@ -76,7 +86,7 @@ gate log, and answers `LAND`, `LAND WITH NOTES` or `REJECT`. Reviews are read-on
 ### 6. Integrate
 
 The coordinator merges `LAND` branches into the integration branch one at a time (shared-file packets strictly
-serially), re-runs the full gate on the merge, updates the backlog row, the MIGRATION checkpoint and, where a contract's
+serially), runs the full gate on the merge with `--keep-going` (every red step is reported in one run), updates the backlog row, the MIGRATION checkpoint and, where a contract's
 validation changed, the CONTRACTS table, then removes the worktree. Promotion from the integration branch to
 `optimization_port` or `main`, any push and any deploy wait for the owner.
 
@@ -92,8 +102,11 @@ validation changed, the CONTRACTS table, then removes the worktree. Promotion fr
 Agents with `isolation: worktree` get a fresh worktree under `.claude/worktrees/`, based on the coordinator's `HEAD`
 (`worktree.baseRef: "head"`). Their first command selects their branch, e.g.
 `git checkout -B agent/sonnet/P-X-1 packet/P-X-1`. Each worktree compiles its own `target/` (several GB, minutes): that
-cost is why `CLAUDE.md` caps parallel Rust implementers at three. After integration:
-`git worktree remove <path>` and delete the merged `agent/*` branch (deletion needs the owner's yes per `CLAUDE.md`).
+cost is why `CLAUDE.md` caps parallel Rust implementers at three. Several sessions share
+`.claude/worktrees/`, and an agent's harness worktree can look idle while the agent works elsewhere, so ownership is
+written down: the coordinator runs `scripts/agent-worktrees.sh claim <agent-id> <packet> <session>` after each launch
+and `done <agent-id>` when the agent has reported; `clean --session <session>` removes only that session's finished,
+clean worktrees and says why it left the rest. Deleting a merged `agent/*` branch needs the owner's yes per `CLAUDE.md`.
 
 ## The gate
 

@@ -5,6 +5,12 @@ model: opus
 effort: high
 tools: Read, Grep, Glob, Bash
 maxTurns: 80
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-pattern-kill.sh"
 ---
 Inputs: the packet (or, for a merge, the list of merged packets), the diff the coordinator names, and the gate log. You
 change no files; Bash is for git, reading and re-running tests.
@@ -30,3 +36,6 @@ without a verdict is void, and the coordinator's merge gate reruns the suites an
 
 Verdict, exactly one: `LAND`; `LAND WITH NOTES` (at most three fixes, each a one-line follow-up packet, REAL or MINOR);
 `REJECT` (why, and which tier retries). Notes belong to this packet only.
+
+Runs: start a test only in a worktree where nothing else is building, wait for it, and stop only process ids you
+started (a hook refuses `pkill`, `killall` and kills by pattern: other sessions build in sibling worktrees).
