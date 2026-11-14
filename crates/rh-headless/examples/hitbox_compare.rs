@@ -29,34 +29,19 @@ use rh_sim::archetype::{assign, HitboxMode, Identity, MobSpacing, ARCHETYPES};
 use rh_sim::events::Event;
 use rh_sim::fighter::FighterAffiliation;
 use rh_sim::math::{angle_between, atan2, hypot};
-use rh_sim::{
-    abilities, mob_runtime::MobMode, terrain, ArenaMode, FactionId, FactionMode, PlayerId,
-    ProjectileEnd, SimConfig, Vec2, WeaponId,
-};
+use rh_sim::{FactionId, PlayerId, ProjectileEnd, SimConfig, Vec2, WeaponId};
 use std::collections::{BTreeMap, HashMap};
 
+/// The live content world (`SimConfig::live_content()`, which the server's `Settings::sim` builds on) with short lobby
+/// timers and the hitbox mode and mob spacing under measurement.
 pub fn live_config((hitboxes, spacing): (HitboxMode, MobSpacing)) -> SimConfig {
     SimConfig {
         mob_spacing: spacing,
-        walk_hints: Some(true),
-        regen: true,
-        // As the live profile (runtime.rs `Settings::sim`, P-REGEN-COMBAT-1): passive regeneration out of combat only.
-        regen_in_combat: rh_sim::RegenInCombat::Off,
-        camp_buffs: rh_sim::CampBuffRule::Themed,
-        frost_wish: rh_sim::FrostWish::Freeze,
-        quests: true,
-        hazards: terrain::Mode::Map,
-        abilities: abilities::Mode::Full,
-        faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-        lifecycle: ArenaMode::Source(Default::default()),
-        mob_mode: MobMode::Pve,
-        initial_loot: true,
-        consumables: true,
         min_players: 1,
         lobby_seconds: 5.,
         fill_seconds: 3.,
         hitboxes,
-        ..SimConfig::default()
+        ..SimConfig::live_content()
     }
 }
 

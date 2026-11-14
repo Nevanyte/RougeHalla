@@ -302,10 +302,11 @@ impl LearnStore {
 /// plays a generated map with mobs on (`packages/server/src/bots/tournament/headlessRoom.ts:26-34`, `:110`).
 ///
 /// A Brain tournament plays the admitted seed1 map (compiled in, so the binary needs no working directory) with the
-/// `--runtime source-arena` content settings (`rh-server/src/runtime.rs` `Settings::sim`): mobs, initial loot, quests,
-/// consumables, faction mode on, `hazards: Map` and `regen_in_combat: Off` as the live runtime has them. The plan's
-/// lifecycle, `min_players`, `lobby_seconds` and `fill_seconds` stay the plan's. Every other policy plays the practice
-/// arena with the headless config, byte-identical to before.
+/// live content world, [`SimConfig::live_content`] (P-SIM-LIVE-CONTENT-1: the one definition the server's
+/// `--runtime source-arena` also builds on, hitbox mode included), so the learner and the tuner play the game the live
+/// server plays. Only the plan's timers are the plan's: lifecycle, `min_players`, `lobby_seconds` and `fill_seconds`
+/// from [`crate::tournament::sim_config_for`]. Every other policy plays the practice arena with the headless config,
+/// byte-identical to before.
 pub fn tournament_world(plan: &TournamentPlan, policy: SeatPolicy) -> (Arena, SimConfig) {
     let base = crate::tournament::sim_config_for(plan);
     if policy != SeatPolicy::Brain {
@@ -317,19 +318,11 @@ pub fn tournament_world(plan: &TournamentPlan, policy: SeatPolicy) -> (Arena, Si
     )
     .expect("the admitted seed1 map loads");
     let sim = SimConfig {
-        walk_hints: Some(true),
-        regen: true,
-        regen_in_combat: rh_sim::RegenInCombat::Off,
-        camp_buffs: rh_sim::CampBuffRule::Themed,
-        frost_wish: rh_sim::FrostWish::Freeze,
-        quests: true,
-        hazards: rh_sim::terrain::Mode::Map,
-        abilities: rh_sim::abilities::Mode::Full,
-        faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-        mob_mode: rh_sim::mob_runtime::MobMode::Pve,
-        initial_loot: true,
-        consumables: true,
-        ..base
+        lifecycle: base.lifecycle,
+        min_players: base.min_players,
+        lobby_seconds: base.lobby_seconds,
+        fill_seconds: base.fill_seconds,
+        ..SimConfig::live_content()
     };
     (arena, sim)
 }

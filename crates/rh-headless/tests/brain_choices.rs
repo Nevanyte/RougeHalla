@@ -42,7 +42,7 @@ const RECORDED_DOMAINS: [&str; 3] = ["faction", "opener", "second"];
 fn plan() -> TournamentPlan {
     let mut plan = TournamentPlan::with_tiers(
         2,
-        7,
+        8, // seed 8: a `second` choice is recorded under both hitbox modes (7 only under LegacyCircle)
         vec![TierId::Easy, TierId::Normal, TierId::Hard],
         3. * 60_000.,
     );
@@ -228,7 +228,7 @@ fn the_tournament_binary_learns_from_brain_choices_on_the_brain_world() {
             "--lineup",
             "E,N,H",
             "--seed",
-            "7",
+            "8",
             "--max-minutes",
             "3",
             "--patience",
