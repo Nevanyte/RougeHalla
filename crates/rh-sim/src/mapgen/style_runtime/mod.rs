@@ -66,8 +66,9 @@ pub enum Error {
     Capacity,
     Route,
     /// The zone holds a signature landmark the styler cannot build round (a landmark precondition, e.g. the Sentenced
-    /// church's door not reading as three open tiles in one run: `style_gallows::lanes::frame`). Not a fault: the pipeline refuses the attempt (`pipeline::Refusal::StyleLandmark`) and tries the next.
-    /// Never "no room"; reachable only with `pipeline::Options::signature` (no signature landmark otherwise).
+    /// church's door not reading as three open tiles in one run: `style_gallows::lanes::frame`). Not a fault: the
+    /// pipeline refuses the attempt (`pipeline::Refusal::StyleLandmark`) and tries the next. Never "no room";
+    /// reachable only with `pipeline::Options::signature` (no signature landmark otherwise).
     Landmark,
 }
 /// Index packing in source route seeds uses 21 bits; depth uses signed 16 bits.
