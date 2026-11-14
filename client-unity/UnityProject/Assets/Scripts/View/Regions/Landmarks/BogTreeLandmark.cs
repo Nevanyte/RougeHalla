@@ -28,7 +28,7 @@ namespace Roguehalla.Client
         const int Ppt = 16;                                       // texture pixels per tile
         const float Sq = ArenaView.GroundSquash;
         const float RootH = .72f, BoleH = 2.7f;                    // world units; RootH clears the wall blocks (face .67); the bole stands 2.7 tall
-        const float BoleRise = 1.15f;                               // tiles of depth over which the flared root skirt turns into the steep column
+        const float BoleRise = .6f;                               // tiles of depth over which the flared root skirt turns into the steep column
         const float BoleTilt = .22f;                                // how much higher the bole's top is on its north west side (units)
         const float Dz = .055f;
         const int CanopyPpt = 12;                                 // the crown is soft foliage: bilinear, a little under the bark's resolution
@@ -38,7 +38,7 @@ namespace Roguehalla.Client
         const float CrownLiftMargin = .35f;                       // the crown's bottom edge (moss included) above the trunk bounds' midpoint, units (test floor .25)
         const float CrownTopGap = 1.0f;                            // the crown's top edge below the footprint's top edge, units
         const float CrownMossLength = 1.1f;                       // longest hanging moss strand, units
-        const float CrownShape = 2.6f;                            // superellipse exponent of the crown's outline (2 = ellipse, higher = boxier)
+        const float CrownShape = 2.25f;                            // superellipse exponent of the crown's outline (2 = ellipse, higher = boxier)
         const float CrownGapAmount = .58f;                        // the noise level above which the crown has a gap (lower = more sky); range .5 to .68
         const float ShadowAlpha = .36f;                           // darkest the ground shadow gets under the crown; range .2 to .5
         const float KneeRise = .75f;                              // how far a cypress knee stands above the root height, units
@@ -257,7 +257,16 @@ namespace Roguehalla.Client
                     {
                         float v = (z - s) / Sq; if (v < 0f || v >= g.H) continue;
                         float h = f.H(u, v);
-                        if (h > 0f && h >= z) { hz = z; hv = v; break; }
+                        if (h > 0f && h >= z)
+                        {
+                            float lo = z, hi = z + Dz;                // bisect the step so slopes shade smoothly (no bands from the step size)
+                            for (int it = 0; it < 5; it++)
+                            {
+                                float mz = (lo + hi) * .5f, mv = (mz - s) / Sq, mh = mv >= 0f && mv < g.H ? f.H(u, mv) : 0f;
+                                if (mh > 0f && mh >= mz) lo = mz; else hi = mz;
+                            }
+                            hz = lo; hv = (lo - s) / Sq; break;
+                        }
                     }
                     int o = j * W + i;
                     if (hz >= 0f)
@@ -314,7 +323,7 @@ namespace Roguehalla.Client
             public Palette(RegionTheme theme)
             {
                 Dark = Color.Lerp(new Color(.16f, .14f, .12f), theme.WallFace, .1f);
-                Mid = Color.Lerp(new Color(.40f, .35f, .29f), theme.WallFace, .1f);
+                Mid = Color.Lerp(new Color(.47f, .41f, .34f), theme.WallFace, .1f);
                 Light = Color.Lerp(new Color(.66f, .60f, .50f), theme.WallTop, .1f);
                 Moss = new Color(.30f, .38f, .20f); MossLit = new Color(.52f, .60f, .34f);
                 Wood = new Color(.66f, .56f, .40f); WoodDark = new Color(.40f, .32f, .22f);
@@ -325,7 +334,8 @@ namespace Roguehalla.Client
         /// mossy, dark and wet at the foot and at the rim. Always opaque.</summary>
         static Color32 Bark(Field f, Palette pal, bool stump, float u, float v, float z, float s)
         {
-            float h = f.H(u, v); bool top = h - z < .06f;
+            float h = f.H(u, v), gu = (f.HSmooth(u + .12f, v) - f.HSmooth(u - .12f, v)) / .24f, gv = (f.HSmooth(u, v + .12f) - f.HSmooth(u, v - .12f)) / .24f;
+            bool top = h - z < .06f && gu * gu + gv * gv < 1.5f * 1.5f;           // a slope steeper than about 56 degrees is drawn as a face
             float sb = stump ? 0f : SmoothStep(1.6f, Mathf.Max(2.4f, f.MaxDepth - .8f), f.DepthAt(u, v));   // bole-ness
             Color c;
             if (top)
@@ -334,8 +344,8 @@ namespace Roguehalla.Client
                 float dHu = (f.HSmooth(u + e, v) - f.HSmooth(u - e, v)) / (2 * e), dHv = (f.HSmooth(u, v + e) - f.HSmooth(u, v - e)) / (2 * e);
                 float lit = Mathf.Clamp((dHu * .55f + dHv * .85f) * 1.3f, -1f, 1f);
                 float height = Mathf.Clamp01((h - RootH) / (BoleH - RootH));
-                float k = .78f + .55f * lit + .22f * height;
-                c = Color.Lerp(pal.Mid, pal.Light, Mathf.Clamp01(.35f + .7f * lit + .3f * height));
+                float k = .9f + .3f * Mathf.Max(lit, -.5f) + .22f * height;
+                c = Color.Lerp(pal.Mid, pal.Light, Mathf.Clamp01(.4f + .5f * lit + .3f * height));
                 // Grain: along the arm for roots (across the depth gradient), up the bole for the core.
                 float gx = f.DepthAt(u + .15f, v) - f.DepthAt(u - .15f, v), gy = f.DepthAt(u, v + .15f) - f.DepthAt(u, v - .15f), m = Mathf.Sqrt(gx * gx + gy * gy);
                 float vert = RegionNoise.PeriodicXY(u * 8.5f, s * 1.1f, 61, 61, 7), streak = vert;
@@ -349,9 +359,9 @@ namespace Roguehalla.Client
                     Color wood = Color.Lerp(pal.WoodDark, pal.Wood, .5f + .5f * lit) * (.85f + .3f * (RegionNoise.Periodic(u * 9f, v * 9f, 61, 8) - .5f)); wood.a = 1f;
                     c = Color.Lerp(c, wood, SmoothStep(.45f, .9f, (h - RootH) / KneeRise) * .75f);
                 }
-                float moss = SmoothStep(.66f, .84f, RegionNoise.Periodic(u * 1.3f, v * 1.3f, 61, 13) * .6f + RegionNoise.Periodic(u * 3.3f, v * 3.3f, 61, 17) * .4f
+                float moss = SmoothStep(.7f, .88f, RegionNoise.Periodic(u * 1.3f, v * 1.3f, 61, 13) * .6f + RegionNoise.Periodic(u * 3.3f, v * 3.3f, 61, 17) * .4f
                     + .1f + (1f - sb) * .14f - (stump ? .12f : 0f));
-                if (moss > 0f) c = Color.Lerp(c, Color.Lerp(pal.Moss, pal.MossLit, Mathf.Clamp01(.3f + lit * .5f)) * (.75f + .35f * k), moss * .8f);
+                if (moss > 0f) c = Color.Lerp(c, Color.Lerp(pal.Moss, pal.MossLit, Mathf.Clamp01(.3f + lit * .5f)) * (.75f + .35f * k), moss * (stump ? .8f : .45f));
                 float ed = f.EdgeDist(u, v); if (ed < .07f) c = Color.Lerp(Ink, c, ed / .07f);
             }
             else                                                  // the south face: fluted, lit on its west side, wet and mossy at the foot
@@ -362,11 +372,11 @@ namespace Roguehalla.Client
                 float grain = RegionNoise.PeriodicXY(u * 4.2f + warp, z * .45f, 61, 61, 21);
                 float rough = RegionNoise.PeriodicXY(u * 13f, z * 3.2f, 61, 61, 22);
                 float k = (.42f + .5f * zk + .3f * side) * (.62f + .55f * SmoothStep(.15f, .75f, grain)) * (.9f + .2f * rough);
-                c = Color.Lerp(pal.Dark, pal.Light, Mathf.Clamp01(k * .95f)); c = new Color(c.r * (.75f + k * .5f), c.g * (.75f + k * .5f), c.b * (.75f + k * .5f));
+                c = Color.Lerp(pal.Dark, pal.Mid, Mathf.Clamp01(k * .9f)); c = Color.Lerp(c, pal.Light, Mathf.Clamp01((k - .95f) * 1.2f));
                 float foot = Mathf.Clamp01(1f - z / .28f) * (.55f + .6f * RegionNoise.Periodic(u * 4f, z * 4f, 61, 23));
-                c = Color.Lerp(c, pal.Moss * .9f, Mathf.Clamp01(foot) * .85f);
+                c = Color.Lerp(c, pal.Moss * .9f, Mathf.Clamp01(foot) * .5f);
                 float patch = SmoothStep(.7f, .88f, RegionNoise.Periodic(u * 2.4f, z * 1.2f, 61, 29));          // a few mossy patches up the column
-                c = Color.Lerp(c, pal.Moss * (.8f + .3f * k), patch * .55f * (1f - zk * .5f));
+                c = Color.Lerp(c, pal.Moss * (.8f + .3f * k), patch * .4f * (1f - zk * .5f));
                 if (z < .035f) c = Color.Lerp(c, Ink, .5f);
                 float fu = u - Mathf.Floor(u); if (fu < .04f || fu > .96f) c = Color.Lerp(c, Ink, .2f);
             }
@@ -389,7 +399,7 @@ namespace Roguehalla.Client
             float sR = Mathf.Min(sB + CrownMossLength, sT - 2.5f);          // the body's lowest edge; the moss hangs from it down to sB
             float sMid = (sR + sT) * .5f, halfH = (sT - sR) * .5f;
             int W = Mathf.CeilToInt((u1 - u0) * CanopyPpt), H = Mathf.CeilToInt((sT - sB) * CanopyPpt);
-            var px = new Color32[W * H]; Color32 clear = new Color32(60, 90, 30, 0);
+            var px = new Color32[W * H]; Color32 clear = new Color32(110, 150, 60, 0);
             var body = new bool[W * H];
             Color dark = new Color(.27f, .44f, .15f), mid = new Color(.50f, .70f, .22f), light = new Color(.72f, .90f, .36f), sun = new Color(.86f, .96f, .52f), under = new Color(.17f, .30f, .12f);
             for (int j = 0; j < H; j++)
@@ -404,7 +414,9 @@ namespace Roguehalla.Client
                     r += (RegionNoise.Periodic(u * 2.1f, s * 4.4f, 61, 31) - .5f) * .2f + (RegionNoise.Periodic(u * 9f, s * 21f, 61, 32) - .5f) * .1f;   // lobes, then feathers
                     if (r >= 1f) continue;
                     float hn = RegionNoise.Periodic(u * .8f, s * 1.9f, 61, 41) * .62f + RegionNoise.Periodic(u * 2.4f, s * 5.4f, 61, 42) * .38f;
-                    if (hn > CrownGapAmount && r < .82f && r > .1f) continue;     // a gap: enclosed, so the rim stays whole
+                    // soft edges (anti-aliased): the outline, and the gaps, which stay enclosed so the rim is whole
+                    float cov = SmoothStep(1f, .93f, r) * (1f - SmoothStep(CrownGapAmount, CrownGapAmount + .035f, hn) * SmoothStep(.84f, .78f, r) * SmoothStep(.05f, .1f, r));
+                    if (cov < .03f) continue;
                     float t = Mathf.Clamp01((s - sR) / (sT - sR));              // 0 at the crown's bottom, 1 at its top
                     float f1, edge, id; RegionNoise.Worley(Mathf.Repeat(u * .55f, 64f) / 64f, Mathf.Repeat(s * .75f, 64f) / 64f, 64, 3, out f1, out edge, out id);
                     float f1b, e2, i2; RegionNoise.Worley(Mathf.Repeat(u * .55f - .09f, 64f) / 64f, Mathf.Repeat(s * .75f + .09f, 64f) / 64f, 64, 3, out f1b, out e2, out i2);
@@ -415,7 +427,7 @@ namespace Roguehalla.Client
                     c = Color.Lerp(c, sun, SmoothStep(.62f, .86f, frond + (t - .5f) * .25f + lt * .1f) * .55f);
                     c *= .92f + .16f * SmoothStep(.1f, .6f, edge);
                     c = Color.Lerp(c, under, SmoothStep(.32f, .0f, t - .3f * (1f - Mathf.Clamp01(r * 1.2f))) * .55f);     // the underside of the cloud
-                    Color32 o = c; o.a = 255; px[j * W + i] = o; body[j * W + i] = true;
+                    Color32 o = c; o.a = (byte)Mathf.RoundToInt(255f * cov); px[j * W + i] = o; body[j * W + i] = cov >= .5f;
                 }
             }
             for (int i = 0; i < W; i++)                                // grey-green Spanish moss hangs from every lower edge
