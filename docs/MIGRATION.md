@@ -20,7 +20,10 @@ zone but for the most part everything looks amazing."**
 **Sentenced floor (the same hour).** Asked whether Sentenced still read as one colour, the owner answered: "Sentenced
 lighting does in fact look much better, and isn't too mono coloured however some more tile random variance could help,
 with dark lighting it could still work, perhaps some brown tiles, lighter greys some purples all randomly dispersed
-(should still be relatively dark)". Briefed as P-UNITY-SENTENCED-TILES-1.
+(should still be relatively dark)". Briefed as P-UNITY-SENTENCED-TILES-1. Built the same night (a hash of the tile's
+coordinates picks base stone, a lighter grey, a brown or a purple; DEV-033). Shown the flat-colour patches of the
+tints, the owner said: **"New sentenced floor looks good"**: DEV-033 is recorded as signed on that. Still owed: before
+and after screenshots from the running client.
 
 **What follows.** The zones' look in the running client stands. P-UNITY-ZONE-CONTRAST-1, briefed from the dark renders,
 is withdrawn unbuilt. Kept as a preference for when the bog tree is redrawn: Plague may lean toward a sunny southern
