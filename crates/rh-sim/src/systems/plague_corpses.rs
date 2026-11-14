@@ -99,7 +99,7 @@ fn consume(
         return false;
     }
     if !has_line_of_sight(
-        k.collision_map(w.rt.gates_locked),
+        crate::barriers::body_map(k, &crate::barriers::held(w), w.rt.gates_locked),
         p.pos(),
         crate::Vec2::new(at.0, at.1),
         MASK_MOVE,

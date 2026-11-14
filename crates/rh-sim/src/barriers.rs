@@ -401,6 +401,9 @@ mod gate_tests;
 #[path = "barriers_push_tests.rs"]
 mod push_tests;
 #[cfg(test)]
+#[path = "barriers_reach_tests.rs"]
+mod reach_tests;
+#[cfg(test)]
 #[path = "barriers_readers_tests.rs"]
 mod readers_tests;
 #[cfg(test)]
