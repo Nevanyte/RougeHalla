@@ -113,14 +113,14 @@ A Chromium window opens (headed, 1920 x 1080, device scale 1). Send commands as 
 `ok` (or `ERR ...`; `errs`, `anchors`, `where`, `eval` and the walk answer JSON). Commands: `goto {url}`, `move {x,y,steps}`,
 `click {x,y,button}` (`button` `left` or `right`), `down {key}`, `up {key}`, `press {key}`, `wait {ms}`, `shot {path}`, `errs`
 (browser console errors so far, JSON), `quit`; with the probe (step 6): `eval {js}` (an expression run in the page, answered as JSON),
-`anchors`, `where`, `goto {x,y,within,timeoutMs}` (walks the player; step 6b). Shell functions do not persist between tool calls:
-put the helper in a script file and `source` it at the top of every call. A shell does not expand variables inside single quotes,
-so build each JSON with double quotes where it needs a variable:
+`anchors`, `where`, `goto {x,y,within,timeoutMs}` (walks the player; step 6b). Shell functions do not persist between tool calls, and some shells refuse a compound command containing `source <file>`:
+keep the helper as a script file run with `bash`, never sourced. In the rest of this document `post '<json>'` means
+`bash $OUT/post.sh '<json>'`. A shell does not expand variables inside single quotes, so build each JSON with double quotes
+where it needs a variable:
 
 ```
-echo 'post() { curl -s -X POST http://127.0.0.1:9777 -d "$1"; echo; }' > $OUT/post.sh
-source $OUT/post.sh
-post '{"cmd":"wait","ms":1000}'
+echo 'curl -s -X POST http://127.0.0.1:9777 -d "$1"; echo' > $OUT/post.sh
+bash $OUT/post.sh '{"cmd":"wait","ms":1000}'
 ```
 
 Done when that prints `ok`. If it prints nothing the driver is not up: read `$OUT/drive.log` (usually `RH_PLAYWRIGHT_MODULE` is not
@@ -147,20 +147,23 @@ post "{\"cmd\":\"shot\",\"path\":\"$OUT/00-hub.png\"}"
 
 Done when the hub screenshot shows the lobby. Then enter the match (all click coordinates assume the 1920 x 1080 window of step 5): click START RUN at (163, 677), wait 3 s, press `1` or `2`
 to pick one of the two spawns offered on the plan screen, click READY at (1390, 107), wait 4 s. Done when `where` (step 6b) answers a
-position; if it answers `ERR`, the click missed: `shot` the screen, and repeat the pick and READY from the plan screen. The faction does NOT choose the zone you
-start in (each session draws a new map): the plan offers two spawns in two OTHER zones, so take a Tab-map shot after joining
+position; if it answers `ERR`, the click missed: `shot` the screen, and repeat the pick and READY from the plan screen. On a rejoin the plan screen may print "Planning ended before the pending choice was confirmed.": ignore that line; pressing `1`
+and READY still works. The faction does NOT choose the zone you start in (each session draws a new map): the plan offers two spawns in two OTHER zones, so take a Tab-map shot after joining
 (`down` `Tab`, `shot`, `up` `Tab`) to see where you are, then walk to the zone or landmark you want. If `where` still answers `ERR`
 after 30 s, read `errs`.
 
 Moving: hold `W`, `A`, `S`, `D` with `down` and release with `up`. Keys act about 0.5 s after key-up, so near props or walls use
-250 to 500 ms taps (`down`, `wait`, `up`), not long holds. Long walks: hold `Tab` (the map), right-click a point on the Tab map
-to set a walk target, release `Tab`, wait. A walk target stays active and a held key overshoots while it is: clear the target first (tap any of `W`, `A`, `S`, `D` once; `goto {x,y}` does this itself). A target on a blocked tile, or inside a closed
+250 to 500 ms taps (`down`, `wait`, `up`), not long holds. Long walks (more than about 1000 world units; `goto` is for shorter ones, see step 6b): the Tab-map walk. Hold `Tab`,
+right-click the point on the Tab map, release `Tab`, then wait and poll `where` (step 6b) until the position stops changing.
+The map-to-world conversion was measured in one round for the 1920 x 1080 page (the world is 5120 units square):
+screenX = 521 + 0.1713 * worldX, screenY = 124 + 0.1715 * worldY. It is one measurement: check it with one short walk
+before relying on it. A walk target stays active and a held key overshoots while it is: clear the target first (tap any of `W`, `A`, `S`, `D` once; `goto {x,y}` does this itself). A target on a blocked tile, or inside a closed
 building from the wrong side, makes no path and no movement: aim beside it, or at the building's entrance (step 6b).
 
 ### 6b. Find a landmark
 
 Needs the page opened with `scenario.probe=1` (step 6) and a joined match. The landmark kinds are `volcano`, `church`, `bogtree`,
-`cave`, `hall` (one per zone; the look scenes call the bog tree `bog`, the probe says `bogtree`); they exist only on the 7817
+`cave`, `hall` (a map has one row per landmark it has; the look scenes call the bog tree `bog`, the probe says `bogtree`); they exist only on the 7817
 arena. Do not photograph an ordinary tree or hut for a landmark: go to its anchor.
 
 ```
@@ -169,18 +172,27 @@ post '{"cmd":"where"}'
 post '{"cmd":"goto","x":368,"y":208,"within":48,"timeoutMs":60000}'
 ```
 
-`anchors` answers a JSON list, one row per landmark: `{"kind":"cave","zone":4,"footprint":{"x":10,"y":5,"w":6,"h":6},"centre":{"x":368,"y":208},"entrance":[{"x":336,"y":336}]}`.
-`footprint` is in tiles; `centre` and `entrance` are world units (32 per tile), the unit `where` and `goto` use. `[]` means this map
+`anchors` answers a JSON list with one row per landmark the map has, kind `cave`, `volcano`, `church`, `bogtree` or `hall`:
+`{"kind":"cave","zone":4,"footprint":{"x":10,"y":5,"w":6,"h":6},"centre":{"x":368,"y":208},"entrance":[{"x":336,"y":336}]}`.
+Landmark positions differ on every session: the coordinates in this document are examples. `footprint` is in tiles;
+`centre` and `entrance` are world units (32 per tile), the unit `where` and `goto` use. `entrance` is an empty list for the
+volcano and the hall. `centre` is the anchor's own centre point; for the church and the cave it is NOT the middle of the
+footprint rectangle (the church's footprint is the whole churchyard, and its entrances are the main gate tiles on the yard's
+edge, not the building's door). To stand in front of a building use `entrance`; to stand inside use `centre`. `[]` means this map
 has no landmarks (the 7819 arena, or a fallback map): leave and join again. `where` answers `{"x":..,"y":..}`; `ERR ... scenario.probe=1`
 means the page was opened without that parameter or the match is not joined yet.
 
 `goto {x,y,within,timeoutMs}` (defaults 48 and 30000) walks to the point and answers
-`{"ok":true,"reason":"reached","x":..,"y":..,"dist":..,"elapsedMs":..}`. Done when `ok` is true; then `shot` and check the picture shows
-the landmark. Use `centre` for a landmark you can walk up to; a closed building is entered through an `entrance` point: go to it
-first, then to `centre`. When it fails: reason `blocked` means it pushed 1.5 s without getting closer; it stopped with every key
-released, at the position it answers, and does not path-find or retry, so pick another point (beside the blocked tile, or an
-`entrance`) and call it again. Reason `timeout` means `timeoutMs` ran out; call it again (it continues from where you are) or raise
-`timeoutMs`. `eval {js}` reads anything else the probe holds, for example `{"cmd":"eval","js":"window.__rhProbe.me.hp"}`.
+`{"ok":true,"reason":"reached","x":..,"y":..,"dist":..,"elapsedMs":..}`. `goto` walks in a straight line and does not find a
+path. It stops within `within` units of the point and is often 20 to 45 units short of it; it does not overshoot. For a shot
+that needs an exact tile, finish with short key taps (250 to 500 ms, see step 6). Done when `ok` is true; then `shot` and check
+the picture shows the landmark. Use `centre` for a landmark you can walk up to; a closed building is approached through its
+`entrance` point: go to it first, then to `centre`. When it fails: reason `blocked` means it hit a prop, stump, bush or fence
+on the line (even a harmless one) and pushed 1.5 s without getting closer; reason `timeout` means it pushed against something
+for `timeoutMs` (10 s with no arrival is the usual sign). It stopped with every key released, at the position it answers. Neither
+answer means the target itself is blocked. The remedy: pick a waypoint to one side of the obstacle, `goto` that, then `goto`
+the target. For a walk longer than about 1000 world units use the Tab-map walk (step 6) instead. After `blocked`, change the
+point before calling again; after `timeout`, call again (it continues from where you are) or raise `timeoutMs`. `eval {js}` reads anything else the probe holds, for example `{"cmd":"eval","js":"window.__rhProbe.me.hp"}`.
 
 ## 7. Practice (the TRAINING button)
 
@@ -216,5 +228,8 @@ echo $! > $OUT/training.pid
 - Restore `Assets/Scripts/BakedContent.cs` and `ProjectSettings/ShaderGraphSettings.asset` (step 3) and leave `git status` clean of everything the round touched.
 - Never show the owner, or approve, a look from anything but Web screenshots (not editor renders, colour patches or
   texture composites). Editor renders of Plague and Sentenced scenes are darker than the Web client, so they cannot stand in.
-- The Coliseum timer gives 10 minutes per session: a longer screenshot session ends in the result screen; join again.
+- The Coliseum timer gives 10 minutes per session. In its last minute the player is pulled to the Coliseum, and movement
+  commands (keys, the Tab-map walk, `goto`) do nothing: finish the landmark shots before the timer runs out. After the match
+  the result screen shows RETURN TO MENU and PLAY AGAIN buttons; a new session draws a new map, so find the landmarks again
+  with `anchors`.
 - Do not edit code during a round; report what you saw.
