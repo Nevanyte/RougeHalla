@@ -294,7 +294,7 @@ namespace Roguehalla.Client
 
         void Update()
         {
-            if (Session == null) { Hud?.ReadUiInput(); return; }
+            if (Session == null) { EscapeConsumedByAim = false; Hud?.ReadUiInput(); return; }
             var session = Session;
             if (_sessionTarget != null && !CurrentLaunchTarget(_sessionTarget, _sessionFaction))
             { RefuseLaunch("The connection changed. Start your run again."); return; }
@@ -303,6 +303,7 @@ namespace Roguehalla.Client
             if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
             var pmPoll = PerfMarks.Begin(); session.Poll(); PerfMarks.End(PerfMarks.Sec.NetPoll, pmPoll);
             if (!ReferenceEquals(Session, session)) return;
+            ReadAimEscape();
             Hud?.ReadUiInput();
             if (!ReferenceEquals(Session, session) || !LaunchVerified) return;
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
@@ -341,10 +342,22 @@ namespace Roguehalla.Client
         // P-UNITY-FROST-WALL-1: the Wish key, left click, right click and Esc go through WishAim; it sends every cast through Session.CollectWishInput.
         readonly WishAim _wishAim = new WishAim();
         WishAimFrame _wishFrame;
+        /// <summary>The aim's Wall preview (exposed so a test can open it).</summary>
+        public WishAim WishAim { get { return _wishAim; } }
+        /// <summary>True for the frame in which an Esc press only closed the Frost Wall aim: the HUD, the map and Training's Leave must skip it.</summary>
+        public bool EscapeConsumedByAim { get; private set; }
+        /// <summary>Decides, once per frame and BEFORE the HUD reads input (<see cref="Update"/> calls it first; the HUD's ReadUiInput is called
+        /// from Update, never from its own Update, so the order is this call's position, not Unity's script order), whether this frame's
+        /// Esc press belongs to the aim.</summary>
+        public void ReadAimEscape()
+        {
+            var kb = Keyboard.current;
+            EscapeConsumedByAim = kb != null && kb.escapeKey.wasPressedThisFrame && _wishAim.Escape();
+        }
         WishAimFrame MakeWishFrame(float myX, float myY, bool blocked, bool haveCursor, float sx, float sy, uint? actor)
         {
             var hud = Session.Welcome != null ? Session.Welcome.Hud : null;
-            return new WishAimFrame { Wish = hud != null ? hud.FrostWish : FrostWishKind.Freeze, QuickCast = UiDisplayPreferences.QuickCastStored, UiOwnsInput = blocked,
+            return new WishAimFrame { Wish = hud != null ? hud.FrostWish : FrostWishKind.Freeze, QuickCast = false, UiOwnsInput = blocked,
                 HasGroundPoint = haveCursor, CursorX = sx, CursorY = sy, ActorRef = actor, CasterX = myX, CasterY = myY, Facing = _aimAngle,
                 Numbers = hud != null ? hud.FrostWall : null };
         }
@@ -437,11 +450,11 @@ namespace Roguehalla.Client
             }
             var kb = Keyboard.current;
             if (kb == null) return;
-            if (kb.escapeKey.wasPressedThisFrame) _wishAim.Escape();
             if (kb.rKey.wasPressedThisFrame)
             {
                 uint target = haveCursor && mouse != null ? VisibleActorAt(mouse.position.ReadValue()) : 0;
                 _wishFrame.ActorRef = target == 0 ? (uint?)null : target;
+                _wishFrame.QuickCast = UiDisplayPreferences.QuickCastStored; // read only when the key needs it
                 byte seq = _wishAim.Key(Session, _wishFrame);
                 if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, seq, sx, sy);
             }

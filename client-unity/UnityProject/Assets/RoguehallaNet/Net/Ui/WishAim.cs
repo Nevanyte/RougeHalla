@@ -82,9 +82,11 @@ namespace Roguehalla.Net.Ui
 
         static byte CastAtCentre(Session session, in WishAimFrame f)
         {
+            // Legacy castSlot: with no cursor ground point a placed cast is denied ("Aim with the cursor") and sends nothing.
+            if (!f.HasGroundPoint) return 0;
             var n = f.Numbers.Value;
             var seg = FrostWallAim.SegmentFor(f.CasterX, f.CasterY, f.CursorX, f.CursorY, n.Range, n.MinRange, n.Length, f.Facing);
-            return session.CollectWishInput(true, f.UiOwnsInput, true, (float)seg.Cx, (float)seg.Cy, null);
+            return session.CollectWishInput(true, f.UiOwnsInput, f.HasGroundPoint, (float)seg.Cx, (float)seg.Cy, null);
         }
     }
 }

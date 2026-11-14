@@ -91,6 +91,7 @@ namespace Roguehalla.Client
 
         bool ReadTrainingEscape(Keyboard keys, bool typingAtStart)
         {
+            if (_client != null && _client.EscapeConsumedByAim) return false; // this Esc only closed the Frost Wall aim
             if (!BareTrainingEscape(keys) || TrainingHigherPanelVisible || _chestFocus) return false;
 
             // A control's popup owns Escape before its surrounding console does.

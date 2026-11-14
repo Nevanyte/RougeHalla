@@ -34,7 +34,9 @@ namespace Roguehalla.Client
         public const float TelegraphAlpha = .15f, TelegraphGather = .35f, TelegraphCoreAlpha = .6f;
 
         const float S = ArenaView.Scale, G = ArenaView.GroundSquash;
-        const int MaxPreviewTiles = 24, RingSegments = 48, WallOrderBase = 2000, OverlayOrder = 1998;
+        // OverlayOrder: the preview and the telegraph draw over the fighters (legacy DEPTH_AIM, above fighters) and under the world marks
+        // (WorldMarks 29000, labels 29100). Not a looks dial: a layering rule.
+        const int MaxPreviewTiles = 24, RingSegments = 48, WallOrderBase = 2000, OverlayOrder = 28900;
         const int BlockQuads = 7; // face, top, four rim strips, base line
 
         sealed class QuadMesh
@@ -127,14 +129,12 @@ namespace Roguehalla.Client
 
         void BuildWall(Wall w, MapTile[] tiles)
         {
-            int maxY = 0; foreach (var t in tiles) if (t.Y > maxY) maxY = t.Y;
-            int south = WallOrderBase + Mathf.RoundToInt((maxY + 1) * 32 * .5f);
             foreach (var t in tiles)
             {
                 var b = AcquireBlock();
                 b.Tile = t;
                 b.Mesh.Go.transform.position = ArenaView.WorldPoint(t.X * 32 + 16, t.Y * 32 + 16);
-                b.Renderer.sortingOrder = south - (maxY - t.Y); // the wall sorts with actors by its southmost tile
+                b.Renderer.sortingOrder = WallOrderBase + Mathf.RoundToInt((t.Y * 32 + 16) * .5f); // the actors' formula at the tile's row, so an actor beside any block sorts right
                 b.Mesh.Active(true); b.TopAlpha = -1f;
                 w.Blocks.Add(b);
             }
