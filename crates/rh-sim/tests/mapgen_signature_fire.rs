@@ -17,13 +17,13 @@
 //! * crater size: the crater feature's tile count (`MapFeature::tiles`, rim walls and bowl floor). A crater's band: the
 //!   nearest band (`signature::band` against the Fire anchor) of any of its tiles.
 //! * legacy river budget: the option-off maps of seeds 1-16 hold 107-158 lava tiles, all in their one `LavaRiver`
-//!   (measured 2026-11-12, packet brief); the streams and pools together stay within 70-160.
+//!   (measured 2026-11-12, packet brief). P-MAPGEN-SIG-SCALE-4 retired this file's budget (70-160): the approved cone
+//!   alone holds 160 lava tiles; the Fire lava window is `mapgen_signature_volcano.rs`'s.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone, ZoneAnchor};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{band, Band, SignatureContext, DEFAULT_DEFINITION};
 use rh_sim::mapgen::landmarks::{recipes, stage};
 use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline, spawns};
-use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 #[path = "support/signature_pins.rs"]
@@ -31,7 +31,6 @@ mod pins;
 
 const TILE: f64 = 32.0;
 const T_FLOOR: u8 = 0;
-const T_WALL: u8 = 1;
 const T_LOW: u8 = 2;
 const LAVA: u8 = 1;
 const FIRE_KINDS: [FeatureKind; 3] = [
@@ -48,9 +47,6 @@ const SIGNATURE: [FeatureKind; 7] = [
     FeatureKind::LavaPool,
     FeatureKind::Cave,
 ];
-/// The legacy river's lava, with the option off, seeds 1-16: 107-158 tiles (packet brief). The band the streams and
-/// pools keep to.
-const LAVA_BUDGET: (usize, usize) = (70, 160);
 type Cell = (i32, i32);
 
 fn on_options() -> pipeline::Options {
@@ -192,10 +188,6 @@ fn coliseum_tile(m: &GameMapData) -> Cell {
     world_cell(m.coliseum.centre.x, m.coliseum.centre.y)
 }
 
-fn chebyshev(a: Cell, b: Cell) -> i32 {
-    (a.0 - b.0).abs().max((a.1 - b.1).abs())
-}
-
 fn d2(a: Cell, b: Cell) -> i64 {
     let (dx, dy) = (i64::from(a.0 - b.0), i64::from(a.1 - b.1));
     dx * dx + dy * dy
@@ -236,31 +228,6 @@ fn flood(m: &GameMapData, starts: &[Cell]) -> Vec<bool> {
         }
     }
     seen
-}
-
-/// Connected groups of `cells`, 8-neighbour.
-fn components8(cells: &[Cell]) -> usize {
-    let set: BTreeSet<Cell> = cells.iter().copied().collect();
-    let mut seen = BTreeSet::new();
-    let mut groups = 0;
-    for &start in &set {
-        if !seen.insert(start) {
-            continue;
-        }
-        groups += 1;
-        let mut stack = vec![start];
-        while let Some((x, y)) = stack.pop() {
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    let n = (x + dx, y + dy);
-                    if set.contains(&n) && seen.insert(n) {
-                        stack.push(n);
-                    }
-                }
-            }
-        }
-    }
-    groups
 }
 
 fn anchor(seed: i64, m: &GameMapData, zone: Zone) -> &ZoneAnchor {
@@ -345,94 +312,9 @@ fn g8_option_off_maps_are_todays() {
 // G2: the volcano, its streams and pools.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// Every option-on map has one volcano in Fire (wall in its own zone) with 2 or 3 streams and as many pools; each
-/// stream is one 8-connected run of lava that starts touching the volcano and ends touching a pool; every pool is
-/// reached by a stream's end and holds at least 4 lava tiles with a 2x2 block of lava (a pool, not a channel).
-#[test]
-fn volcano_has_two_or_three_streams_each_ending_in_a_pool() {
-    for (seed, m) in maps() {
-        let v = single(seed, m, FeatureKind::Volcano, Zone::Fire);
-        let cone = owned(m, v);
-        assert!(
-            cone.iter().any(|&c| m.tiles[at(m, c).unwrap()] == T_WALL),
-            "seed {seed}: the volcano has no wall"
-        );
-        for &c in &cone {
-            assert_eq!(
-                m.region_grid[at(m, c).unwrap()],
-                Zone::Fire.code(),
-                "seed {seed}: volcano tile {c:?} outside Fire"
-            );
-        }
-        let centre = (m.features[v].ax, m.features[v].ay);
-        let streams = of_kind(m, FeatureKind::LavaStream);
-        let pools = of_kind(m, FeatureKind::LavaPool);
-        assert!(
-            (2..=3).contains(&streams.len()),
-            "seed {seed}: {} streams",
-            streams.len()
-        );
-        assert_eq!(pools.len(), streams.len(), "seed {seed}: pools per stream");
-        for &k in streams.iter().chain(&pools) {
-            assert_eq!(
-                m.features[k].zone,
-                Zone::Fire,
-                "seed {seed}: feature {k} zone"
-            );
-            for c in owned(m, k) {
-                let i = at(m, c).unwrap();
-                assert!(
-                    m.tiles[i] != T_WALL && (m.tiles[i] != T_LOW || is_lava(m, i)),
-                    "seed {seed}: {:?} tile {c:?} is neither lava nor floor",
-                    m.features[k].kind
-                );
-            }
-        }
-        let pool_lava: Vec<Vec<Cell>> = pools.iter().map(|&k| lava_of(m, k)).collect();
-        let mut reached = BTreeSet::new();
-        for (s, &k) in streams.iter().enumerate() {
-            let lava = lava_of(m, k);
-            assert!(!lava.is_empty(), "seed {seed}: stream {s} holds no lava");
-            assert_eq!(
-                components8(&lava),
-                1,
-                "seed {seed}: stream {s} is not one run of lava"
-            );
-            let start = *lava.iter().min_by_key(|&&c| d2(c, centre)).unwrap();
-            let end = *lava.iter().max_by_key(|&&c| d2(c, centre)).unwrap();
-            assert!(
-                cone.iter().any(|&c| chebyshev(c, start) <= 1),
-                "seed {seed}: stream {s} starts at {start:?}, away from the volcano"
-            );
-            let touched: Vec<usize> = (0..pools.len())
-                .filter(|&p| pool_lava[p].iter().any(|&c| chebyshev(c, end) <= 1))
-                .collect();
-            assert!(
-                !touched.is_empty(),
-                "seed {seed}: stream {s} ends at {end:?}, away from every pool"
-            );
-            reached.extend(touched);
-        }
-        assert_eq!(
-            reached.len(),
-            pools.len(),
-            "seed {seed}: a pool no stream ends in"
-        );
-        for (p, lava) in pool_lava.iter().enumerate() {
-            let set: BTreeSet<Cell> = lava.iter().copied().collect();
-            let block = lava.iter().any(|&(x, y)| {
-                [(1, 0), (0, 1), (1, 1)]
-                    .iter()
-                    .all(|&(dx, dy)| set.contains(&(x + dx, y + dy)))
-            });
-            assert!(
-                lava.len() >= 4 && block,
-                "seed {seed}: pool {p} of {} lava tiles is not a pool",
-                lava.len()
-            );
-        }
-    }
-}
+// P-MAPGEN-SIG-SCALE-4: `volcano_has_two_or_three_streams_each_ending_in_a_pool` is replaced by
+// `mapgen_signature_volcano.rs` (exactly three streams, one per outlet run, each ending in its own pool, two tiles wide,
+// no ford; the cone the approved drawing).
 
 /// The volcano stands on the zone's back edge (its centre farther from the map centre than the Fire centroid) and
 /// every stream runs toward the front: its end is nearer the coliseum tile than the volcano centre is.
@@ -467,16 +349,17 @@ fn volcano_on_the_back_edge_with_streams_toward_the_front() {
 // G3, G4: the Fire styler in signature mode: no river, lava within the river's budget, camps reachable.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// No lava river with the option on; every lava tile belongs to the volcano, a stream or a pool; the Fire zone's lava
-/// stays within the legacy river's budget.
+/// No lava river with the option on; every lava tile belongs to the volcano, a stream or a pool. Amended by
+/// P-MAPGEN-SIG-SCALE-4: was `no_lava_river_and_lava_within_the_rivers_budget`, whose budget (70-160) the approved cone
+/// alone (160 lava tiles) fills; the Fire lava window is now `mapgen_signature_volcano.rs`
+/// `the_fire_lava_lies_in_the_provisional_window` (a number for the owner).
 #[test]
-fn no_lava_river_and_lava_within_the_rivers_budget() {
+fn no_lava_river_and_every_lava_tile_is_the_volcanos() {
     for (seed, m) in maps() {
         assert!(
             of_kind(m, FeatureKind::LavaRiver).is_empty(),
             "seed {seed}: a lava river with the option on"
         );
-        let mut fire = 0;
         for i in 0..m.tiles.len() {
             if !is_lava(m, i) {
                 continue;
@@ -488,14 +371,7 @@ fn no_lava_river_and_lava_within_the_rivers_budget() {
                 "seed {seed}: lava at {:?} owned by {kind:?}",
                 cell(m, i)
             );
-            if m.region_grid[i] == Zone::Fire.code() {
-                fire += 1;
-            }
         }
-        assert!(
-            (LAVA_BUDGET.0..=LAVA_BUDGET.1).contains(&fire),
-            "seed {seed}: {fire} lava tiles in Fire, budget {LAVA_BUDGET:?}"
-        );
     }
 }
 
@@ -596,8 +472,9 @@ fn craters_are_arranged_by_band_round_the_volcano() {
 // --------------------------------------------------------------------------------------------------------------------
 
 /// Every option-on map certifies with zero failures (every zone strict); the anchors other than Frost's are Fire,
-/// Sentenced, Plague and Holy in zone-code order; Fire's is the volcano (its box, its anchor point, the front toward the coliseum, no
-/// entrance); no styler feature owns a tile of the volcano's apron.
+/// Sentenced, Plague and Holy in zone-code order; Fire's is the volcano (its box, its anchor point, the front toward the coliseum, six
+/// entrance tiles); no styler feature owns a tile of the volcano's apron. Amended by P-MAPGEN-SIG-SCALE-4: was "no
+/// entrance"; the entrance is now the drawing's six outlet tiles, pinned exactly by `mapgen_signature_volcano.rs`.
 #[test]
 fn fire_maps_certify_clean_and_carry_the_volcano_anchor() {
     let core = DEFAULT_DEFINITION.bands[0];
@@ -649,7 +526,11 @@ fn fire_maps_certify_clean_and_carry_the_volcano_anchor() {
             expected_front(m, centre),
             "seed {seed}: Fire front"
         );
-        assert!(a.entrance.is_empty(), "seed {seed}: a volcano has no door");
+        assert_eq!(
+            a.entrance.len(),
+            6,
+            "seed {seed}: the volcano's entrance is its six outlet tiles"
+        );
         let apron = grow(f.bbox, core);
         for y in apron.1..=apron.3 {
             for x in apron.0..=apron.2 {

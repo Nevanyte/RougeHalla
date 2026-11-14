@@ -688,7 +688,8 @@ fn spec_of(table: &[Spec], zone: Zone) -> &Spec {
 }
 
 /// `specs(&DEFAULT_DEFINITION)` has one entry per landmark in `reserved_zones` order (Fire, Sentenced, Plague, Frost).
-/// The Fire volcano has no drawing yet (P-MAPGEN-SIG-SCALE-4). The cave, the church and the tree carry their
+/// The Fire volcano carries its `Definition` grid (amended by P-MAPGEN-SIG-SCALE-4, was "no drawing yet"; its legend
+/// and the rest of its entry are pinned by `mapgen_signature_volcano.rs`). The cave, the church and the tree carry their
 /// `Definition` grid, a legend whose characters are exactly the drawing's and whose entries are today's reading of it
 /// (`cave_legend`, `church_legend`, `bog_legend`), their features in today's write order (the church before its
 /// graveyard; the graveyard's anchor point the main gate's middle tile), today's placement (the cave and the church
@@ -707,7 +708,7 @@ fn the_table_has_one_entry_per_landmark_and_its_legends_match_the_drawings() {
     let fire = spec_of(&table, Zone::Fire);
     assert_eq!(
         (fire.kind, fire.drawing),
-        (FeatureKind::Volcano, None),
+        (FeatureKind::Volcano, Some(d.volcano_grid)),
         "the volcano"
     );
     let landmark = |kind| FeatureSpec {
@@ -865,9 +866,10 @@ fn pt(c: Cell) -> TilePt {
 }
 
 /// `Placed.landed` re-derives the Landmarks phase's output, seeds 1-16, attempts 0-1, every accepted phase: one entry
-/// per drawing landmark (Sentenced, Plague, Frost, in placement order); each landing is its table rule's landing in the
-/// zone's site under its own orientation, whose front is the dominant axis of the anchor's `front` and is read at the
-/// pinned camp tile (cave, church) or the site's centre tile (tree); the anchor's centre is that tile, its footprint the
+/// per drawing landmark (Fire, Sentenced, Plague, Frost, in placement order; the volcano added by P-MAPGEN-SIG-SCALE-4);
+/// each landing is its table rule's landing in the zone's site under its own orientation, whose front is the dominant
+/// axis of the anchor's `front` and is read at the pinned camp tile (cave, church) or the site's centre tile (tree,
+/// volcano); the anchor's centre is that tile, its footprint the
 /// landing's box, its entrance the table's entrance rule landed (as a set: P-MAPGEN-SIG-BLUEPRINT-2 sorts it); the landed
 /// marks are the drawing's marks
 /// landed, row-major, and the cave's and the church's `E` is the camp tile; the zone's features are the table's, in its
@@ -885,9 +887,10 @@ fn placed_landed_rederives_every_written_cell() {
             };
             accepted += 1;
             let zones: Vec<Zone> = placed.landed().iter().map(|l| l.zone).collect();
+            // Amended by P-MAPGEN-SIG-SCALE-4: the volcano is landed from its drawing too (was Sentenced, Plague, Frost).
             assert_eq!(
                 zones,
-                vec![Zone::Sentenced, Zone::Plague, Zone::Frost],
+                vec![Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost],
                 "seed {seed} attempt {n}: the landed landmarks"
             );
             for landed in &placed.landed() {
