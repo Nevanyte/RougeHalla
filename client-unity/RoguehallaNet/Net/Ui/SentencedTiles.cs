@@ -5,7 +5,7 @@ namespace Roguehalla.Net.Ui
     /// with dark lighting it could still work, perhaps some brown tiles, lighter greys some purples all randomly dispersed (should still be relatively dark)").
     /// A pure function of the tile's map coordinates, so every client and every visit draws the same floor. <see cref="Family"/> is the hash of the first, reverted
     /// attempt (its dispersal tests were sound); <see cref="Tint"/> is the family's gain as a baked texel (see <see cref="GroundTint"/>), and is what the implementer sets.
-    /// STUB: every family's tint is "no change" (strength 0).
+    /// Looks (gain per channel, strength 1): lighter grey x1.35, brown (1.45, 1.0, 0.65), purple (1.05, 0.8, 1.5); chosen on screen colours so the floor stays dark.
     /// </summary>
     public static class SentencedTiles
     {
@@ -38,6 +38,6 @@ namespace Roguehalla.Net.Ui
         }
 
         /// <summary>The family's look as a baked texel: gain per channel 1 + Strength * (R / 128 - 1), see <see cref="GroundTint"/>. The base family has gain 1 (strength 0).</summary>
-        public static GroundVariantTint Tint(int family) { return None; }
+        public static GroundVariantTint Tint(int family) { return family == 1 ? new GroundVariantTint(173, 173, 173, 1f) : family == 2 ? new GroundVariantTint(186, 128, 83, 1f) : family == 3 ? new GroundVariantTint(134, 102, 192, 1f) : None; }
     }
 }
