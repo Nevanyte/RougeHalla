@@ -63,7 +63,7 @@ pub fn landmarks_digest(seed: i64, n: u64) -> u64 {
         return 3;
     };
     let mut bytes = Vec::new();
-    for a in &placed.anchors {
+    for a in placed.anchors() {
         let mut a = a.clone();
         a.entrance.sort_by_key(|p| (p.y, p.x));
         bytes.extend(serde_json::to_vec(&a).expect("anchor JSON"));

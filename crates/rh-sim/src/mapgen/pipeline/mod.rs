@@ -452,6 +452,8 @@ impl<'f> Pipeline<'f> {
                     no_block: None,
                     no_prop: None,
                     caps: None,
+                    // P-MAPGEN-LANDMARK-FRAME-1: the signature landmarks (`None` with the option off).
+                    landmarks: placed.as_ref().map(|p| p.frames.as_slice()),
                 },
                 &mut style,
             );
@@ -692,7 +694,7 @@ impl<'f> Pipeline<'f> {
         .map_err(|_| Error::Leaf("records admission"))?;
         let placed_any = placed.is_some();
         if let Some(p) = placed {
-            self.signature.finish(&mut map, p.anchors);
+            self.signature.finish(&mut map, &p.frames);
         }
         observe(Phase::Records, &frame.rng, &kept);
         if options.shape_gates {

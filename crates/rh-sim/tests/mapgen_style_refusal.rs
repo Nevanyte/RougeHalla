@@ -12,7 +12,9 @@
 //! `mapgen_land_sentenced.rs` `option_off_maps_are_todays`.
 
 use rh_sim::map::{TILE_FLOOR, TILE_WALL};
-use rh_sim::mapdata::{FeatureJob, FeatureKind, MapFeature, TileRect, Zone};
+use rh_sim::mapdata::{FeatureJob, FeatureKind, MapFeature, TilePt, TileRect, Zone, ZoneAnchor};
+use rh_sim::mapgen::landmarks::signature::blueprint::{Landing, Orientation};
+use rh_sim::mapgen::landmarks::signature::frame::{LandmarkFrame, Mark};
 use rh_sim::mapgen::{coliseum, pipeline, style_runtime, style_zones};
 use std::sync::OnceLock;
 
@@ -90,7 +92,77 @@ fn made_up_church(door: &[i32]) -> style_runtime::State {
     .expect("the made-up church is a valid styler state")
 }
 
-/// Runs the five-styler registry (only the Sentenced zone is painted) on the made-up church.
+/// P-MAPGEN-LANDMARK-FRAME-1: the made-up church as the Landmarks phase would hand it to the styler (the styler reads
+/// the landmark from its frame, not from the `Church` feature). The 13 x 13 box landed with its front row facing +x,
+/// unmirrored: grid (gx, gy) lands on (34 + gy, 86 - gx); `E` (grid (6, 6)) on the camp tile, `D` on the `door` tiles of
+/// the door-side wall line x = 46 (grid row 12), in grid order.
+fn church_frame(door: &[i32]) -> LandmarkFrame {
+    let (x0, y0, x1, y1) = church_box();
+    let footprint = TileRect {
+        x: x0,
+        y: y0,
+        w: (x1 - x0 + 1) as u32,
+        h: (y1 - y0 + 1) as u32,
+    };
+    let landing = Landing {
+        orientation: Orientation {
+            front: (1, 0),
+            mirrored: false,
+        },
+        origin: (x0, y1),
+        footprint,
+    };
+    let mut marks: Vec<Mark> = door
+        .iter()
+        .map(|&y| Mark {
+            ch: b'D',
+            grid: (y1 - y, 12),
+            tile: TilePt { x: x1, y },
+        })
+        .collect();
+    marks.sort_by_key(|m| (m.grid.1, m.grid.0));
+    marks.push(Mark {
+        ch: b'E',
+        grid: (6, 6),
+        tile: TilePt {
+            x: camp().0,
+            y: camp().1,
+        },
+    });
+    let mut cells = Vec::new();
+    for y in y0..=y1 {
+        for x in x0..=x1 {
+            let edge = x == x0 || x == x1 || y == y0 || y == y1;
+            if edge && !(x == x1 && door.contains(&y)) {
+                cells.push(((y as usize * side() + x as usize) as u32, TILE_WALL, 0));
+            }
+        }
+    }
+    LandmarkFrame {
+        anchor: ZoneAnchor {
+            zone: Zone::Sentenced,
+            kind: FeatureKind::Church,
+            centre: TilePt {
+                x: camp().0,
+                y: camp().1,
+            },
+            footprint,
+            // DIR16 index 0 is due +x (`recipe_support::DIR16`): the coliseum centre is due east of the camp.
+            front: 0,
+            entrance: marks
+                .iter()
+                .filter(|m| m.ch == b'D')
+                .map(|m| m.tile)
+                .collect(),
+        },
+        landing: Some(landing),
+        marks,
+        features: vec![(FeatureKind::Church, footprint)],
+        cells,
+    }
+}
+
+/// Runs the five-styler registry (only the Sentenced zone is painted) on the made-up church, with its frame.
 fn style(door: &[i32], decor: bool) -> (Result<(), style_runtime::Error>, style_runtime::State) {
     let fixed = coliseum::fixed_layout();
     let registry = style_zones::Registry::new(&fixed).expect("registry");
@@ -98,6 +170,7 @@ fn style(door: &[i32], decor: bool) -> (Result<(), style_runtime::Error>, style_
     let zone = vec![1_u8; n];
     let protect = vec![0_u8; n];
     let mut state = made_up_church(door);
+    let frames = [church_frame(door)];
     let result = registry
         .apply(
             &style_zones::Input {
@@ -116,6 +189,7 @@ fn style(door: &[i32], decor: bool) -> (Result<(), style_runtime::Error>, style_
                 no_block: None,
                 no_prop: None,
                 caps: None,
+                landmarks: Some(&frames),
             },
             &mut state,
         )

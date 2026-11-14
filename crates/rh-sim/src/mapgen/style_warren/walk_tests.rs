@@ -79,6 +79,7 @@ fn with_base<R>(tiles: &[u8], f: impl FnOnce(&BaseContext<'_>) -> R) -> R {
     let rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &zeros,
             no_block: &zeros,
