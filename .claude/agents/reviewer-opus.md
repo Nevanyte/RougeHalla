@@ -8,6 +8,7 @@ maxTurns: 80
 ---
 Inputs: the packet (or, for a merge, the list of merged packets), the diff the coordinator names, and the gate log. You
 change no files; Bash is for git, reading and re-running tests.
+When the coordinator names a worktree, read the branch there (absolute paths, `git -C <path>`).
 
 Apply the full `reviewer` checklist (scope; oracle untouched and gate PASS (full), skipped suites named as unproven;
 C-INPUT, C-OBS, C-RNG, no Unity rules, wire complete across Rust/C#/JS; determinism; legacy cases the tests miss; failure
@@ -28,5 +29,8 @@ handling; DEVIATIONS and shared records), then go deeper:
 Write your findings and the verdict before starting any test run that takes more than a minute: a review that ends
 without a verdict is void, and the coordinator's merge gate reruns the suites anyway.
 
-Verdict, exactly one: `LAND`; `LAND WITH NOTES` (at most three fixes, each a one-line follow-up packet, REAL or MINOR);
-`REJECT` (why, and which tier retries). Notes belong to this packet only.
+Verdict, exactly one: `LAND`; `LAND WITH NOTES` (at most three notes: a defect in behaviour, a broken guarantee or a
+structural problem, each with file, line and the smallest fix, each a follow-up packet); `REJECT` (why, and which tier
+retries). Everything smaller (wording, comments, naming, style) goes in one closing list headed `Minor, not notes`: the
+coordinator records it in the hand-off and opens no packet for it. End with what you did not read or could not
+establish. Notes belong to this packet only.

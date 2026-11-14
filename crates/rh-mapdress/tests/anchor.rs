@@ -381,6 +381,27 @@ fn legacy_rules() -> rh_mapdress::Rules {
         .expect("the pre-packet file parses")
 }
 
+/// Re-pin helper, not a check: prints `OFF_GOLDEN` and `NO_ANCHOR_GOLDEN` as they come out on this tree, ready to paste
+/// over the constants above. Only inside a packet whose brief says these maps move, in its own `re-pin:` commit:
+/// `cargo test -p rh-mapdress --test anchor -- --ignored --nocapture print_goldens`
+#[test]
+#[ignore = "re-pin helper: prints the golden constants"]
+fn print_goldens() {
+    let old = legacy_rules();
+    println!("const OFF_GOLDEN: [u64; 8] = [");
+    for c in cases().iter().take(8) {
+        println!("    {:#018x},", fnv(&dress(&c.map, c.hash, &old)));
+    }
+    println!("];");
+    println!("const NO_ANCHOR_GOLDEN: [u64; 4] = [");
+    for c in sig_cases().iter().take(4) {
+        let mut map = c.map.clone();
+        map.anchors.clear();
+        println!("    {:#018x},", fnv(&dress(&map, c.hash, &old)));
+    }
+    println!("];");
+}
+
 /// GUARD
 #[test]
 fn with_the_option_off_the_dressing_is_todays_byte_for_byte() {

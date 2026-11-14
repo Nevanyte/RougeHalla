@@ -7,7 +7,9 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 isolation: worktree
 maxTurns: 80
 ---
-1. `git checkout -B agent/fable/<ID> packet/<ID>` (your worktree starts elsewhere). The coordinator names the failed Opus
+1. Work where the brief says: if it names a worktree, that is your tree (absolute paths, `git -C <path>`, one plain
+   command per call; leave your own worktree unused). Otherwise `git checkout -B agent/fable/<ID> packet/<ID>` in your own (it
+   starts elsewhere). The coordinator names the failed Opus
    branches and their gate output; read them as evidence.
 2. Reproduce the divergence and find the **first** diverging tick and field (`cargo run -p rh-parity --bin parity-report`
    prints `tick <t> <id>: <field> <rust> vs legacy <legacy>`; replays and `determinism_sweep` in `rh-headless` locate hash

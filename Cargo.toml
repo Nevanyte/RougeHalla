@@ -16,3 +16,13 @@ unsafe_code = "forbid"
 
 [profile.release]
 debug = 1
+
+# The map generator and the sim are compute-bound, and their tests generate whole maps. Unoptimised, one mapgen test
+# target takes 40 to 50 s; with these it takes about 5 s (measured 2026-11-14 on mapgen_signature_blueprint and
+# mapgen_signature_church). Debug assertions and overflow checks stay on: only the optimisation level changes, and the
+# `test` profile inherits it.
+[profile.dev.package.rh-sim]
+opt-level = 2
+
+[profile.dev.package.rh-mapdress]
+opt-level = 2

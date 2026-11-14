@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks for the gate's own rules (oracle/stub rule, Postgres environment preflight). Runs on a temporary git repository
+# Checks for the gate's own rules (oracle/stub rule, --oracle-check commit discipline, Postgres environment preflight). Runs on a temporary git repository
 # and never builds the workspace: it uses the gate's test hook GATE_STOP_AFTER_CHECKS=1, which makes the gate exit 42
 # with the line "GATE STOP (test hook)" right after its path and environment checks.
 #   bash scripts/gate.test.sh
@@ -58,6 +58,28 @@ if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "file no pac
 
 rc=0; out="$(try packet/Y tests/oracle.rs --quick --base main --oracle packet/Y)" || rc=$?
 if [[ $rc -ne 0 && "$out" == *"oracle files changed"* ]]; then ok "branch with no stub: commit treats every touched file as oracle"; else bad "no-stub branch (rc=$rc)" "$out"; fi
+
+# --oracle-check, commit discipline of a packet branch: a commit that is not "stub:" holds tests and the brief, never a
+# source file (in-crate test modules are tests); a branch with only stub commits has no oracle.
+git checkout -q main
+mkdir -p crates/a/src crates/a/tests
+echo 0 >crates/a/src/lib.rs; echo 0 >crates/a/src/x_tests.rs; echo 0 >crates/a/tests/t.rs
+git add -A; git commit -q -m "base: a crate"
+git checkout -q -b packet/P1 main
+echo 1 >crates/a/src/lib.rs; git commit -q -am "stub: P1 stubs"
+echo 1 >crates/a/tests/t.rs; echo 1 >crates/a/src/x_tests.rs; git commit -q -am "oracle: P1 failing tests"
+rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --oracle-check --base main 2>&1)" || rc=$?
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "oracle-check: tests and in-crate test modules in an oracle commit pass"; else bad "oracle-check clean packet (rc=$rc)" "$out"; fi
+
+git checkout -q -b packet/P2 main
+echo 1 >crates/a/tests/t.rs; echo 1 >crates/a/src/lib.rs; git commit -q -am "oracle: P2 failing tests and a source edit"
+rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --oracle-check --base main 2>&1)" || rc=$?
+if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"source files in a commit that is not 'stub:'"* && "$out" == *"crates/a/src/lib.rs"* ]]; then ok "oracle-check: a source file in an oracle commit fails"; else bad "oracle-check source in oracle commit (rc=$rc)" "$out"; fi
+
+git checkout -q -b packet/P3 main
+echo 1 >crates/a/src/lib.rs; git commit -q -am "stub: P3 stubs only"
+rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --oracle-check --base main 2>&1)" || rc=$?
+if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"no oracle commit"* ]]; then ok "oracle-check: a branch with only stub commits has no oracle"; else bad "oracle-check no oracle commit (rc=$rc)" "$out"; fi
 
 # Environment preflight: DATABASE_URL set, PGBIN unusable -> fail before any build, naming the variable.
 git checkout -q -B work main
