@@ -104,3 +104,50 @@ GATE FAIL: rh-sim suite (trusted-status-probes, as CI)
 The assertion: `median on/off lane fence share ratio 0.532 is outside [0.6, 1.2]`. Logs:
 `.agent-runs/gate/20261113T224833-agent-opus-P-MAPGEN-SIG-SCALE-2-quick.log` and
 `.agent-runs/gate/20261113T230611-agent-opus-P-MAPGEN-SIG-SCALE-2-full.log`.
+
+## Update by the land-generation session, 2026-11-14: the gate is now GREEN, with the owner's fence floors
+
+**This supersedes the GATE line above.** The implementer's gate stopped at one test whose floor was the owner's open
+decision. The owner has decided, the lanes oracle is amended (`packet/P-MAPGEN-SIG-SCALE-2-fix` @ `ae2dc4cdb`, brief
+`docs/backlog/packets/P-MAPGEN-SIG-SCALE-2-fix.md`), and the whole stack was rebased onto `feature/unity-rework` @
+`42ce9a72f`:
+
+```
+BRANCH:  agent/fable/P-MAPGEN-SIG-SCALE-2-fix (this hand-off update on top of ae2dc4cdb, the gated commit), 12
+         commits on 42ce9a72f. Code commits after the rebase: 9df47c85d, cd9bfc2f3, b3a956776; rh-mapdress re-pin
+         8da17b3d8 (the text above names it ee4458104, its sha before the rebase); hand-off c0ff93019.
+GATE:    PASS (full, --oracle packet/P-MAPGEN-SIG-SCALE-2-fix) on ae2dc4cdb [skipped: Postgres suites, no DATABASE_URL]:
+         263 test binaries ok, none failed; EditMode 1257 of 1257. Every step ran, including the ones the first gate
+         never reached (C#, Unity, reload-proof, headless smoke).
+```
+
+**The owner's decision** (land-generation session's chat, 2026-11-13 night; quote it if you confirm it): to "Judge
+the zone on lanes plus churchyard fence together, with a floor of 75% for the two combined and 45% for the lanes
+alone" the owner answered **"Yes to both"** (the other question was the Plague amounts). Measured on the built church,
+seeds 1-32: lanes alone 0.532 of option off's share (per seed 0.31 to 0.72; floor 0.45, per-seed floor 0.3 unchanged);
+lanes plus the drawing's own 106 fence tiles 0.820 of option off's lane fence in tiles (per seed 0.60 to 1.05; floor
+0.75, a new test). All 11 tests of `mapgen_land_sentenced.rs` pass.
+
+**Review (reviewer-opus, by sha, code `f765a54ab..b3a956776`): LAND WITH NOTES, nothing blocking.** Verified by
+reading: option off and draws cannot move; one mirror draw on the Sentenced zone's own stream copy; the writer, the
+anchor and guards (i) to (iv) hold in every orientation; the relabel covers the whole site; `intact` and the
+certifier's `Graveyard` row accept exactly wall or LOW fence; `cave::grid` and `cave::land` are the old method bodies
+character for character; the amended older tests are honest (the door check is stricter than before); the lanes frame
+a 7-wide corridor out of the 5-wide main gate.
+- REAL 1 (cosmetic, visible): `crates/rh-mapdress/rules/zones.json` laid the Sentenced rings from the anchor
+  footprint, now the whole churchyard: flagstone over the entire yard, grave and fence props outside the fence. Being
+  fixed as its own packet, P-DRESS-SENTENCED-RINGS-1 (stacked on this branch; your art decision; arriving next).
+- REAL 2: the anchor's `entrance` lists the five gate tiles in an order that depends on the mirror draw (the drawing
+  is symmetric, so the tiles do not show it; the cave has the same). Deterministic; the oracle sorts before comparing
+  and `map_hash` skips anchors. To be made canonical in the blueprint unification packet (architecture review,
+  finding 2). If the wire or the Unity art reads `entrance[0]` as "left", say so and I do it sooner.
+
+**Minor points, left on purpose (owner: no fix packets for small notes); fold in at merge if you like:**
+`Blueprint::parse` treats any non-`+` character on the front row as gate (unreachable with the pinned drawing); the
+`Graveyard` anchor point is documented as the main gate's middle tile and is `E`'s column on the front row (equal for
+this drawing); stale comments at `crates/rh-sim/src/mapdata/model.rs:256` (the entrance "is the church door": now the
+main gate) and `crates/rh-sim/src/mapgen/map_hash/tests.rs:400`; two unwrapped doc lines in `church.rs`.
+
+**Proposed shared-record edits:** MIGRATION checkpoint (SCALE-2 result: 50 attempts and worst index 3 on seeds 1-32,
+104 on 1-64; the fence floors); `docs/backlog/README.md` rows; no DEVIATIONS row (inside DEV-020; the lanes' row
+DEV-032 could gain "with the blueprint church the lanes and the churchyard's own fence are judged together").
