@@ -8,6 +8,10 @@ namespace Roguehalla.Net.Ui
         public GroundVariantTint(byte r, byte g, byte b, float strength) { R = r; G = g; B = b; Strength = strength; }
     }
 
+    /// <summary>How a variant's edge is drawn (P-UNITY-GROUND-BANDS-1): Tile = crisp, per tile (today's drawing; the Sentenced floor's scatter); Soft = the gain fades in across the
+    /// band's boundary and the boundary is ragged (the decoration bands: every code the server's rules lay).</summary>
+    public enum GroundVariantEdge { Tile, Soft }
+
     /// <summary>Variant (MapBlob.GroundVariants cell; 1..8 in the shipped rules) to ground look, per region (wire region id 1 fire, 2 sentenced, 3 plague, 4 frost, 5 holy).
     /// 1 and 2 are the zone's fallback rings (darker and lighter), 3-6 the landmark bands (warmer, purple-cooler, teal-cooler, golden), 7 water and 8 mud.
     /// All modulate the base ground (GroundVariantTint is a per-channel gain, byte 128 neutral), so the ground's texture and light stay.</summary>
@@ -26,6 +30,10 @@ namespace Roguehalla.Net.Ui
             new[] { .30f, .25f, .15f, .06f, .24f, .13f }, new[] { .27f, .23f, .09f, .09f, .13f, .16f },
         };
         static byte ToByte(float gain) { return (byte)(int)(gain * 128f + .5f); }
+
+        /// <summary>The edge kind of this variant in this region. STUB (P-UNITY-GROUND-BANDS-1): every code is Tile, as drawn today; the packet makes the band codes Soft.
+        /// A code without a look (0, above 8, or an unknown region) is Tile.</summary>
+        public static GroundVariantEdge EdgeOf(int region, byte variant) { return GroundVariantEdge.Tile; }
 
         public static bool TryGet(int region, byte variant, out GroundVariantTint tint)
         {

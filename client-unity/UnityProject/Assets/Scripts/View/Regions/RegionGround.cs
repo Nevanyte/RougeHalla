@@ -124,6 +124,13 @@ namespace Roguehalla.Client
             return px;
         }
 
+        /// <summary>What the variant path of the ground shader reads for a map, in a form the engine-free tests can sample (P-UNITY-GROUND-BANDS-1). STUB: the soft part does not exist yet;
+        /// <see cref="GroundVariantInputs.Tile"/> is today's whole plane and the soft gain is neutral everywhere.</summary>
+        public static GroundVariantInputs BakeVariantInputs(MapBlob map)
+        {
+            return new GroundVariantInputs { Width = map.W, Height = map.H, Tile = BakeVariants(map), SoftActive = false };
+        }
+
         Texture2D Tex(string name, int w, int h, Color32[] px)
         {
             var t = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = name, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
@@ -239,6 +246,32 @@ namespace Roguehalla.Client
             foreach (var o in _owned) if (o != null) RegionUtil.Kill(o);
             _owned.Clear();
             if (Root != null) RegionUtil.Kill(Root);
+        }
+    }
+
+    /// <summary>The CPU's description of the variant inputs the ground shader samples (P-UNITY-GROUND-BANDS-1). Tile coordinates: tile (x, y) covers [x, x + 1) x [y, y + 1).
+    /// <see cref="Tile"/> is the crisp plane, one texel per tile (rgb a gain with byte 128 neutral, a its strength; GroundTint's formula): the Tile-edge variants and the Sentenced scatter family.
+    /// <see cref="SoftGainAt"/> is what every Soft-edge variant contributes at a point, as a per-channel gain (1 = none): its coverage fades across the band's boundary and blends the GAINS of
+    /// neighbouring bands, never their codes. <see cref="GainAt"/> is the product the shader applies to the ground before its edge noise; the tests read only these two methods and
+    /// <see cref="SoftActive"/>, so how the soft part is stored (a finer plane, a distance field) is the implementation's choice.</summary>
+    public sealed class GroundVariantInputs
+    {
+        public int Width, Height;
+        public Color32[] Tile;
+        /// <summary>True when the map has at least one Soft-edge tile (the shader then needs the soft path); false for a map with only Tile variants, the scatter, or none.</summary>
+        public bool SoftActive;
+
+        /// <summary>The soft part's gain at a point (tile coordinates, bilinear as the shader samples it); (1, 1, 1) where no soft band reaches. STUB: always neutral.</summary>
+        public Vector3 SoftGainAt(float tx, float ty) { return Vector3.one; }
+
+        /// <summary>The Tile texel's gain at the tile containing the point, times <see cref="SoftGainAt"/>: what the shader multiplies the ground by (before its edge noise).</summary>
+        public Vector3 GainAt(float tx, float ty)
+        {
+            int x = Mathf.Clamp(Mathf.FloorToInt(tx), 0, Width - 1), y = Mathf.Clamp(Mathf.FloorToInt(ty), 0, Height - 1);
+            var c = Tile[y * Width + x]; float a = c.a / 255f;
+            var t = new Vector3(1f + a * (c.r / 128f - 1f), 1f + a * (c.g / 128f - 1f), 1f + a * (c.b / 128f - 1f));
+            var s = SoftGainAt(tx, ty);
+            return new Vector3(t.x * s.x, t.y * s.y, t.z * s.z);
         }
     }
 }

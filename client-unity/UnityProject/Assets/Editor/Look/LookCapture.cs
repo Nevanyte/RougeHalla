@@ -409,6 +409,22 @@ namespace Roguehalla.Editor
             ClearActors(); UnityEngine.Object.DestroyImmediate(arenaGo);
         }
 
+        /// <summary>Renders one caller-built map as one shot (camera centred on tile (tx, ty), orthographic size ortho) to a PNG, through the same ArenaView and Shot as the named scenes
+        /// (P-UNITY-GROUND-BANDS-1: BandOutlineCapture). Needs graphics. The scene list is not touched.</summary>
+        public static void RenderMap(MapBlob map, string path, float tx, float ty, float ortho, bool groundOnly)
+        {
+            if (_cam == null)
+            {
+                var camGo = new GameObject("Camera"); _cam = camGo.AddComponent<Camera>(); _cam.orthographic = true; _cam.clearFlags = CameraClearFlags.SolidColor;
+                _cam.backgroundColor = new Color32(0x14, 0x17, 0x1b, 255); _cam.allowHDR = true; camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = true;
+            }
+            if (_rt == null) _rt = new RenderTexture(TargetDescriptor());
+            _groundOnly = groundOnly;
+            GameObject go; var arena = NewArena(map, out go);
+            Shot(arena, path, tx, ty, ortho, tx, ty);
+            ClearActors(); UnityEngine.Object.DestroyImmediate(go);
+        }
+
         static IEnumerable<object> RunInner()
         {
             var renamed = MissingReflectionTargets();
