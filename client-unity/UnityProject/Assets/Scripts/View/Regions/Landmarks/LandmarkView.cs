@@ -14,6 +14,8 @@ namespace Roguehalla.Client
     {
         /// <summary>Roof alpha with nobody inside, and while an actor is inside (reached at LandmarkView's fade rate, PropFade.FadeRate).</summary>
         public const float RoofOpaqueAlpha = 1f, RoofFadedAlpha = .1f;
+        /// <summary>STUB (P-UNITY-LANDMARK-ROOF-RETURN-1): roof alpha while only another actor, not the local player, is inside.</summary>
+        public const float RoofPeekAlpha = .5f;
 
         readonly List<Landmark> _landmarks = new List<Landmark>();
 
@@ -64,6 +66,10 @@ namespace Roguehalla.Client
             for (int i = 0; i < _landmarks.Count; i++)
                 if (_landmarks[i].Fades(tx, ty)) _landmarks[i].ActorInside = true;
         }
+
+        /// <summary>STUB (P-UNITY-LANDMARK-ROOF-RETURN-1): a delivered actor other than the local player; feet in world space. `NoteActor` stays the
+        /// local player's (fully fading) note. The stub behaves like NoteActor; the implementation makes the roof peek (RoofPeekAlpha).</summary>
+        public void NoteOtherActor(Vector3 feet) { NoteActor(feet); }
 
         /// <summary>Moves each roof toward its target (faded when an actor was noted inside since the last Tick, else opaque), then
         /// forgets the notes. No allocation.</summary>

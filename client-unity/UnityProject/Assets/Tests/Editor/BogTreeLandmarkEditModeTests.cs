@@ -287,10 +287,10 @@ namespace Roguehalla.Client.Tests
                 }
                 v.NoteActor(TileCentre(site.DryCover[0])); v.Tick(10f);
                 foreach (var r in lm.RoofRenderers) Assert.That(r.color.a, Is.EqualTo(LandmarkView.RoofFadedAlpha).Within(.001f), "every canopy piece carries the alpha");
-                // A visible actor under the canopy fades it even while another stands in the bog (facts 2 and 3 of P-UNITY-LANDMARK-1).
+                // Owner ruling 2026-11-13: a visible actor under the canopy makes it peek while the local player stands in the bog.
                 v.Tick(10f);
-                v.NoteActor(TileCentre(site.Bog.First())); v.NoteActor(TileCentre(site.DryCover[0])); v.Tick(10f);
-                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofFadedAlpha));
+                v.NoteActor(TileCentre(site.Bog.First())); v.NoteOtherActor(TileCentre(site.DryCover[0])); v.Tick(10f);
+                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofPeekAlpha));
             }
         }
 
