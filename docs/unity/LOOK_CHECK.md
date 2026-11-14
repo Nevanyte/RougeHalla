@@ -38,12 +38,15 @@ client-unity/UnityProject/Tools/look-capture.sh cave-inside --out /tmp/look/befo
 
 ```
 client-unity/UnityProject/Tools/look-capture.sh cave-inside --out /tmp/look/after
-client-unity/UnityProject/Tools/look-compare.py /tmp/look/before/cave-inside.png /tmp/look/after/cave-inside.png --crop --noise /tmp/look/before/cave-inside.png /tmp/look/before2/cave-inside.png
+client-unity/UnityProject/Tools/look-compare.py /tmp/look/before/cave-inside.png /tmp/look/after/cave-inside.png --crop
+client-unity/UnityProject/Tools/look-compare.py /tmp/look/before/cave-inside.png /tmp/look/after/cave-inside.png --noise /tmp/look/before/cave-inside.png /tmp/look/before2/cave-inside.png
 ```
+
+   (The second prints the difference and the noise on one line; use it as your report's figure.)
 
    Compare only two images of one scene. A change is real when `diff_px` and `max` stand clearly above the noise
    figures and `bbox` lies where the change should show. Then Read both PNGs (and the crop) and say what you see.
-   Without `--crop` and `--noise` the same command is `look-compare.py <before.png> <after.png>`; the noise alone is
+   The noise alone is
    `look-compare.py --noise <a.png> <b.png>`. Sizes that differ are refused (exit 2).
 
 Options of `look-capture.sh` (exit 0 done; 1 run failed, log at `<dir>/look-capture.log`; 2 usage; 3 unavailable: no
@@ -77,9 +80,10 @@ must be faded in this shot and opaque in `wide`), `rot-wide` is the drawing turn
   `volcano-edge-close`, `volcano-edge-rot-wide`
 
 Limits:
-- The renders are not frame-identical: wind, cloud shadows and light flicker run on the shader clock, so two renders of
-  one tree differ by a few pixels of one step. Pinning the clock needed a temporary shader edit and is not part of this
-  tool. Always state the noise figure (`--noise`) next to a difference.
+- The renders are not frame-identical: wind, cloud shadows, ice shimmer and light flicker run on the shader clock, so
+  two renders of one tree differ. Measured 2026-11-14 for `cave-inside` rendered twice: `noise_diff_px=1334190` of
+  2073600, `noise_max=165`, `noise_mean=1.94`; so judge `mean`, `max` and `bbox` against the noise figures and look at the images. Pinning the clock needed a
+  temporary shader edit and is not part of this tool. Always state the noise figure (`--noise`) next to a difference.
 - The capture reaches three non-public client members by reflection (`ArenaView.Awake`, `ArenaView._landmarks`,
   `Landmark.Fades`); EditMode names the one that stops resolving after a rename.
 
