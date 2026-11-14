@@ -194,7 +194,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    faces the lake (P-MAPGEN-SIG-FROST-2, G5): when the finished map's Frost zone holds ice the cave does not own, its
    largest 4-connected body (the first in row order on a size tie) must lie within `lake_reach + lake_slack` (8 + 2 =
    10) walked floor steps of the mouth (any floor, any zone, from the Frost anchor's `entrance`), else the attempt is
-   discarded (`Refusal::SignatureDiscarded`) and the next one is tried; the styler is not changed. A Frost zone with no
+   discarded (`Refusal::Guarantee { zone: Frost, rule: "lake-at-mouth" }` since P-MAPGEN-GUARANTEES-1; it was
+   `Refusal::SignatureDiscarded`) and the next one is tried; the styler is not changed. A Frost zone with no
    ice outside the cave is kept (the styler may place none).
 12. **Sites reserved before the camps** (P-MAPGEN-SIG-RESERVE-1; G1: zones, then each zone's landmark place, then
    everything round it). With the option on a styled attempt, the Prefix (`attempt::begin_attempt_signature`) reserves,
