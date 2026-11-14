@@ -72,7 +72,7 @@ namespace Roguehalla.Client
                 Mesh = new Mesh { name = name }; Mesh.MarkDynamic();
                 var tri = new int[quads * 6];
                 for (int q = 0; q < quads; q++) { int o = q * 4, t = q * 6; tri[t] = o; tri[t + 1] = o + 1; tri[t + 2] = o + 2; tri[t + 3] = o; tri[t + 4] = o + 2; tri[t + 5] = o + 3; }
-                Mesh.SetVertices(_v); Mesh.SetColors(_l); Mesh.SetTriangles(tri, 0); Mesh.uv = new Vector2[quads * 4];
+                Mesh.SetVertices(_v); SrgbMeshColors.Upload(Mesh, _c, _l); Mesh.SetTriangles(tri, 0); Mesh.uv = new Vector2[quads * 4];
                 if (wideBounds) Mesh.bounds = new Bounds(Vector3.zero, new Vector3(4000, 4000, 1));
                 mf.sharedMesh = Mesh; owned.Add(Mesh); Go.SetActive(false);
             }
@@ -91,12 +91,11 @@ namespace Roguehalla.Client
                 int o = q * 4;
                 if (_c[o].r == col.r && _c[o].g == col.g && _c[o].b == col.b && _c[o].a == col.a) return;
                 _c[o] = col; _c[o + 1] = col; _c[o + 2] = col; _c[o + 3] = col;
-                // sRGB constants are converted to linear for the raw vertex colours (see SrgbMeshColors).
-                var lin = SrgbMeshColors.ToLinear(col);
-                _l[o] = lin; _l[o + 1] = lin; _l[o + 2] = lin; _l[o + 3] = lin; _colorsDirty = true;
+                // sRGB constants stay sRGB here; SrgbMeshColors.Upload converts them to linear for the raw vertex colours.
+                _colorsDirty = true;
             }
             public void UploadShape() { Mesh.SetVertices(_v); }
-            public void UploadColors() { if (_colorsDirty) { Mesh.SetColors(_l); _colorsDirty = false; } }
+            public void UploadColors() { if (_colorsDirty) { SrgbMeshColors.Upload(Mesh, _c, _l); _colorsDirty = false; } }
             public void Active(bool on) { if (Go.activeSelf != on) Go.SetActive(on); }
             public Color32 ColorOf(int q) { return _c[q * 4]; }
         }
