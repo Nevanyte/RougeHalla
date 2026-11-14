@@ -186,7 +186,10 @@ fn smoke(kind: BotKind, seed: u64, max_ticks: u32) -> Smoke {
             if ticks < at + ACT_WINDOW {
                 return true;
             }
-            let alive = env.sim.player(id).is_some_and(|p| p.status == Status::Alive);
+            let alive = env
+                .sim
+                .player(id)
+                .is_some_and(|p| p.status == Status::Alive);
             if alive && accepted(&env, id) == then {
                 idle += 1;
             }

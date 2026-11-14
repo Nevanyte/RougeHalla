@@ -265,7 +265,13 @@ fn a_live_frost_wish_cast_at_the_ground_raises_a_wall_that_a_second_client_recei
         r.wake();
         let _ = walls_told(&viewer);
         let _ = walls_told(&caster);
-        let wish_ready = r.room.sim().player(caster.player).unwrap().stocks.wish_ready_at
+        let wish_ready = r
+            .room
+            .sim()
+            .player(caster.player)
+            .unwrap()
+            .stocks
+            .wish_ready_at
             <= r.room.sim().server_time();
         if wish_ready && dist(r.pos(viewer.player), r.pos(caster.player)) < 200. {
             ready = true;
