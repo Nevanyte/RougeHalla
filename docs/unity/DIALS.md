@@ -21,6 +21,8 @@ A value that is not in this table is not a dial yet: adding one is a packet.
 | `band-edge-noise-scale` | Wobbles of that outline per tile | same file, `RH_BAND_NOISE_SCALE` | 2.2 | 1.7 (the terrain edge's own scale) to 3 | same check | `plague-scene-dressed` |
 | `band-edge-width` | How much of the tile-to-tile gain fade a band keeps at its rim (1 = a full tile of fade, smaller = a narrower rim) | same file, `RH_BAND_WIDTH` | 0.55 | 0.4 to 1.0 (the soft rim must stay wider than 0; a band 1 tile wide must still show its colour) | same check | `plague-scene-dressed` |
 
+The `band-edge-*` dials live only in the shader: the CPU mirror (`GroundVariantInputs.SoftGainAt`) models neither the warp nor `RH_BAND_WIDTH` (it is plain bilinear, which the EditMode tests pin); their look is judged on renders.
+
 The `bog-tree-*` ranges are reasoned from the tests' constraints and checked only at the shipped value (EditMode and two renders); the ends of a range were not swept.
 
 Paths are under `client-unity/UnityProject/` unless they start with `RoguehallaNet/` (then under `client-unity/`,

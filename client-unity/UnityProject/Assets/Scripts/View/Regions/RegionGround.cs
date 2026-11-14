@@ -67,10 +67,9 @@ namespace Roguehalla.Client
                 : new Vector4(-999f, -999f, -999f, -999f));
             var stone = TempleStyle.Stone.linear; Material.SetVector("_TempleStone", new Vector4(stone.r, stone.g, stone.b, 1f));
             Material.SetVectorArray("_TempleBraz", lights);
-            // Pier texture: r = 1 on a pier tile; g, b, a = the ground bands' soft gain (byte 128 neutral) for that tile. It shares this plane and its point sampler: no extra texture.
-            var vin0 = BakeVariantInputs(map); var pier = new Color32[w * h];
-            for (int i = 0; i < pier.Length; i++) pier[i] = new Color32(0, vin0.Soft[i].r, vin0.Soft[i].g, vin0.Soft[i].b);
-            if (hasTemple) for (int ty = 0; ty < h; ty++) for (int tx = 0; tx < w; tx++) if (temple.TryBlock(tx, ty, out _, out _)) { var pc = pier[ty * w + tx]; pc.r = 255; pier[ty * w + tx] = pc; }
+            // Pier texture (_TempleTex): r = 1 on a pier tile; g, b, a = the ground bands' soft gain (byte 128 neutral) for that tile. It shares this plane and its point sampler: no extra texture.
+            // Its layout (r, g, b, a; map size; point filter) is pinned by RegionGroundTempleTexEditModeTests.
+            var vin0 = BakeVariantInputs(map); var pier = BakePierPlane(vin0, hasTemple ? temple : null);
             var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
             Material.SetTexture("_TempleTex", pierTex);
@@ -129,6 +128,15 @@ namespace Roguehalla.Client
 
         /// <summary>What the variant path of the ground shader reads for a map, in a form the engine-free tests can sample (P-UNITY-GROUND-BANDS-1). STUB: the soft part does not exist yet;
         /// <see cref="GroundVariantInputs.Tile"/> is today's whole plane and the soft gain is neutral everywhere.</summary>
+        /// <summary>The _TempleTex plane, one texel per tile: r 255 on a temple pier tile, else 0; g, b, a the soft band gain bytes of <see cref="GroundVariantInputs.Soft"/>.</summary>
+        public static Color32[] BakePierPlane(GroundVariantInputs inputs, TempleLayout temple)
+        {
+            int w = inputs.Width, h = inputs.Height; var pier = new Color32[w * h];
+            for (int i = 0; i < pier.Length; i++) pier[i] = new Color32(0, inputs.Soft[i].r, inputs.Soft[i].g, inputs.Soft[i].b);
+            if (temple != null && temple.Found) for (int ty = 0; ty < h; ty++) for (int tx = 0; tx < w; tx++) if (temple.TryBlock(tx, ty, out _, out _)) { var pc = pier[ty * w + tx]; pc.r = 255; pier[ty * w + tx] = pc; }
+            return pier;
+        }
+
         public static GroundVariantInputs BakeVariantInputs(MapBlob map)
         {
             int w = map.W, h = map.H; var tile = BakeVariants(map); var soft = new Color32[w * h];
@@ -303,7 +311,8 @@ namespace Roguehalla.Client
         /// <summary>The soft part: one texel per tile (rgb a gain, byte 128 neutral), texel centres at tile centres, blended bilinearly by the shader (after its ragged warp, which the CPU leaves out).</summary>
         public Color32[] Soft;
 
-        /// <summary>The soft part's gain at a point (tile coordinates, bilinear as the shader samples it); (1, 1, 1) where no soft band reaches.</summary>
+        /// <summary>The soft part's gain at a point (tile coordinates, plain bilinear); (1, 1, 1) where no soft band reaches. The CPU mirror models neither the shader's noise warp nor its RH_BAND_WIDTH
+        /// narrowing of the fade: the tests pin this bilinear form and the shader's look is judged on renders.</summary>
         public Vector3 SoftGainAt(float tx, float ty)
         {
             if (Soft == null) return Vector3.one;
