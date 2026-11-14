@@ -4,6 +4,40 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner answers 2026-11-14 (chat): the queue, Q1 to Q17
+
+The owner answered the open queue in one message. His words, and what follows from each:
+
+| Q | Owner | What happens |
+|---|---|---|
+| Q1 | "map is subject to change, currently no point in waiting" | The final combined review, the protocol 18 stamp, the Web build, browser proof, one beta host and the PR to `main` (opened, not merged) no longer wait for the volcano and the Holy hall. They run when the packets below have landed. |
+| Q2 | "frost wall might need a reskin to better match unity but for now and early testing we can save it for later" | DEV-035 accepted for early testing. No reskin packet now. |
+| Q3 | "half transparent as in roofs" | The tree crown keeps the roof rule. Closed. |
+| Q4 | "i like the new sentenced floor tiles with the variance it looks good" | DEV-033 signed. |
+| Q5 | "fire currently reads as quite red, but game will be getting visual overhaul in future please skip" | No Fire colour work. Closed. |
+| Q6 | "camp patience zones should be light but only show up when attacking a camp, legacy version showed them always, I want this to be a unity side, no need to be in rust" | P-UNITY-CAMP-PATIENCE-SHOW-1 (Unity only, from what the client already holds; a new deviation row when it lands). The light look stays; the range indicator and hit zones are left as they are. |
+| Q7 | "to avoid bugs and stay consistent please send to everyone, it effectively should be a temp wall within the engine" | DEV-036's visible-tile rule is **not accepted**. P-FROST-WALL-PUBLIC-1: every standing wall goes to every seated viewer. This resolves the C-OBS question the row raised: a standing wall is temporary terrain, public like the map (legacy synced every wall). The wall's owner stays hidden from a viewer who does not see them. P-FROST-WALL-NOWALL-1 (integration 42) is the step before it. |
+| Q8 | "confirm" | DEV-029's amended text confirmed. |
+| Q9 | "confirm" | DEV-034 signed, with the floors (Plague 80/35/55, Sentenced 75/45). |
+| Q10 to Q13 | "please do technical backend future proofing, no need for front end changes" | Read as: make these tests measure only what they mean to, so load or a changed count cannot turn them red; no look or behaviour change. P-TEST-HARDEN-1 (per-thread allocation measuring in Rust and C#, one helper each; the plane-count expectation derived, not a literal). The test amendments of 2026-11-13 and -14 stand. |
+| Q15 | "remove to save space if committed" | Older worktrees are removed only where their work is committed; one with uncommitted source stays and is listed. Branches are not deleted. |
+| Q16 | "we can work on this later when all changes are done" | `hosting/technical-demo/README.md` untouched until the deploy step. |
+| Q17 | "please change clause.Md based on our tuning discussions" | `CLAUDE.md`: a tuning-lane row in the routing table and the exception under rule 1. |
+
+Q14 (two emptied files) was closed earlier by the owner's standing instruction that emptied files stay as placeholders.
+
+**Not answered, still open** ([coordination/OWNER_QUEUE.md](coordination/OWNER_QUEUE.md)): Q18, the map generator
+session's P-AGENT-RETRO-1, whose approval was given in that session's chat and is not confirmed here: not merged.
+
+**Relayed by the map generator session, from its chat, not confirmed here (Q19):** the owner's "Yes to all 3. This is
+just map generation optimization. Once done this is done please push and merge map generation": a landmark's own
+walled-in lava is exempt from terrain rule T5; the volcano is 22 across with the floor-share rule unchanged at 1.15
+(replacing the approved 30 x 30, which no map of seeds 1 to 64 could hold); streams of 10 to 14 and 7 to 10 tiles; a fan
+of clear ground in front of the Fire site. P-MAPGEN-SIG-SCALE-4 is re-scoped to that; every option-on map moves and its
+pins are re-taken at the merge. P-MAPGEN-GUARANTEES-1 (the Frost lake rule and the Plague pool checks as registered
+guarantees; kept attempts unchanged) is reviewed LAND and staged for integration 43; it was stacked on `7e715bd57` of
+P-MAPGEN-LANDMARK-FRAME-1.
+
 ## Integrations 41 and 42 (2026-11-14): the wall is live and seen; the retrospective's fixes; current checkpoint
 
 Integration branch `feature/unity-rework` @ `947958208` on origin (integrations 40b and 41, full gates with Postgres

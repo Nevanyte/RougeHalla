@@ -22,6 +22,7 @@ decisions; a fix of a few lines it may make itself, through the same gate.
 | Mechanical work with a clear oracle: renames, fixture refresh by documented command, docs, small tests outside `rh-sim` | `implementer` | Haiku / medium |
 | **Default implementer**: any single-area task with an oracle; C#/Unity; CI, `hosting/`, scripts; L1 escalation | `implementer-sonnet` | Sonnet / medium |
 | `rh-sim` tick order, state, RNG or save/hash; wire format; migrations; security; cross-crate; L2 escalation | `implementer-opus` | Opus / high |
+| A **dial** change: a named constant listed in a dials index (`docs/unity/DIALS.md`), moved inside its pinned range; looks, layout or feel only ([docs/agent/TUNING_LANE.md](docs/agent/TUNING_LANE.md)) | `implementer-sonnet`, no packet, no reviewer | Sonnet / medium |
 | Determinism, replay, state-hash or parity divergence that Opus failed twice (L3) | `debugger` | Fable 5.2 / high |
 | Review of a gate-green branch | `reviewer` | Sonnet / medium |
 | Review of anything in the Opus implementer row, every integration merge, and the final combined-tree review | `reviewer-opus` | Opus / high |
@@ -29,6 +30,9 @@ decisions; a fix of a few lines it may make itself, through the same gate.
 Rules:
 1. **No oracle, no implementer.** A packet without a failing test, capture or golden vector goes to `oracle-author` first.
    For security packets `implementer-opus` writes its own failing tests first.
+   The one exception is the tuning lane: a dial's range test is its oracle, the quick gate and a look check are its
+   proof, and the coordinator dispatches it and reads the report without shepherding it. A new dial, a behaviour
+   change or anything under `crates/` is a packet.
 2. A packet whose write scope touches two crates, or the wire, is cross-crate: Opus implements, `reviewer-opus` reviews.
 3. Owner instruction stands: most sub-agents are Sonnet, Haiku takes simple work, Opus is for the Rust that matters and for
    merges. Fable runs only as `debugger`, or when the owner names it.
