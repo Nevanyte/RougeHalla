@@ -94,6 +94,71 @@ owner and were re-taken from this build; the owner has been told each):
 The pins the coordinator re-takes on the merged tree: `tests/support/signature_pins.rs` (by `print_signature_pins`),
 the label sequence in `mapgen_guarantees.rs`, and the three `rh-mapdress` constants.
 
+## After the coordinator's review (2026-11-14): REJECT for one reason, answered here
+
+The coordinator's reviewer-opus found the generator sound and option off byte-identical, and rejected the branch for
+the two loosened Plague pool-size tests: the owner's direction is three sizes with the large ones near the tree
+(`LAND_GENERATION_REQUIREMENTS.md` section 3; DEV-034), the tests had been relaxed, and the cause given (the 29 x 29
+tree fills the near band) could not explain the change, since the tree was the same size before. The owner's answer,
+relayed by the coordinator from its chat ("Please go with your recommendations"): the volcano lands; no Plague rule
+change now; the gap is written into DEV-034.
+
+**The measured cause** (`mapgen_land_plague.rs`'s own definitions, option on; BEFORE = `agent/opus/P-MAPGEN-GUARANTEES-1`
+@ `c64934582`, AFTER = this branch before the notes below; raw output in the lane's scratchpad, `before2.txt` and
+`after2.txt`):
+
+| Measure | BEFORE 1-32 | AFTER 1-32 | BEFORE 1-96 | AFTER 1-96 |
+|---|---|---|---|---|
+| Pools Small / Medium / Large | 53 / 16 / 2 | 51 / 15 / 0 | 162 / 36 / 2 | 148 / 36 / 0 |
+| Pools near / mid / far | 2 / 38 / 31 | 0 / 34 / 32 | 2 / 124 / 74 | 0 / 104 / 80 |
+| Maps where a whole Large body fits in the near band (barrows giving way) | 2 | 0 | 2 (seeds 10, 20) | 0 |
+| The same with barrow sites kept | 0 | 0 | 0 | 0 |
+| Plague zone tiles (every map) | 4936 | 4936 | 4936 | 4936 |
+| Plague floor, median | 4518 | 4502 | 4517 | 4517 |
+| Usable near-band ground, median tiles | 276 | 284 | 283 | 290 |
+| Plague camps (every map); buildings, mean | 10; 1.8 | 10; 1.9 | 10; 1.8 | 10; 1.8 |
+| Styler bog, total | 4974 | 4789 | 13266 | 12623 |
+| FloorShare refusals, total | 0 | 1 | 0 | 4 |
+| Smallest zone | Sentenced 25, Plague 5, Fire 2 | Fire 32 | Sentenced 77, Plague 16, Fire 3 | Fire 96 |
+| Largest over smallest zone floor, median (max) | 1.043 (1.062) | 1.128 (1.150) | 1.043 (1.075) | 1.129 (1.150) |
+
+Chance on a nearly empty band. Since P-MAPGEN-SIG-SCALE-3 made the tree 29 x 29, a Large pool near the tree appeared
+on 2 maps of 96, and only by taking barrow sites: the near band tries only Large (`POOLS.bands`), and a Large body is
+at least two discs with a two-tile ring of plain floor. The volcano took no ground from Plague (zone, floor, camps and
+buildings unchanged; usable near ground slightly up); `repair`'s floor-share step only refuses an attempt and moves no
+tile. The base test "all three sizes occur" passed on seeds 10 and 20 alone. The lane had noted "close to vacuous" in
+P-LAND-PLAGUE-1-fix-3's brief and did not put it to the owner: that was the lane's mistake.
+
+**What the branch does about it** (`oracle:` commit on the packet branch): the two amended tests stay, their comments
+state the measured cause, and a new test, `known_gap_no_large_pool_and_no_pool_near_the_tree_on_seeds_1_to_32`, pins
+the gap as a fact (0 Large, 0 near-band pools on seeds 1-32) with a message naming DEV-034: it fails when the direction
+starts being delivered, and tests 4 and 5 are then restored to their full form.
+
+**The owner's floors on the moved maps** (seeds 1-32, the tests' own measures):
+
+| Floor | BEFORE (margin) | AFTER (margin) |
+|---|---|---|
+| Plague marsh plus pools against option off, median (floor 0.8) | 1.071 (+0.271) | 1.037 (+0.237) |
+| Plague pools alone, share ratio median (floor 0.35) | 0.594 (+0.244) | 0.480 (+0.130) |
+| Plague barrows, on over off totals (floor 55%) | 61.2% (+6.2 points) | 64.7% (+9.7 points) |
+| Sentenced lanes plus churchyard fence against option off, median (floor 0.75) | 0.820 (+0.070) | 0.836 (+0.086) |
+| Sentenced lanes alone, median (floor 0.45) | 0.532 (+0.082) | 0.551 (+0.101) |
+
+Plague pools alone is the margin to watch (0.244 to 0.130); its cause is not established beyond the maps moving.
+
+**The review's two code notes, fixed** (three commits on the agent branch; no map moved, nothing re-pinned; rh-sim
+1530 passed, 0 failed):
+1. `intact`'s door check is exact (`doors_intact`): each entrance tile holds what its landmark's entrance glyph writes
+   (the volcano's outlets: LOW with the lava terrain, owned by Fire's Volcano feature; the church gate, the tree's
+   causeways and the cave mouth: floor that no feature of their own landmark owns). Four in-crate tests: the outlets as
+   built pass; an outlet turned to a volcano wall, a church doorway turned to an owned church wall and a cave mouth
+   tile owned by the cave fail. Not changed: an entrance tile owned by another allowed feature (a bush, a legacy
+   landmark, infill) still passes, as before the volcano; requiring "fully unowned" could refuse maps accepted today
+   and would be its own change.
+2. One definition for the fan: the Prefix computes the fans once from its context's definition and records them
+   (`AttemptState::fans`, empty with the option off); the camp reserves and the legacy landmark stage both read that
+   record; the stage's `DEFAULT_DEFINITION` read is gone.
+
 ## What this build adds to the first one (as the implementer reported it; the red lists below are history)
 
 - **T5 exemption** (design item 10): `signature::landmark_kind` (Volcano, LavaStream, LavaPool, Church, Graveyard,
