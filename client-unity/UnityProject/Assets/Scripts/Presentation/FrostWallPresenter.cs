@@ -17,19 +17,32 @@ namespace Roguehalla.Client
         /// <summary>Legacy ice colours (FieldView.ts WALL_TOP, WALL_FRONT, WALL_EDGE) and the preview's invalid tint
         /// (AbilityAim.ts 0xef5350).</summary>
         public static readonly Color32 TopColor = new Color32(0xe1, 0xf5, 0xfe, 0xff);
-        public static readonly Color32 FaceColor = new Color32(0x4f, 0xc3, 0xf7, 0xff);
-        public static readonly Color32 EdgeColor = new Color32(0x02, 0x88, 0xd1, 0xff);
+        // P-UNITY-FROST-WALL-READ-1: a deeper, more saturated face and a dark navy outline, same ice-blue hue family (legacy 4fc3f7 and 0288d1
+        // sit too close to Frost's pale ground); the preview's own fixed colours (the faction tint is too close to the ground).
+        public static readonly Color32 FaceColor = new Color32(0x2a, 0x9d, 0xe0, 0xff);
+        public static readonly Color32 EdgeColor = new Color32(0x0b, 0x3a, 0x66, 0xff);
         public static readonly Color32 InvalidTint = new Color32(0xef, 0x53, 0x50, 0xff);
+        /// <summary>The valid preview's coloured core, the dark neutral halo under every preview mark, and the crack's darkening and white-hot flash colours.</summary>
+        public static readonly Color32 ValidTint = new Color32(0x4f, 0xc3, 0xf7, 0xff);
+        public static readonly Color32 PreviewHaloColor = new Color32(0x10, 0x10, 0x12, 0xff);
+        public static readonly Color32 CrackColor = new Color32(0x06, 0x18, 0x30, 0xff);
+        public static readonly Color32 CrackHotColor = new Color32(0xff, 0xff, 0xff, 0xff);
+        /// <summary>The outline's thickness round each block (sim px) and how strongly the crack darkens the block and flashes its rim (alpha at the end).</summary>
+        public const float EdgeWidth = 3f, CrackDarkAlpha = .5f, CrackHotAlpha = .9f;
         /// <summary>Legacy top alpha, how much the crack takes off it, and the crack's time (ms before the end).</summary>
-        public const float TopAlpha = .85f, CrackFade = .3f;
+        public const float TopAlpha = .9f, CrackFade = .3f;
         public const double CrackMs = 1000;
         /// <summary>Legacy face alpha, edge alpha, the lift (sim px) and the fade-out at the end (ms).</summary>
-        public const float FaceAlpha = .78f, EdgeAlpha = .6f, Lift = 20f;
+        public const float FaceAlpha = .94f, EdgeAlpha = .95f, Lift = 20f;
         public const double FadeMs = 300;
         /// <summary>Preview: fill alpha (base, pulse swing), outline alpha (base, pulse swing), line alpha, centre dot alpha, reach ring alpha,
         /// pulse speed (radians per ms; legacy 0.008).</summary>
-        public const float PreviewFillAlpha = .18f, PreviewFillPulse = .1f, PreviewOutlineAlpha = .35f, PreviewOutlinePulse = .2f,
-            PreviewLineAlpha = .55f, PreviewDotAlpha = .8f, PreviewRingAlpha = .25f, PulseSpeed = .008f;
+        public const float PreviewFillAlpha = .22f, PreviewFillPulse = .1f, PreviewOutlineAlpha = .7f, PreviewOutlinePulse = .25f,
+            PreviewLineAlpha = .95f, PreviewDotAlpha = .95f, PreviewRingAlpha = .9f, PulseSpeed = .008f;
+        /// <summary>Preview marks are two or three tones: a dark halo (alpha for tile outlines, line and dot; for the big reach ring), then white, then the
+        /// colour (outline: halo and white only). Widths in sim px: halo, white, colour, tile-outline halo, tile-outline white.</summary>
+        public const float PreviewHaloAlpha = .8f, PreviewRingHaloAlpha = .55f, PreviewHaloWidth = 5f, PreviewMidWidth = 3.2f, PreviewCoreWidth = 1.6f,
+            PreviewOutlineHaloWidth = 3.6f, PreviewOutlineWidth = 2f;
         /// <summary>Telegraph: line alpha at the start and what the gathering adds, core alpha.</summary>
         public const float TelegraphAlpha = .15f, TelegraphGather = .35f, TelegraphCoreAlpha = .6f;
 
@@ -37,7 +50,12 @@ namespace Roguehalla.Client
         // OverlayOrder: the preview and the telegraph draw over the fighters (legacy DEPTH_AIM, above fighters) and under the world marks
         // (WorldMarks 29000, labels 29100). Not a looks dial: a layering rule.
         const int MaxPreviewTiles = 24, RingSegments = 48, WallOrderBase = 2000, OverlayOrder = 28900;
-        const int BlockQuads = 7; // face, top, four rim strips, base line
+        // face, top, four rim strips (N S W E), base line, crack darkening, four white-hot rim strips (N S W E)
+        const int BlockQuads = 12;
+        // preview quads: ring (halo, white, colour: 48 each), tile fills, tile outline halos (4 per tile), tile outline whites, line (3), dot (3)
+        const int PvRingHalo = 0, PvRingMid = RingSegments, PvRingCore = RingSegments * 2, PvFill = RingSegments * 3,
+            PvTileHalo = PvFill + MaxPreviewTiles, PvTileMid = PvTileHalo + MaxPreviewTiles * 4, PvLine = PvTileMid + MaxPreviewTiles * 4,
+            PvDot = PvLine + 3, PvQuads = PvDot + 3;
 
         sealed class QuadMesh
         {
@@ -100,7 +118,7 @@ namespace Roguehalla.Client
             var go = new GameObject("Frost walls"); go.transform.SetParent(parent, false); _container = go.transform;
             _owned.Add(go);
             _telegraph = new QuadMesh("Frost wall telegraph", _container, 2, OverlayOrder, true, _owned);
-            _preview = new QuadMesh("Frost wall preview", _container, RingSegments + MaxPreviewTiles * 5 + 2, OverlayOrder, true, _owned);
+            _preview = new QuadMesh("Frost wall preview", _container, PvQuads, OverlayOrder, true, _owned);
         }
 
         // ---- standing walls ----
@@ -134,6 +152,13 @@ namespace Roguehalla.Client
             {
                 var b = AcquireBlock();
                 b.Tile = t;
+                bool nN = false, nS = false, nW = false, nE = false;
+                foreach (var o in tiles)
+                {
+                    if (o.X == t.X && o.Y + 1 == t.Y) nN = true; else if (o.X == t.X && o.Y == t.Y + 1) nS = true;
+                    else if (o.Y == t.Y && o.X + 1 == t.X) nW = true; else if (o.Y == t.Y && o.X == t.X + 1) nE = true;
+                }
+                ShapeBlock(b.Mesh, nN, nS, nW, nE);
                 b.Mesh.Go.transform.position = ArenaView.WorldPoint(t.X * 32 + 16, t.Y * 32 + 16);
                 b.Renderer.sortingOrder = WallOrderBase + Mathf.RoundToInt((t.Y * 32 + 16) * .5f); // the actors' formula at the tile's row, so an actor beside any block sorts right
                 b.Mesh.Active(true); b.TopAlpha = -1f;
@@ -146,16 +171,29 @@ namespace Roguehalla.Client
         {
             if (_pool.Count > 0) { var b = _pool[_pool.Count - 1]; _pool.RemoveAt(_pool.Count - 1); return b; }
             var m = new QuadMesh("Ice block", _container, BlockQuads, WallOrderBase, false, _owned);
-            float hw = 16 * S, hd = 16 * S * G, lift = Lift * S, e = 1.5f * S;
+            ShapeBlock(m, false, false, false, false);
+            m.Mesh.RecalculateBounds();
+            return new Block { Mesh = m, Renderer = m.Go.GetComponent<MeshRenderer>() };
+        }
+
+        /// <summary>Sets a block's quads. An outline strip on a side that touches another block of the same wall is collapsed (the wall reads as one
+        /// piece of ice), colours unaffected.</summary>
+        static void ShapeBlock(QuadMesh m, bool north, bool south, bool west, bool east)
+        {
+            float hw = 16 * S, hd = 16 * S * G, lift = Lift * S, e = EdgeWidth * S;
             m.Rect(0, -hw, -hd, hw, -hd + lift);              // face: from the tile's south edge on the ground up to the top
             m.Rect(1, -hw, -hd + lift, hw, hd + lift);        // top
-            m.Rect(2, -hw, hd + lift - e, hw, hd + lift);     // rim: north
-            m.Rect(3, -hw, -hd + lift, hw, -hd + lift + e);   // rim: south
-            m.Rect(4, -hw, -hd + lift, -hw + e, hd + lift);   // rim: west
-            m.Rect(5, hw - e, -hd + lift, hw, hd + lift);     // rim: east
-            m.Rect(6, -hw, -hd, hw, -hd + e);                 // base line
-            m.UploadShape(); m.Mesh.RecalculateBounds();
-            return new Block { Mesh = m, Renderer = m.Go.GetComponent<MeshRenderer>() };
+            for (int pass = 0; pass < 2; pass++)
+            {
+                int o = pass == 0 ? 2 : 8;
+                if (north) m.Collapse(o); else m.Rect(o, -hw, hd + lift - e, hw, hd + lift);                  // rim: north
+                if (south) m.Collapse(o + 1); else m.Rect(o + 1, -hw, -hd + lift, hw, -hd + lift + e);        // rim: south (top meets face)
+                if (west) m.Collapse(o + 2); else m.Rect(o + 2, -hw, -hd, -hw + e, hd + lift);                // rim: west, down the face too
+                if (east) m.Collapse(o + 3); else m.Rect(o + 3, hw - e, -hd, hw, hd + lift);                  // rim: east
+            }
+            if (south) m.Collapse(6); else m.Rect(6, -hw, -hd, hw, -hd + e); // base line
+            m.Rect(7, -hw, -hd, hw, hd + lift);               // crack darkening over the whole block
+            m.UploadShape();
         }
 
         void ApplyWalls()
@@ -168,11 +206,14 @@ namespace Roguehalla.Client
                 float fade = _renderMs < w.StartedAt ? 0f : left < FadeMs ? (float)Math.Max(0.0, left) / (float)FadeMs : 1f;
                 float top = (TopAlpha - CrackFade * crack) * fade, face = (FaceAlpha - CrackFade * crack) * fade, edge = EdgeAlpha * fade;
                 var fc = With(FaceColor, face); var tc = With(TopColor, top); var ec = With(EdgeColor, edge);
+                var dc = With(CrackColor, CrackDarkAlpha * crack * fade); var hc = With(CrackHotColor, CrackHotAlpha * crack * fade);
                 foreach (var b in w.Blocks)
                 {
                     b.TopAlpha = top;
                     b.Mesh.Color(0, fc); b.Mesh.Color(1, tc);
-                    for (int q = 2; q < BlockQuads; q++) b.Mesh.Color(q, ec);
+                    for (int q = 2; q <= 6; q++) b.Mesh.Color(q, ec);
+                    b.Mesh.Color(7, dc);
+                    for (int q = 8; q < BlockQuads; q++) b.Mesh.Color(q, hc);
                     b.Mesh.UploadColors();
                 }
             }
@@ -220,14 +261,13 @@ namespace Roguehalla.Client
         /// <see cref="BlockLayers"/>: every quad of the part.</summary>
         public Color32[] PreviewLayers(PreviewPart part)
         {
-            int ql = RingSegments + MaxPreviewTiles * 5;
             switch (part)
             {
-                case PreviewPart.Ring: return new[] { _preview.ColorOf(0) };
-                case PreviewPart.Fill: return _pvCount > 0 ? new[] { _preview.ColorOf(RingSegments) } : new Color32[0];
-                case PreviewPart.Outline: return _pvCount > 0 ? new[] { _preview.ColorOf(RingSegments + 1) } : new Color32[0];
-                case PreviewPart.Line: return new[] { _preview.ColorOf(ql) };
-                default: return new[] { _preview.ColorOf(ql + 1) };
+                case PreviewPart.Ring: return new[] { _preview.ColorOf(PvRingHalo), _preview.ColorOf(PvRingMid), _preview.ColorOf(PvRingCore) };
+                case PreviewPart.Fill: return _pvCount > 0 ? new[] { _preview.ColorOf(PvFill) } : new Color32[0];
+                case PreviewPart.Outline: return _pvCount > 0 ? new[] { _preview.ColorOf(PvTileHalo), _preview.ColorOf(PvTileMid) } : new Color32[0];
+                case PreviewPart.Line: return new[] { _preview.ColorOf(PvLine), _preview.ColorOf(PvLine + 1), _preview.ColorOf(PvLine + 2) };
+                default: return new[] { _preview.ColorOf(PvDot), _preview.ColorOf(PvDot + 1), _preview.ColorOf(PvDot + 2) };
             }
         }
 
@@ -280,29 +320,41 @@ namespace Roguehalla.Client
             _pvOn = true;
             _pvCount = Math.Min(cells != null ? cells.Count : 0, MaxPreviewTiles);
             for (int i = 0; i < _pvCount; i++) _pvTiles[i] = new MapTile((ushort)(cells[i] % mapW), (ushort)(cells[i] / mapW));
-            _pvTint = _pvCount == 0 ? InvalidTint : tint;
-            float wb = 1.5f * S, lift = Lift * S;
+            _pvTint = _pvCount == 0 ? InvalidTint : ValidTint; // the faction tint argument is ignored: it is too close to the ground
+            float lift = Lift * S;
             for (int i = 0; i < RingSegments; i++)
             {
                 float a0 = i * (2f * Mathf.PI / RingSegments), a1 = (i + 1) * (2f * Mathf.PI / RingSegments);
-                _preview.Seg(i, ArenaView.WorldPoint(casterX + Mathf.Cos(a0) * range, casterY + Mathf.Sin(a0) * range),
-                    ArenaView.WorldPoint(casterX + Mathf.Cos(a1) * range, casterY + Mathf.Sin(a1) * range), wb);
+                var pa = ArenaView.WorldPoint(casterX + Mathf.Cos(a0) * range, casterY + Mathf.Sin(a0) * range);
+                var pb = ArenaView.WorldPoint(casterX + Mathf.Cos(a1) * range, casterY + Mathf.Sin(a1) * range);
+                _preview.Seg(PvRingHalo + i, pa, pb, PreviewHaloWidth * S); _preview.Seg(PvRingMid + i, pa, pb, PreviewMidWidth * S); _preview.Seg(PvRingCore + i, pa, pb, PreviewCoreWidth * S);
             }
             var up = new Vector3(0, lift, 0);
             for (int i = 0; i < MaxPreviewTiles; i++)
             {
-                int q = RingSegments + i * 5;
-                if (i >= _pvCount) { for (int k = 0; k < 5; k++) _preview.Collapse(q + k); continue; }
+                if (i >= _pvCount)
+                {
+                    _preview.Collapse(PvFill + i);
+                    for (int k = 0; k < 4; k++) { _preview.Collapse(PvTileHalo + i * 4 + k); _preview.Collapse(PvTileMid + i * 4 + k); }
+                    continue;
+                }
                 var t = _pvTiles[i];
                 var nw = ArenaView.WorldPoint(t.X * 32, t.Y * 32) + up; var ne = ArenaView.WorldPoint(t.X * 32 + 32, t.Y * 32) + up;
                 var se = ArenaView.WorldPoint(t.X * 32 + 32, t.Y * 32 + 32) + up; var sw = ArenaView.WorldPoint(t.X * 32, t.Y * 32 + 32) + up;
-                _preview.Quad(q, nw, ne, se, sw);
-                _preview.Seg(q + 1, nw, ne, wb); _preview.Seg(q + 2, ne, se, wb); _preview.Seg(q + 3, se, sw, wb); _preview.Seg(q + 4, sw, nw, wb);
+                _preview.Quad(PvFill + i, nw, ne, se, sw);
+                int h = PvTileHalo + i * 4, m = PvTileMid + i * 4;
+                float hw = PreviewOutlineHaloWidth * S, mw = PreviewOutlineWidth * S;
+                _preview.Seg(h, nw, ne, hw); _preview.Seg(h + 1, ne, se, hw); _preview.Seg(h + 2, se, sw, hw); _preview.Seg(h + 3, sw, nw, hw);
+                _preview.Seg(m, nw, ne, mw); _preview.Seg(m + 1, ne, se, mw); _preview.Seg(m + 2, se, sw, mw); _preview.Seg(m + 3, sw, nw, mw);
             }
-            int ql = RingSegments + MaxPreviewTiles * 5;
-            _preview.Seg(ql, ArenaView.WorldPoint((float)seg.X1, (float)seg.Y1) + up, ArenaView.WorldPoint((float)seg.X2, (float)seg.Y2) + up, 2f * S);
-            var c = ArenaView.WorldPoint((float)seg.Cx, (float)seg.Cy) + up; float r = 3f * S;
-            _preview.Quad(ql + 1, c + new Vector3(0, r), c + new Vector3(r, 0), c + new Vector3(0, -r), c + new Vector3(-r, 0));
+            var la = ArenaView.WorldPoint((float)seg.X1, (float)seg.Y1) + up; var lb = ArenaView.WorldPoint((float)seg.X2, (float)seg.Y2) + up;
+            _preview.Seg(PvLine, la, lb, PreviewHaloWidth * S); _preview.Seg(PvLine + 1, la, lb, PreviewMidWidth * S); _preview.Seg(PvLine + 2, la, lb, PreviewCoreWidth * S);
+            var c = ArenaView.WorldPoint((float)seg.Cx, (float)seg.Cy) + up;
+            for (int k = 0; k < 3; k++)
+            {
+                float r = (k == 0 ? PreviewHaloWidth * 1.1f : k == 1 ? PreviewMidWidth * 1.3f : PreviewCoreWidth * 1.7f) * S;
+                _preview.Quad(PvDot + k, c + new Vector3(0, r), c + new Vector3(r, 0), c + new Vector3(0, -r), c + new Vector3(-r, 0));
+            }
             _preview.UploadShape();
             PreviewColors(); _preview.UploadColors();
             _preview.Active(true);
@@ -310,17 +362,18 @@ namespace Roguehalla.Client
 
         void PreviewColors()
         {
-            var ring = With(_pvTint, PreviewRingAlpha);
-            for (int i = 0; i < RingSegments; i++) _preview.Color(i, ring);
-            var fill = With(_pvTint, PreviewFillAlpha + PreviewFillPulse * _pulse); var line = With(Color.white, PreviewOutlineAlpha + PreviewOutlinePulse * _pulse);
-            for (int i = 0; i < MaxPreviewTiles; i++)
+            var white = new Color32(255, 255, 255, 255);
+            var rh = With(PreviewHaloColor, PreviewRingHaloAlpha); var rm = With(white, PreviewRingAlpha); var rc = With(_pvTint, PreviewRingAlpha);
+            for (int i = 0; i < RingSegments; i++) { _preview.Color(PvRingHalo + i, rh); _preview.Color(PvRingMid + i, rm); _preview.Color(PvRingCore + i, rc); }
+            var fill = With(_pvTint, PreviewFillAlpha + PreviewFillPulse * _pulse);
+            var oh = With(PreviewHaloColor, PreviewHaloAlpha); var om = With(white, PreviewOutlineAlpha + PreviewOutlinePulse * _pulse);
+            for (int i = 0; i < _pvCount; i++)
             {
-                int q = RingSegments + i * 5;
-                if (i >= _pvCount) continue;
-                _preview.Color(q, fill); for (int k = 1; k < 5; k++) _preview.Color(q + k, line);
+                _preview.Color(PvFill + i, fill);
+                for (int k = 0; k < 4; k++) { _preview.Color(PvTileHalo + i * 4 + k, oh); _preview.Color(PvTileMid + i * 4 + k, om); }
             }
-            int ql = RingSegments + MaxPreviewTiles * 5;
-            _preview.Color(ql, With(_pvTint, PreviewLineAlpha)); _preview.Color(ql + 1, With(_pvTint, PreviewDotAlpha));
+            _preview.Color(PvLine, oh); _preview.Color(PvLine + 1, With(white, PreviewLineAlpha)); _preview.Color(PvLine + 2, With(_pvTint, PreviewLineAlpha));
+            _preview.Color(PvDot, oh); _preview.Color(PvDot + 1, With(white, PreviewDotAlpha)); _preview.Color(PvDot + 2, With(_pvTint, PreviewDotAlpha));
         }
 
         readonly List<uint> _aimCells = new List<uint>(32); byte[] _aimMap;
