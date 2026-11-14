@@ -66,6 +66,13 @@ namespace Roguehalla.Net.Ui
             switch (faction)
             {
                 case FactionId.Frost:
+                    if (IsWall(hud))
+                    {
+                        name = "Frost Wall";
+                        if (hud.Term(HudTerm.FrostWallMs) is double wm && hud.Term(HudTerm.FrostWallRange) is double wr)
+                        { value = Fmt(wm / 1000) + "s wall · " + Fmt(wr) + " range"; scaling = "No damage scaling"; }
+                        break;
+                    }
                     name = "Freeze";
                     if (hud?.Term(HudTerm.FreezeStunMs) is double a && hud.Term(HudTerm.FreezeRange) is double b)
                     { value = Fmt(a / 1000) + "s stun · " + Raw(b) + " range"; scaling = "No damage scaling"; }
@@ -103,17 +110,29 @@ namespace Roguehalla.Net.Ui
             return new ChampionRow(name, value, scaling, "");
         }
 
-        /// <summary>P-UNITY-WISH-TEXT-1 (stub): the name a Wish is shown under in the match HUD (the card's "R · Name", "Casting Name"): the
-        /// ability's enum name, except Frost's Wish (<see cref="AbilityId.Freeze"/>) under a block that says <see cref="FrostWishKind.Wall"/>.</summary>
+        static bool IsWall(WireHudContent hud) { return hud != null && hud.FrostWish == FrostWishKind.Wall; }
+
+        /// <summary>The name a Wish is shown under in the match HUD (the card's "R · Name", "Casting Name"): the ability's enum name, except
+        /// Frost's Wish (<see cref="AbilityId.Freeze"/>) under a block that says <see cref="FrostWishKind.Wall"/>.</summary>
         public static string WishName(WireHudContent hud, AbilityId ability)
         {
-            return ability.ToString();
+            return ability == AbilityId.Freeze && IsWall(hud) ? "Frost Wall" : ability.ToString();
         }
 
-        /// <summary>P-UNITY-WISH-TEXT-1 (stub): the Wish slot tooltip's extra lines for a faction's Wish, joined by a newline; "" when it has none.</summary>
+        /// <summary>The Wish slot tooltip's extra lines for a faction's Wish (combatTip.ts effectTip "wall"), joined by a newline; "" when it has
+        /// none. Seconds use combatTip's one decimal (num), not the row's two.</summary>
         public static string WishTip(WireHudContent hud, FactionId faction)
         {
-            return "";
+            if (faction != FactionId.Frost || !IsWall(hud)) return "";
+            if (!(hud.Term(HudTerm.FrostWallLength) is double len) || !(hud.Term(HudTerm.FrostWallMs) is double ms)) return "";
+            return "Wall: " + Raw(len) + " u long for " + OneDecimal(ms / 1000) + " s\nBlocks walking and melee swings; shots fly over it";
+        }
+
+        // combatTip.ts num(): Math.round(n * 10) / 10 (JS rounds half up); whole numbers print without a decimal.
+        static string OneDecimal(double n)
+        {
+            var r = Math.Floor(n * 10 + 0.5) / 10;
+            return r.ToString(r == Math.Floor(r) ? "0" : "0.0", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         /// <summary>The Fire roam sentence (championCombatModel.ts:114-116 <c>fireRoamText</c>, without its leading space) for Fire; "" for other
