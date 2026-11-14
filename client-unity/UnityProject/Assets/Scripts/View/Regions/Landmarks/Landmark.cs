@@ -110,6 +110,17 @@ namespace Roguehalla.Client
             _roof.Add(r); _roofArray = _roof.ToArray();
         }
 
+        /// <summary>The landmark's ground pieces (see <see cref="AddGroundPiece"/>); empty until a piece is added.</summary>
+        public SpriteRenderer[] GroundRenderers { get { return _groundArray; } }
+        SpriteRenderer[] _groundArray = new SpriteRenderer[0];
+
+        /// <summary>P-UNITY-BOG-TREE-3 (STUB: does nothing yet). For a piece of a landmark's art that lies on the ground (a shadow, a stain): it is
+        /// never tinted by the roof fade, keeps exactly the sorting order it is given, appears in <see cref="GroundRenderers"/> (not
+        /// <see cref="RoofRenderers"/>), and is disposed with the landmark. Real behaviour: set the order, list the renderer, clear the list in Dispose.</summary>
+        public void AddGroundPiece(SpriteRenderer r, int order)
+        {
+        }
+
         internal void SetRoofAlpha(float a)
         {
             if (a == RoofAlpha) return;
