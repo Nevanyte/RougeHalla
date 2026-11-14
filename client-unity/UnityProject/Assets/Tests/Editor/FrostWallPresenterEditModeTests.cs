@@ -107,6 +107,10 @@ namespace Roguehalla.Client.Tests
             Assert.AreEqual(9, _p.BlockTile(0).X);
         }
 
+        // P-UNITY-FROST-WALL-READ-1 amended this test and the next (coordinator-approved in the packet): what they keep is that the ice is solid
+        // until its last second, never gets MORE solid in it, fades out over the final FadeMs, and the whole wall changes together. What moved: the
+        // exact legacy numbers 0.85 - 0.3 * crack (the crack's visible change is now pinned by FrostWallReadEditModeTests on a pale ground, where
+        // alpha loss alone cannot be seen) and the exact legacy colours (now pinned there as an ice-blue hue family with the contrast floors).
         [Test]
         public void TheIceCracksPaleOnlyInItsLastSecond()
         {
@@ -119,22 +123,15 @@ namespace Roguehalla.Client.Tests
             Frame(fields, End - 100); float late = _p.BlockTopAlpha(0);
             Assert.AreEqual(FrostWallPresenter.TopAlpha, early, 1e-4f, "solid until the last second");
             Assert.AreEqual(early, edge, 1e-4f);
-            Assert.AreEqual(FrostWallPresenter.TopAlpha - FrostWallPresenter.CrackFade * .5f, half, 1e-4f, "half cracked half a second before the end");
-            Assert.Less(late, half);
-            // Legacy at End - 100: the top's 0.85 - 0.3 * 0.9 = 0.58, times FieldView's fade-out over the last
-            // FIELD_FADE_MS 300 (fieldAlpha = 100 / 300): 0.1933.
-            Assert.AreEqual((FrostWallPresenter.TopAlpha - FrostWallPresenter.CrackFade * .9f) * (100f / 300f), late, 1e-3f,
-                "cracked 0.9 and faded to a third 100 ms before the end");
+            Assert.LessOrEqual(half, early + 1e-4f, "the crack never makes the ice more solid");
+            Assert.Less(late, half, "the final fade takes it away");
+            Assert.LessOrEqual(late, FrostWallPresenter.TopAlpha * (100f / 300f) + 1e-3f, "faded to a third or less 100 ms before the end (legacy FIELD_FADE_MS 300)");
             Assert.AreEqual(late, _p.BlockTopAlpha(1), 1e-4f, "the whole wall cracks together");
         }
 
         [Test]
-        public void TheIceIsTheLegacyColoursForEveryCasterSeenOrNot()
+        public void TheIceIsTheSameForEveryCasterSeenOrNot()
         {
-            Assert.AreEqual(new Color32(0xe1, 0xf5, 0xfe, 0xff), FrostWallPresenter.TopColor);
-            Assert.AreEqual(new Color32(0x4f, 0xc3, 0xf7, 0xff), FrostWallPresenter.FaceColor);
-            Assert.AreEqual(new Color32(0x02, 0x88, 0xd1, 0xff), FrostWallPresenter.EdgeColor);
-            Assert.AreEqual(new Color32(0xef, 0x53, 0x50, 0xff), FrostWallPresenter.InvalidTint);
             Frame(new[] { Wall(Column(4, 2, 2), 7), Wall(Column(9, 5, 2), null, 1500), Wall(Column(20, 5, 2), 11, 1600) }, 2000);
             Assert.AreEqual(6, _p.BlockCount);
             for (int i = 0; i < 6; i++)
@@ -171,7 +168,7 @@ namespace Roguehalla.Client.Tests
             Assert.AreEqual(3, _p.PreviewBlockCount);
             Assert.AreEqual(6, _p.PreviewTile(0).X); Assert.AreEqual(0, _p.PreviewTile(0).Y);
             Assert.AreEqual(6, _p.PreviewTile(2).X); Assert.AreEqual(2, _p.PreviewTile(2).Y);
-            Assert.AreEqual(tint, _p.PreviewTint);
+            Assert.AreNotEqual(FrostWallPresenter.InvalidTint, _p.PreviewTint, "a valid preview is not the red one (it may use the caster's tint or the presenter's own readable colour: P-UNITY-FROST-WALL-READ-1)");
             Assert.Greater(LiveRenderers(), 0);
 
             _p.ShowPreview(seg, new List<uint>(), 10, 80, 48, 450, tint, FrostWishKind.Wall);
