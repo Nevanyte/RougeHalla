@@ -467,6 +467,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-UNITY-ZONE-CONTRAST-1 | in the Plague and Sentenced zones the subjects stand apart from the ground and from each other (owner direction 2026-11-13: "very mono coloured") | P-UNITY-LANDMARK-1 to -5 | Withdrawn 2026-11-13 ([spec](packets/P-UNITY-ZONE-CONTRAST-1.md)): its premise came from renders that were too dark; the owner approved the real look | client/src/render/palette.ts |
 | P-UNITY-LANDMARK-ROOF-RETURN-1 | a landmark roof comes back when nobody the viewer sees is inside (round 9: the cave roof stayed gone after leaving) | P-UNITY-LANDMARK-SEAMS-1 | Brief ([spec](packets/P-UNITY-LANDMARK-ROOF-RETURN-1.md)); needs oracle | none |
 | P-UNITY-GROUND-SAMPLERS-1 | the ground shader compiles for the Web target, so `build-web.sh` finishes (round 9: sampler limit exceeded on gles3) | none | Brief ([spec](packets/P-UNITY-GROUND-SAMPLERS-1.md)); needs oracle | none |
+| P-UNITY-SENTENCED-TILES-1 | the Sentenced floor's tiles vary: browns, lighter greys and purples scattered among the dark stone (owner direction 2026-11-13) | none | Brief ([spec](packets/P-UNITY-SENTENCED-TILES-1.md)); needs oracle | client/src/render/zoneArt |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
