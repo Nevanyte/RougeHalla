@@ -231,8 +231,17 @@ to stop rather than write there. Proposed, for the coordinator to approve or rel
 
 ## Baseline on `b40c72330` plus this packet's stub
 Known red below this packet (not this packet's): `FrostWallProtocolTests` (7), `FrostWallStateTests` (17), and the Rust
-`frost_wall_observe`, `frost_wall_wire`, `frost_wall_delivery`, `frost_wall_welcome`. This packet's red tests are listed
-in the hand-off.
+`frost_wall_observe`, `frost_wall_wire`, `frost_wall_delivery`, `frost_wall_welcome`.
+
+This packet's red tests, on the stub:
+- C# (`dotnet test`, 2075 tests, 40 red = the 24 above + 16): `FrostWallAimTests` 9 of 10 (`AWallAimedIntoRockTakesNoTile`
+  passes on the empty stub by construction) and `WishAimTests` 7 of 8 (`UnderFreezeTheKeyCastsAtOnceAsToday...` is today's
+  behaviour and passes on the stub).
+- EditMode (1533 tests, 10 red): `FrostWallPresenterEditModeTests` 9 of 10 (`NothingIsDrawnThatTheStateDoesNotList...`
+  passes on the stub by construction; the allocation guard's GC half passes, its block count fails) and
+  `QuickCastSettingEditModeTests` 1 of 1.
+- The two engine-free files were checked green against a throw-away reference implementation of `FrostWallAim` and
+  `WishAim` (not committed), so their expectations are consistent with the Rust rule and F5.
 
 ## Notes from previous attempts
 <!-- Coordinator appends on escalation. -->
