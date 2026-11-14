@@ -273,9 +273,13 @@ fn a_bystander_who_sees_a_middle_tile_but_not_the_first_end_receives_the_whole_w
         "a viewer who sees one tile of a wall is sent it (else it walks into ice it was never shown)"
     );
     assert_eq!(seen[0].tiles, column_12(), "the whole wall, every tile");
+    // Amended 2026-11-14 (coordinator): the caster at (5, 10) stands on the gap's row, in this bystander's sight, so
+    // the owner IS named. Owner naming keeps its own rule (named when the viewer sees the owner, or is the owner);
+    // this test is about the wall row being sent, and the first version expected `None` by mistake.
     assert_eq!(
-        seen[0].owner, None,
-        "the caster is out of its sight: no owner"
+        seen[0].owner,
+        Some(id(&s, 0)),
+        "the caster is in the bystander's sight through the gap: the owner is named"
     );
 }
 
