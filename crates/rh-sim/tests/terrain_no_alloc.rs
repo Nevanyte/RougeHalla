@@ -1,12 +1,9 @@
 //! Native map-backed, warmed terrain passes allocate no steady-state heap blocks.
 use rh_sim::{terrain::Mode, Arena, FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
 #[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
-static PROFILE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static ALLOC: rh_alloc_count::CountingAlloc = rh_alloc_count::CountingAlloc;
 #[test]
 fn warmed_terrain_passes_allocate_nothing() {
-    let _guard = PROFILE_LOCK.lock().unwrap();
-    let _profiler = dhat::Profiler::builder().testing().build();
     let export: rh_sim::mapdata::MapExport =
         serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
     let arena: std::sync::Arc<Arena> = export.validate().unwrap().into_arena().unwrap().into();
@@ -54,14 +51,14 @@ fn warmed_terrain_passes_allocate_nothing() {
             #[cfg(feature = "schedule-trace")]
             sim.clear_schedule_trace();
         }
-        let before = dhat::HeapStats::get().total_blocks;
-        for _ in 0..120 {
-            events.clear();
-            sim.step_into(&mut events);
-            #[cfg(feature = "schedule-trace")]
-            sim.clear_schedule_trace();
-        }
-        let used = dhat::HeapStats::get().total_blocks - before;
+        let ((), used) = rh_alloc_count::blocks_on_this_thread(|| {
+            for _ in 0..120 {
+                events.clear();
+                sim.step_into(&mut events);
+                #[cfg(feature = "schedule-trace")]
+                sim.clear_schedule_trace();
+            }
+        });
         assert_eq!(used, 0, "terrain kind {kind}");
     }
 }
@@ -69,8 +66,6 @@ fn warmed_terrain_passes_allocate_nothing() {
 #[cfg(feature = "trusted-status-probes")]
 #[test]
 fn source_junction_collision_replans_allocate_nothing_after_warmup() {
-    let _guard = PROFILE_LOCK.lock().unwrap();
-    let _profiler = dhat::Profiler::builder().testing().build();
     let corpus: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../parity/terrain/source.json")).unwrap();
     let case = corpus["walkCases"]
@@ -115,14 +110,15 @@ fn source_junction_collision_replans_allocate_nothing_after_warmup() {
         probe.step(dt, cap, now);
     }
     probe.restart(body, goal);
-    let before = dhat::HeapStats::get().total_blocks;
-    let (mut replans, mut grips) = (0, 0);
-    for &(dt, cap, now) in &actions {
-        let (r, g) = probe.step(dt, cap, now);
-        replans += usize::from(r);
-        grips += usize::from(g);
-    }
-    let used = dhat::HeapStats::get().total_blocks - before;
+    let ((replans, grips), used) = rh_alloc_count::blocks_on_this_thread(|| {
+        let (mut replans, mut grips) = (0, 0);
+        for &(dt, cap, now) in &actions {
+            let (r, g) = probe.step(dt, cap, now);
+            replans += usize::from(r);
+            grips += usize::from(g);
+        }
+        (replans, grips)
+    });
     assert!(
         replans > 0 && grips > 0,
         "actual source collision and grip paths must execute"
