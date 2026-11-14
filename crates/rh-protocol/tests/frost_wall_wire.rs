@@ -125,10 +125,10 @@ fn constants_match_the_brief() {
     assert_eq!((FROST_WISH_FREEZE, FROST_WISH_WALL), (0.0, 1.0));
 }
 
-/// Guard (green today): the protocol number does not move (owner plan: one protocol number grown by serial packets).
+/// Guard: the protocol number is 18 (P-PROTOCOL-18-STAMP-1 stamped it; until then one number grew by serial packets).
 #[test]
-fn guard_the_protocol_stays_17() {
-    assert_eq!(PROTOCOL_VERSION, 17);
+fn guard_the_protocol_is_18() {
+    assert_eq!(PROTOCOL_VERSION, 18);
 }
 
 // ---- layout --------------------------------------------------------------------------------------------------------
