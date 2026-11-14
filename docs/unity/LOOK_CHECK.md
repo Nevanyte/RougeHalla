@@ -11,7 +11,7 @@ batch mode with graphics (never `-nographics`: a camera render crashes there). I
 
 Steps (an agent making a tuning change):
 
-1. Find the scene in the dial's row of [DIALS.md](DIALS.md). List all scene names (done when 32 names print):
+1. Find the scene in the dial's row of [DIALS.md](DIALS.md). List all scene names (done when 37 names print):
 
 ```
 client-unity/UnityProject/Tools/look-capture.sh --list
@@ -79,13 +79,24 @@ must be faded in this shot and opaque in `wide`), `rot-wide` is the drawing turn
 - the volcano two tiles from the map edge, its outlets running into the map as streams: `volcano-edge-wide`,
   `volcano-edge-close`, `volcano-edge-rot-wide`
 
+Frost Wall scenes: a 60 x 60 map of open Frost ground (zone 4, no landmark), the wall or the aim preview injected into the
+arena's own `FrostWallPresenter` as the server's state would be (no server, no wire), camera at play zoom (orthographic
+size 9). The cast telegraph is not drawn by any scene (it needs a live Wish start and moves with time; judge it in a Web
+round). The preview pulses; the noise note below applies:
+
+- `frost-wall`: a horizontal wall of 7 tiles, fresh; the self actor one tile south of it, a stand-in block one tile north
+- `frost-wall-vertical`: a vertical wall of 7 tiles, fresh; the self actor beside its south end, a stand-in beside its north end (draw order row by row)
+- `frost-wall-cracking`: the `frost-wall` scene 500 ms from the wall's end (paler)
+- `frost-wall-preview`: no wall; the aim preview open (reach ring, a block per tile, line and centre dot, in Frost's colour)
+- `frost-wall-preview-invalid`: no wall; the preview aimed into a block of rock: no tile, red
+
 Limits:
 - The renders are not frame-identical: wind, cloud shadows, ice shimmer and light flicker run on the shader clock, so
   two renders of one tree differ. Measured 2026-11-14 for `cave-inside` rendered twice: `noise_diff_px=1334190` of
   2073600, `noise_max=165`, `noise_mean=1.94`; so judge `mean`, `max` and `bbox` against the noise figures and look at the images. Pinning the clock needed a
   temporary shader edit and is not part of this tool. Always state the noise figure (`--noise`) next to a difference.
-- The capture reaches three non-public client members by reflection (`ArenaView.Awake`, `ArenaView._landmarks`,
-  `Landmark.Fades`); EditMode names the one that stops resolving after a rename.
+- The capture reaches four non-public client members by reflection (`ArenaView.Awake`, `ArenaView._landmarks`,
+  `Landmark.Fades`, `ArenaView._frostWall`); EditMode names the one that stops resolving after a rename.
 
 Known differences from the game, which is why this is not proof of a look:
 - Plague and Sentenced scenes render darker than the Web client (measured 2026-11-13: Plague grass about 40, 75, 37

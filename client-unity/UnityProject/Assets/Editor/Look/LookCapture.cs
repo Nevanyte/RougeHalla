@@ -3,7 +3,7 @@
 //   Unity -batchmode -projectPath <p> -executeMethod Roguehalla.Editor.LookCapture.Run -lookScenes a,b -lookOut <dir>
 //         [-lookGroundOnly 1] [-lookQuality low|medium|high|ultra] -logFile <log>
 // Run it through client-unity/UnityProject/Tools/look-capture.sh. Needs graphics (no -nographics, no -quit). Lives in the editor
-// assembly, so no player build contains it. It reaches three non-public client members by reflection (see ReflectionTargets).
+// assembly, so no player build contains it. It reaches four non-public client members by reflection (see ReflectionTargets).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +14,7 @@ using UnityEngine.Rendering.Universal;
 using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 using MapRect = Roguehalla.Net.Protocol.MapRect;
 using ArenaView = Roguehalla.Client.ArenaView;
 
@@ -42,18 +43,20 @@ namespace Roguehalla.Editor
                 l.Add(k + "-rot-wide");
             }
             l.Add("volcano-edge-wide"); l.Add("volcano-edge-close"); l.Add("volcano-edge-rot-wide");
+            l.AddRange(new[] { "frost-wall", "frost-wall-vertical", "frost-wall-cracking", "frost-wall-preview", "frost-wall-preview-invalid" });
             return l.ToArray();
         }
 
-        // ---- the three non-public client members, reached by reflection ----------------------------------------------------------
+        // ---- the four non-public client members, reached by reflection ----------------------------------------------------------
 
         const BindingFlags Inst = BindingFlags.NonPublic | BindingFlags.Instance;
         static MethodInfo AwakeOf() { return typeof(ArenaView).GetMethod("Awake", Inst); }
         static FieldInfo LandmarksOf() { return typeof(ArenaView).GetField("_landmarks", Inst); }
+        static FieldInfo FrostWallOf() { return typeof(ArenaView).GetField("_frostWall", Inst); }
         static MethodInfo FadesOf() { return typeof(Landmark).GetMethod("Fades", Inst, null, new[] { typeof(int), typeof(int) }, null); }
 
         /// <summary>The non-public members of the client assembly the capture reaches by reflection.</summary>
-        public static readonly IReadOnlyList<string> ReflectionTargets = new[] { "ArenaView.Awake", "ArenaView._landmarks", "Landmark.Fades" };
+        public static readonly IReadOnlyList<string> ReflectionTargets = new[] { "ArenaView.Awake", "ArenaView._landmarks", "Landmark.Fades", "ArenaView._frostWall" };
 
         /// <summary>The reflection targets that cannot be resolved today (empty when all resolve).</summary>
         public static IReadOnlyList<string> MissingReflectionTargets()
@@ -62,6 +65,7 @@ namespace Roguehalla.Editor
             if (AwakeOf() == null) missing.Add("ArenaView.Awake");
             if (LandmarksOf() == null) missing.Add("ArenaView._landmarks");
             if (FadesOf() == null) missing.Add("Landmark.Fades");
+            if (FrostWallOf() == null) missing.Add("ArenaView._frostWall");
             return missing;
         }
 
@@ -71,6 +75,7 @@ namespace Roguehalla.Editor
         {
             public string Name, Kind, View;   // View: scene | scene-dressed | wide | close | inside | under | rot-wide
             public bool Edge, Dressed;
+            public bool IsWall { get { return Name.StartsWith("frost-wall"); } }
             public bool IsZone { get { return View == "scene" || View == "scene-dressed"; } }
             public int K { get { return View == "rot-wide" ? 1 : 0; } }
         }
@@ -104,6 +109,7 @@ namespace Roguehalla.Editor
         public static MapBlob BuildMap(string scene)
         {
             var s = Parse(scene);
+            if (s.IsWall) return WallMap(scene == "frost-wall-preview-invalid");
             return s.IsZone ? ZoneMap(ZoneOf(scene), s.Kind == "plague", s.Dressed) : BuildSite(s).Map;
         }
 
@@ -111,7 +117,93 @@ namespace Roguehalla.Editor
         public static MapAnchor AnchorOf(string scene)
         {
             var s = Parse(scene);
-            return s.IsZone ? null : BuildSite(s).Anchor;
+            return s.IsZone || s.IsWall ? null : BuildSite(s).Anchor;
+        }
+
+        // ---- the Frost Wall scenes (P-UNITY-LOOK-WALL-1) ---------------------------------------------------------------------------
+
+        /// <summary>What building one of the five frost-wall scenes leaves behind (no camera, no rendering): the arena built through the real ArenaView,
+        /// the presenter inside it, and what was injected. Dispose it with <see cref="DisposeWallScene"/>.</summary>
+        public sealed class WallScene
+        {
+            public GameObject Arena; public ArenaView View; public FrostWallPresenter Presenter; public MapBlob Map;
+            /// <summary>The standing wall's tiles in map coordinates (empty for the preview scenes).</summary>
+            public MapTile[] WallTiles = new MapTile[0];
+            /// <summary>Every actor drawn, as tile coordinates (tile centre = integer + 0.5), the self actor first.</summary>
+            public IReadOnlyList<Vector2> Actors = new Vector2[0];
+            /// <summary>The tile the preview is aimed at (preview scenes only).</summary>
+            public MapTile? AimTile;
+            /// <summary>The server render time the presenter was driven to, and the standing wall's end time (both server ms).</summary>
+            public double RenderMs, EndsAtMs;
+        }
+
+        /// <summary>Open Frost ground, 60 x 60, no landmark; the invalid preview's scene adds a block of rock (13 x 11 tiles) to aim into.</summary>
+        static MapBlob WallMap(bool rock)
+        {
+            var tiles = new byte[N * N]; var terrain = new byte[N * N]; var regions = new byte[N * N];
+            for (int i = 0; i < regions.Length; i++) regions[i] = 4;
+            if (rock) for (int y = 20; y <= 30; y++) for (int x = 24; x <= 36; x++) tiles[y * N + x] = MapBlob.Wall;
+            return new MapBlob(N, N, tiles, terrain, regions, MapBlob.GroundTerrainAll);
+        }
+
+        const double WallNowMs = 0;   // ArenaView.Present (run again by Shot, no session) ticks the presenter at its source time 0, so the scene lives at 0: the wall starts before it
+        static readonly FrostWallNumbers WallNumbers = new FrostWallNumbers(450, 64, 224, 4000, 24, 8);
+
+        static void PresentSelf(ArenaView arena, float tx, float ty)
+        {
+            arena.Regions.SnapLocal(tx * 32f, ty * 32f);
+            var me = new SelfView { Id = 1, Faction = FactionId.Frost, X = tx * 32f, Y = ty * 32f, Hp = 900, MaxHp = 985, Weapon = WeaponId.Sword, Status = ActorStatus.Alive };
+            arena.Present(new List<InterpActor>(), me, null, 0.4f);
+        }
+
+        /// <summary>Builds the named frost-wall scene: the arena through the real ArenaView, the self actor through Present, a stand-in block where the scene has one, and the
+        /// wall (PresentWalls) or the aim preview (ShowPreview) injected into the arena's own FrostWallPresenter, then one Tick at a fixed time. No camera, no rendering.</summary>
+        public static WallScene BuildWallScene(string scene)
+        {
+            var sc = Parse(scene); if (!sc.IsWall) throw new ArgumentException("not a frost-wall scene: " + scene);
+            var map = BuildMap(scene); GameObject go; var arena = NewArena(map, out go);
+            var ws = new WallScene { Arena = go, View = arena, Map = map, Presenter = (FrostWallPresenter)FrostWallOf().GetValue(arena), RenderMs = WallNowMs };
+            var actors = new List<Vector2>();
+            bool preview = scene.StartsWith("frost-wall-preview");
+            if (!preview)
+            {
+                bool vertical = scene == "frost-wall-vertical";
+                var tiles = new MapTile[7];
+                for (int i = 0; i < 7; i++) tiles[i] = vertical ? new MapTile(30, (ushort)(27 + i)) : new MapTile((ushort)(27 + i), 30);
+                ws.WallTiles = tiles;
+                double ends = scene == "frost-wall-cracking" ? WallNowMs + 500 : WallNowMs + 3000; ws.EndsAtMs = ends;
+                double start = ends - 4000;
+                var area = new AreaView { Kind = AreaKind.Wall, Ability = AbilityId.Freeze, Owner = 1, StartedAt = start, EndsAt = ends, Tiles = tiles, Key = new AreaKey(start, (uint)(tiles[0].Y * N + tiles[0].X)) };
+                if (vertical) { actors.Add(new Vector2(31.5f, 33.5f)); actors.Add(new Vector2(29.5f, 27.5f)); }
+                else { actors.Add(new Vector2(29.5f, 31.5f)); actors.Add(new Vector2(31.5f, 29.5f)); }
+                PresentSelf(arena, actors[0].x, actors[0].y);
+                Actor(arena.transform, actors[1].x, actors[1].y, new Color(.95f, .25f, .25f));
+                ws.Presenter.PresentWalls(new List<AreaView> { area }, WallNowMs);
+            }
+            else
+            {
+                bool bad = scene == "frost-wall-preview-invalid";
+                var self = new Vector2(30.5f, bad ? 36.5f : 35.5f); actors.Add(self); PresentSelf(arena, self.x, self.y);
+                var aim = bad ? new MapTile(30, 26) : new MapTile(30, 29); ws.AimTile = aim;
+                double cx = self.x * 32.0, cy = self.y * 32.0, ax = (aim.X + .5) * 32.0, ay = (aim.Y + .5) * 32.0;
+                var n = WallNumbers;
+                var seg = FrostWallAim.SegmentFor(cx, cy, ax, ay, n.Range, n.MinRange, n.Length, 0);
+                var plan = FrostWallAim.PlanMap(map, false, null, null); var cells = new List<uint>();
+                FrostWallAim.Cells(plan, map.W, map.H, seg, n.CellReach, n.EndSlack, cells);
+                ws.Presenter.ShowPreview(seg, cells, map.W, (float)cx, (float)cy, 450f, ShowcasePalette.Faction(WishFxModel.FactionIndex(AbilityId.Freeze)), FrostWishKind.Wall);
+            }
+            ws.Actors = actors;
+            ws.Presenter.Tick(WallNowMs, 0f, false);   // fixed 'now': the preview's pulse is the same every render
+            return ws;
+        }
+
+        /// <summary>Destroys everything <see cref="BuildWallScene"/> made, stand-in actors included.</summary>
+        public static void DisposeWallScene(WallScene s)
+        {
+            if (s == null) return;
+            if (s.Presenter != null) s.Presenter.Dispose();
+            ClearActors();
+            if (s.Arena != null) UnityEngine.Object.DestroyImmediate(s.Arena);
         }
 
         static string[] Orient(string[] rows, int k)
@@ -346,6 +438,15 @@ namespace Roguehalla.Editor
         static void RenderScene(string name, string outDir)
         {
             var sc = Parse(name); string path = Path.Combine(outDir, name + ".png");
+            if (sc.IsWall)
+            {
+                var ws = BuildWallScene(name);
+                bool pv = name.StartsWith("frost-wall-preview");
+                float ty = pv ? (name.EndsWith("invalid") ? 31f : 32f) : (name == "frost-wall-vertical" ? 30.5f : 30.5f);
+                Shot(ws.View, path, 30.5f, ty, 9f, ws.Actors[0].x, ws.Actors[0].y);
+                DisposeWallScene(ws);
+                return;
+            }
             if (sc.IsZone)
             {
                 GameObject go; var arena = NewArena(ZoneMap(ZoneOf(name), sc.Kind == "plague", sc.Dressed), out go);

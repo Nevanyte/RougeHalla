@@ -114,12 +114,13 @@ for (const k of ['cave', 'volcano', 'church', 'bog', 'hall']) {
   PINNED.push(k + '-rot-wide');
 }
 PINNED.push('volcano-edge-wide', 'volcano-edge-close', 'volcano-edge-rot-wide');
+PINNED.push('frost-wall', 'frost-wall-vertical', 'frost-wall-cracking', 'frost-wall-preview', 'frost-wall-preview-invalid');   // P-UNITY-LOOK-WALL-1
 
 test('look-capture.sh --list prints exactly the pinned scene names, one per line, in order, exit 0', () => {
   const r = run('bash', [CAPTURE, '--list']);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(r.stdout.trim().split('\n'), PINNED);
-  assert.equal(PINNED.length, 32);
+  assert.equal(PINNED.length, 37);
 });
 
 test('look-capture.sh refuses an unknown scene (exit 2, names it) before looking for an editor', () => {
