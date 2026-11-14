@@ -248,12 +248,14 @@ fn resolve_swings(cx: &mut Cx) {
             }
             super::ledger::record_hit(w, ledger, entry);
         }
+        // A swing does not meet a ball across a standing wall (the ray is MASK_MELEE), P-FROST-WALL-1c.
+        let held = crate::barriers::held(w);
         super::projectiles::meet_balls(
             w,
             flight,
             ledger,
             ev,
-            k.collision_map(w.rt.gates_locked),
+            crate::barriers::body_map(k, &held, w.rt.gates_locked),
             req,
             (reach, half_arc),
         );

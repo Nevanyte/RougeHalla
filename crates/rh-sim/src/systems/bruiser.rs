@@ -66,8 +66,9 @@ fn locked_elite(k: &MatchStatic, w: &World, ix: FighterIx) -> bool {
     if crate::math::hypot(to.x - from.x, to.y - from.y) > reach {
         return false;
     }
+    // The wall-aware map: an arc weapon's MASK_MELEE sees a standing wall, a ranged weapon's MASK_SIGHT does not.
     crate::geometry::has_line_of_sight(
-        k.collision_map(w.rt.gates_locked),
+        crate::barriers::body_map(k, &crate::barriers::held(w), w.rt.gates_locked),
         from,
         to,
         reach_mask(weapon),
