@@ -14,6 +14,7 @@ using UnityEngine.Rendering.Universal;
 using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using Roguehalla.Net.Ui;
 using MapRect = Roguehalla.Net.Protocol.MapRect;
 using ArenaView = Roguehalla.Client.ArenaView;
 
@@ -42,11 +43,9 @@ namespace Roguehalla.Editor
                 l.Add(k + "-rot-wide");
             }
             l.Add("volcano-edge-wide"); l.Add("volcano-edge-close"); l.Add("volcano-edge-rot-wide");
-            l.AddRange(WallNames);
+            l.AddRange(new[] { "frost-wall", "frost-wall-vertical", "frost-wall-cracking", "frost-wall-preview", "frost-wall-preview-invalid" });
             return l.ToArray();
         }
-
-        static readonly string[] WallNames = { "frost-wall", "frost-wall-vertical", "frost-wall-cracking", "frost-wall-preview", "frost-wall-preview-invalid" };
 
         // ---- the four non-public client members, reached by reflection ----------------------------------------------------------
 
