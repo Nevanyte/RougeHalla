@@ -44,7 +44,7 @@ namespace Roguehalla.Client
         /// <summary>The material sprites of this landmark share (sun-lit like the region props).</summary>
         public Material Material { get; private set; }
 
-        bool[] _wall, _low, _interior, _roofMask; byte[] _terrain; bool _coverSet;
+        bool[] _wall, _low, _interior, _roofMask, _fadeMask; byte[] _terrain; bool _coverSet;
         readonly List<SpriteRenderer> _roof = new List<SpriteRenderer>();
         SpriteRenderer[] _roofArray = new SpriteRenderer[0];
         readonly List<Object> _owned = new List<Object>();
@@ -75,10 +75,23 @@ namespace Roguehalla.Client
             _roofMask = mask; _coverSet = true;
         }
 
-        /// <summary>Whether an actor on tile (x, y) fades the roof: the cover set when the art gave one, else the interior.</summary>
+        /// <summary>P-UNITY-BOG-TREE-2: an art may hand over the tiles on which an actor fades the roof when they are wider than the cover
+        /// (a crown lifted off the ground overlaps tiles north of its cover). Afterwards <see cref="Fades"/> reads this set; RoofCovers stays the
+        /// cover. Tiles outside the footprint are ignored. Without a call, the fade reads the cover (or the interior) as before.</summary>
+        public void SetFadeTiles(IEnumerable<MapTile> tiles)
+        {
+            var mask = new bool[FootW * FootH];
+            if (tiles != null) foreach (var t in tiles) if (Local(t.X, t.Y, out int i)) mask[i] = true;
+            _fadeMask = mask;
+        }
+
+        /// <summary>Whether an actor on tile (x, y) fades the roof: the fade set when the art gave one, else the cover set when the art gave
+        /// one, else the interior.</summary>
         internal bool Fades(int x, int y)
         {
-            return Local(x, y, out int i) && (_coverSet ? _roofMask[i] : _interior[i]);
+            if (!Local(x, y, out int i)) return false;
+            if (_fadeMask != null) return _fadeMask[i];
+            return _coverSet ? _roofMask[i] : _interior[i];
         }
 
         bool Local(int x, int y, out int i)
