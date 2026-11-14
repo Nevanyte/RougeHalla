@@ -298,6 +298,20 @@ impl LearnStore {
     }
 }
 
+/// P-BOT-BRAIN-CHOICES-1: the world (arena, sim config) a tournament with `policy` seats plays. The source tournament
+/// plays a generated map with mobs on (`packages/server/src/bots/tournament/headlessRoom.ts:26-34`, `:110`).
+///
+/// STUB (the implementer replaces the Brain arm): today every policy plays the practice arena with the headless config
+/// (no mobs, no camps, no loot), so a Brain seat never meets the decisions legacy records (`opener|…`, `second|…`).
+/// The Human arm must stay exactly this (byte-identical output for the default seats).
+pub fn tournament_world(plan: &TournamentPlan, policy: SeatPolicy) -> (Arena, SimConfig) {
+    let _ = policy;
+    (
+        crate::tournament_cli::default_arena(),
+        crate::tournament::sim_config_for(plan),
+    )
+}
+
 /// One game of a learning series: the bias its seats were built with, its summary, and the records in arrival order.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LearnedGame {
