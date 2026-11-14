@@ -30,8 +30,44 @@ namespace Roguehalla.Client
 
         public void Initialize(MatchClient mc) { _mc = mc; }
 
-        /// <summary>STUB (P-UNITY-WEB-DRIVE-2): the delivered landmark anchors as a JSON array (see the packet for the row shape).</summary>
-        public static string AnchorsJson(MapAnchor[] anchors) { return "[]"; }
+        /// <summary>The delivered landmark anchors as a JSON array: kind name, zone, footprint (tiles), centre and entrance tiles
+        /// (world units, tile centre = (t + .5) * 32). "[]" for none. JsonUtility cannot write a top-level array, so it is built by hand.</summary>
+        public static string AnchorsJson(MapAnchor[] anchors)
+        {
+            if (anchors == null || anchors.Length == 0) return "[]";
+            var sb = new StringBuilder("[");
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                var a = anchors[i]; if (a == null) continue;
+                if (sb.Length > 1) sb.Append(',');
+                sb.Append("{\"kind\":\"").Append(KindName(a.Kind)).Append("\",\"zone\":").Append((int)a.Zone)
+                  .Append(",\"footprint\":{\"x\":").Append((int)a.Footprint.X).Append(",\"y\":").Append((int)a.Footprint.Y)
+                  .Append(",\"w\":").Append((int)a.Footprint.W).Append(",\"h\":").Append((int)a.Footprint.H)
+                  .Append("},\"centre\":").Append(TileJson(a.Centre)).Append(",\"entrance\":[");
+                var e = a.Entrance ?? new MapTile[0];
+                for (int j = 0; j < e.Length; j++) { if (j > 0) sb.Append(','); sb.Append(TileJson(e[j])); }
+                sb.Append("]}");
+            }
+            return sb.Append(']').ToString();
+        }
+
+        static string TileJson(MapTile t)
+        {
+            return "{\"x\":" + Num((t.X + .5f) * 32f) + ",\"y\":" + Num((t.Y + .5f) * 32f) + "}";
+        }
+
+        static string KindName(byte kind)
+        {
+            switch (kind)
+            {
+                case MapBlob.AnchorKindVolcano: return "volcano";
+                case MapBlob.AnchorKindChurch: return "church";
+                case MapBlob.AnchorKindBogTree: return "bogtree";
+                case MapBlob.AnchorKindCave: return "cave";
+                case MapBlob.AnchorKindHall: return "hall";
+                default: return "unknown" + kind;
+            }
+        }
 
         void LateUpdate()
         {
@@ -97,6 +133,7 @@ namespace Roguehalla.Client
                   .Append(",\"options\":").Append(r.Options != null ? r.Options.Count : 0).Append('}');
             }
             sb.Append("],\"camps\":").Append(c.Camps.Count);
+            sb.Append(",\"anchors\":").Append(AnchorsJson(s.Map != null ? s.Map.Anchors : null));
             if (c.Quests != null && c.Quests.Available)
             {
                 sb.Append(",\"quests\":[");
