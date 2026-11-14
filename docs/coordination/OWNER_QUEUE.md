@@ -5,7 +5,7 @@ coordinator edits this file in place: a row leaves when the owner answers (the a
 [MIGRATION.md](../MIGRATION.md) and indexed in [OWNER_DECISIONS.md](../OWNER_DECISIONS.md)). To answer, name the row
 number in chat: "Q18 yes".
 
-Last updated 2026-11-14, after the owner answered Q1 to Q13 and Q15 to Q17 (MIGRATION "Owner answers 2026-11-14").
+Last updated 2026-11-14 (Q20 and Q21 added), after the owner answered Q1 to Q13 and Q15 to Q17 (MIGRATION "Owner answers 2026-11-14").
 Q14 was closed by the standing instruction that emptied files stay as placeholders.
 
 ## Blocks a merge
@@ -15,6 +15,8 @@ Q14 was closed by the standing instruction that emptied files stay as placeholde
 | Q18 | The map generator session's environment packet P-AGENT-RETRO-1 (a dev-profile `opt-level` that more than halves gate test time, an oracle preflight, a reviewer note rule, `LANES.md`; it edits `scripts/gate.sh` and agent definitions). That session reports your approval in its chat ("Please fix 1-8"). Re-reviewed at `713330056` (LAND WITH NOTES; clean against staging). It also moves map-generator refactors inside `rh-sim` that change no map from Opus to Sonnet (Opus still reviews), and optimises `rh-sim` and `rh-mapdress` in dev and test builds. Confirm here? | Not merged. | MIGRATION "Integrations 41 and 42" |
 
 | Q20 | `.claude/hooks/guard-oracles.sh` (blocks hand edits to `packages/` and the golden vectors) recognises only the main checkout and `.claude/worktrees/*`; in a lane's sibling worktree (`../RH-<lane>`) such an edit is not blocked when made (the gate's path checks still catch it before a merge). Fix the hook to resolve the path against the worktree's own top level? | Hook unchanged; the gate is the backstop. | reviewer-opus on P-AGENT-RETRO-1, 2026-11-14 |
+
+| Q21 | The volcano (P-MAPGEN-SIG-SCALE-4) is reviewed REJECT for one reason: with it, on seeds 1 to 32 the Plague zone gets no large bog pools and no pools near the tree (Small 51, Medium 15, Large 0; near band 0, far 32), and its tests were loosened so that passes. Your direction, signed in DEV-034, is three pool sizes with the large ones near the tree. Keep that (a Plague fix comes before the volcano lands), or drop it for now? | The volcano is not merged. | reviewer-opus on P-MAPGEN-SIG-SCALE-4, 2026-11-14 |
 
 ## Recorded in another session's chat, not confirmed here
 
