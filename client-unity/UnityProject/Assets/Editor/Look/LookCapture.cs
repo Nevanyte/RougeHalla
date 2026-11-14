@@ -146,7 +146,7 @@ namespace Roguehalla.Editor
             return new MapBlob(N, N, tiles, terrain, regions, MapBlob.GroundTerrainAll);
         }
 
-        const double WallNowMs = 12000;
+        const double WallNowMs = 0;   // ArenaView.Present (run again by Shot, no session) ticks the presenter at its source time 0, so the scene lives at 0: the wall starts before it
         static readonly FrostWallNumbers WallNumbers = new FrostWallNumbers(450, 64, 224, 4000, 24, 8);
 
         static void PresentSelf(ArenaView arena, float tx, float ty)
