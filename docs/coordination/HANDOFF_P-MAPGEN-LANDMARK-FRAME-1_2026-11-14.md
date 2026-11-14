@@ -57,7 +57,18 @@ RISKS:           `Placed::landed()` derives mark characters from the frame's til
   - `style_warren::pools::tree`, `style_scorch::signature_anchor`: `b.landmark.map(|f| f.anchor.clone())`.
 
 ## Test results (debug, macOS arm64; `--features trusted-status-probes` for rh-sim)
-RESULTS_PLACEHOLDER
+All on the implementation tip 749e2ce57 (the hand-off commits change no code).
+- `cargo fmt --all -- --check`: clean.
+- `cargo clippy -p rh-sim --all-targets --features trusted-status-probes -- -D warnings`: clean.
+- `--test mapgen_landmark_frame`: 8 passed (the 7 red on the stub and the control).
+- `--test mapgen_signature_blueprint`: 10 passed, 1 ignored (as before). Both guards and
+  `placed_landed_rederives_every_written_cell` are green with no re-pin.
+- `--test mapgen_signature_table`: 8 passed. `--test mapgen_style_refusal`: 5 passed. `--test mapgen_land_sentenced`:
+  11 passed, 2 ignored. `--test mapgen_land_plague`: 26 passed, 3 ignored.
+- `cargo test -p rh-sim --features trusted-status-probes --no-fail-fast`: exit 0, 84 test binaries, 1496 passed,
+  0 failed, 30 ignored. That covers every `mapgen_signature_*` target and every `option_off_is_todays_generator` guard.
+- `cargo test -p rh-mapdress`: exit 0, every target ok (77 passed). Goldens unchanged.
+- `cargo test -p rh-server --test map_anchor_seeds`: 1 passed.
 
 ## Acceptance checks (brief section 8)
 ```
