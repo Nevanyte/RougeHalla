@@ -77,3 +77,61 @@ Sonnet. Only structure can be tested; the look is judged at the screenshot round
 - An EditMode run modifies `NunitoRegular.asset`: never commit it.
 
 ## Notes from previous attempts
+
+## Established facts (oracle author, 2026-11-13; read from `docs/landmarks/blueprints/church.txt` and the framework at `coord/int-25`)
+
+No legacy counterpart (DEV-020); `packages/` not consulted.
+
+- **Counts in the drawing** (29 x 29): 67 `#` building wall (70 border tiles of the 23 x 14 box less the 3 door tiles) + 48 `P` pillar + 24 `G`
+  headstone = **139 wall tiles** (`Landmark.WallCount`); 3 `D` door tiles (row 16, columns 13-15, plain floor); the main gate is the 5 floor
+  tiles of row 28, columns 12-16 (the anchor's entrance, `ArchTiles`); interior **204** (`InteriorCount`, `E` included); `IceCount` 0; `+`
+  fence tiles are `Low` with terrain Fence.
+- **LEGACY-LOOKING DISCREPANCY IN THE BRIEF:** the headstone groups are **2 wide x 3 tall** (rows 21-23), not 2 x 2: four groups of six tiles
+  (24 tiles). The pillars are also 2 x 3 groups, fused to the building wall (corner-adjacent), which is why they are one wall group with it.
+  Tests pin the drawing: four groups.
+- **How the art finds things from tiles** (the oracle uses no copy of the drawing): wall tiles = `Landmark.IsWall`. 8-connected wall groups:
+  the largest, which has the 3-run opening on its box border, is the building (`LandmarkInterior`'s rule); the other groups, which are fully
+  closed, are headstones. The door = the closed doorway of the building group's box (the border run the interior rule closes, three tiles),
+  NOT the anchor's entrance. The main gate = `Landmark.ArchTiles` / `ArchCentre` / `FrontVector`.
+- **Seam the implementer must live with:** `Landmark.RoofCovers` is the framework's mask = interior + EVERY wall tile of the footprint, so it
+  also reports the 24 headstone tiles, and the art cannot narrow it (no setter; `Landmark.cs` is outside the write scope and the oracle
+  author did not edit it). The oracle therefore pins what the art draws: the union of `Landmark.RoofRenderers` bounds must reach every interior
+  and building wall/pillar tile and must not reach any headstone, gate or graveyard tile (half-tile slack). **Proposed seam for the
+  coordinator, optional:** a `Landmark.SetRoofMask(Func<int,int,bool>)`/`bool[]` setter so `RoofCovers` itself excludes headstones; the oracle
+  does not require it. The framework also cannot tell which renderers are the building's, so the contract is names below.
+- **Names the implementer must keep** (descendants of `Landmark.Root`, found by `Transform.name`, each with at least one `Renderer`):
+  `Church gate` (one or more objects; their renderers' union spans the five entrance tiles, on the front edge, not the door tiles),
+  `Church door` (union spans the three door tiles, centred within 2.5 tiles of the door's centre, not the gate tiles),
+  `Church gravestone` (exactly one object per headstone group, its renderer centre within half a tile of the group's 2 x 3 rectangle: four in
+  all). The roof is `Landmark.AddRoofRenderer` pieces only. Everything made is `Landmark.Own`ed or under `Root`; disposing the view leaves no
+  child under the parent. The stub `ChurchLandmark.Build(Landmark)` is the entry; the implementer adds `case MapBlob.AnchorKindChurch:
+  builder = ChurchLandmark.Build; return true;` in `LandmarkArts.TryGet` and nothing else in that file.
+- **Not pinned:** the lantern marks (not tiles), colours, shapes, how far the roof overhangs (only that it does not reach graveyard tiles,
+  >= 5 rows away), whether `RoofCovers` excludes headstones (see the seam), and the two look notes of section 11 (the roof covering an actor
+  standing in the door is allowed: the door tile is not interior, so the roof does NOT fade for it; whether the door tile is drawn under the roof
+  is the art's decision, to be stated in the hand-off).
+- **Existing test edit** (coordinator-approved, mechanical): `LandmarkViewEditModeTests.TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts`
+  loses `AnchorKindChurch` from its no-art list (one token). `AKnownKindWithNoArtRegisteredBuildsNothingAndLogsOnce` already used Volcano
+  as its example, so it is unchanged.
+- **Unverified:** after the first assertion every EditMode church test is red today ("one landmark for the Church anchor", 0 built), so the
+  later assertions (bounds, alpha, names) were reasoned, not run, until an implementation exists.
+
+## Oracle files (read-only for implementers)
+- `client-unity/UnityProject/Assets/Tests/Editor/ChurchLandmarkEditModeTests.cs` + `.meta` (new)
+- `client-unity/RoguehallaNet.Tests/ChurchLandmarkDrawingTests.cs` (new; guards, green today)
+- `client-unity/UnityProject/Assets/Tests/Editor/LandmarkViewEditModeTests.cs` (the one-token edit above; already in the stub commit)
+- `docs/landmarks/blueprints/church.txt` (approved drawing, never edited)
+- Stub commit, replaced by the implementer: `Scripts/View/Regions/Landmarks/ChurchLandmark.cs` + `.meta`.
+
+Test map (EditMode, each x8 orientations where marked; all red on an assertion today):
+`AChurchAnchorBuildsOneLandmarkClassifiedFromTheTilesInEveryOrientation` x8, `TheRoofCoversTheBuildingsInteriorAndOwnWallsAndNeitherGraveyardNorYard` x8,
+`TheRoofFadesForAnActorInsideTheBuildingAndNotInTheGraveyardTheMainGateOrTheDoor` x8, `TheGateArtStandsOnTheFiveEntranceTilesOnTheSideTheFrontPointsTo` x8,
+`TheDoorSurroundStandsOnTheThreeDoorTilesOfTheBuildingNotOnTheMainGate` x8, `EveryHeadstoneGroupHasExactlyOneGravestoneObject` x8,
+`TheRoofSortsAtTheFootprintsSouthEdgeAndUnderTheFog`, `AFrameWhereNothingChangedCreatesAndAllocatesNothing`, `DisposingTheViewRemovesEverythingTheChurchDrew`.
+Engine-free guards (green): `TheDrawingIs29SquareWithTheTileCountsTheOracleExpects`, `TheDoorIsThreeTilesOnTheBuildingsFrontWallAndTheMainGateIsFiveOnTheFrontRow`,
+`ThereAreFourHeadstoneGroupsEachTwoWideAndThreeTallOutsideTheBuildingBox`.
+
+## Baseline (at the oracle commit)
+EditMode: 1023 tests, 972 pass, **51 fail, all the new church tests** (6 x 8 + 3), each on an assertion ("one landmark for the Church
+anchor: expected 1, was 0", or "Church is registered in LandmarkArts"); no existing test is red. `dotnet test client-unity/RoguehallaNet.Tests
+--filter ChurchLandmarkDrawing`: 3 of 3 pass (guards).
