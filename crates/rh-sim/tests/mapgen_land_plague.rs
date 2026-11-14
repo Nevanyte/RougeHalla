@@ -698,9 +698,9 @@ fn pools_too_close(maps: &[Landed]) -> Vec<String> {
 ///    the far band's.
 ///
 ///    Amended for P-MAPGEN-SIG-SCALE-4: the rule holds for the pools that exist. It required pools in both bands; on
-///    the moved maps the near band holds none (measured over seeds 1-32: near 0, far 32 of mean area 67.2), as the
-///    brief of P-LAND-PLAGUE-1-fix-3 warned: the 29 x 29 tree and its apron fill the near band, and the large bog near
-///    the tree is the tree's own marsh, not a styler pool.
+///    the moved maps the near band holds none (seeds 1-32: near 0, far 32 of mean area 67.2). That is a known gap in
+///    the owner's direction, not a property of the volcano: see
+///    `known_gap_no_large_pool_and_no_pool_near_the_tree_on_seeds_1_to_32` for the measured cause.
 #[test]
 fn pools_are_large_near_the_tree_and_small_far() {
     let mut findings = Vec::new();
@@ -742,8 +742,8 @@ fn pools_are_large_near_the_tree_and_small_far() {
 ///    pools of at least two classes.
 ///
 ///    Amended for P-MAPGEN-SIG-SCALE-4: was "all three size classes occur". On the moved maps no Large pool occurs
-///    (measured over seeds 1-32: Small 51, Medium 15, Large 0): Large pools belong to the near band, which the 29 x 29
-///    tree and its apron fill; the large bog near the tree is the tree's own marsh.
+///    (seeds 1-32: Small 51, Medium 15, Large 0). That is a known gap in the owner's direction, not a property of the
+///    volcano: see `known_gap_no_large_pool_and_no_pool_near_the_tree_on_seeds_1_to_32` for the measured cause.
 #[test]
 fn all_three_sizes_occur_and_maps_with_three_pools_mix_sizes() {
     let mut findings = Vec::new();
@@ -769,6 +769,39 @@ fn all_three_sizes_occur_and_maps_with_three_pools_mix_sizes() {
         ));
     }
     verdict("pool sizes", &findings);
+}
+
+/// KNOWN GAP, pinned as a measured fact (DEV-034; the owner's direction is three sizes with the large ones near the
+/// tree: `docs/coordination/LAND_GENERATION_REQUIREMENTS.md` section 3). On seeds 1-32 the signature Plague zone has no
+/// Large pool and no pool in the near band.
+///
+/// Measured cause (2026-11-14, seeds 1-96, before and after P-MAPGEN-SIG-SCALE-4): the near band tries only Large
+/// (`POOLS.bands`), a Large body is at least two discs with a two-tile ring of plain floor, and the near band has held
+/// the 29 x 29 tree and its apron since P-MAPGEN-SIG-SCALE-3. A whole Large body fitted there on 2 of 96 maps before
+/// the volcano packet (seeds 10 and 20, and only by taking barrow sites) and on 0 of 96 after it moved every map:
+/// pools Small / Medium / Large 162 / 36 / 2 before, 148 / 36 / 0 after; near / mid / far 2 / 124 / 74 before,
+/// 0 / 104 / 80 after. The volcano took no ground from Plague (zone 4936 tiles, floor median 4517, 10 camps, before and
+/// after; usable near-band ground 283 tiles before, 290 after).
+///
+/// This test fails when the direction starts being delivered (a Large pool, or a pool near the tree, on seeds 1-32):
+/// then restore tests 4 and 5 to "pools in both bands" and "all three classes occur", and update the DEV-034 row.
+#[test]
+fn known_gap_no_large_pool_and_no_pool_near_the_tree_on_seeds_1_to_32() {
+    let (mut large, mut near) = (0usize, 0usize);
+    for l in maps() {
+        let a = anchor(l.seed, &l.map);
+        for p in pools(&l.map) {
+            large += usize::from(size_class(&p) == Size::Large);
+            near += usize::from(pool_band(a, &p) == Band::Near);
+        }
+    }
+    assert_eq!(
+        (large, near),
+        (0, 0),
+        "Large pools and near-band pools over seeds 1-32 (DEV-034 records 0 and 0 as a known gap): a non-zero value \
+         means the owner's direction \"three sizes, large near the tree\" has started being delivered; restore tests 4 \
+         and 5 to their full form and update the DEV-034 row"
+    );
 }
 
 // --------------------------------------------------------------------------------------------------------------------
