@@ -428,6 +428,17 @@ pub(crate) fn catalog_codes() -> TerrainCodes {
 /// What `intact` accepts on a tile owned by a feature of one member kind: (tile, terrain), `None` terrain for any.
 type Owned = Vec<(u8, Option<u8>)>;
 
+/// What `intact` accepts on an entrance tile of one drawn landmark: exactly what the glyph of its entrance writes there
+/// (one glyph write per entry, `SignatureContext::from_definition`). `write`: the (tile, terrain) written, `None` for a
+/// glyph that writes nothing (floor, any terrain, as before P-MAPGEN-SIG-SCALE-4). `owner`: the feature kind that owns
+/// the tile (a feature of the landmark's zone), `None` for a glyph no feature owns (no feature of the landmark may own
+/// it; any other owner is judged as before, by the apron rule).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Door {
+    write: Option<(u8, u8)>,
+    owner: Option<FeatureKind>,
+}
+
 /// Immutable per-pipeline context, reused by every attempt.
 pub struct SignatureContext<'f> {
     _fixed: core::marker::PhantomData<&'f FixedLayout>,
@@ -444,6 +455,8 @@ pub struct SignatureContext<'f> {
     /// drawing, the (tile, terrain) its legend's glyphs of that kind write (any terrain for the entry's `any_terrain`
     /// kinds); for the volcano's streams and pools, which no drawing writes, `volcano::owned`.
     owned: Vec<(FeatureKind, Owned)>,
+    /// Per table entry whose drawing has an entrance, by zone: what `intact` accepts on its entrance tiles (`Door`).
+    doors: Vec<(Zone, Door)>,
 }
 
 impl<'f> SignatureContext<'f> {
@@ -525,6 +538,32 @@ impl<'f> SignatureContext<'f> {
                 .all(|bp| bp.marks().iter().all(|(_, gs)| !gs.is_empty())),
             "signature: a legend mark with no tile in its drawing"
         );
+        // The entrance tiles' glyph writes, read from each drawing's legend: the volcano's outlets `O` (LOW lava, owned
+        // by the volcano); the church's gate, the tree's causeways and the cave's mouth write nothing. An anchor's
+        // entrance is sorted by map tile, which loses the glyph of each tile: an entry's entrance glyphs must all write
+        // one thing.
+        let doors: Vec<(Zone, Door)> = landmarks
+            .iter()
+            .filter_map(|(s, bp)| {
+                let bp = bp.as_ref()?;
+                let writes: Vec<Door> = bp
+                    .entrance(s.entrance)
+                    .into_iter()
+                    .filter_map(|g| bp.char_at(g).and_then(|ch| bp.legend().glyph(ch)))
+                    .map(|g| Door {
+                        write: written(g.write),
+                        owner: g.feature,
+                    })
+                    .collect();
+                let first = *writes.first()?;
+                debug_assert!(
+                    writes.iter().all(|w| *w == first),
+                    "signature: the {:?} entrance's glyphs write different things",
+                    s.zone
+                );
+                Some((s.zone, first))
+            })
+            .collect();
         Self {
             _fixed: core::marker::PhantomData,
             rules: *d,
@@ -532,6 +571,7 @@ impl<'f> SignatureContext<'f> {
             hard,
             landmarks,
             owned,
+            doors,
         }
     }
 
@@ -952,7 +992,9 @@ impl<'f> SignatureContext<'f> {
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
     /// of it): every tile a member feature owns lies in the feature's zone and holds what the table writes there
     /// (`owned`: the legend's walls, LOW and floor with their terrain; the streams' and pools' list, `volcano::owned`),
-    /// every entrance tile is floor or owned by its zone's landmark; no styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
+    /// every entrance tile holds exactly what its drawing wrote there (`doors_intact`: the volcano's outlets LOW lava owned
+    /// by the volcano, the other entrances floor no feature of their landmark owns); no styler feature in an apron; no
+    /// landmark's tiles in another landmark's apron, either way round
     /// (`aprons_apart`). A pure predicate: it draws nothing and changes nothing. The stylers' own end-of-attempt rules
     /// (the Frost lake, the Plague pools) are not judged here: the pipeline runs them after this and the certifier
     /// (`style_zones::guarantees`, P-MAPGEN-GUARANTEES-1).
@@ -981,20 +1023,7 @@ impl<'f> SignatureContext<'f> {
                     .iter()
                     .any(|&(tile, want)| tile == t && want.is_none_or(|w| w == terrain))
         });
-        // An entrance tile is floor, or a tile its own zone's landmark owns (the volcano's lava outlets,
-        // P-MAPGEN-SIG-SCALE-4), whose value `owned_ok` has judged.
-        let own = |a: &ZoneAnchor, i: usize| {
-            usize::from(map.feature_grid[i])
-                .checked_sub(1)
-                .and_then(|k| map.features.get(k))
-                .and_then(|f| self.entry_of(f.kind))
-                .is_some_and(|e| self.landmarks[e].0.zone == a.zone)
-        };
-        let door_ok = map.anchors.iter().all(|a| {
-            a.entrance
-                .iter()
-                .all(|p| at(p.x, p.y).is_some_and(|i| map.tiles[i] == TILE_FLOOR || own(a, i)))
-        });
+        let door_ok = self.doors_intact(map);
         // Styler floor claims (`style_runtime` transactions) do not read `no_block`: a styler feature owning a tile of
         // a landmark's apron discards the map (G1: steps 3 and 4 build around the landmark, never into it).
         let b = self.rules.bands[0];
@@ -1045,6 +1074,46 @@ impl<'f> SignatureContext<'f> {
                 })
         });
         owned_ok && door_ok && apron_ok && self.aprons_apart(map)
+    }
+
+    /// `intact`'s entrance check: every entrance tile of every anchor holds exactly what its landmark's drawing wrote
+    /// there (`Door`, from the entry's legend): the volcano's outlets LOW with the lava terrain, owned by a volcano
+    /// feature of the anchor's zone; the church's gate, the tree's causeways and the cave's mouth floor that no feature
+    /// of their landmark owns. An anchor without a drawn entrance (the Holy hall's, which is empty) keeps the rule from
+    /// before P-MAPGEN-SIG-SCALE-4: floor.
+    fn doors_intact(&self, map: &GameMapData) -> bool {
+        map.anchors.iter().all(|a| {
+            let members = self
+                .landmarks
+                .iter()
+                .find(|(s, _)| s.zone == a.zone)
+                .map(|(s, _)| &s.members[..])
+                .unwrap_or(&[]);
+            let door = self
+                .doors
+                .iter()
+                .find(|(z, _)| *z == a.zone)
+                .map(|&(_, d)| d);
+            a.entrance.iter().all(|p| {
+                at(p.x, p.y).is_some_and(|i| {
+                    let Some(d) = door else {
+                        return map.tiles[i] == TILE_FLOOR;
+                    };
+                    let owner = usize::from(map.feature_grid[i])
+                        .checked_sub(1)
+                        .and_then(|k| map.features.get(k));
+                    let holds = match d.write {
+                        Some((tile, terrain)) => map.tiles[i] == tile && map.terrain[i] == terrain,
+                        None => map.tiles[i] == TILE_FLOOR,
+                    };
+                    let owned = match d.owner {
+                        Some(kind) => owner.is_some_and(|f| f.kind == kind && f.zone == a.zone),
+                        None => owner.is_none_or(|f| !members.contains(&f.kind)),
+                    };
+                    holds && owned
+                })
+            })
+        })
     }
 
     /// G1, G5 (P-MAPGEN-SIG-FROST-2): no tile of one landmark lies in another landmark's apron, for every ordered pair
@@ -1484,5 +1553,113 @@ mod tests {
             }
         }
         assert!(checked >= 8, "only {checked} relabelled sites checked");
+    }
+
+    /// One finished option-on map (seed 1, its first accepted attempt), shared by the entrance tests below.
+    fn signature_map() -> &'static GameMapData {
+        static MAP: std::sync::OnceLock<GameMapData> = std::sync::OnceLock::new();
+        MAP.get_or_init(|| {
+            let fixed = crate::mapgen::coliseum::fixed_layout();
+            let generator = crate::mapgen::pipeline::Pipeline::new(&fixed);
+            let options = crate::mapgen::pipeline::Options {
+                decor: false,
+                signature: true,
+                ..crate::mapgen::pipeline::Options::default()
+            };
+            (0..16)
+                .find_map(|n| {
+                    generator
+                        .styled_attempt(1, n, options)
+                        .expect("generator error")
+                })
+                .expect("seed 1: no option-on map in 16 attempts")
+        })
+    }
+
+    /// The map's anchor of `zone`, the feature id (one-based, as `feature_grid`) of its feature of `kind`, and the tile
+    /// index of its first entrance tile.
+    fn door_of(m: &GameMapData, zone: Zone, kind: FeatureKind) -> (&ZoneAnchor, u8, usize) {
+        let a = m
+            .anchors
+            .iter()
+            .find(|a| a.zone == zone)
+            .unwrap_or_else(|| panic!("no {zone:?} anchor"));
+        let k = m
+            .features
+            .iter()
+            .position(|f| f.kind == kind && f.zone == zone)
+            .unwrap_or_else(|| panic!("no {kind:?} feature"));
+        let p = a.entrance.first().expect("an entrance");
+        (
+            a,
+            u8::try_from(k + 1).expect("feature id"),
+            at(p.x, p.y).unwrap(),
+        )
+    }
+
+    /// P-MAPGEN-SIG-SCALE-4 review note 1: the volcano's six outlets as built are LOW lava owned by the volcano, and the
+    /// map, outlets included, is intact.
+    #[test]
+    fn the_volcanos_outlets_as_built_are_intact() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let ctx = SignatureContext::new(&fixed);
+        let m = signature_map();
+        let (a, volcano, _) = door_of(m, Zone::Fire, FeatureKind::Volcano);
+        assert_eq!(a.entrance.len(), 6, "the volcano's outlets");
+        for p in &a.entrance {
+            let i = at(p.x, p.y).unwrap();
+            assert_eq!(
+                (m.tiles[i], m.terrain[i], m.feature_grid[i]),
+                (TILE_LOW, ctx.terrain_codes().lava, volcano),
+                "outlet {p:?}"
+            );
+        }
+        assert!(ctx.doors_intact(m));
+        assert!(ctx.intact(m));
+    }
+
+    /// An outlet turned to wall, still owned by the volcano (a wall the volcano may own elsewhere: `owned_ok` accepts
+    /// it), is not what the drawing wrote there: the map is not intact.
+    #[test]
+    fn an_outlet_turned_to_a_volcano_wall_is_not_intact() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let ctx = SignatureContext::new(&fixed);
+        let mut m = signature_map().clone();
+        let (_, volcano, i) = door_of(&m, Zone::Fire, FeatureKind::Volcano);
+        m.tiles[i] = TILE_WALL;
+        m.terrain[i] = 0;
+        assert_eq!(m.feature_grid[i], volcano);
+        assert!(!ctx.doors_intact(&m));
+        assert!(!ctx.intact(&m));
+    }
+
+    /// A tile of the church's main gate turned to a church wall (owned by the church, which may own any wall) is not
+    /// what the drawing wrote there (nothing): the map is not intact.
+    #[test]
+    fn a_church_doorway_turned_to_an_owned_church_wall_is_not_intact() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let ctx = SignatureContext::new(&fixed);
+        let mut m = signature_map().clone();
+        let (_, church, i) = door_of(&m, Zone::Sentenced, FeatureKind::Church);
+        assert_eq!((m.tiles[i], m.feature_grid[i]), (TILE_FLOOR, 0));
+        m.tiles[i] = TILE_WALL;
+        m.feature_grid[i] = church;
+        assert!(!ctx.doors_intact(&m));
+        assert!(!ctx.intact(&m));
+    }
+
+    /// A tile of the cave's mouth owned by the cave, as the cave's ice floor (a tile the cave may own elsewhere), is not
+    /// what the drawing wrote there (nothing): the map is not intact.
+    #[test]
+    fn a_cave_mouth_tile_owned_by_the_cave_is_not_intact() {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let ctx = SignatureContext::new(&fixed);
+        let mut m = signature_map().clone();
+        let (_, cave, i) = door_of(&m, Zone::Frost, FeatureKind::Cave);
+        assert_eq!((m.tiles[i], m.feature_grid[i]), (TILE_FLOOR, 0));
+        m.feature_grid[i] = cave;
+        m.terrain[i] = ctx.terrain_codes().ice;
+        assert!(!ctx.doors_intact(&m));
+        assert!(!ctx.intact(&m));
     }
 }
