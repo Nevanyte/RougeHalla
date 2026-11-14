@@ -1,182 +1,207 @@
-//! Fire: the volcano (P-MAPGEN-SIG-FIRE-1; no legacy counterpart, DEV-020). A cone of wall with a lava crater on the
-//! Fire zone's back edge (its centre farther from the map centre than the zone's centroid), and two or three lava
-//! streams (`LavaStream`, LOW lava, two tiles wide) that run from it toward the front, each ending in a lava pool
-//! (`LavaPool`), edged with ember floor owned by the stream or pool. The shape is the server post-pass's `volcano`
-//! (`crates/rh-server/src/signature.rs` before this packet), with the streams fanned within the front half instead of
-//! evenly round the cone.
+//! Fire: the volcano's lava streams (P-MAPGEN-SIG-FIRE-1, P-MAPGEN-SIG-SCALE-4; no legacy counterpart, DEV-020). The
+//! cone is the owner's drawing (`volcano.txt`), landed by the generic stamp from its table entry (`spec::specs`) in the
+//! Fire site's inner rect. Its three lava streams (`LavaStream`, LOW lava, two tiles wide) are not drawn: `streams` lays
+//! one from each outlet run of the landed drawing (the entrance tiles of its front row, in grid order: left, middle,
+//! right), heading its run's `Definition::outlet_heading` turned with the drawing, each ending in a lava pool
+//! (`LavaPool`), edged with ember floor owned by the stream or pool.
 //!
-//! Site: a uniform draw among the back-edge centres whose cone fits in the zone's reserved site, taking first the
-//! centres farthest from every Fire camp (`Definition::camp_room` tiers, so the camps' craters keep out of the core
-//! band). A stream is laid as a line
-//! through free ground (the zone's floor outside the legacy landmark protection, camp halos and every apron marked so
-//! far); where the line is blocked it bends by one direction step at a time, within `stream_bend` of its own heading
-//! and `front_max` of the front, or stops and ends in its pool early. A site with fewer than two streams, lava outside
-//! `lava_budget`, or a split of the zone's floor is not used. Integer geometry: directions are `DIR16` vectors (length
+//! A stream is laid as a line through free ground (the zone's floor outside the legacy landmark protection, camp halos
+//! and every apron marked so far, off the cone); where the line is blocked it bends by one direction step at a time,
+//! within `stream_bend` of its own heading and `front_max` of the drawing's front, or ends sooner. Its length, measured
+//! as the oracle measures it (`length`), lies in its run's `outlet_len` range, and the middle stream is strictly the
+//! longest: it is laid first, and the side streams are held below it. An attempt whose three streams cannot all be laid
+//! (a stream short of its range, no pool, a ford, the fan broken, two bodies touching, lava outside `lava_budget`, or a
+//! split of the zone's floor) is refused: never two streams. Integer geometry: directions are `DIR16` vectors (length
 //! 1024) and positions are fixed point (1/1024 tile).
-use super::{at, front, pick, Built, Owned, Piece, Site, TerrainCodes};
-use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
-use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
-use crate::mapgen::coliseum::{CX, CY, H, W};
-use crate::mapgen::zones::camps::CampSite;
+use super::blueprint::{dir16, Blueprint, Cell, Landing};
+use super::spec::Spec;
+use super::{at, pick, Built, Owned, Piece, Site, TerrainCodes};
+use crate::map::{TILE_FLOOR, TILE_LOW};
+use crate::mapdata::{FeatureJob, FeatureKind};
+use crate::mapgen::coliseum::{H, W};
 use crate::rng::Mulberry32;
 
 use super::super::recipe_support::DIR16;
 
-/// The volcano with its streams and pools for the Fire zone, or `None` when the zone has no legal site (the attempt is
-/// refused, G5).
-/// `inner`: the Fire zone's reserved site less its apron (x0, y0, x1, y1 inclusive; P-MAPGEN-SIG-RESERVE-1), which
-/// must hold the whole cone (the back-edge test still applies); the streams and pools are not confined.
-pub(super) fn place(
+/// One stream with its pool: the stream's lava tiles (first the path's first tile), the pool's lava tiles, the pool's
+/// centre tile, and the stream's length (`length`).
+struct Body {
+    lava: Vec<usize>,
+    pool: Vec<usize>,
+    centre: Cell,
+    len: i32,
+}
+
+/// What one stream is laid from: its outlet run's map tiles, the drawing's front (map axis and its DIR16 index), the
+/// stream's heading (DIR16), and its length window (path tiles, inclusive; the upper end is the drawn target).
+struct Lay {
+    run: Vec<Cell>,
+    u: Cell,
+    f: i32,
+    h0: i32,
+    lo: i32,
+    target: i32,
+}
+
+/// P-MAPGEN-SIG-SCALE-4: the volcano's three streams with their pools, laid from the outlet runs of the drawing `bp`
+/// stamped at `landing` (entry `spec`), appended to `built` after the cone in grid order (stream, then pool, per run);
+/// `None` refuses the attempt. Draws: one length per run, in grid order (left, middle, right as drawn, whatever the
+/// mirror makes of them on the map), from its `outlet_len` range, before anything can refuse; nothing else draws. The
+/// middle run is laid first, up to its drawn length; each side run then up to its own, held below the middle's
+/// measured length. Then: no stream or pool touches another's lava, each stream touches its own run only, the pools
+/// fan out (in grid terms: beyond the front row; the left one left of its run, the right one right, the middle one
+/// within 45 degrees of straight ahead; their columns ascending), the zone's lava lies in `lava_budget`, and the cone
+/// with every stream and pool does not split the zone's floor. `s` must be unconfined (`Site::inner` `None`): the
+/// streams leave the site.
+pub(super) fn streams(
     s: &Site<'_>,
-    camps: &[CampSite],
     rng: &mut Mulberry32,
-    inner: (i32, i32, i32, i32),
-) -> Option<Built> {
+    bp: &Blueprint,
+    spec: &Spec,
+    landing: &Landing,
+    built: &mut Built,
+) -> Option<()> {
     let d = &s.ctx.rules;
-    let from_centre = |x: f64, y: f64| {
-        let (dx, dy) = (x - W as f64 / 2.0, y - H as f64 / 2.0);
-        crate::math::sqrt(dx * dx + dy * dy)
-    };
-    let (mut sx, mut sy, mut n) = (0i64, 0i64, 0i64);
-    for i in (0..W * H).filter(|&i| s.zone[i] == s.slot) {
-        sx += 2 * (i % W) as i64 + 1;
-        sy += 2 * (i / W) as i64 + 1;
-        n += 1;
+    let codes = &s.ctx.codes;
+    let want: Vec<i32> = d
+        .outlet_len
+        .iter()
+        .map(|&(lo, hi)| lo + pick(rng, (hi - lo + 1).max(1) as usize) as i32)
+        .collect();
+    // The outlet runs: the entrance tiles on the front row, ascending gx, split where gx skips.
+    let front_row = bp.size().1 - 1;
+    let mut runs: Vec<Vec<Cell>> = Vec::new();
+    for g in bp
+        .entrance(spec.entrance)
+        .into_iter()
+        .filter(|g| g.1 == front_row)
+    {
+        match runs.last_mut() {
+            Some(r) if r.last().is_some_and(|p| p.0 + 1 == g.0) => r.push(g),
+            _ => runs.push(vec![g]),
+        }
     }
-    if n == 0 {
+    if runs.len() != d.outlet_heading.len() {
         return None;
     }
-    let need = from_centre(sx as f64 / (2 * n) as f64, sy as f64 / (2 * n) as f64) + d.back_slack;
-    let half = (1..).find(|r: &i32| r * r > d.cone_d2).unwrap() - 1;
-    let cone: Vec<(i32, i32)> = (-half..=half)
-        .flat_map(|dy| (-half..=half).map(move |dx| (dx, dy)))
-        .filter(|&(dx, dy)| dx * dx + dy * dy <= d.cone_d2)
-        .collect();
-    let mine: Vec<(i32, i32)> = camps
+    let landed: Vec<Vec<Cell>> = runs
         .iter()
-        .filter(|c| c.zone == s.slot)
-        .map(|c| ((c.site % W) as i32, (c.site / W) as i32))
+        .map(|r| r.iter().map(|&g| landing.tile(g)).collect())
         .collect();
-    let apron = half + d.bands[0];
-    let mut tiers: Vec<Vec<(i32, i32)>> = vec![Vec::new(); d.camp_room.len()];
-    for i in (0..W * H).filter(|&i| s.zone[i] == s.slot) {
-        let (x, y) = ((i % W) as i32, (i / W) as i32);
-        if from_centre(f64::from(x) + 0.5, f64::from(y) + 0.5) <= need
-            || at(x - apron, y - apron).is_none()
-            || at(x + apron, y + apron).is_none()
-            || x - half < inner.0
-            || x + half > inner.2
-            || y - half < inner.1
-            || y + half > inner.3
-            || !cone
-                .iter()
-                .all(|&(dx, dy)| s.wall(x + dx, y + dy) && s.ground(x + dx, y + dy))
-        {
-            continue;
-        }
-        let room = mine
-            .iter()
-            .map(|&(cx, cy)| (cx - x).abs().max((cy - y).abs()) - half)
-            .min()
-            .unwrap_or(i32::MAX);
-        if let Some(t) = d.camp_room.iter().position(|&r| room >= r) {
-            tiers[t].push((x, y));
+    let o = landing.orientation;
+    let f = i32::from(dir16(o.front));
+    // Cell marks while the streams are laid: 1 the cone, 2 a stream's or pool's lava.
+    let mut mark = vec![0u8; W * H];
+    let mut solid = Vec::new();
+    let mut cone_lava = 0usize;
+    for p in &built.pieces {
+        for &(i, tile, _) in &p.cells {
+            mark[i] = 1;
+            solid.push(i);
+            cone_lava += usize::from(tile == TILE_LOW);
         }
     }
     let before = s.floor_pieces(&[]);
-    for mut sites in tiers {
-        for _ in 0..d.site_tries {
-            if sites.is_empty() {
-                break;
-            }
-            let (x, y) = sites.remove(pick(rng, sites.len()));
-            if let Some(built) = build(s, x, y, &cone, before, rng) {
-                return Some(built);
-            }
+    let main = runs.len() / 2;
+    let mut bodies: Vec<Option<Body>> = (0..runs.len()).map(|_| None).collect();
+    for k in std::iter::once(main).chain((0..runs.len()).filter(|&k| k != main)) {
+        let (lo, mut hi) = d.outlet_len[k];
+        if let Some(m) = bodies[main].as_ref().filter(|_| k != main) {
+            hi = hi.min(m.len - 1);
         }
-    }
-    None
-}
-
-/// One stream with its pool: the stream's lava tiles (first the path's first tile), the pool's lava tiles, and the
-/// pool's centre tile.
-type Body = (Vec<usize>, Vec<usize>, (i32, i32));
-
-/// One site: the cone at (x, y) and its streams, or `None` when fewer than two streams fit, the lava leaves the budget
-/// or the zone's floor would split.
-fn build(
-    s: &Site<'_>,
-    x: i32,
-    y: i32,
-    cone: &[(i32, i32)],
-    before: usize,
-    rng: &mut Mulberry32,
-) -> Option<Built> {
-    let d = &s.ctx.rules;
-    let codes = &s.ctx.codes;
-    // Cell marks while the site is built: 1 the cone, 2 lava.
-    let mut mark = vec![0u8; W * H];
-    for &(dx, dy) in cone {
-        mark[at(x + dx, y + dy)?] = 1;
-    }
-    let count = d.streams.0 + pick(rng, d.streams.1 - d.streams.0 + 1);
-    let spreads = d.spreads[count - d.streams.0];
-    let spread = spreads[pick(rng, spreads.len())];
-    let (lo, hi) = d.stream_len[count - d.streams.0];
-    let f = i32::from(front(x, y));
-    let mut bodies: Vec<Body> = Vec::new();
-    for &o in spread {
-        let len = lo + pick(rng, (hi - lo + 1) as usize) as i32;
-        let Some(body) = stream(s, &mark, cone, (x, y), f, (f + o).rem_euclid(16), len) else {
-            continue;
+        let lay = Lay {
+            run: landed[k].clone(),
+            u: o.front,
+            f,
+            h0: i32::from(dir16(o.turn(d.outlet_heading[k]))),
+            lo,
+            target: want[k].min(hi),
         };
-        for &i in body.0.iter().chain(&body.1) {
+        let body = stream(s, &mark, &lay)?;
+        for &i in body.lava.iter().chain(&body.pool) {
             mark[i] = 2;
         }
-        bodies.push(body);
+        bodies[k] = Some(body);
     }
-    let crater: Vec<(i32, i32)> = cone
+    let bodies: Vec<Body> = bodies.into_iter().collect::<Option<_>>()?;
+    let xy = |i: usize| ((i % W) as i32, (i / W) as i32);
+    let touches = |a: &[usize], b: &[Cell]| {
+        a.iter().any(|&i| {
+            let p = xy(i);
+            b.iter()
+                .any(|q| (p.0 - q.0).abs().max((p.1 - q.1).abs()) <= 1)
+        })
+    };
+    let all: Vec<Vec<usize>> = bodies
         .iter()
-        .copied()
-        .filter(|&(dx, dy)| dx * dx + dy * dy <= d.crater_d2)
+        .map(|b| [b.lava.clone(), b.pool.clone()].concat())
         .collect();
-    let lava = crater.len() + bodies.iter().map(|b| b.0.len() + b.1.len()).sum::<usize>();
-    if bodies.len() < d.streams.0 || lava < d.lava_budget.0 || lava > d.lava_budget.1 {
+    for (a, body) in all.iter().enumerate() {
+        let others = all
+            .iter()
+            .enumerate()
+            .filter(|&(b, _)| b != a)
+            .any(|(_, other)| touches(body, &other.iter().map(|&i| xy(i)).collect::<Vec<_>>()));
+        let strays = landed
+            .iter()
+            .enumerate()
+            .any(|(r, run)| r != a && touches(&bodies[a].lava, run));
+        if others || strays {
+            return None;
+        }
+    }
+    // The fan, in grid terms (doubled, times the pool's size, to stay in integers): the pool's centroid against its
+    // run's centre.
+    let r = o.turn((1, 0));
+    let grid = |i: usize| {
+        let p = xy(i);
+        let q = (p.0 - landing.origin.0, p.1 - landing.origin.1);
+        (q.0 * r.0 + q.1 * r.1, q.0 * o.front.0 + q.1 * o.front.1)
+    };
+    let mut cols: Vec<(i64, i64)> = Vec::with_capacity(bodies.len());
+    for (k, b) in bodies.iter().enumerate() {
+        let n = b.pool.len() as i64;
+        let (sx, sy) = b.pool.iter().fold((0i64, 0i64), |acc, &i| {
+            let g = grid(i);
+            (acc.0 + i64::from(g.0), acc.1 + i64::from(g.1))
+        });
+        let ends = i64::from(runs[k][0].0) + i64::from(runs[k][runs[k].len() - 1].0);
+        let (dx, dy) = (2 * sx - n * ends, 2 * sy - 2 * n * i64::from(front_row));
+        let side_ok = if k == 0 {
+            dx < 0
+        } else if k == bodies.len() - 1 {
+            dx > 0
+        } else {
+            dx.abs() <= dy
+        };
+        if dy <= 0 || !side_ok {
+            return None;
+        }
+        cols.push((sx, n));
+    }
+    if cols.windows(2).any(|w| w[0].0 * w[1].1 >= w[1].0 * w[0].1) {
         return None;
     }
-    let solid: Vec<usize> = (0..W * H).filter(|&i| mark[i] != 0).collect();
+    let lava = cone_lava + all.iter().map(Vec::len).sum::<usize>();
+    if lava < d.lava_budget.0 || lava > d.lava_budget.1 {
+        return None;
+    }
+    solid.extend(all.iter().flatten().copied());
     if s.floor_pieces(&solid) > before {
         return None;
     }
-    let cone_cells: Vec<(usize, u8, u8)> = cone
-        .iter()
-        .map(|&(dx, dy)| {
-            let i = at(x + dx, y + dy).unwrap();
-            if crater.contains(&(dx, dy)) {
-                (i, TILE_LOW, codes.lava)
-            } else {
-                (i, TILE_WALL, 0)
-            }
-        })
-        .collect();
-    let mut pieces = vec![Piece {
-        kind: FeatureKind::Volcano,
-        job: FeatureJob::Landmark,
-        anchor: (x, y),
-        cells: cone_cells,
-    }];
     // Ember: the free ground round each body's lava, owned by the first body that reaches it.
     let mut ember = vec![false; W * H];
-    for (stream_cells, pool_cells, pool_at) in bodies {
-        let first = ((stream_cells[0] % W) as i32, (stream_cells[0] / W) as i32);
+    for b in bodies {
+        let first = xy(b.lava[0]);
         for (kind, cells, anchor) in [
-            (FeatureKind::LavaStream, stream_cells, first),
-            (FeatureKind::LavaPool, pool_cells, pool_at),
+            (FeatureKind::LavaStream, b.lava, first),
+            (FeatureKind::LavaPool, b.pool, b.centre),
         ] {
             let mut out: Vec<(usize, u8, u8)> =
                 cells.iter().map(|&i| (i, TILE_LOW, codes.lava)).collect();
             for &i in &cells {
-                let (cx, cy) = ((i % W) as i32, (i / W) as i32);
+                let (cx, cy) = xy(i);
                 for (dx, dy) in (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy))) {
                     let Some(j) = at(cx + dx, cy + dy).filter(|_| (dx, dy) != (0, 0)) else {
                         continue;
@@ -187,7 +212,7 @@ fn build(
                     }
                 }
             }
-            pieces.push(Piece {
+            built.pieces.push(Piece {
                 kind,
                 job: FeatureJob::Crossing,
                 anchor,
@@ -195,30 +220,17 @@ fn build(
             });
         }
     }
-    Some(Built {
-        anchor: ZoneAnchor {
-            zone: Zone::Fire,
-            kind: FeatureKind::Volcano,
-            centre: TilePt { x, y },
-            footprint: super::bounds(cone.iter().map(|&(dx, dy)| at(x + dx, y + dy).unwrap())),
-            front: front(x, y),
-            entrance: Vec::new(),
-        },
-        pieces,
-    })
+    Some(())
 }
 
-/// What `SignatureContext::intact` accepts on the tiles the volcano's features own (the volcano's hand list until
-/// P-MAPGEN-SIG-SCALE-4 makes it a table entry with a drawing): the cone wall or its LOW crater lava; a stream's or a
-/// pool's LOW lava or its ember floor.
+/// What `SignatureContext::intact` accepts on the tiles the volcano's streams and pools own (no drawing writes them;
+/// the cone's own pairs come from its legend): a stream's or a pool's LOW lava or its ember floor.
 pub(super) fn owned(codes: &TerrainCodes) -> Vec<(FeatureKind, Owned)> {
-    let (lava, ember) = (Some(codes.lava), Some(codes.ember));
-    let body = vec![(TILE_LOW, lava), (TILE_FLOOR, ember)];
+    let body = vec![
+        (TILE_LOW, Some(codes.lava)),
+        (TILE_FLOOR, Some(codes.ember)),
+    ];
     vec![
-        (
-            FeatureKind::Volcano,
-            vec![(TILE_WALL, Some(0)), (TILE_LOW, lava)],
-        ),
         (FeatureKind::LavaStream, body.clone()),
         (FeatureKind::LavaPool, body),
     ]
@@ -246,18 +258,13 @@ fn turn(a: i32, b: i32) -> i32 {
     t.min(16 - t)
 }
 
-/// One stream from the cone at `c` with heading `h0` and target `len` path tiles, and its pool: (stream lava, pool lava,
-/// pool centre), or `None` when no stream of at least `stream_min` tiles with a pool fits.
-fn stream(
-    s: &Site<'_>,
-    mark: &[u8],
-    cone: &[(i32, i32)],
-    c: (i32, i32),
-    f: i32,
-    h0: i32,
-    len: i32,
-) -> Option<Body> {
+/// One stream from outlet run `lay.run` with heading `lay.h0`, and its pool, or `None` when no stream of `lay.lo` to
+/// `lay.target` tiles (`length`) with a pool fits. The path is grown to two tiles past the target and shortened from
+/// its end until its length fits. Its first tile lies `stream_start` steps beyond the run, placed so that its pair of
+/// lava tiles continues the run's two outlets.
+fn stream(s: &Site<'_>, mark: &[u8], lay: &Lay) -> Option<Body> {
     let d = &s.ctx.rules;
+    let (f, h0) = (lay.f, lay.h0);
     // DIR16 vectors have length 1024: positions are fixed point, 1/1024 tile.
     let one = 1024;
     let tile = |p: (i32, i32)| (p.0.div_euclid(one), p.1.div_euclid(one));
@@ -265,8 +272,8 @@ fn stream(
         let v = DIR16[h.rem_euclid(16) as usize];
         (p.0 + v[0], p.1 + v[1])
     };
-    let (ox, oy) = (c.0 * one + one / 2, c.1 * one + one / 2);
-    // A lava tile: free ground off the cone, and `stream_gap` from every other body (except beside the cone).
+    let near = *lay.run.first()?;
+    // A lava tile: free ground off the cone, and `stream_gap` from every other body (except beside its run).
     let lava_ok = |t: (i32, i32)| -> bool {
         let Some(i) = at(t.0, t.1) else {
             return false;
@@ -274,7 +281,7 @@ fn stream(
         if mark[i] != 0 || !free(s, t.0, t.1) {
             return false;
         }
-        let (dx, dy) = (t.0 - c.0, t.1 - c.1);
+        let (dx, dy) = (t.0 - near.0, t.1 - near.1);
         if dx * dx + dy * dy <= d.start_d2 {
             return true;
         }
@@ -287,8 +294,27 @@ fn stream(
         [t, (t.0 + sd.0, t.1 + sd.1)]
     };
     let wide = |t: (i32, i32), h: i32| pair(t, h).iter().all(|&q| lava_ok(q));
+    // Where the path starts: the pair of the first tile is the run's two outlets moved forward. Across the front (the
+    // side cell along the run), from the centre of the run's tile lowest along the side; along the front, from the
+    // run's centre, a tile further out when the side cell points back at the cone.
+    let sd = side(h0);
+    let centre = |t: Cell| (t.0 * one + one / 2, t.1 * one + one / 2);
+    let n = lay.run.len() as i32;
+    let sum = lay.run.iter().fold((0, 0), |acc, &t| {
+        let c = centre(t);
+        (acc.0 + c.0, acc.1 + c.1)
+    });
+    let mid = (sum.0 / n, sum.1 / n);
+    let along = sd.0 * lay.u.0 + sd.1 * lay.u.1;
+    let p0 = if along == 0 {
+        centre(*lay.run.iter().min_by_key(|t| t.0 * sd.0 + t.1 * sd.1)?)
+    } else if along > 0 {
+        mid
+    } else {
+        (mid.0 + lay.u.0 * one, mid.1 + lay.u.1 * one)
+    };
     let v = DIR16[h0 as usize];
-    let mut pos = (ox + d.stream_start * v[0], oy + d.stream_start * v[1]);
+    let mut pos = (p0.0 + d.stream_start * v[0], p0.1 + d.stream_start * v[1]);
     let first = tile(pos);
     if !wide(first, h0) {
         return None;
@@ -296,7 +322,7 @@ fn stream(
     // (position, heading, tile) per path tile.
     let mut path = vec![(pos, h0, first)];
     let mut h = h0;
-    'grow: while (path.len() as i32) < len {
+    'grow: while (path.len() as i32) < lay.target + 2 {
         for k in [0, 1, -1, 2, -2] {
             let toward = if turn(h + 1, f) <= turn(h - 1, f) {
                 1
@@ -337,22 +363,97 @@ fn stream(
                 }
             }
         }
-        // Where the heading changes the pairs can leave a neck: fill it, or end the stream a tile sooner.
-        if !widen(&mut cells, &lava_ok) {
+        // Where the heading changes the pairs can leave a neck: fill it, or end the stream a tile sooner. A band that
+        // is not one 4-connected piece would be a ford: end it sooner too.
+        if !widen(&mut cells, &lava_ok) || pieces4(&cells) != 1 {
             path.pop();
             continue;
         }
         let pc = tile(step(step(p, hp), hp));
+        let mut short = false;
         for &r2 in d.pool_d2 {
-            if let Some(pool) = pool(&cells, pc, r2, &lava_ok) {
-                if ends_well(&cells, &pool, cone, c) {
-                    return Some((cells, pool, pc));
+            let Some(pool) = pool(&cells, pc, r2, &lava_ok) else {
+                continue;
+            };
+            match length(&cells, &lay.run, &pool) {
+                Some(len) if len > lay.target => {}
+                Some(len) if len < lay.lo => short = true,
+                Some(len) => {
+                    return Some(Body {
+                        lava: cells,
+                        pool,
+                        centre: pc,
+                        len,
+                    })
                 }
+                None => {}
             }
+        }
+        // Shortening only shortens: a stream already short of its range does not fit.
+        if short {
+            return None;
         }
         path.pop();
     }
     None
+}
+
+/// The oracle's length of a stream (path tiles): 1 + the fewest 8-connected steps through its lava `cells` from a tile
+/// touching (Chebyshev distance at most 1) a tile of its run to a tile touching its pool's lava; `None` when no tile
+/// touches either, or they are not joined. A straight stream n tiles long, two wide, measures n.
+fn length(cells: &[usize], run: &[Cell], pool: &[usize]) -> Option<i32> {
+    let xy = |i: usize| ((i % W) as i32, (i / W) as i32);
+    let close = |a: Cell, b: Cell| (a.0 - b.0).abs().max((a.1 - b.1).abs()) <= 1;
+    let pts: Vec<Cell> = cells.iter().map(|&i| xy(i)).collect();
+    let ends: Vec<Cell> = pool.iter().map(|&i| xy(i)).collect();
+    let mut dist: Vec<i32> = vec![0; pts.len()];
+    let mut queue: Vec<usize> = Vec::with_capacity(pts.len());
+    for (k, &p) in pts.iter().enumerate() {
+        if run.iter().any(|&q| close(p, q)) {
+            dist[k] = 1;
+            queue.push(k);
+        }
+    }
+    let mut head = 0;
+    while head < queue.len() {
+        let k = queue[head];
+        head += 1;
+        if ends.iter().any(|&q| close(pts[k], q)) {
+            return Some(dist[k]);
+        }
+        for (j, &q) in pts.iter().enumerate() {
+            if dist[j] == 0 && close(pts[k], q) {
+                dist[j] = dist[k] + 1;
+                queue.push(j);
+            }
+        }
+    }
+    None
+}
+
+/// The 4-connected pieces of `cells` (a stream that is more than one is a ford).
+fn pieces4(cells: &[usize]) -> usize {
+    let mut seen = vec![false; cells.len()];
+    let mut pieces = 0;
+    for s in 0..cells.len() {
+        if seen[s] {
+            continue;
+        }
+        pieces += 1;
+        seen[s] = true;
+        let mut stack = vec![s];
+        while let Some(k) = stack.pop() {
+            let (x, y) = ((cells[k] % W) as i32, (cells[k] / W) as i32);
+            for (j, &c) in cells.iter().enumerate() {
+                let (cx, cy) = ((c % W) as i32, (c / W) as i32);
+                if !seen[j] && (cx - x).abs() + (cy - y).abs() == 1 {
+                    seen[j] = true;
+                    stack.push(j);
+                }
+            }
+        }
+    }
+    pieces
 }
 
 /// The first tile of `cells` that keeps the stream from being two tiles wide, with the reason: `Some(axis)` for a neck
@@ -498,26 +599,4 @@ fn pool(
         has(x + 1, y) && has(x, y + 1) && has(x + 1, y + 1)
     });
     (out.len() >= crate::mapgen::certify::rules::R.piece_min && block).then_some(out)
-}
-
-/// The stream's tiles nearest the volcano centre touch the cone, its farthest touch the pool, and its farthest is
-/// nearer the coliseum than the centre (the oracle's start, end and front).
-fn ends_well(stream: &[usize], pool: &[usize], cone: &[(i32, i32)], c: (i32, i32)) -> bool {
-    let xy = |i: usize| ((i % W) as i32, (i / W) as i32);
-    let d2 = |a: (i32, i32), b: (i32, i32)| (a.0 - b.0).pow(2) + (a.1 - b.1).pow(2);
-    let near = stream.iter().map(|&i| d2(xy(i), c)).min().unwrap_or(0);
-    let far = stream.iter().map(|&i| d2(xy(i), c)).max().unwrap_or(0);
-    let col = (CX, CY);
-    stream.iter().map(|&i| xy(i)).all(|t| {
-        let dc = d2(t, c);
-        (dc != near
-            || cone
-                .iter()
-                .any(|&(dx, dy)| (c.0 + dx - t.0).abs().max((c.1 + dy - t.1).abs()) <= 1))
-            && (dc != far
-                || (pool.iter().any(|&p| {
-                    let q = xy(p);
-                    (q.0 - t.0).abs().max((q.1 - t.1).abs()) <= 1
-                }) && d2(t, col) < d2(c, col)))
-    })
 }

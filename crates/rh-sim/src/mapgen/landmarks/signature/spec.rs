@@ -38,8 +38,8 @@ pub struct Spec {
     pub zone: Zone,
     /// The anchor's kind (`ZoneAnchor::kind`).
     pub kind: FeatureKind,
-    /// The drawing's text (a `Definition` grid field), `None` for a landmark still placed by its own code (the Fire
-    /// volcano until P-MAPGEN-SIG-SCALE-4).
+    /// The drawing's text (a `Definition` grid field); `None` refuses every option-on attempt at the landmark (every
+    /// entry has one since P-MAPGEN-SIG-SCALE-4).
     pub drawing: Option<&'static str>,
     pub legend: Legend,
     /// The features written, in write order (the first is the anchor's feature).
@@ -107,16 +107,29 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
     use FeatureKind::{BogTree, Cave, Church, Graveyard, LavaPool, LavaStream, Volcano};
     let codes = catalog_codes();
     vec![
-        // The volcano: still `volcano::place`, its owned tiles checked by `volcano::owned` (P-MAPGEN-SIG-SCALE-4 makes it
-        // an entry with a drawing).
+        // The volcano (P-MAPGEN-SIG-SCALE-4): the cone (`#` foot, `X` slope, `H` rim, all wall) round its crater lake and
+        // channels (`~` lava), the six outlets `O` (lava, named) on the front row, `.` the cut corners; centred in its
+        // site, off every apron marked before it (as today's cone and the bog tree). The entrance is the six outlets.
+        // Its three streams and pools are not drawn: `volcano::streams` lays them from the outlet runs after the stamp
+        // (their owned tiles are `volcano::owned`'s).
         Spec {
             zone: Zone::Fire,
             kind: Volcano,
-            drawing: None,
-            legend: Legend::default(),
-            features: Vec::new(),
+            drawing: Some(d.volcano_grid),
+            legend: Legend(vec![
+                solid(b'#', Write::Wall, Volcano, Legality::WallGround),
+                solid(b'X', Write::Wall, Volcano, Legality::WallGround),
+                solid(b'H', Write::Wall, Volcano, Legality::WallGround),
+                solid(b'~', Write::Low(codes.lava), Volcano, Legality::WallGround),
+                Glyph {
+                    mark: true,
+                    ..solid(b'O', Write::Low(codes.lava), Volcano, Legality::WallGround)
+                },
+                plain(b'.'),
+            ]),
+            features: vec![landmark(Volcano)],
             placement: Placement::Centre,
-            entrance: EntranceRule::None,
+            entrance: EntranceRule::Mark(b'O'),
             doorway: false,
             members: vec![Volcano, LavaStream, LavaPool],
             by_tile: vec![LavaStream, LavaPool],

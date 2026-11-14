@@ -10,9 +10,10 @@
 //! draws only from its own per-zone stream, `hash_seed(seed, attempt, zone index, Definition::stream)`; the attempt's
 //! main stream and the stylers' streams are untouched (G6).
 //!
-//! Every landmark stands in the site its zone reserved in the Prefix (P-MAPGEN-SIG-RESERVE-1): the church, the bog tree
-//! and the cave are their approved drawings, read and landed from the per-landmark table (`spec`, `blueprint`, `stamp`);
-//! the volcano is still drawn by its own rules (`volcano`, until P-MAPGEN-SIG-SCALE-4). Integer geometry only.
+//! Every landmark stands in the site its zone reserved in the Prefix (P-MAPGEN-SIG-RESERVE-1): the volcano, the church,
+//! the bog tree and the cave are their approved drawings, read and landed from the per-landmark table (`spec`,
+//! `blueprint`, `stamp`); the volcano's three lava streams continue from its outlets (`volcano::streams`,
+//! P-MAPGEN-SIG-SCALE-4). Integer geometry only.
 pub mod blueprint;
 mod bog_tree;
 mod cave;
@@ -59,24 +60,13 @@ pub struct Definition {
     /// Plague site: the tiles its centre must stand beyond the start of the Plague zone's outer third (slack for later
     /// rezoning; `SignatureContext::reserve`).
     pub outer_slack: f64,
-    /// Volcano: squared tile distance from the centre tile of the cone (wall) and of its crater (lava inside the cone).
-    pub cone_d2: i32,
-    pub crater_d2: i32,
-    /// Volcano: tiles its centre stands beyond the Fire centroid's distance from the map centre (the back edge, with
-    /// slack for later rezoning).
+    /// Fire, Sentenced and Frost sites: the tiles a site's centre stands beyond the zone centroid's distance from the map
+    /// centre (the back edge, with slack for later rezoning; `SignatureContext::reserve`).
     pub back_slack: f64,
-    /// Volcano site tiers, tried in order: the cone's Chebyshev distance from every Fire camp tile is at least the
-    /// tier's value; `site_tries` uniform draws per tier.
-    pub camp_room: [i32; 3],
-    pub site_tries: usize,
-    /// Streams: the count drawn (inclusive range); per count, the heading offsets from the front (DIR16 steps) to draw
-    /// from, and the path length range (tiles; two lava tiles per path tile).
-    pub streams: (usize, usize),
-    pub spreads: [&'static [&'static [i32]]; 2],
-    pub stream_len: [(i32, i32); 2],
-    /// Streams: the shortest path kept (tiles), where the path starts (tiles from the cone's centre), how far a path
-    /// may bend from its own heading and from the front (DIR16 steps), the Chebyshev gap kept from every other stream
-    /// and pool, and the squared distance from the centre within which streams may meet (beside the cone).
+    /// Volcano streams (P-MAPGEN-SIG-SCALE-4: laid from the drawing's outlet runs, `volcano::streams`): the shortest
+    /// path tried (tiles), how many heading steps beyond its outlet run's centre the path's first tile lies, how far a
+    /// path may bend from its own heading and from the drawing's front (DIR16 steps), the Chebyshev gap kept from every
+    /// other stream and pool, and the squared distance from its outlet run within which that gap is not asked.
     pub stream_min: usize,
     pub stream_start: i32,
     pub stream_bend: i32,
@@ -85,7 +75,8 @@ pub struct Definition {
     pub start_d2: i32,
     /// Pools: the squared radii tried, largest first.
     pub pool_d2: &'static [i32],
-    /// Volcano: the zone's total lava (crater, streams and pools; inclusive), inside the legacy river's 107-158.
+    /// Volcano: the zone's total lava (the cone's crater lake, channels and outlets, the streams and the pools;
+    /// inclusive). PROVISIONAL (P-MAPGEN-SIG-SCALE-4): worked from the drawing, the owner amends it after measurement.
     pub lava_budget: (usize, usize),
     /// The tiles beyond each entrance tile, along the front, that must be `Site::open` for an entry whose table row says
     /// `doorway` (the church's main gate, the cave's mouth; `stamp`).
@@ -130,13 +121,13 @@ pub struct Definition {
     /// `docs/landmarks/blueprints/volcano.txt` (as `cave_grid`). Lines starting `;` are its legend; the rest is the 22 x 22
     /// grid, front (toward the coliseum) at the bottom, its six outlet tiles `O` in three runs of two on the front row.
     /// It lands centred in the Fire site's unchanged 30 x 30 inner rect (4 tiles spare on every side).
-    /// Stub: not read yet (the Fire table entry has no drawing until the packet lands).
+    /// Parsed as `cave_grid`; a grid that does not parse refuses every option-on attempt at the volcano.
     pub volcano_grid: &'static str,
     /// P-MAPGEN-SIG-SCALE-4: per outlet run of the volcano drawing, in grid order (left, middle, right: ascending `gx`),
     /// the stream's heading as a grid direction (front = `(0, 1)`; turned with the drawing by `Orientation::turn`) and
-    /// its path length range in tiles (inclusive; two lava tiles per path tile). The owner's numbers (requirement L4;
-    /// lengths by the owner decision of 2026-11-14): the side streams 45 degrees off straight ahead, 7-10 tiles; the
-    /// middle one straight ahead, 10-14, the longest. Stub: not read yet.
+    /// its path length range in tiles (inclusive; two lava tiles per path tile; measured as the oracle measures it,
+    /// `volcano::length`). The owner's numbers (requirement L4; lengths by the owner decision of 2026-11-14): the side
+    /// streams 45 degrees off straight ahead, 7-10 tiles; the middle one straight ahead, 10-14, strictly the longest.
     pub outlet_heading: [(i32, i32); 3],
     pub outlet_len: [(i32, i32); 3],
     /// P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): the Fire fan, a rectangle in front of the Fire site's inner
@@ -156,25 +147,15 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     ember: 4,
     ice: 6,
     outer_slack: 2.0,
-    cone_d2: 6,
-    crater_d2: 1,
     back_slack: 2.0,
-    camp_room: [12, 9, 6],
-    site_tries: 24,
-    streams: (2, 3),
-    spreads: [
-        &[&[-2, 2], &[-3, 1], &[-1, 3]],
-        &[&[-3, 0, 3], &[-3, 1, 3], &[-3, -1, 3]],
-    ],
-    stream_len: [(15, 22), (9, 14)],
     stream_min: 4,
-    stream_start: 3,
+    stream_start: 1,
     stream_bend: 2,
     front_max: 3,
     stream_gap: 3,
     start_d2: 20,
     pool_d2: &[4, 2],
-    lava_budget: (80, 150),
+    lava_budget: (240, 310),
     doorway: 2,
     lake_reach: 8,
     lake_tries: 8,
@@ -381,12 +362,12 @@ pub struct SignatureContext<'f> {
     /// Tiles no landmark wall may take: the border, the coliseum, its road (with the legacy landmark margin) and lanes.
     hard: Vec<u8>,
     /// P-MAPGEN-SIG-BLUEPRINT-1: the per-landmark table (`spec::specs`), each entry with its drawing parsed once; `None`
-    /// for an entry without a drawing (the volcano) or with one that does not parse (which refuses every option-on
-    /// attempt at that landmark, after its mirror draw: `Refusal::Signature`).
+    /// for an entry without a drawing or with one that does not parse (which refuses every option-on attempt at that
+    /// landmark, after its mirror draw: `Refusal::Signature`).
     landmarks: Vec<(spec::Spec, Option<Blueprint>)>,
     /// P-MAPGEN-SIG-BLUEPRINT-2: per member kind of the table, what `intact` accepts on the tiles its features own: for a
     /// drawing, the (tile, terrain) its legend's glyphs of that kind write (any terrain for the entry's `any_terrain`
-    /// kinds); for the volcano, `volcano::owned`.
+    /// kinds); for the volcano's streams and pools, which no drawing writes, `volcano::owned`.
     owned: Vec<(FeatureKind, Owned)>,
 }
 
@@ -673,10 +654,11 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
-    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order (`place`). A
-    /// zone whose table entry (`spec::specs`) has a drawing is drawn by the generic `stamp`, and its landing is recorded
-    /// in `Placed::landed`; the volcano keeps its own code. Only the volcano and the bog tree keep their tiles out of the
-    /// aprons marked before them (`Site::ground`; the tree by its legend's `Legality::WallGround`); the church and the
+    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order (`place`). Each
+    /// zone's table entry (`spec::specs`) is drawn by the generic `stamp`, and its landing is recorded in
+    /// `Placed::landed`; the volcano's streams continue from its outlets (`volcano::streams`). Only the volcano and the
+    /// bog tree keep their tiles out of the aprons marked before them (`Site::ground`: their legends'
+    /// `Legality::WallGround`, and the streams' own test); the church and the
     /// cave place their walls on any free wall tile (`Site::wall`). The rule that no landmark lies in another's apron is
     /// the end-of-attempt discard (`intact`). `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
     /// never built without it; the pipeline tries the next attempt), and so does a prefix without a zone's reserved site
@@ -723,9 +705,10 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// One zone's landmark in its reserved site, continuing the zone's signature stream the Prefix began there
-    /// (P-MAPGEN-SIG-RESERVE-1): drawn from its table entry by `stamp`, or (the volcano, the one entry without a drawing)
-    /// by `volcano::place`; its features written into `stage` and their terrain into `terrain`. Its frame (P-MAPGEN-
-    /// LANDMARK-FRAME-1): the anchor, for a drawing the landing and the landed marks, each written feature's kind and box
+    /// (P-MAPGEN-SIG-RESERVE-1): drawn from its table entry by `stamp` (one draw, the mirror), for the volcano then its
+    /// three streams and pools laid from its outlet runs (`volcano::streams`: one draw per run, in grid order) before
+    /// anything is written; its features written into `stage` and their terrain into `terrain`. Its frame (P-MAPGEN-
+    /// LANDMARK-FRAME-1): the anchor, the landing and the landed marks, each written feature's kind and box
     /// in write order, and every written tile ascending (the last writer's tile and terrain where pieces overlap, as the
     /// layers hold them); `None` refuses (no slot, no reserved site, or the site cannot hold the landmark). `halo` is
     /// every prefix camp's certifier halo (`camp_halo`).
@@ -765,26 +748,24 @@ impl<'f> SignatureContext<'f> {
             protect: &stage.protect,
             apron: &stage.masks.near1,
             halo,
-            // The volcano's streams and pools leave its site: only its cone is confined (`volcano::place`).
-            inner: (zone != Zone::Fire).then_some(corners),
+            inner: Some(corners),
         };
-        let (built, landing, marks) = match spec.drawing {
-            Some(_) => {
-                let target = Target {
-                    inner,
-                    camp: r.camp.map(|t| ((t % W) as i32, (t / W) as i32)),
-                };
-                let (built, landing, marks) =
-                    stamp(&site, &mut rng, spec, drawing.as_ref(), &target)?;
-                (built, Some(landing), marks)
-            }
-            None if zone == Zone::Fire => (
-                volcano::place(&site, &prefix.layout.camps, &mut rng, corners)?,
-                None,
-                Vec::new(),
-            ),
-            None => return None,
+        let target = Target {
+            inner,
+            camp: r.camp.map(|t| ((t % W) as i32, (t / W) as i32)),
         };
+        let (mut built, landing, marks) = stamp(&site, &mut rng, spec, drawing.as_ref(), &target)?;
+        if zone == Zone::Fire {
+            // P-MAPGEN-SIG-SCALE-4: the three streams continue from the cone's outlet runs, before anything is written
+            // (after the write, `near1` holds the cone's own apron). They leave the site: their `Site` is unconfined.
+            let open = Site {
+                inner: None,
+                ..site
+            };
+            let bp = drawing.as_ref()?;
+            volcano::streams(&open, &mut rng, bp, spec, &landing, &mut built)?;
+        }
+        let landing = Some(landing);
         let mut features = Vec::with_capacity(built.pieces.len());
         let mut wrote: Vec<(u32, u8, u8)> = Vec::new();
         for piece in &built.pieces {
@@ -895,8 +876,8 @@ impl<'f> SignatureContext<'f> {
 
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
     /// of it): every tile a member feature owns lies in the feature's zone and holds what the table writes there
-    /// (`owned`: the legend's walls, LOW and floor with their terrain; the volcano's hand list), every entrance tile is
-    /// floor; no styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
+    /// (`owned`: the legend's walls, LOW and floor with their terrain; the streams' and pools' list, `volcano::owned`),
+    /// every entrance tile is floor or owned by its zone's landmark; no styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
     /// (`aprons_apart`). A pure predicate: it draws nothing and changes nothing. The stylers' own end-of-attempt rules
     /// (the Frost lake, the Plague pools) are not judged here: the pipeline runs them after this and the certifier
     /// (`style_zones::guarantees`, P-MAPGEN-GUARANTEES-1).
@@ -925,10 +906,19 @@ impl<'f> SignatureContext<'f> {
                     .iter()
                     .any(|&(tile, want)| tile == t && want.is_none_or(|w| w == terrain))
         });
+        // An entrance tile is floor, or a tile its own zone's landmark owns (the volcano's lava outlets,
+        // P-MAPGEN-SIG-SCALE-4), whose value `owned_ok` has judged.
+        let own = |a: &ZoneAnchor, i: usize| {
+            usize::from(map.feature_grid[i])
+                .checked_sub(1)
+                .and_then(|k| map.features.get(k))
+                .and_then(|f| self.entry_of(f.kind))
+                .is_some_and(|e| self.landmarks[e].0.zone == a.zone)
+        };
         let door_ok = map.anchors.iter().all(|a| {
             a.entrance
                 .iter()
-                .all(|p| at(p.x, p.y).is_some_and(|i| map.tiles[i] == TILE_FLOOR))
+                .all(|p| at(p.x, p.y).is_some_and(|i| map.tiles[i] == TILE_FLOOR || own(a, i)))
         });
         // Styler floor claims (`style_runtime` transactions) do not read `no_block`: a styler feature owning a tile of
         // a landmark's apron discards the map (G1: steps 3 and 4 build around the landmark, never into it).
@@ -1070,7 +1060,9 @@ fn camp_halo(frame: &AttemptFrame) -> Vec<u8> {
 /// 7. each feature of the entry, in its order, owns the tiles its glyphs write, sorted by tile index.
 ///
 /// The anchor: centre `t`, footprint the landing's box, front `front(t)`, entrance the entry's entrance rule landed,
-/// row-major (by y, then x) without repeats; `FeatureAnchor::EntranceMiddle` reads the landed entrance in the drawing's
+/// row-major (by y, then x) without repeats. The volcano's centre is the site's centre tile: one of the drawing's four
+/// middle crater-lake tiles (14|15, 14|15), which one depending on the orientation, so `front == front(centre)` holds
+/// for it as for every anchor (P-MAPGEN-SIG-SCALE-4); `FeatureAnchor::EntranceMiddle` reads the landed entrance in the drawing's
 /// grid order (index `len / 2`), as before the sort. Pure but for the one draw.
 fn stamp(
     s: &Site<'_>,
@@ -1217,8 +1209,8 @@ pub(crate) struct Site<'a> {
     /// The certifier's camp halo of every camp (no wall may stand there).
     halo: &'a [u8],
     /// P-MAPGEN-SIG-RESERVE-1: the zone's reserved site less its apron (x0, y0, x1, y1 inclusive), which confines
-    /// `floor` (and with it `wall` and `ground`) for every landmark drawn from the table; `None` for the volcano, whose
-    /// streams and pools leave the site (`volcano::place` confines its cone itself).
+    /// `floor` (and with it `wall` and `ground`) for every landmark drawn from the table; `None` for the volcano's
+    /// streams and pools, which leave the site (`volcano::streams`).
     inner: Option<(i32, i32, i32, i32)>,
 }
 
