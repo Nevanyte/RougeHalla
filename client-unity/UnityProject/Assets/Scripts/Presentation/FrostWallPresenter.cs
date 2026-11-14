@@ -91,9 +91,8 @@ namespace Roguehalla.Client
                 int o = q * 4;
                 if (_c[o].r == col.r && _c[o].g == col.g && _c[o].b == col.b && _c[o].a == col.a) return;
                 _c[o] = col; _c[o + 1] = col; _c[o + 2] = col; _c[o + 3] = col;
-                // The project is in Linear colour space and the unlit sprite material reads mesh vertex colours as linear values, so an sRGB
-                // constant written as is renders lifted and washed out: convert here (alpha stays as is) so a constant renders as its own hex.
-                var lin = ((Color)col).linear; lin.a = col.a / 255f;
+                // sRGB constants are converted to linear for the raw vertex colours (see SrgbMeshColors).
+                var lin = SrgbMeshColors.ToLinear(col);
                 _l[o] = lin; _l[o + 1] = lin; _l[o + 2] = lin; _l[o + 3] = lin; _colorsDirty = true;
             }
             public void UploadShape() { Mesh.SetVertices(_v); }
