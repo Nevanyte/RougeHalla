@@ -215,9 +215,13 @@ Red today, each on an assertion (or a named "fixture missing" failure):
 | rh-server `a_protocol_18_hello_is_welcomed_with_protocol_18` | the 18 Hello is answered `ProtocolMismatch` |
 | C# `CodecSpeaksProtocol18` | `Expected: 18 But was: 17` |
 | C# `V18FixtureExistsAndItsHelloSays18` | `Assert.IsTrue(File.Exists(.../v18.json))` |
-| C# `AProtocol17WelcomeIsRefusedAndA18WelcomeAccepted` | the 17 Welcome reaches `InMatch` (expected `Failed`) |
-| JS `probe.html speaks protocol 18 and v18.json exists` | `const PROTOCOL = 17` vs 18 |
+| C# `AProtocol17WelcomeIsRefusedAndA18WelcomeAccepted` | "the Hello says 18": `Expected: 18 But was: 17` (then: a 17 Welcome must end `Failed` with "server protocol 17", an 18 Welcome `InMatch`) |
+| JS `probe.html speaks protocol 18 and its codec block is marked v18` | `probe.PROTOCOL` 17 vs 18 (then: the marker `// ---- protocol v18 ` exists) |
 | JS `the probe decodes the v18 Hello and Welcome as protocol 18` | `v18.json` missing (`existsSync` assertion) |
+| JS `the reload proof reads the v18 Hello and Welcome metadata as protocol 18` | `v18.json` missing; with v18 present and `wire-metadata.js` unmoved, `status` `unavailable` (unsupported-protocol) vs `metadata` |
+
+Checked on a scratch `v18.json` generated at 18 and removed again (never committed): the two Rust fixture tests and the
+JS probe-decode test go green with it; the version pins stay red until the constants move.
 
 ## 9. Validation commands
 
