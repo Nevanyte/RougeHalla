@@ -244,3 +244,23 @@ moves (expected). The certifier row change applies to every option-on map; optio
 - `tests/content.rs` rejects a new `const` holding the grid.
 
 ## Notes from previous attempts
+
+## Notes from the coordinator (cross-session, 2026-11-13 evening), recorded by the land-generation session
+- **What the Unity art reads (P-UNITY-LANDMARK-*, built against `church.txt`).** It finds the building as the largest
+  8-connected wall group in the anchor's footprint, and the door as one contiguous run of non-wall tiles on that
+  group's box border, off the corners. The anchor's `entrance` is the five main-gate tiles. The headstone groups are
+  2 wide by 3 tall (four groups of six) and the pillar blocks are separate wall groups inside the building's box. All
+  of this follows from the tiles being the drawing; nothing may be written beside the drawing that would make another
+  wall group larger than the building or open a second gap on the building's border.
+- **The wire guard.** `crates/rh-server/tests/map_anchor_seeds.rs` (on `feature/unity-rework` from `cbe6d639b`) checks
+  seeds 1-8 anchors against every wire rule: centre strictly inside the footprint, entrances on the map, kind code
+  known. This packet must keep it green; this branch is rebased onto the integration head before implementation.
+- **The refusal guard.** `todays_landmarks_are_never_refused_round_on_seeds_1_to_32`
+  (`crates/rh-sim/tests/mapgen_style_refusal.rs`, P-MAPGEN-STYLE-REFUSE-1) must stay green as written if guards (i)
+  and (ii) hold. Nothing in production notices `StyleLandmark` refusals becoming frequent (the trace stops at
+  `Spawns`; `certified_styled` and the map pool drop the reason), so that test is the only watch. If this packet
+  legitimately produces door refusals, the guard changes only to a bound plus a digest pin, with the owner's approval
+  through the coordinator.
+- **Open with the owner (land-generation session's chat):** the lane-fence share floor. With the box, the lanes alone
+  measure 0.529 against 0.6; the drawing itself holds 106 fence tiles (74 on the churchyard's outer rows, 32 round the
+  plots) that `mapgen_land_sentenced.rs` does not count.
