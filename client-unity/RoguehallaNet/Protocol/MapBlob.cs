@@ -77,7 +77,7 @@ namespace Roguehalla.Net.Protocol
         const byte Presence2Patience = 0x01, Presence2Anchors = 0x02, KnownPresence2 = 0x03;
         /// <summary>Six decodable planes (collision, terrain, regions, bushes, ground variants, patience), as Rust's
         /// MAX_DECODED_PLANES and MAX_CUMULATIVE_RUNS.</summary>
-        const long MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles, MaxPlaneRuns = 6L * Wire.MaxMapTiles;
+        const long MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles;
         const byte TerrainPresent = 0x01, RegionPresent = 0x02, CampsPresent = 0x04, ColiseumPresent = 0x08,
             BushesPresent = 0x10, PropsPresent = 0x20, GroundVariantsPresent = 0x40, KnownPresence = 0x7f;
         public const int MaxCamps = 64, MaxColiseumGates = 8, MaxGateTiles = 16, MaxProps = 8192;
@@ -793,7 +793,7 @@ namespace Roguehalla.Net.Protocol
             extension.End();
             if ((long)total * (1 + CountPresent(presence) + ((presence2 & Presence2Patience) != 0 ? 1 : 0)) > MaxDecodedPlaneBytes)
                 throw BadMap("decoded bytes");
-            if (countedRuns > MaxPlaneRuns) throw BadMap("run count");
+            if (countedRuns > Wire.MaxMapRuns) throw BadMap("run count");
             return new GroundHeader
             {
                 Version = version, Presence = presence, Presence2 = presence2, TerrainMode = terrainMode,
@@ -1004,7 +1004,7 @@ namespace Roguehalla.Net.Protocol
         {
             CheckRunCount(runs, total, available);
             ulong sum = (ulong)accumulated + runs;
-            if (sum > (ulong)MaxPlaneRuns) throw BadMap("run count");
+            if (sum > (ulong)Wire.MaxMapRuns) throw BadMap("run count");
             return (uint)sum;
         }
 

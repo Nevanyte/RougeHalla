@@ -41,7 +41,8 @@ namespace Roguehalla.Client
         {
             var g = new PlagueGround(map != null ? map.W : 0, map != null ? map.H : 0);
             if (map == null || map.Regions == null || map.Tiles == null) return g;
-            int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;
+            int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = RegionMap.EffectiveTerrain(map);
+            bool dressed = RegionProps.IsDressed(map);   // the server dresses the ground: no noise water or mud of our own
             for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
             {
                 int i = y * w + x;
@@ -49,6 +50,7 @@ namespace Roguehalla.Client
                 if (terrain != null && terrain[i] != 0) continue;
                 byte k = Raw(x, y);
                 if (k == Water && NearBog(terrain, w, h, x, y)) k = Mud;       // keep water visibly apart from the bog hazard
+                if (dressed && k != Grass) k = Grass;
                 g.Kind[i] = k;
                 if (k == Mud) g.MudTiles++; else if (k == Grass) g.GrassTiles++; else g.WaterTiles++;
             }
