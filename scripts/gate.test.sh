@@ -227,6 +227,10 @@ rc=0; out="$(kg "$two")" || rc=$?
 if [[ $rc -eq 1 && "$out" == *"GATE FAIL: alpha"* && "$out" != *"== beta"* && "$out" != *"== gamma"* && "$out" != *"GATE PASS"* ]]; then ok "without --keep-going the first failing step ends the run"
 else bad "fail fast (rc=$rc)" "$out"; fi
 
+# Quick mode runs the Unity tool tests (which hold the docs tests) when a doc they read changes.
+if grep -qE "if has '[^']*\^docs/unity/[^']*'; then unity_tool_tests; fi" "$SRC/scripts/gate.sh"; then ok "quick mode: a change under docs/unity/ runs the Unity tool tests (the docs tests)"
+else bad "quick mode docs selection" "the quick-mode line that runs unity_tool_tests does not select ^docs/unity/"; fi
+
 echo
 echo "$PASSES passed, $FAILS failed"
 [[ $FAILS -eq 0 ]]

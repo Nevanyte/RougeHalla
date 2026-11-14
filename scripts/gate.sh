@@ -386,7 +386,9 @@ fi
 if [[ "$MODE" == quick ]]; then
   run "rustfmt" cargo fmt --all -- --check
   # Same relative order as full mode: the cheap area checks first, then the crates, the parity report, EditMode.
-  if has '^client-unity/UnityProject/Tools/'; then unity_tool_tests; fi
+  # The tool tests include the docs tests, which read docs/unity/*.md: a dial row or a round note must fail here,
+  # in an implementer's quick gate, not eighty minutes into the coordinator's full gate (integrations 40 and 43).
+  if has '^client-unity/UnityProject/Tools/|^docs/unity/|^client-unity/UnityProject/Assets/Editor/Look/'; then unity_tool_tests; fi
   if has '^crates/rh-protocol/|^protocol/fixtures/|^tools/protocol-js/'; then jsvectors; fi
   if has '^crates/rh-protocol/|^protocol/fixtures/|^crates/rh-server/web/|^tools/unity-browser-reload-proof/'; then reload_proof_tests; fi
   if has '^client-unity/RoguehallaNet|^protocol/fixtures/'; then csharp; fi
