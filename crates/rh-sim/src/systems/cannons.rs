@@ -44,9 +44,10 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
     let Some(landing) = cx.w.containers[i].target else {
         return;
     };
-    // The source silently declines a blocked landing; this is not a refusal toast.
+    // The source silently declines a blocked landing; this is not a refusal toast. A standing wall blocks it too
+    // (legacy `collisionMap` carries the barrier overlay, P-FROST-WALL-1c).
     if !crate::geometry::circle_clear(
-        cx.k.collision_map(cx.w.rt.gates_locked),
+        crate::barriers::body_map(cx.k, &crate::barriers::held(cx.w), cx.w.rt.gates_locked),
         landing,
         PLAYER_RADIUS,
         MASK_MOVE,

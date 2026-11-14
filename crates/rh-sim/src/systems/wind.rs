@@ -58,7 +58,9 @@ pub(crate) fn update(cx: &mut Cx) {
             continue;
         }
         let at = cx.w.containers[i].at;
-        let map = cx.k.collision_map(cx.w.rt.gates_locked);
+        // An emblem under a standing wall is not taken from beside it (P-FROST-WALL-1c).
+        let held = crate::barriers::held(cx.w);
+        let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
         let mut best: Option<(f64, u32, usize)> = None;
         for (slot, p) in cx.w.players.iter().enumerate() {
             if !p.standing() {
@@ -105,7 +107,9 @@ pub(crate) fn update(cx: &mut Cx) {
     if count >= WIND_EMBLEM_LIMIT {
         return;
     }
-    let map = cx.k.collision_map(cx.w.rt.gates_locked);
+    // A candidate on a standing wall is rejected and the stream draws again, as legacy's `collisionMap` does.
+    let held = crate::barriers::held(cx.w);
+    let map = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
     let (mw, mh) = (f64::from(map.w), f64::from(map.h));
     for _ in 0..40 {
         let x = ((cx.w.wind_rng.next_f64() * mw).floor() + 0.5) * TILE;
