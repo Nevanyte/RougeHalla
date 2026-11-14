@@ -115,7 +115,8 @@ pub struct MapRect {
 
 /// P-WIRE17-MAP-3: most landmark anchors in a map (one per zone, five zones).
 pub const MAX_MAP_ANCHORS: usize = 5;
-/// P-WIRE17-MAP-3: most entrance tiles per anchor (today 3: the cave mouth, the church door; the church's main gate is 5).
+/// P-WIRE17-MAP-3: most entrance tiles per anchor (the cave's mouth is 3; the bog tree's three causeways are 6; the
+/// church's main gate is 5, the volcano's three outlets 6, the Holy hall's nave end 7).
 pub const MAX_ANCHOR_ENTRANCE: usize = 16;
 /// P-WIRE17-MAP-3: the wire's landmark kind codes (a table, not `rh_sim::mapdata::FeatureKind`'s ordinal, so a kind appended
 /// in the sim never shifts a wire value). Every other code is refused (`"anchor kind"`).
