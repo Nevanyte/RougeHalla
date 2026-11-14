@@ -32,7 +32,7 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 | G6 | **Seeded, local randomness.** Every choice is drawn from a stream of (map seed, attempt, zone, step). |
 | G7 | **Clusters and edges, not scatter.** |
 | G8 | **Legacy stays reachable.** With the option off the generator's output is byte-identical to today's. |
-| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`), the Plague bog tree (P-MAPGEN-SIG-SCALE-3, decision 4: `docs/landmarks/blueprints/bog.txt`) and the Sentenced church (P-MAPGEN-SIG-SCALE-2, decision 5: `docs/landmarks/blueprints/church.txt`). Not yet built: decision 10 and the Holy hall describe today's variable shapes until P-MAPGEN-SIG-SCALE-4 and P-MAPGEN-SIG-HOLY-1 land. |
+| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`), the Plague bog tree (P-MAPGEN-SIG-SCALE-3, decision 4: `docs/landmarks/blueprints/bog.txt`) and the Sentenced church (P-MAPGEN-SIG-SCALE-2, decision 5: `docs/landmarks/blueprints/church.txt`). Built for the Fire volcano with its three streams (P-MAPGEN-SIG-SCALE-4, decision 10: `docs/landmarks/blueprints/volcano.txt`). Not yet built: the Holy hall describes today's variable shape until P-MAPGEN-SIG-HOLY-1 lands. |
 | G10 | **Every thematic obstacle is placed by a rule that reads the landmark** (its anchor, bands and front). No styler lays its obstacles as if the landmark were not there. Built for Fire's craters and Frost's first lake; the rest is the land-generation task (`P-LAND-*`). |
 
 ## Decision
@@ -129,38 +129,46 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 7. **Anchors (G3).** `GameMapData.anchors` only, zone-code order, omitted from JSON when empty. They are not on the
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
-   decoration bake reads them from the generator's map at pool-build time. Fire the volcano (centre the cone's centre,
-   footprint the cone's box), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree (centre the site's centre tile, footprint the blueprint's 29 x 29 box, the six
+   decoration bake reads them from the generator's map at pool-build time. Fire the volcano (centre the site's centre tile, a
+   crater tile; footprint the blueprint's 30 x 30 box; the six outlets as entrance), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree (centre the site's centre tile, footprint the blueprint's 29 x 29 box, the six
    causeway openings as entrance), Holy
    the largest `Hall` (written when the map is finished: the hall is placed by the Holy styler in step 3), Frost the
    cave (centre the camp tile, footprint the blueprint's 29 x 29 box, the mouth as entrance). Not in the
    map hash (they restate hashed features). `rh-map/2` does not move: older readers refuse a document with anchors, which exists only inside an
    option-on server.
 8. **Bands (G4).** `signature::band(anchor, x, y)`: Chebyshev distance from the footprint, core <= 2, near <= 6,
-   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10), the Frost styler for its mere
+   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10; since P-MAPGEN-SIG-SCALE-4 the footprint is the 30 x 30 cone,
+   so the bands sit about 12 tiles farther out than round the old 5 x 5 cone), the Frost styler for its mere
    (decision 11); the other stylers and `rh-mapdress` from `P-MAPGEN-SIG-STYLE-1` on.
 9. **Server.** `--map-pool --signature-landmarks` sets the generator option and nothing else: the served map is the
    generator's own map, exported. The `rh-server` post-pass (`signature.rs`, which last built the Frost cave as a rock
    arch on 9 of 16 maps) is deleted (P-MAPGEN-SIG-FROST-1).
 10. **Fire, the volcano** (`Volcano`, job landmark; `LavaStream` and `LavaPool`, job crossing; certifier rows in
-   `SIGNATURE_KINDS`). A cone of wall (squared distance <= 6 from the centre tile: a 5x5 box) round a lava crater
-   (squared distance <= 1), its centre at least 2 tiles farther from the map centre than the Fire zone's centroid (the
-   back edge). Two or three streams, two lava tiles wide, start beside the cone and run toward the coliseum: headings
-   fanned within 67.5 degrees of the front (DIR16 steps -2/+2, -3/+1, -1/+3 for two; -3/0/+3 and neighbours for three),
-   15-22 path tiles each for two streams, 9-14 for three. A stream is a line through free ground (Fire floor outside
-   the legacy landmark protection, which holds the camp clearings, the camp halos and every apron); where blocked it
-   bends one direction step at a time (at most two from its own heading, three from the front) or stops. Each path
-   tile is paired with the 4-neighbour across the heading it was entered with, and a neck left at a turn (a tile whose
-   run of the stream's lava is 1 along one axis and 3 or more along the other, or a tile in no 2x2 window of 3) is
-   filled beside it where free; a stream that cannot be made two tiles wide so is cut a tile shorter
-   (P-MAPGEN-SIG-FIRE-2). It ends in a lava pool (squared radius 4, else 2; at least 6 lava tiles with a 2x2 block) touching its last tile, which is
-   nearer the coliseum than the volcano centre. Streams and pools keep 3 tiles from each other except beside the cone.
-   Ember floor edges every stream and pool, owned by it. A site is used only with at least two streams, total lava
-   (crater, streams, pools) within 80-150 tiles (the legacy river held 107-158), and the zone's floor unsplit. Site
-   choice: the back-edge centres whose cone fits (with a reserved site, decision 12, a cone wholly in the site's inner
-   rect; the streams and pools are not confined), in tiers by the cone's distance from every Fire camp (at least 12,
-   9, 6 tiles), 24 uniform draws per tier. The Fire styler (`style_scorch`) learns signature mode from the `Volcano`
-   feature in its zone (no new styler input): it places no lava river, and a crater (a camp's pen; it cannot move)
+   `SIGNATURE_KINDS`). The owner-approved blueprint (G9; P-MAPGEN-SIG-SCALE-4, requirements L1 and L4):
+   `docs/landmarks/blueprints/volcano.txt`, 30 x 30 tiles, carried byte-equal in the crate as `signature/volcano.txt`
+   (`Definition::volcano_grid`). `#`, `X`, `H` (foot, slope, rim) are wall, `~` (the crater lake and three channels)
+   and `O` (the six outlets, three runs of two on the front row, a named mark) LOW lava, `.` floor in the cut corners;
+   every written glyph `Legality::WallGround` (off the legacy protection and the aprons marked before, as the old cone).
+   Placed by the generic stamp, `Placement::Centre`: the box is the Fire site's 30 x 30 inner rect, in one of eight
+   orientations (one mirror draw), front toward the coliseum; the anchor's centre is the site's centre tile (one of the
+   four middle crater tiles), its entrance the six outlets (`intact` accepts an entrance tile its own landmark owns).
+   Exactly three streams, laid after the stamp and before anything is written (`volcano::streams`): one per outlet
+   run, in grid order (one length draw per run, left, middle, right as drawn), heading the run's
+   `Definition::outlet_heading` turned with the drawing (45 degrees left, straight ahead, 45 degrees right), two lava
+   tiles wide, the first pair continuing the run's outlets. A stream is a line through free ground (Fire floor outside
+   the camp halos and every apron; not the legacy landmark protection, which reaches into the site's apron ring in
+   front of the outlets); where blocked it bends one direction step at a time (at most two from its own heading, three
+   from the front) or ends sooner. Necks at turns are filled as before (P-MAPGEN-SIG-FIRE-2); a band that is not one
+   4-connected piece is cut shorter. It ends in a lava pool (squared radius 4, else 2; at least 6 lava tiles with a 2x2
+   block). Its length (1 + the fewest 8-connected steps through its lava from its run to its pool) lies in its run's
+   `outlet_len` (sides 10-14, middle 14-18); the middle is laid first and the sides are held below it, so it is
+   strictly the longest. Streams and pools keep 3 tiles from each other (not asked within squared distance 20 of a
+   run) and never touch; the pools fan out (beyond the front row, the side pools on their own sides, the middle one
+   within 45 degrees of straight ahead). Ember floor edges every stream and pool, owned by it. An attempt is used only
+   with all three streams, total lava (cone, streams, pools) within `lava_budget` (PROVISIONAL 240-310), and the
+   zone's floor unsplit by the cone with its streams and pools; otherwise it is refused (`Refusal::Signature`), never
+   served with fewer streams. The Fire styler (`style_scorch`) reads the frame's anchor: it places no lava river, and
+   a crater (a camp's pen; it cannot move)
    takes its size from its camp's band, fixed before any pen is drawn (P-MAPGEN-SIG-FIRE-2): the band of
    `dc - ceil(R / 4)`, `dc` the camp tile's distance from the footprint and `R` its largest radius option (the radius
    options are R, R - 4, R - 8 quarter tiles, those at least the minimum). Near takes the largest option, mid the
