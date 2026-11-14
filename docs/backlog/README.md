@@ -465,6 +465,8 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-UNITY-LANDMARK-5 | the Holy hall: 32 columns, an open nave, a roofed shrine | P-UNITY-LANDMARK-1 | Done (a8a2c4188; [spec](packets/P-UNITY-LANDMARK-5.md); review notes applied, columns redrawn) | none |
 | P-UNITY-LANDMARK-SEAMS-1 | the landmark framework survives a faulty art; an art can read special terrain and set its own cover (roof or canopy) | P-UNITY-LANDMARK-2, -3 | Done (ebd779375; [spec](packets/P-UNITY-LANDMARK-SEAMS-1.md); both notes applied) | none |
 | P-UNITY-ZONE-CONTRAST-1 | in the Plague and Sentenced zones the subjects stand apart from the ground and from each other (owner direction 2026-11-13: "very mono coloured") | P-UNITY-LANDMARK-1 to -5 | Brief ([spec](packets/P-UNITY-ZONE-CONTRAST-1.md)); needs oracle | client/src/render/palette.ts |
+| P-UNITY-LANDMARK-ROOF-RETURN-1 | a landmark roof comes back when nobody the viewer sees is inside (round 9: the cave roof stayed gone after leaving) | P-UNITY-LANDMARK-SEAMS-1 | Brief ([spec](packets/P-UNITY-LANDMARK-ROOF-RETURN-1.md)); needs oracle | none |
+| P-UNITY-GROUND-SAMPLERS-1 | the ground shader compiles for the Web target, so `build-web.sh` finishes (round 9: sampler limit exceeded on gles3) | none | Brief ([spec](packets/P-UNITY-GROUND-SAMPLERS-1.md)); needs oracle | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 
