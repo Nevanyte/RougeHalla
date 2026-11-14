@@ -79,3 +79,30 @@ The `Registry::new` and `State::new` `map_err(Error::Style)` sites, the test sea
 
 Plus this hand-off file. Oracle files (`pipeline/style_refusal_tests.rs`, `tests/mapgen_style_refusal.rs`, the brief)
 are unchanged against `packet/P-MAPGEN-STYLE-REFUSE-1`.
+
+## Review and fix (land-generation session, 2026-11-13)
+
+**reviewer-opus on `66b4528f6`: LAND WITH NOTES**, no blocking finding, two MINOR documentation notes, both applied
+in `bfa5f1392` on `agent/fable/P-MAPGEN-STYLE-REFUSE-1-fix` (stacked on this branch; documentation only: the styler
+runtime README now names `Error::Landmark` and its rule; two over-long lines rewrapped). **Merge the fix branch.**
+The full gate ran on the code tree before the notes; after them only the quick gate with
+`--oracle packet/P-MAPGEN-STYLE-REFUSE-1` was run (result in the message that hands this over).
+
+What the review established, by reading unless marked:
+- The refusal returns after the layers are moved back and before the Styler phase is observed, like the other early
+  refusals; no attempt state outlives `build_attempt`; no exhaustive `match` on `pipeline::Refusal` exists in the
+  workspace; the server's pool sees a refusal only as "try the next attempt". No draw moves.
+- Only the styler-pass result is matched; `Error::Landmark` has exactly two producers (`lanes.rs`, the two returns
+  in `frame`). Edge case, accepted: an attempt with both a door problem and a real fault reports the refusal; the
+  fault still shows on attempts whose door reads.
+- Option off cannot reach it. Run by the reviewer: `--lib style_refusal` 2 of 2, `--test mapgen_style_refusal` 5 of 5
+  ("27 refusals (0 StyleLandmark), 0 errors" for decor off and on).
+- The `#[cfg(test)]` seam cannot leak into a non-test build and masks no real path. The caveat stands: the proof is
+  in two halves (a made-up church returns `Landmark`; the seam shows the pipeline refuses on it), not end to end.
+- `todays_landmarks_are_never_refused_round_on_seeds_1_to_32` can be kept honestly by P-MAPGEN-SIG-SCALE-2 if its
+  guards (i) and (ii) hold; its let-out for owner approval should not be needed.
+- **This packet's sweep fully covers `crates/rh-sim/tests/mapgen_land_decor_attempts.rs`** (P-LAND-DECOR-ERRORS-1):
+  deleting that file after this merges loses no coverage. The deletion is the coordinator's to put to the owner.
+
+Proposed shared-record edits, beyond the backlog row above: `docs/coordination/LANDMARK_LANE_HANDOVER.md:16` still
+says "no oracle" and points at `pipeline/mod.rs:422`.
