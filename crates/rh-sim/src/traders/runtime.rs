@@ -96,18 +96,14 @@ fn coliseum_centre(k: &MatchStatic) -> Option<Vec2> {
     Some(Vec2::new(data.coliseum.centre.x, data.coliseum.centre.y))
 }
 
-fn line_of_sight(k: &MatchStatic, w: &World, from: Vec2, to: Vec2) -> bool {
-    crate::geometry::has_line_of_sight(
-        k.collision_map(w.rt.gates_locked),
-        from,
-        to,
-        crate::map::MASK_MOVE,
-    )
+/// `map` is the one map `traders.ts:103` reads (`collisionMap`, a standing wall included).
+fn line_of_sight(map: &crate::TileMap, from: Vec2, to: Vec2) -> bool {
+    crate::geometry::has_line_of_sight(map, from, to, crate::map::MASK_MOVE)
 }
 
-fn near(k: &MatchStatic, w: &World, player: &crate::state::Player, trader: &Trader) -> bool {
+fn near(map: &crate::TileMap, player: &crate::state::Player, trader: &Trader) -> bool {
     crate::math::hypot(player.body.x - trader.at.x, player.body.y - trader.at.y) <= TRADER_RANGE
-        && line_of_sight(k, w, player.pos(), trader.at)
+        && line_of_sight(map, player.pos(), trader.at)
 }
 
 /// Source `updateTraders` (the system): visitors freeze a villager and roll the broker's fixed stat offers; otherwise the
@@ -121,7 +117,9 @@ pub(crate) fn update(cx: &mut Cx) {
         w.traders = Some(rt);
         return;
     }
-    let map = k.collision_map(w.rt.gates_locked);
+    // One map for the visitor line, the path and the step, as `traders.ts:103`; an `Arc` clone frees `w` for the loop.
+    let held = crate::barriers::held(w);
+    let map = crate::barriers::body_map(k, &held, w.rt.gates_locked);
     let now = w.server_time;
     let dt = TICK_MS;
     let mut rng = w.reward_rng.clone();
@@ -132,7 +130,7 @@ pub(crate) fn update(cx: &mut Cx) {
         let mut visitor = false;
         let mut idle: Vec<PlayerId> = Vec::new();
         for p in &w.players {
-            if !p.standing() || !near(k, w, p, &rt.traders[ti]) {
+            if !p.standing() || !near(map, p, &rt.traders[ti]) {
                 continue;
             }
             visitor = true;
@@ -241,7 +239,7 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
     let from = cx.w.players[ix.slot()].pos();
     if crate::math::hypot(from.x - trader.at.x, from.y - trader.at.y) > TRADER_RANGE
         || !crate::geometry::has_line_of_sight(
-            cx.k.collision_map(cx.w.rt.gates_locked),
+            crate::barriers::body_map(cx.k, &crate::barriers::held(cx.w), cx.w.rt.gates_locked),
             from,
             trader.at,
             crate::map::MASK_MOVE,

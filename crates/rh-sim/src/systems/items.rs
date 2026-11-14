@@ -294,7 +294,11 @@ fn pickup_check(
         return Err(PickupRefusal::NothingThere);
     }
     let p = cx.w.core(ix).pos();
-    pickup_reach(cx.k.collision_map(cx.w.rt.gates_locked), p, c.at)?;
+    pickup_reach(
+        crate::barriers::body_map(cx.k, &crate::barriers::held(cx.w), cx.w.rt.gates_locked),
+        p,
+        c.at,
+    )?;
     if !point_visible(
         cx.k.collision_view(cx.w.rt.gates_locked),
         &cx.w.players[ix.slot()],

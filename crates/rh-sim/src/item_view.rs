@@ -129,7 +129,16 @@ fn eligible_quest_item(
         || sim.phase() != crate::Phase::Active
         || crate::status_runtime::action_blocked(&me.statuses, sim.server_time())
         || (c.born_tick != 0 && c.born_tick >= sim.tick())
-        || pickup_reach(&sim.collision_view(), me.pos(), c.at).is_err()
+        || pickup_reach(
+            crate::barriers::body_map(
+                &sim.k,
+                &crate::barriers::held(&sim.w),
+                sim.w.rt.gates_locked,
+            ),
+            me.pos(),
+            c.at,
+        )
+        .is_err()
     {
         return None;
     }
@@ -298,7 +307,10 @@ impl ItemObserver {
             return Ok(());
         };
         let from = me.pos();
+        // Sight reads the plain view (the wall does not stop it); the hand reach reads the wall (`loot.ts:146`).
         let map = sim.collision_view();
+        let held = crate::barriers::held(&sim.w);
+        let reach = crate::barriers::body_map(&sim.k, &held, sim.w.rt.gates_locked);
         let wards = crate::vision::WardSight::of_sim(sim);
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
@@ -361,7 +373,7 @@ impl ItemObserver {
             // cannon always offers it (its blast needs no item).
             if me.standing()
                 && (!c.items.is_empty() || c.kind == ContainerKind::Cannon)
-                && pickup_reach(&map, from, c.at).is_ok()
+                && pickup_reach(reach, from, c.at).is_ok()
             {
                 let dx = from.x - f64::from(cue.x) / 8.0;
                 let dy = from.y - f64::from(cue.y) / 8.0;
