@@ -6,6 +6,14 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 
 ## Integration 45 (2026-11-14): the volcano
 
+**Gate of 43+44 (`a9fc14972`, 50 minutes, the first with the dev `opt-level = 2` profile):** 21 of 22 steps green
+under `--keep-going`; red: "rh-server Postgres suite", one test, `runtime_admission`
+`source_endpoint_hello_planning_ready_and_live_quest_trade_state`, "socket open" (the server closed the socket; the
+test binary took 26 s where it takes 2.4 s alone; the machine's load average was about 12 from another session's
+builds). Re-run alone on the same tree with the gate's environment: the step is green twice (534 passed, 0 failed),
+and the test file six times. Treated as a load flake and listed for P-TEST-HARDEN-2; `a9fc14972` was not pushed on
+that evidence alone: 43, 44 and 45 are gated as one tree instead, and that run is the one that counts.
+
 Staged as `coord/int-45` on top of 44: **P-MAPGEN-SIG-SCALE-4** at `5b49a874b` (map generator session; the
 coordinator's reviewer-opus: REJECT at `ad3d47efc`, LAND at `5b49a874b` after the delta: `doors_intact` exact, one fan
 definition, the Plague gap pinned, comments corrected). DEV-038 records the three rule changes and what comes with
