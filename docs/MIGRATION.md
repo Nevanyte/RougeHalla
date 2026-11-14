@@ -4,6 +4,48 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-13 (chat, late night): the zones' real look is approved; what screenshot round 9 found
+
+**What the owner saw and said, in order.** (1) Editor renders of the five landmarks, made with a capture tool of the
+coordinator's (session scratchpad, not committed). They were far too dark: the tool wrote linear-space pixels to the
+image without the display conversion. On those the owner said: "very little visual contrast between subjects in both
+the plague and sentenced region. Very mono coloured", that the volcano "looks pretty good" but its streams all running
+one way read as awkward "unless the volcano is on edge of map and Lava flows outwards", and of Plague: "Bog can even be
+a light and more cheery bog, thinking a sunny bog in Florida or New Orleans area". (2) The coordinator found the error
+by comparing with the Web client (round 9, below), told the owner, and sent real screenshots and corrected renders,
+with the volcano against the map edge and its streams fanned as the drawing says (the Fire site is on the zone's back
+edge on 64 of 64 seeds). The owner answered: **"It looks way better the brighter version, I didn't mind the darker fire
+zone but for the most part everything looks amazing."**
+
+**What follows.** The zones' look in the running client stands. P-UNITY-ZONE-CONTRAST-1, briefed from the dark renders,
+is withdrawn unbuilt. Kept as a preference for when the bog tree is redrawn: Plague may lean toward a sunny southern
+swamp. The coordinator's rule from here: no picture from a capture tool goes to the owner before it has been compared
+with a screenshot of the Web client on the same tree.
+
+**Landmark art, on corrected renders.** Hall: reads well. Church: reads. Volcano: reads as a mountain with a lava fan.
+Cave: matches the Web client. Bog tree: the canopy reads as a heap of mossy boulders and no trunk shows: a redraw is
+owed (not briefed).
+
+**A rendering fault found by the renders.** `RegionSpriteLit` ignored the sprite renderer's colour in the editor
+(Unity 6 passes it as `unity_SpriteColor`; `RegionActorLit` already multiplied it), so prop fades and landmark roof
+fades did not reach the pixels there. Fixed by the coordinator (five shader lines and a source guard test), proven by
+re-rendering. In the Web build the roof did fade without the fix (round 9), so the fault was the editor path's.
+
+**Screenshot round 9** (Web build of `1ac2b2a76`, a local server with `--map-pool --signature-landmarks`; 49 shots in
+the session scratchpad, `shots9/`, with a report). Seen working for the first time: the cave in play (opaque from
+outside, fades on entering, ice floor and camp inside), decoration in all five zones, Plague with bog and the server's
+water and mud tints and no second water, the practice banner, the HUD staying after Tab in practice, the training
+console scrolling to its last row, cleared-camp respawn seconds in the world and on both maps, the GAINED strip.
+Defects: (1) the cave's roof does not come back after the player leaves (still gone 30 s later): P-UNITY-LANDMARK-ROOF-RETURN-1;
+(2) `Tools/build-web.sh` exits 1: Unity builds a working player, then the log check finds `RegionGround` over the
+16-sampler limit on gles3 in one variant: P-UNITY-GROUND-SAMPLERS-1 (it blocks the finish steps' Web build);
+(3) on today's small rule-drawn volcano the new art draws a dark checkered block (it goes when P-MAPGEN-SIG-SCALE-4
+lands); (4) hard-edged pink rectangles on the Fire ground and orange inside the church walls, not yet identified
+(the patience range or a ground-variant tint); (5) a grey tiled slab on the snow east of the cave; (6) the Tab map and
+minimap respawn numbers are small, and a ward label hides behind status icons. Not captured: the quest carrier's flag,
+a leash, and Sentenced, Plague or Holy played as the home faction. Practice cannot be entered in `diagnostic=1` mode
+(the button is disabled there): the round used accounts with a throwaway Postgres.
+
 ## Integrations 24 and 25 (2026-11-13, night): the wire carries landmark anchors, the Unity landmark framework, the replay fault fixed
 
 Identities unchanged: protocol 17 (18 stamped on the next deployed build), observation 29, policy contract 23,

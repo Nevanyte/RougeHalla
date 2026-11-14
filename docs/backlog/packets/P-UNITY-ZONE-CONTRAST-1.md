@@ -1,4 +1,10 @@
-# P-UNITY-ZONE-CONTRAST-1: in the Plague and Sentenced zones the subjects stand apart from the ground and from each other
+# (WITHDRAWN) P-UNITY-ZONE-CONTRAST-1: in the Plague and Sentenced zones the subjects stand apart from the ground and from each other
+
+**Withdrawn 2026-11-13.** The renders this brief was written from were far darker than the game (the coordinator's
+capture tool wrote linear-space pixels without the display conversion). Shown real Web-client screenshots and corrected
+renders, the owner said "It looks way better the brighter version ... for the most part everything looks amazing". Nothing
+in this brief is to be built. What survives is a preference for Plague ("a light and more cheery bog ... sunny ...
+Florida or New Orleans") for when the bog tree is redrawn.
 
 - **Serves:** owner direction 2026-11-13 (chat, on the first real renders of the landmarks): "my core issue is that there
   is very little visual contrast between subjects in both the plague and sentenced region. Very mono coloured."; owner
