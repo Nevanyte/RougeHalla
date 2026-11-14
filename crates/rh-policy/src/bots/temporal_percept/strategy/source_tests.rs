@@ -1135,6 +1135,8 @@ fn parse_route_camp(v: &SVal) -> R<RouteCamp> {
         elite: boolv(v, "elite")?,
         spots: uint(v, "spots", u64::from(u32::MAX))? as u32,
         mob_type,
+        // Frozen corpus: legacy's RouteCamp (before a7b5c4ce) has no buff; the reward is unknown.
+        reward: String::new(),
         alive: uint(v, "alive", u64::from(u32::MAX))? as u32,
         state: {
             let state = uint(v, "state", 2)?;
@@ -1957,6 +1959,8 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
                 views.push(super::types::CampView {
                     index: uint(c, "index", u64::from(u32::MAX))? as usize,
                     type_: opt_text(c, "type")?,
+                    // Frozen corpus: legacy's CampState.reward is the clear-reward kind (always "" here), not a stat.
+                    reward: String::new(),
                     alive: uint(c, "alive", u64::from(u32::MAX))? as u32,
                     state: uint(c, "state", 2)? as u8,
                     respawn_at: c.opt_num("respawnAt", "respawnAt")?,

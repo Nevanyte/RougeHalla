@@ -593,6 +593,7 @@ pub(crate) fn strategy_percept(p: &Percept) -> Result<strat::StrategyPercept, Br
                 views.push(strat::CampView {
                     index: uint_field(row, "index", u32::MAX as u64)? as usize,
                     type_: optional_text_presence(row, "type")?,
+                    reward: optional_text_presence(row, "reward")?.unwrap_or_default(),
                     alive: uint_field(row, "alive", u32::MAX as u64)? as u32,
                     state: uint_field(row, "state", 2)? as u8,
                     respawn_at: match row.get("respawnAt") {

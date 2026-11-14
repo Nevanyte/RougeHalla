@@ -190,6 +190,11 @@ pub(crate) struct RouteCamp {
     pub elite: bool,
     pub spots: u32,
     pub mob_type: String,
+    /// P-BOT-BRAIN-THEMED-1: the stat this camp's normal kills pay as the seat's percept reports it
+    /// (`extras.camps[].reward`, the composer's HUD stat code: "offense", "soulOffense", "damage", "attackSpeed",
+    /// "lifeSteal", "health", "defense", "soulDefense", "moveSpeed"); any other text, "" included, is unknown. The
+    /// legacy (frozen-corpus) percept carries CampState.reward there, the clear-reward kind, always "" in the corpus.
+    pub reward: String,
     pub alive: u32,
     pub state: u8,
     pub respawn_at: f64,
@@ -340,6 +345,8 @@ pub(crate) struct StrategyContainer {
 pub(crate) struct CampView {
     pub index: usize,
     pub type_: Option<String>,
+    /// P-BOT-BRAIN-THEMED-1: `extras.camps[].reward` as delivered ("" when absent or undefined); see `RouteCamp::reward`.
+    pub reward: String,
     pub alive: u32,
     pub state: u8,
     pub respawn_at: Option<f64>,

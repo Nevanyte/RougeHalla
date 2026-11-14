@@ -2,9 +2,9 @@
 //! The static build table, value/type-weight and elite-readiness leaves are the existing source-derived pure helpers.
 use super::types::{RouteCamp, RouteStep};
 use crate::bots::build_route::{
-    build_of, ready_for_elites, type_weight, BuildGoal, CLEAR_MS_ELITE, CLEAR_MS_PER_MOB,
+    build_of, ready_for_elites, type_weight, BuildGoal, FarmStat, CLEAR_MS_ELITE, CLEAR_MS_PER_MOB,
     CONTEST_MS, CONTEST_PLAYER_RANGE, MAX_WAIT_MS, OWN_FIGHT_SLACK, REPLAN_MS, ROUTE_STEPS,
-    WALK_FACTOR, ZONE_AVOID_MS, ZONE_CONTESTS, ZONE_MEMORY_MS,
+    STAT_FLOOR, WALK_FACTOR, ZONE_AVOID_MS, ZONE_CONTESTS, ZONE_MEMORY_MS,
 };
 use rh_sim::{math, FactionId, Vec2};
 
@@ -243,6 +243,27 @@ impl BuildRoute {
     }
 }
 
+/// The farm stat a camp's percept reward names, when it is one of the composer's nine HUD stat codes (`compose14.rs`
+/// `HUD_STATS`, `rh-sim` `observe.rs` `hud_stat` read backwards); `None` for any other text (the frozen corpus's legacy
+/// clear-reward kind `"" | "?" | "skills" | "relic" | "cursed"`, or anything unknown).
+fn paid_stat(reward: &str) -> Option<FarmStat> {
+    Some(match reward {
+        "offense" => FarmStat::Ad,
+        "soulOffense" => FarmStat::Ap,
+        "damage" => FarmStat::Damage,
+        "attackSpeed" => FarmStat::AttackSpeed,
+        "lifeSteal" => FarmStat::Lifesteal,
+        "health" => FarmStat::MaxHp,
+        "defense" => FarmStat::Armor,
+        "soulDefense" => FarmStat::Shield,
+        "moveSpeed" => FarmStat::MoveSpeed,
+        _ => return None,
+    })
+}
+
+/// buildRoute.ts campValue as patched by `a7b5c4ce` (`typeWeight(this.build, c.buff || c.type || undefined)`): a camp is
+/// weighted by the stat its kills pay when the seat's percept names one (`RouteCamp::reward`), else by its mob type. A
+/// type's weight is its stat's weight, so with unthemed rewards every value is the by-type value, bit for bit.
 pub(crate) fn route_camp_value(build: &BuildGoal, c: &RouteCamp, elites: bool) -> f64 {
     if c.elite && !elites {
         return 0.;
@@ -253,8 +274,14 @@ pub(crate) fn route_camp_value(build: &BuildGoal, c: &RouteCamp, elites: bool) -
         f64::from(c.alive)
     };
     let normals = if c.elite { (mobs - 1.).max(0.) } else { mobs };
-    let mob_type = (!c.mob_type.is_empty()).then_some(c.mob_type.as_str());
-    let mut value = normals * type_weight(build, mob_type);
+    let weight = match paid_stat(&c.reward) {
+        Some(stat) => build.weight(stat).max(STAT_FLOOR),
+        None => type_weight(
+            build,
+            (!c.mob_type.is_empty()).then_some(c.mob_type.as_str()),
+        ),
+    };
+    let mut value = normals * weight;
     if c.elite && mobs > 0. {
         value += crate::bots::build_route::ELITE_VALUE;
     }

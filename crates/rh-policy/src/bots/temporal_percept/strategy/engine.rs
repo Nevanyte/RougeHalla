@@ -5,9 +5,9 @@ use super::hunt_adapter::{HuntAdapter, HuntAdapterOptions};
 use super::mob_hunt::HuntDecision;
 use super::types::RngStream;
 use super::types::{
-    goal_json_eq, goal_key, lookup, odds, AttackFn, Enemy, Goal, GoalDecision, GoalKind, GoalState,
-    GoalStatus, HoldWhy, LogFn, RoamWhy, RouteCamp, RouteStep, StrategyContext, StrategySelf,
-    StrategyState,
+    goal_json_eq, goal_key, lookup, odds, AttackFn, CampDef, CampView, Enemy, Goal, GoalDecision,
+    GoalKind, GoalState, GoalStatus, HoldWhy, LogFn, RoamWhy, RouteCamp, RouteStep,
+    StrategyContext, StrategySelf, StrategyState,
 };
 use crate::bots::build_route::{ready_for_elites, type_weight};
 use crate::bots::mob_hunt::{best_edge, is_ranged};
@@ -1190,31 +1190,7 @@ impl Strategy {
                 unit_hash(ctx.cfg.seed, &ctx.cfg.id),
             ));
         }
-        let mut camps = Vec::new();
-        for v in views {
-            let Some(def) = ctx.cfg.map.camps.get(v.index) else {
-                continue;
-            };
-            let mob_type = v
-                .type_
-                .as_deref()
-                .and_then(rh_sim::mob_catalog::mob_type_by_id)
-                .map_or_else(String::new, |t| t.id.as_str().to_string());
-            camps.push(RouteCamp {
-                index: v.index as u32,
-                id: def.id.clone(),
-                zone: def.zone,
-                x: def.x,
-                y: def.y,
-                r: def.r,
-                elite: def.elite_spot >= 0.,
-                spots: def.spots.len() as u32,
-                mob_type,
-                alive: v.alive,
-                state: v.state,
-                respawn_at: v.respawn_at.unwrap_or(0.),
-            });
-        }
+        let camps = route_camps(views, &ctx.cfg.map.camps);
         let players: Vec<Vec2> = ctx
             .p
             .fighters
@@ -1835,4 +1811,36 @@ fn source_pick_option(
         return (order[k].1, true);
     }
     (source_softmax_index(rng, utilities, temperature), false)
+}
+
+/// The route's camps (strategy.ts:711-718): each camp view the map defines, its geometry from the map and its state and
+/// reward from the percept. P-BOT-BRAIN-THEMED-1 carries the percept's `reward` through unchanged.
+pub(crate) fn route_camps(views: &[CampView], defs: &[CampDef]) -> Vec<RouteCamp> {
+    let mut camps = Vec::new();
+    for v in views {
+        let Some(def) = defs.get(v.index) else {
+            continue;
+        };
+        let mob_type = v
+            .type_
+            .as_deref()
+            .and_then(rh_sim::mob_catalog::mob_type_by_id)
+            .map_or_else(String::new, |t| t.id.as_str().to_string());
+        camps.push(RouteCamp {
+            index: v.index as u32,
+            id: def.id.clone(),
+            zone: def.zone,
+            x: def.x,
+            y: def.y,
+            r: def.r,
+            elite: def.elite_spot >= 0.,
+            spots: def.spots.len() as u32,
+            mob_type,
+            reward: v.reward.clone(),
+            alive: v.alive,
+            state: v.state,
+            respawn_at: v.respawn_at.unwrap_or(0.),
+        });
+    }
+    camps
 }

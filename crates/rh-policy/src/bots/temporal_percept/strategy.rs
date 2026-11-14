@@ -13,6 +13,12 @@ pub(super) use engine::{Strategy, StrategyOptions};
 // `pub(crate)` hunt mob record to emit the exact source `paths.walk` callback argument. Parent-visible only; the child
 // module stays private and no engine/algorithm behavior changes.
 pub(super) use mob_hunt::HuntMobLike;
+// P-BOT-BRAIN-THEMED-1 oracle bridge: the Brain's composed-percept test (`brain/themed_camp_tests.rs`) values the route's
+// camps exactly as the planner does. Test-only.
+#[cfg(test)]
+pub(super) use build_route::{route_camp_value, BuildRoute, RouteInput};
+#[cfg(test)]
+pub(super) use engine::route_camps;
 #[cfg(test)]
 mod private_strategy_tests;
 #[cfg(test)]
