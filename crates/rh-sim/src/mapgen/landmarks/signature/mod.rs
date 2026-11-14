@@ -125,6 +125,19 @@ pub struct Definition {
     /// grid, front (toward the coliseum) at the bottom. Parsed as `cave_grid`; a grid that does not parse refuses every
     /// option-on attempt at the church (`Refusal::Signature`).
     pub church_grid: &'static str,
+    /// P-MAPGEN-SIG-SCALE-4: the Fire volcano's approved blueprint (owner decision 2026-11-13, requirements L1 and L4;
+    /// ADR 0028 G9), the text of `volcano.txt` beside this file, a byte-equal copy of
+    /// `docs/landmarks/blueprints/volcano.txt` (as `cave_grid`). Lines starting `;` are its legend; the rest is the 30 x 30
+    /// grid, front (toward the coliseum) at the bottom, its six outlet tiles `O` in three runs of two on the front row.
+    /// Stub: not read yet (the Fire table entry has no drawing until the packet lands).
+    pub volcano_grid: &'static str,
+    /// P-MAPGEN-SIG-SCALE-4: per outlet run of the volcano drawing, in grid order (left, middle, right: ascending `gx`),
+    /// the stream's heading as a grid direction (front = `(0, 1)`; turned with the drawing by `Orientation::turn`) and
+    /// its path length range in tiles (inclusive; two lava tiles per path tile). The owner's numbers (requirement L4):
+    /// the side streams 45 degrees off straight ahead, 10-14 tiles; the middle one straight ahead, 14-18, the longest.
+    /// Stub: not read yet.
+    pub outlet_heading: [(i32, i32); 3],
+    pub outlet_len: [(i32, i32); 3],
 }
 
 pub const DEFAULT_DEFINITION: Definition = Definition {
@@ -165,6 +178,9 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     cave_grid: include_str!("cave.txt"),
     bog_grid: include_str!("bog.txt"),
     church_grid: include_str!("church.txt"),
+    volcano_grid: include_str!("volcano.txt"),
+    outlet_heading: [(-1, 1), (0, 1), (1, 1)],
+    outlet_len: [(10, 14), (14, 18), (10, 14)],
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before

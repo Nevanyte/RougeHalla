@@ -131,6 +131,15 @@ impl Orientation {
     }
 }
 
+/// P-MAPGEN-SIG-SCALE-4: the DIR16 index (`recipe_support::DIR16`, 22.5-degree steps, index 0 = +x, 4 = +y) of map
+/// direction `d`: the largest dot product with `d`, the first on a tie (the rule `signature::front` uses). How a heading
+/// drawn on the grid and turned by `Orientation::turn` (the volcano's outlet headings) becomes a stream heading.
+/// Stub: always 0.
+pub fn dir16(d: Cell) -> u8 {
+    let _ = d;
+    0
+}
+
 /// How a drawing is placed in its zone's reserved site.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Placement {
