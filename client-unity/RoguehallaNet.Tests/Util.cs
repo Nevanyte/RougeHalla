@@ -14,7 +14,7 @@ namespace Roguehalla.Net.Tests
             return b;
         }
 
-        /// <summary>The golden vectors of the version this build speaks (only the current version's file is kept).</summary>
+        /// <summary>The golden vectors of the version this build speaks (older v*.json files stay as history).</summary>
         public static string FixtureName { get { return "v" + Roguehalla.Net.Protocol.Wire.ProtocolVersion + ".json"; } }
 
         public static string ToHex(byte[] b) { return BitConverter.ToString(b).Replace("-", "").ToLowerInvariant(); }

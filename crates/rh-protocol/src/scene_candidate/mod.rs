@@ -23,7 +23,7 @@ pub struct Limits {
 }
 impl Limits {
     pub fn check(self) -> Result<Self> {
-        if !matches!(crate::PROTOCOL_VERSION, 14 | 17)
+        if !matches!(crate::PROTOCOL_VERSION, 14 | 18)
             || self.body_bytes == 0
             || self.body_bytes > i32::MAX as usize
             || self.retained_body_bytes < self.body_bytes

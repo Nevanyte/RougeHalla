@@ -193,7 +193,7 @@ pub use weapon::{
 };
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 17;
+pub const PROTOCOL_VERSION: u16 = 18;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 

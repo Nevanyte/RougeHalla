@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const EXPECTED_PROTOCOL = 17;
+const EXPECTED_PROTOCOL = 18;
 const EXPECTED_CONTENT_HASH = '7a542a13187f034c';
 const MAX_COMMANDS = 16;
 const MAX_EVENT_ROWS = 512;
@@ -19,12 +19,12 @@ const probePath = path.join(repoRoot, 'crates/rh-server/web/probe.html');
 
 function loadCodec() {
   const html = readFileSync(probePath, 'utf8');
-  const start = html.indexOf('// ---- protocol v17 ');
+  const start = html.indexOf('// ---- protocol v18 ');
   const end = html.indexOf('// ---- probe state', start);
-  if (start < 0 || end <= start) throw new Error('protocol v17 codec block is unavailable');
+  if (start < 0 || end <= start) throw new Error('protocol v18 codec block is unavailable');
   const source = html.slice(start, end);
   const codec = new Function(`${source}\nreturn { PROTOCOL, hello, input, decode, decodeClient, Tracker, ping, leave };`)();
-  if (codec.PROTOCOL !== EXPECTED_PROTOCOL) throw new Error('protocol v17 codec block is unavailable');
+  if (codec.PROTOCOL !== EXPECTED_PROTOCOL) throw new Error('protocol v18 codec block is unavailable');
   return codec;
 }
 
