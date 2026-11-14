@@ -959,6 +959,15 @@ pub fn sample_hud() -> crate::WireHudContent {
         1000.0,  // FireRoamChargeMax
         50.0,    // FireRoamBurstBase
         0.4,     // FireRoamBurstAdShare
+        // P-FROST-WALL-2: which Wish Frost has (0 Freeze), then the legacy Frost Wall numbers (78dd8bd4 constants.ts,
+        // barriers.ts).
+        0.0,    // FrostWish
+        450.0,  // FrostWallRange
+        64.0,   // FrostWallMinRange
+        224.0,  // FrostWallLength
+        4000.0, // FrostWallMs
+        24.0,   // FrostWallCellReach
+        8.0,    // FrostWallEndSlack
     ];
     crate::WireHudContent {
         scaling: vec![
@@ -1231,6 +1240,116 @@ fn welcome_map_msg(map: MapBlob) -> ServerMsg {
         server_ms: 5000.0,
         map,
     }
+}
+
+/// P-FROST-WALL-2: the observation oracle's wall: column 12, rows 37..=43 of a 40-wide map.
+fn frost_wall_tiles() -> Vec<u32> {
+    (37..=43).map(|y| y * 40 + 12).collect()
+}
+fn frost_wall_field(tiles: Vec<u32>) -> WireField {
+    WireField {
+        kind: crate::state::FIELD_KIND_WALL,
+        ability: 0,
+        owner: Some(5),
+        subject: None,
+        x: 400.,
+        y: 1408.,
+        x2: 400.,
+        y2: 1184.,
+        r: 0.,
+        vx: 0.,
+        vy: 0.,
+        started_at: 10_000.,
+        ends_at: 14_000.,
+        tiles,
+    }
+}
+fn frost_trail_field() -> WireField {
+    WireField {
+        kind: crate::state::FIELD_KIND_TRAIL,
+        ability: 3,
+        owner: None,
+        subject: Some(1),
+        x: 20.,
+        y: 30.,
+        x2: 40.,
+        y2: 50.,
+        r: 12.,
+        vx: -2.,
+        vy: 0.,
+        started_at: 1000.5,
+        ends_at: 6000.5,
+        tiles: Vec::new(),
+    }
+}
+fn frost_wall_state(fields: Vec<WireField>) -> ServerMsg {
+    ServerMsg::State {
+        tick: 300,
+        items: vec![StateItem::Fields(fields)],
+    }
+}
+/// A State frame (tick 300) holding key 3 with one row: the common part of `f`, then `after` as raw bytes (the decoders'
+/// refusal vectors for the wall row, P-FROST-WALL-2 F4).
+fn frost_wall_frame(f: &WireField, after: &[u8]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(0x88);
+    w.varint(300);
+    w.varint(1); // one state item
+    w.varint(3); // key 3, fields
+    w.varint(1); // one row
+    w.u8(f.kind);
+    w.u8(f.ability);
+    w.opt(f.owner.as_ref(), |w, id| w.varint(*id));
+    w.opt(f.subject.as_ref(), |w, id| w.varint(*id));
+    for v in [f.x, f.y, f.x2, f.y2, f.r, f.vx, f.vy] {
+        w.f32(v);
+    }
+    w.f64(f.started_at);
+    w.f64(f.ends_at);
+    w.bytes(after);
+    w.finish()
+}
+/// `count u8 | tiles u32 LE`.
+fn frost_wall_list(count: u8, tiles: &[u32]) -> Vec<u8> {
+    let mut out = vec![count];
+    for t in tiles {
+        out.extend_from_slice(&t.to_le_bytes());
+    }
+    out
+}
+/// P-FROST-WALL-2: wall rows a decoder must refuse, one fault each, in the brief's order of checks.
+fn malformed_frost_wall() -> Vec<(&'static str, Vec<u8>)> {
+    let wall = frost_wall_field(frost_wall_tiles());
+    let mut kind4 = frost_wall_field(Vec::new());
+    kind4.kind = crate::state::FIELD_KIND_COUNT;
+    vec![
+        // The first unknown kind: refused once the common row is read, before any tile list.
+        ("state_field_kind_unknown", frost_wall_frame(&kind4, &[])),
+        (
+            "state_wall_tiles_zero",
+            frost_wall_frame(&wall, &frost_wall_list(0, &[])),
+        ),
+        (
+            "state_wall_tiles_over",
+            frost_wall_frame(&wall, &frost_wall_list(65, &(0..65).collect::<Vec<_>>())),
+        ),
+        // Three promised, two present: the frame ends inside the list.
+        (
+            "state_wall_tiles_truncated",
+            frost_wall_frame(&wall, &frost_wall_list(3, &[1, 2])),
+        ),
+        (
+            "state_wall_tile_off_map",
+            frost_wall_frame(
+                &wall,
+                &frost_wall_list(2, &[5, crate::map::MAX_MAP_TILES as u32]),
+            ),
+        ),
+        (
+            "state_wall_tile_order",
+            frost_wall_frame(&wall, &frost_wall_list(2, &[6, 5])),
+        ),
+    ]
 }
 
 #[allow(clippy::approx_constant)]
@@ -2301,7 +2420,36 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     .collect(),
             },
         ),
-        ("welcome", welcome_map_msg(MapBlob::new(4, 3, tiles))),
+        (
+            "welcome",
+            welcome_map_msg(MapBlob::new(4, 3, tiles.clone())),
+        ),
+        // P-FROST-WALL-2: the same Welcome in a room whose Frost Wish is Frost Wall (HUD term 23 = 1).
+        ("welcome_frost_wall", {
+            let mut msg = welcome_map_msg(MapBlob::new(4, 3, tiles));
+            if let ServerMsg::Welcome { hud, .. } = &mut msg {
+                hud.terms[crate::HudTerm::FrostWish as usize].value =
+                    crate::hud_content::FROST_WISH_WALL;
+            }
+            msg
+        }),
+        // P-FROST-WALL-2: a standing wall (State key 3, kind 3, its tile list), then a trail (no tile list).
+        (
+            "state_frost_wall",
+            frost_wall_state(vec![
+                frost_wall_field(frost_wall_tiles()),
+                frost_trail_field(),
+            ]),
+        ),
+        // The caps: 64 tiles ending at the last index any Welcome map may carry.
+        (
+            "state_frost_wall_max",
+            frost_wall_state(vec![frost_wall_field(
+                (crate::map::MAX_MAP_TILES as u32 - crate::state::MAX_WALL_TILES as u32
+                    ..crate::map::MAX_MAP_TILES as u32)
+                    .collect(),
+            )]),
+        ),
         (
             "welcome_ground_both",
             welcome_map_msg(
@@ -3409,10 +3557,16 @@ fn malformed_hud_content() -> Vec<(&'static str, Vec<u8>)> {
             scaling(vec![crate::WireWeaponScaling { ap: -0.5, ..sword }]),
         ),
         ("welcome_hud_scaling_order", scaling(vec![bow, sword])),
-        // No rows, then a term count of 24 (MAX_HUD_TERMS + 1), refused before any term is read: the map follows.
-        ("welcome_hud_term_count", welcome_hud_bytes(&[0, 24])),
+        // No rows, then a term count of MAX_HUD_TERMS + 1, refused before any term is read: the map follows.
+        (
+            "welcome_hud_term_count",
+            welcome_hud_bytes(&[0, crate::MAX_HUD_TERMS as u8 + 1]),
+        ),
         // The first unknown code (HUD_TERM_COUNT).
-        ("welcome_hud_term_code", terms(&[(23, 1.0)])),
+        (
+            "welcome_hud_term_code",
+            terms(&[(crate::HUD_TERM_COUNT, 1.0)]),
+        ),
         ("welcome_hud_term_infinite", terms(&[(0, f64::INFINITY)])),
         (
             "welcome_hud_term_over_max",
@@ -5745,6 +5899,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     .chain(malformed_vision())
     .chain(malformed_weapons())
     .chain(malformed_hud_content())
+    .chain(malformed_frost_wall())
     .chain(malformed_deltas())
     .chain(malformed_hud())
     .collect()

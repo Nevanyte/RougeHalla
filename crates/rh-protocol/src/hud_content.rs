@@ -1,6 +1,8 @@
 //! The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): public content numbers the legacy champion
 //! panel and weapon slots print, sent once per connection from the server's Rust content (never a hand-kept client copy).
-//! Every value is a public content constant, the same for every viewer, so the block raises no C-OBS concern.
+//! Every value is a public content constant or, since P-FROST-WALL-2, a room setting ([`HudTerm::FrostWish`]: which Wish
+//! Frost has in this room); each is the same for every viewer of the room, so the block raises no C-OBS concern. The
+//! server builds the block per room from that room's own setting.
 //!
 //! Wire layout, right after the weapon table and before the map (all integers little-endian, f64 IEEE-754 LE):
 //!
@@ -109,7 +111,7 @@ pub const FROST_WISH_FREEZE: f64 = 0.0;
 pub const FROST_WISH_WALL: f64 = 1.0;
 
 /// Number of [`HudTerm`] codes: a code at or above it is refused.
-pub const HUD_TERM_COUNT: u8 = 23;
+pub const HUD_TERM_COUNT: u8 = 30;
 /// Most term rows a block may carry (each code at most once).
 pub const MAX_HUD_TERMS: usize = HUD_TERM_COUNT as usize;
 

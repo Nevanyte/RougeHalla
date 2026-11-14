@@ -66,12 +66,12 @@ fn state(panel: Vec<WirePanelValue>) -> ServerMsg {
 fn the_bounds_move_for_the_appended_codes() {
     assert_eq!(PANEL_CODE_COUNT, 28, "panel codes 0..=27");
     assert_eq!(MAX_PANEL_VALUES, 28, "at most one value per code");
-    assert_eq!(HUD_TERM_COUNT, 23, "HUD terms 0..=22");
-    assert_eq!(MAX_HUD_TERMS, 23);
+    assert_eq!(HUD_TERM_COUNT, 30, "HUD terms 0..=29");
+    assert_eq!(MAX_HUD_TERMS, 30);
     assert_eq!(HudTerm::FireRoamRampMs as u8, 19);
     assert_eq!(HudTerm::FireRoamChargeMax as u8, 20);
     assert_eq!(HudTerm::FireRoamBurstBase as u8, 21);
-    assert_eq!(HudTerm::FireRoamBurstAdShare as u8, HUD_TERM_COUNT - 1);
+    assert_eq!(HudTerm::FireRoamBurstAdShare as u8, 22);
 }
 
 #[test]
@@ -173,10 +173,22 @@ fn the_welcome_block_carries_the_fire_roam_terms() {
         .collect();
     assert_eq!(
         tail,
-        vec![(19, 20_000.0), (20, 1_000.0), (21, 50.0), (22, 0.4)],
-        "sample terms 19-22"
+        vec![
+            (19, 20_000.0),
+            (20, 1_000.0),
+            (21, 50.0),
+            (22, 0.4),
+            (23, 0.0),
+            (24, 450.0),
+            (25, 64.0),
+            (26, 224.0),
+            (27, 4000.0),
+            (28, 24.0),
+            (29, 8.0)
+        ],
+        "sample terms 19-29"
     );
-    assert_eq!(hud.terms.len(), 23, "every code once");
+    assert_eq!(hud.terms.len(), 30, "every code once");
     let welcome = server_samples()
         .into_iter()
         .find(|(n, _)| *n == "welcome")
@@ -200,10 +212,10 @@ fn the_welcome_block_carries_the_fire_roam_terms() {
         None
     );
     assert_eq!(
-        hud_content::content_fault(&terms(&[(23, 1.0)])),
+        hud_content::content_fault(&terms(&[(30, 1.0)])),
         Some("hud term code")
     );
-    let all: Vec<(u8, f64)> = (0..24).map(|c| (c, 1.0)).collect();
+    let all: Vec<(u8, f64)> = (0..31).map(|c| (c, 1.0)).collect();
     assert_eq!(
         hud_content::content_fault(&terms(&all)),
         Some("hud term count")
@@ -215,7 +227,7 @@ fn the_welcome_block_carries_the_fire_roam_terms() {
 }
 
 /// The Welcome term refusal vectors keep their names and move to the new bounds: `welcome_hud_term_count` is a count of
-/// 24 with no rows, `welcome_hud_term_code` one term (23, 1.0). Both are the `welcome_hud_term_infinite` frame (one term
+/// 31 with no rows, `welcome_hud_term_code` one term (30, 1.0). Both are the `welcome_hud_term_infinite` frame (one term
 /// row (0, +inf)) with only that row changed.
 #[test]
 fn the_welcome_term_refusal_vectors_follow_the_new_bounds() {
@@ -237,22 +249,22 @@ fn the_welcome_term_refusal_vectors_follow_the_new_bounds() {
     assert_eq!(infinite[at - 1], 1, "one term");
 
     let mut want_code = infinite.clone();
-    want_code[at] = 23;
+    want_code[at] = 30;
     want_code[at + 1..at + 9].copy_from_slice(&1.0f64.to_le_bytes());
     let code = find("welcome_hud_term_code");
-    assert_eq!(code, want_code, "welcome_hud_term_code: term (23, 1.0)");
+    assert_eq!(code, want_code, "welcome_hud_term_code: term (30, 1.0)");
     assert_eq!(
         ServerMsg::decode(&code),
         Err(DecodeError::BadField("hud term code"))
     );
 
     let mut want_count = infinite[..at - 1].to_vec();
-    want_count.push(24);
+    want_count.push(31);
     want_count.extend_from_slice(&infinite[at + 9..]);
     let count = find("welcome_hud_term_count");
     assert_eq!(
         count, want_count,
-        "welcome_hud_term_count: count 24, no rows"
+        "welcome_hud_term_count: count 31, no rows"
     );
     assert_eq!(
         ServerMsg::decode(&count),

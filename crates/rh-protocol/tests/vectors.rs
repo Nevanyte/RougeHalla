@@ -335,6 +335,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "welcome_hud_term_infinite" | "welcome_hud_term_over_max" => BadField("hud term"),
             "welcome_hud_term_order" => BadField("hud term order"),
             "welcome_hud_truncated" => Truncated,
+            // P-FROST-WALL-2: the State key 3 wall row.
+            "state_field_kind_unknown" => BadField("field"),
+            "state_wall_tiles_zero" | "state_wall_tiles_over" => BadField("wall tiles"),
+            "state_wall_tiles_truncated" => Truncated,
+            "state_wall_tile_off_map" => BadField("wall tile"),
+            "state_wall_tile_order" => BadField("wall order"),
             other => panic!("no expectation for {other}"),
         }
     };
