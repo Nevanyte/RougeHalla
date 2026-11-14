@@ -12,7 +12,9 @@ Q14 was closed by the standing instruction that emptied files stay as placeholde
 
 | # | Question | Default in force | Record |
 |---|---|---|---|
-| Q18 | The map generator session's environment packet P-AGENT-RETRO-1 (a dev-profile `opt-level` that more than halves gate test time, an oracle preflight, a reviewer note rule, `LANES.md`; it edits `scripts/gate.sh` and agent definitions). That session reports your approval in its chat ("Please fix 1-8"). Confirm here? | Not merged. | MIGRATION "Integrations 41 and 42" |
+| Q18 | The map generator session's environment packet P-AGENT-RETRO-1 (a dev-profile `opt-level` that more than halves gate test time, an oracle preflight, a reviewer note rule, `LANES.md`; it edits `scripts/gate.sh` and agent definitions). That session reports your approval in its chat ("Please fix 1-8"). Re-reviewed at `713330056` (LAND WITH NOTES; clean against staging). It also moves map-generator refactors inside `rh-sim` that change no map from Opus to Sonnet (Opus still reviews), and optimises `rh-sim` and `rh-mapdress` in dev and test builds. Confirm here? | Not merged. | MIGRATION "Integrations 41 and 42" |
+
+| Q20 | `.claude/hooks/guard-oracles.sh` (blocks hand edits to `packages/` and the golden vectors) recognises only the main checkout and `.claude/worktrees/*`; in a lane's sibling worktree (`../RH-<lane>`) such an edit is not blocked when made (the gate's path checks still catch it before a merge). Fix the hook to resolve the path against the worktree's own top level? | Hook unchanged; the gate is the backstop. | reviewer-opus on P-AGENT-RETRO-1, 2026-11-14 |
 
 ## Recorded in another session's chat, not confirmed here
 
