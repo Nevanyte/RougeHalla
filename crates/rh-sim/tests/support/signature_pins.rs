@@ -3,6 +3,8 @@
 // with the values `mapgen_signature_blueprint.rs` `print_signature_pins` prints (run it with `--ignored --nocapture`),
 // and says so in its brief. Pinned on the stub commit of P-MAPGEN-SIG-BLUEPRINT-1 (the generator of
 // feature/unity-rework @ 9890f291b, which holds the blueprint church and the Plague pools), before the generic stamp.
+// The option-on pins (`pinned_on_maps`, `pinned_landmarks`) were last re-taken by P-MAPGEN-SIG-SCALE-4 on
+// agent/opus/P-MAPGEN-SIG-SCALE-4 @ c62867ea4 (the 22 x 22 volcano with three streams); `pinned_off` is unchanged.
 //
 // Anchors are not in `map_hash`; the JSON digests below sort each anchor's `entrance` row-major first, so that
 // P-MAPGEN-SIG-BLUEPRINT-2, which sorts the entrances in the generator (nothing in the generator, the server or the

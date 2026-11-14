@@ -86,6 +86,60 @@ Process the owner asked for: "just map generation optimization": build it, re-pi
 merge. The lane's session sends the owner a picture of the real build for the record; it does not wait for another
 approval round.
 
+## Amendments after the build (2026-11-14)
+
+Test-side changes taken on the build (`agent/opus/P-MAPGEN-SIG-SCALE-4` @ `c62867ea4`, hand-off
+`docs/coordination/HANDOFF_P-MAPGEN-SIG-SCALE-4_2026-11-14.md`), each its own `oracle:` commit; no source file changed.
+Numbers the owner never set are re-taken from the build with headroom ("this is just map generation optimization").
+
+1. **The orientation helper** (`mapgen_signature_volcano.rs` `orientation`). The owner's 22 x 22 drawing is
+   mirror-symmetric (every row reads the same reversed; the outlet runs mirror onto each other), so a faithful stamp
+   equals it under both mirror states of its front and the old "exactly one orientation" failed seven tests. Now: at
+   least one orientation matches; every matching one lands the same tiles (wall glyphs and lava glyphs on the same map
+   tiles); the one used (outlet order, the side of each stream, the fan) is the Fire frame's landing, which must be one
+   of them. The ignored report uses the same helper. The church drawing is mirror-symmetric too, and its helper already
+   accepted both mirror states; the bog tree and cave drawings are not (208 and 322 tiles differ from their mirror
+   images by glyph class), so their helpers are unchanged.
+2. **`mapgen_signature_fire.rs` `volcano_on_the_back_edge_with_streams_toward_the_front`.** The back-edge half is
+   unchanged (seeds 1-16). The stream half required every stream's end nearer the coliseum than the volcano centre;
+   the fan's side streams run 45 degrees off a front axis that is itself up to 45 degrees off the true direction
+   (seed 7: 76.6 against 73.6). Now, seeds 1-32: every stream ends in front of the cone's box along the cone's own
+   front axis (the Fire anchor's `front`, dominant axis), and the middle stream (the one leaving the middle outlet run)
+   ends nearer the coliseum than the volcano centre. New `a_stream_behind_the_cone_fails_the_stream_check`: on seed 1,
+   any one stream moved to a strip behind the box is reported.
+3. **Attempt bounds** re-taken to the volcano oracle's figures (measured on the build, seeds 1-32: 89 attempts, worst
+   attempt index 9; seeds 1-64: 192 and 10), all on seeds 1-32 with each test's own counting (no scaling needed):
+
+   | test file | worst (old -> new) | attempts (old -> new) |
+   |---|---|---|
+   | `mapgen_signature_bog_tree.rs` | 4 -> 12 | 59 -> 137 |
+   | `mapgen_signature_church.rs` | 5 -> 12 | 57 -> 137 |
+   | `mapgen_signature_reserve.rs` | 7 -> 12 | 70 -> 137 |
+   | `mapgen_signature_scale.rs` | 7 -> 12 | 70 -> 137 |
+   | `mapgen_signature_frost_lake.rs` | 8 -> 12 | - |
+   | `mapgen_land_plague.rs` | 8 -> 12 | - |
+   | `mapgen_land_sentenced.rs` | 8 -> 12 | - |
+
+   `mapgen_signature_table.rs` `each_landmark_placed_alone_equals_it_placed_with_the_others`: accepted Landmarks phases
+   floor 28 -> 20 (measured 25 of 32: the volcano's signature step refuses 5; crossings still 0). The test names
+   `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` keep their old wording.
+4. **Two guards that are not owner figures.** `mapgen_land_sentenced.rs` `seed_floor` 0.30 -> 0.25 (seed 6 measures
+   0.29: 97 / 4060 lane fence on, 354 / 4253 off; the owner's floors are the medians, which pass).
+   `mapgen_land_plague.rs`: `pools_are_large_near_the_tree_and_small_far` keeps its per-pool rule (no Large pool far,
+   no Small pool near) and compares the band means only when both bands hold pools (measured near 0, far 32 of mean
+   area 67.2: the 29 x 29 tree and its apron fill the near band; the large bog near the tree is the tree's own marsh);
+   `all_three_sizes_occur_and_maps_with_three_pools_mix_sizes` asks for at least two size classes over seeds 1-32
+   (measured Small 51, Medium 15, Large 0), was all three.
+5. **Re-pins (done), constants only, from the build:**
+   - `tests/support/signature_pins.rs` `pinned_on_maps` (32 rows; attempts now 1, 0, 1, 0, 0, 0, 2, 1, 2, 0, 0, 1, 3, 1,
+     0, 2, 2, 7, 0, 0, 1, 9, 4, 4, 1, 7, 0, 2, 1, 4, 1, 0) and `pinned_landmarks` (32 rows; five now refused by the
+     signature step: 7/0, 9/1, 12/0, 13/0, 16/0); `pinned_off` unchanged (green).
+   - `mapgen_guarantees.rs` `pinned_labels` (57 refusals over seeds 1-32: Signature 18, SpawnRatio 14, Prefix 9,
+     lake-at-mouth 6, RadiusPost 5, SignatureDiscarded 2, SpawnPool 2, FloorShare 1; three label constants added) and
+     the lake-at-mouth count in `a_lake_failure_is_refused_after_records_as_the_frost_guarantee` 11 -> 6.
+   - `rh-mapdress` `anchor.rs` `NO_ANCHOR_GOLDEN`, `marsh.rs` `SIG_GOLDEN`, `sentenced_rings.rs` `NO_ORIGIN_GOLDEN`;
+     both `OFF_GOLDEN` unchanged (green).
+
 ## From P-MAPGEN-SIG-SCALE-1's oracle (2026-11-13)
 
 - The drawing is read through SCALE-1's placement rule (`signature/mod.rs`). Its copy: `include_str!` of `docs/`
@@ -365,6 +419,10 @@ PROVISIONAL (not set by the owner; the tests use exactly these values until the 
 - `crates/rh-sim/tests/mapgen_signature_blueprint.rs` (amended, section 12)
 - `crates/rh-sim/tests/mapgen_signature_table.rs` (amended, section 12)
 - `crates/rh-sim/tests/mapgen_landmark_frame.rs` (amended, section 12)
+- Amended after the build ("Amendments after the build"): `mapgen_signature_bog_tree.rs`, `_church.rs`,
+  `_reserve.rs`, `_scale.rs`, `_frost_lake.rs`, `mapgen_land_plague.rs`, `mapgen_land_sentenced.rs`,
+  `mapgen_guarantees.rs`, `tests/support/signature_pins.rs` (all under `crates/rh-sim/tests/`);
+  `crates/rh-mapdress/tests/{anchor.rs, marsh.rs, sentenced_rings.rs}` (golden constants)
 - `docs/landmarks/blueprints/volcano.txt` (the owner's 22 x 22 drawing, 2026-11-14)
 - `docs/backlog/packets/P-MAPGEN-SIG-SCALE-4.md` (this brief)
 - Stub files (editable): `signature/volcano.txt` (do not edit: the guards pin it byte-equal to the docs copy),
