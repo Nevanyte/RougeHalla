@@ -4,8 +4,12 @@
 PACKET:          P-MAPGEN-SIG-BLUEPRINT-2 — serves the land-generation lane's architecture review of 2026-11-13
                  (finding 2 rest, finding 5, finding 6's terrain codes); Part 2 of 2, before the frame packet, SCALE-4
                  and HOLY-1
-BRANCH:          agent/opus/P-MAPGEN-SIG-BLUEPRINT-2 @ 1492cbc89 (implementation; this hand-off is the next commit)
-GATE:            not run by the implementer (the lane's session runs the full gate)
+BRANCH:          agent/opus/P-MAPGEN-SIG-BLUEPRINT-2 @ 6b6b5e95a (implementation 86f236bca, 5d025d29c, 1492cbc89; rustfmt
+                 fix by the lane's session 6b6b5e95a; hand-off commits after it)
+GATE:            PASS (full, `scripts/gate.sh --oracle packet/P-MAPGEN-SIG-BLUEPRINT-2`, run by the lane's session on
+                 6b6b5e95a) [skipped: Postgres suites (no DATABASE_URL); the CI/owner-hardware-only steps the gate
+                 lists]. Attempt 1 failed at rustfmt on one expression in volcano.rs; attempt 2 passed after that fix.
+                 Log .agent-runs/gate/20261114T054913-agent-opus-P-MAPGEN-SIG-BLUEPRINT-2-full.log
 CHANGED:         crates/rh-sim/src/mapgen/landmarks/signature/{mod.rs, spec.rs, volcano.rs, cave.rs, church.rs,
                  bog_tree.rs, blueprint.rs (doc lines only)}; comment lines only in crates/rh-sim/src/mapdata/model.rs
                  (`ZoneAnchor`) and crates/rh-sim/src/mapgen/map_hash/tests.rs (the anchors note); this file
@@ -16,9 +20,7 @@ D-RULES:         D1: no legacy counterpart (DEV-020); option off untouched (G8);
 DEVIATIONS:      none
 SHARED RECORDS:  none
 LEGACY DOUBTS:   none (no legacy counterpart)
-NOT ESTABLISHED: the full gate (clippy -D warnings, fmt, C#/JS steps) on this tip; the rh-sim suite ran on the first
-                 implementation commit (86f236bca), before the comment edits and the one added debug_assert in
-                 `from_definition`; equality on seeds beyond the pinned ones
+NOT ESTABLISHED: equality on seeds beyond the pinned ones (rests on the reviewer's trace, below); the Postgres suites
 RISKS:           `bog_tree.rs` is now a doc-only module (deleting the file needs owner approval); `Spec` gained a field
                  (`any_terrain`) the brief did not name, to keep `intact` exact (below)
 ```
@@ -103,3 +105,30 @@ RISKS:           `bog_tree.rs` is now a doc-only module (deleting the file needs
  9 files changed, 378 insertions(+), 859 deletions(-)
 ```
 Net -481 lines.
+
+## Review (reviewer-opus, 2026-11-14): LAND, no notes
+Read-only, old code against new, kind by kind.
+- `intact` and `aprons_apart` from the table accept and reject exactly what the hand-written versions did: bog tree,
+  graveyard and cave from their legends; the church through `any_terrain` (it was the only rule that ignored terrain);
+  volcano, streams and pools from `volcano::owned` (the old hand list); every other kind passes with no zone test, as
+  before. Membership is the same seven kinds; `aprons_apart`'s numbering is the old one.
+- `apply` and `apply_only` share `place`, which is the old per-zone body: same order, stream, `Site`, draws and writes;
+  `apply_only` shares no state with other zones. The new refusal (no reserved site) cannot be reached in a real game:
+  the option that makes the pipeline call `apply` is the one that makes the Prefix reserve all four sites or fail the
+  round.
+- The entrance sort comes after the doorway check and after the graveyard's anchor point is taken. No reader depends
+  on the order: the Frost lake growth and `lake_at_mouth` search from all mouth tiles at once; the server and the C#
+  codec carry the order through; `rh-mapdress` does not read it.
+- Terrain codes: every write and check uses the looked-up codes; the debug-only agreement check is enough because both
+  the definition and the catalog are compile-time constants and every debug test that builds a context runs it.
+- Nothing needed was deleted; nothing dead is left. `bog_tree.rs` holds only its module doc: `mod bog_tree;` goes in
+  the same change that deletes the file, once the owner approves (file deletion is the owner's call).
+
+Carried forward (not fix packets):
+- **HOLY-1:** do not give a Holy entry `members: [Hall]`. Membership, `owned` and `any_terrain` work by feature kind
+  over the whole map, and the Holy styler can produce several `Hall` features: that entry would make every hall a
+  signature feature. Pick the hall by which feature it is (the frame's written cells and feature), or give the
+  signature hall its own kind.
+- Minor, left: `lake_at_mouth` and `spec::specs` each call `catalog_codes()` instead of using the context's stored
+  codes; nothing asserts that a kind belongs to one entry only (`entry_of` takes the first match); `entrance.dedup()`
+  never removes anything.
