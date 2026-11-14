@@ -163,6 +163,22 @@ namespace Roguehalla.Client.Tests
             return any;
         }
 
+        static int Dist2((int x, int y) a, (int x, int y) b) { return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y); }
+
+        /// <summary>Tiles under the crown sprite's opaque pixels (alpha >= 128), the rule of BogTreeCrownEditModeTests (feet tile, no actor height).</summary>
+        static HashSet<(int x, int y)> CrownTiles(Landmark lm)
+        {
+            var r = lm.Root.GetComponentsInChildren<SpriteRenderer>(true).Single(c => c.name == BogTreeLandmark.CrownName);
+            var sp = r.sprite; var px = sp.texture.GetPixels32(); int w = sp.texture.width, h = sp.texture.height; var set = new HashSet<(int x, int y)>();
+            for (int j = 0; j < h; j++) for (int i = 0; i < w; i++)
+            {
+                if (px[j * w + i].a < 128) continue;
+                var world = r.transform.TransformPoint(new Vector3((i + .5f) / sp.pixelsPerUnit, (j + .5f) / sp.pixelsPerUnit, 0));
+                set.Add((Mathf.FloorToInt(world.x), Mathf.FloorToInt(-world.y / ArenaView.GroundSquash)));
+            }
+            return set;
+        }
+
         static Bounds RoofBounds(Landmark lm)
         {
             Assert.That(lm.RoofRenderers.Length, Is.GreaterThan(0), "the canopy is drawn (a roof renderer)");
@@ -277,8 +293,18 @@ namespace Roguehalla.Client.Tests
                     v.NoteActor(TileCentre(t)); v.Tick(10f);
                     Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofOpaqueAlpha), "orientation " + k + ": an actor at the " + what + " " + t + " does not fade the canopy");
                 }
-                var under = new List<(string, (int x, int y))> { ("dry ground", site.DryCover[0]), ("dry ground (last)", site.DryCover[site.DryCover.Count - 1]),
-                    ("causeway inside the ring", site.CausewayCover[0]), ("causeway inside the ring (last)", site.CausewayCover[site.CausewayCover.Count - 1]) };
+                // 2026-11-14, coordinator-approved amendment (P-UNITY-BOG-TREE-3): the crown fades only for an actor it hides (a tile under the crown's
+                // opaque pixels, alpha >= 128). The old positive tiles DryCover[0], DryCover[last] and CausewayCover[0] / [last] lie on the shadow ring or at
+                // the footprint's rim, and are not under the crown in every orientation. Each class (dry ground, causeway) now stands its actor on the
+                // cover tile of that class under the crown nearest the trunk's centre, and on the one farthest from it (the same tile if only one is).
+                var painted = CrownTiles(lm); var oldLast = site.DryCover[site.DryCover.Count - 1];
+                var under = new List<(string, (int x, int y))>();
+                foreach (var (cls, classTiles) in new[] { ("dry ground", site.DryCover), ("causeway inside the ring", site.CausewayCover) })
+                {
+                    var hidden = classTiles.Where(painted.Contains).OrderBy(t => Dist2(t, site.Centre)).ThenBy(t => t).ToList();
+                    Assert.That(hidden.Count, Is.GreaterThan(0), "orientation " + k + ": guard: some " + cls + " cover tile lies under the crown");
+                    under.Add((cls + " under the crown (nearest the trunk)", hidden[0])); under.Add((cls + " under the crown (farthest from the trunk)", hidden[hidden.Count - 1]));
+                }
                 foreach (var (what, t) in under)
                 {
                     v.NoteActor(TileCentre(t)); v.Tick(10f);
@@ -286,11 +312,14 @@ namespace Roguehalla.Client.Tests
                     v.Tick(10f);
                     Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofOpaqueAlpha), "and it returns when the actor leaves");
                 }
-                v.NoteActor(TileCentre(site.DryCover[0])); v.Tick(10f);
+                Assert.That(painted.Contains(oldLast), Is.False, "guard: the old tile DryCover[last] " + oldLast + " is not under the crown");
+                v.NoteActor(TileCentre(oldLast)); v.Tick(10f);
+                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofOpaqueAlpha), "orientation " + k + ": an actor on the shadow ring tile " + oldLast + " leaves the crown solid");
+                v.NoteActor(TileCentre(under[0].Item2)); v.Tick(10f);
                 foreach (var r in lm.RoofRenderers) Assert.That(r.color.a, Is.EqualTo(LandmarkView.RoofFadedAlpha).Within(.001f), "every canopy piece carries the alpha");
                 // Owner ruling 2026-11-13: a visible actor under the canopy makes it peek while the local player stands in the bog.
                 v.Tick(10f);
-                v.NoteActor(TileCentre(site.Bog.First())); v.NoteOtherActor(TileCentre(site.DryCover[0])); v.Tick(10f);
+                v.NoteActor(TileCentre(site.Bog.First())); v.NoteOtherActor(TileCentre(under[0].Item2)); v.Tick(10f);
                 Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofPeekAlpha));
             }
         }

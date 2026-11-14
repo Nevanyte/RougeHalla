@@ -15,6 +15,13 @@
   with the landmark; the `stub:` commit has it compile-only), and the `RoofBounds` helper also encapsulates `GroundRenderers` (the only change to that
   file; assertions at 257 and 289 untouched, they stay true for real roof pieces). `BogTreeLandmark` registers the shadow through `AddGroundPiece` with an
   order below every actor on the cover (see Known traps).
+- **Second amendment 2026-11-14 (coordinator-approved, follows from the rule).** `BogTreeLandmarkEditModeTests.TheCanopyFadesForAnActorOnTheDryGround...`
+  stood an actor on `DryCover[0]`, `DryCover[last]` (the southernmost dry cover tile, on the shadow ring), `CausewayCover[0]` and `CausewayCover[last]` and
+  expected the crown to fade; several are not under the crown in some orientation (seen on the implementer's branch: `DryCover[0]` in orientation 3, `CausewayCover[last]` in 0, 1, 2 and 4-7; the first failing assertion hides the rest).
+  Its positive tiles are now, per class (dry cover, causeway cover): the tile under the crown's opaque pixels (alpha >= 128) nearest the trunk's centre and
+  the one farthest from it (a guard asserts each class has one under the crown in every orientation). The old `DryCover[last]` is asserted to leave the crown
+  solid in all eight orientations. The "alpha carried" and "peek" checks use the first new tile. Its negative tiles (bog, causeway beyond the ring, dry
+  ground beyond the ring) are unchanged.
 - The crown's fade set is by the actor's FEET tile, like every roof in this client (cave, church, hall, volcano): accepted for this packet that a head
   can be under the crown's bottom edge while the crown stays solid.
 
@@ -60,7 +67,7 @@ none (DEV-020: the landmarks are new)
 
 ## Oracle files (read-only for implementers)
 - `client-unity/UnityProject/Assets/Tests/Editor/BogTreeCrownFadeEditModeTests.cs` (and its `.meta`)
-- `client-unity/UnityProject/Assets/Tests/Editor/BogTreeLandmarkEditModeTests.cs`: ONLY the `RoofBounds` helper is amended (coordinator-approved); read-only for implementers
+- `client-unity/UnityProject/Assets/Tests/Editor/BogTreeLandmarkEditModeTests.cs`: ONLY the `RoofBounds` helper and the positive tile of `TheCanopyFadesForAnActorOnTheDryGround...` (plus helpers `CrownTiles`, `Dist2`) are amended (coordinator-approved); read-only for implementers
 - The other existing structure tests stay read-only and green:
   `BogTreeCrownEditModeTests.cs`, `LandmarkRoofPeekEditModeTests.cs`, `LandmarkViewEditModeTests.cs`, `LandmarkSeamsEditModeTests.cs`.
 
