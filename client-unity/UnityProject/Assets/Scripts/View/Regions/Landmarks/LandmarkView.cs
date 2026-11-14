@@ -31,7 +31,7 @@ namespace Roguehalla.Client
         {
             var view = new LandmarkView();
             if (anchors == null || anchors.Length == 0) return view;
-            HashSet<byte> told = null;
+            HashSet<byte> told = null, failed = null;
             foreach (var anchor in anchors)
             {
                 if (!LandmarkArts.TryGet(anchor.Kind, out var art))
@@ -43,7 +43,14 @@ namespace Roguehalla.Client
                 }
                 var lm = Landmark.Create(parent, map, anchor);
                 if (lm == null) continue;
-                art(lm);
+                try { art(lm); }
+                catch (Exception e)
+                {
+                    lm.Dispose();
+                    if (failed == null) failed = new HashSet<byte>();
+                    if (failed.Add(anchor.Kind)) Debug.LogWarning("LandmarkView: art for kind " + anchor.Kind + " failed: " + e.Message);
+                    continue;
+                }
                 view._landmarks.Add(lm);
             }
             return view;
@@ -55,7 +62,7 @@ namespace Roguehalla.Client
             if (_landmarks.Count == 0) return;
             int tx = Mathf.FloorToInt(feet.x), ty = Mathf.FloorToInt(-feet.y / ArenaView.GroundSquash);
             for (int i = 0; i < _landmarks.Count; i++)
-                if (_landmarks[i].IsInterior(tx, ty)) _landmarks[i].ActorInside = true;
+                if (_landmarks[i].Fades(tx, ty)) _landmarks[i].ActorInside = true;
         }
 
         /// <summary>Moves each roof toward its target (faded when an actor was noted inside since the last Tick, else opaque), then

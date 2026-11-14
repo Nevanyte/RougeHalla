@@ -45,8 +45,7 @@ namespace Roguehalla.Client
 
     /// <summary>
     /// P-UNITY-LANDMARK-2: the Fire volcano (kind 1), painted procedurally once per map from the tiles the framework classified. The framework
-    /// gives the wall tiles; the lava (Low tiles of the crater lake and the channels, which the ground shader draws) is found here as the
-    /// non-wall tiles of the footprint joined to the anchor's centre and entrance, so the art needs no copy of the drawing and is right in all
+    /// gives the wall tiles; the lava (Low tiles of the crater lake and the channels, which the ground shader draws) is read from the framework (Low tiles with terrain Lava), so the art needs no copy of the drawing and is right in all
     /// eight orientations. Pieces:
     ///  - the cone: one sprite per wall row on the walls' sorting rule, three tiers (foot dark basalt, slope scorched rock, rim ember lit),
     ///    a lit lip and a dark step where a tier drops to a lower one (light from the north west), ember on the tiles beside lava, and the
@@ -92,15 +91,9 @@ namespace Roguehalla.Client
             {
                 W = lm.FootW; H = lm.FootH; Wall = new bool[W * H]; Lava = new bool[W * H]; Tier = new int[W * H]; Depth = new float[W * H];
                 for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) Wall[y * W + x] = lm.IsWall(lm.FootX + x, lm.FootY + y);
-                // Lava: the non-wall tiles joined (four ways) to the anchor's centre or to an entrance tile.
-                var stack = new Stack<int>();
-                Seed(lm.Anchor.Centre.X - lm.FootX, lm.Anchor.Centre.Y - lm.FootY, stack);
-                foreach (var t in lm.Anchor.Entrance) Seed(t.X - lm.FootX, t.Y - lm.FootY, stack);
-                while (stack.Count > 0)
-                {
-                    int i = stack.Pop(), x = i % W, y = i / W;
-                    Seed(x + 1, y, stack); Seed(x - 1, y, stack); Seed(x, y + 1, stack); Seed(x, y - 1, stack);
-                }
+                // Lava: the Low tiles whose terrain is Lava.
+                for (int y = 0; y < H; y++) for (int x = 0; x < W; x++)
+                    Lava[y * W + x] = lm.IsLow(lm.FootX + x, lm.FootY + y) && lm.Terrain(lm.FootX + x, lm.FootY + y) == (byte)TerrainKind.Lava;
                 // Depth: distance to the nearest tile that is neither wall nor lava (a floor tile in the box, or anything outside it).
                 var open = new List<int>();
                 for (int i = 0; i < Wall.Length; i++) if (!Wall[i] && !Lava[i]) open.Add(i);
@@ -127,12 +120,6 @@ namespace Roguehalla.Client
                     float s = 0; for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) s += lavaF[(y + dy) * _gw + x + dx];
                     _heat[y * _gw + x] = s / 9f;
                 }
-            }
-            void Seed(int x, int y, Stack<int> stack)
-            {
-                if (x < 0 || y < 0 || x >= W || y >= H) return;
-                int i = y * W + x; if (Wall[i] || Lava[i]) return;
-                Lava[i] = true; stack.Push(i);
             }
             public bool IsWall(int x, int y) { return x >= 0 && y >= 0 && x < W && y < H && Wall[y * W + x]; }
             public bool IsLava(int x, int y) { return x >= 0 && y >= 0 && x < W && y < H && Lava[y * W + x]; }
