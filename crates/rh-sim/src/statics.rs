@@ -265,8 +265,9 @@ pub struct SimConfig {
     pub camp_buffs: CampBuffRule,
     /// What Frost's Wish is (P-FROST-WALL-1): `Freeze` (the default: the in-repo legacy oracle's point-and-click stun) or
     /// `Wall` (unreleased legacy 78dd8bd4, owner decision 2026-11-10: Frost Wall, a placed barrier whose floor tiles are
-    /// LOW while it stands). `Freeze` adds nothing to any hash; `Wall` folds a tag of its own (see [`FrostWish`]). No
-    /// live profile selects `Wall` until clients can see the barrier (P-FROST-WALL-2).
+    /// LOW while it stands). `Freeze` adds nothing to any hash; `Wall` folds a tag of its own (see [`FrostWish`]). The
+    /// live world selects `Wall` ([`SimConfig::live_content`], P-FROST-WALL-3); the default (headless, parity and test)
+    /// world keeps `Freeze`.
     #[serde(default)]
     pub frost_wish: FrostWish,
 }
@@ -451,7 +452,8 @@ impl SimConfig {
             // Owner decision 2026-11-10 (legacy a7b5c4ce): each zone's camps pay a themed stat, spread evenly and within
             // reach of every camp (P-CAMP-BUFF-THEMES-1).
             camp_buffs: CampBuffRule::Themed,
-            frost_wish: FrostWish::Freeze,
+            // Owner decision 2026-11-10 (legacy 78dd8bd4): Frost Wall replaces Freeze (P-FROST-WALL-3, DEV-029).
+            frost_wish: FrostWish::Wall,
             ..Self::default()
         }
     }

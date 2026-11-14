@@ -13,9 +13,7 @@
 //!
 //!   cargo run --release -p rh-headless --example full_map_cost -- [generated_maps=3] [max_ticks=6000] [first-playable map]
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
-use rh_sim::{
-    abilities, mob_runtime::MobMode, terrain, ArenaMode, FactionId, FactionMode, SimConfig,
-};
+use rh_sim::{FactionId, SimConfig};
 use std::time::Instant;
 
 fn rss_kib(field: &str) -> u64 {
@@ -30,27 +28,14 @@ fn rss_kib(field: &str) -> u64 {
         .unwrap_or(0)
 }
 
-/// The live source-arena rules (`rh-server` `runtime.rs` `Settings::sim`), with eight seats filled by bots at once.
+/// The live source-arena rules (`SimConfig::live_content()`, as `rh-server` `runtime.rs` `Settings::sim` builds them,
+/// archetype hitboxes included), with eight seats filled by bots at once.
 fn live_rules() -> SimConfig {
     SimConfig {
-        walk_hints: Some(true),
-        regen: true,
-        regen_in_combat: rh_sim::RegenInCombat::Off,
-        camp_buffs: rh_sim::CampBuffRule::Themed,
-        frost_wish: rh_sim::FrostWish::Freeze,
-        quests: true,
-        hazards: terrain::Mode::Map,
-        abilities: abilities::Mode::Full,
-        faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-        lifecycle: ArenaMode::Source(Default::default()),
-        mob_mode: MobMode::Pve,
-        initial_loot: true,
-        consumables: true,
         min_players: 1,
         lobby_seconds: 5.,
         fill_seconds: 3.,
-        hitboxes: rh_sim::archetype::HitboxMode::Archetypes,
-        ..SimConfig::default()
+        ..SimConfig::live_content()
     }
 }
 

@@ -5,9 +5,7 @@
 //!
 //! The last argument is the ADR0024 hitbox mode (default `legacy`; `archetypes` is the opt-in `--hitboxes archetypes`).
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
-use rh_sim::{
-    abilities, mob_runtime::MobMode, terrain, ArenaMode, FactionId, FactionMode, SimConfig,
-};
+use rh_sim::{FactionId, SimConfig};
 
 fn main() {
     let a: Vec<String> = std::env::args().collect();
@@ -20,25 +18,14 @@ fn main() {
         Some(other) => panic!("the hitbox mode must be legacy or archetypes, not {other:?}"),
     };
     for seed in from..to {
+        // The live world (`SimConfig::live_content()`, what `--runtime source-arena` plays) with this soak's short
+        // lobby and its hitbox argument.
         let cfg = SimConfig {
-            walk_hints: Some(true),
-            regen: true,
-            quests: true,
-            hazards: terrain::Mode::Map,
-            abilities: abilities::Mode::Full,
-            faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-            lifecycle: ArenaMode::Source(Default::default()),
-            mob_mode: MobMode::Pve,
-            initial_loot: true,
-            consumables: true,
             min_players: 1,
             lobby_seconds: 5.,
             fill_seconds: 3.,
             hitboxes,
-            regen_in_combat: rh_sim::RegenInCombat::Off,
-            camp_buffs: rh_sim::CampBuffRule::Themed,
-            frost_wish: rh_sim::FrostWish::Freeze,
-            ..SimConfig::default()
+            ..SimConfig::live_content()
         };
         let agents = (0..8)
             .map(|i| AgentSpec {
