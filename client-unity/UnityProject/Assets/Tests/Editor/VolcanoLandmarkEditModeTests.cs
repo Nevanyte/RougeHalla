@@ -20,7 +20,7 @@ namespace Roguehalla.Client.Tests
     /// </summary>
     public sealed class VolcanoLandmarkEditModeTests
     {
-        const int N = 48, FootX = 9, FootY = 7, Size = 30;
+        const int N = 48, FootX = 9, FootY = 7, Size = 22;
 
         static string[] Rows()
         {
@@ -54,7 +54,7 @@ namespace Roguehalla.Client.Tests
         static bool IsLava(char c) { return c == '~' || c == 'O'; }
 
         /// <summary>A 48 x 48 map of open floor with the volcano drawing, orientation k, stamped at (9, 7). The anchor is what the generator
-        /// records (fact in the packet): kind 1, zone 1 (Fire), centre = a lava tile at the lake's middle, the 30 x 30 box, front = the side
+        /// records (fact in the packet): kind 1, zone 1 (Fire), centre = a lava tile at the lake's middle, the 22 x 22 box, front = the side
         /// the outlets are on (DIR16: 0 east, 4 south, 8 west, 12 north), entrance = the six outlet tiles.</summary>
         static Site Volcano(int k)
         {
@@ -116,7 +116,7 @@ namespace Roguehalla.Client.Tests
                 var lm = scene.View.Get(0);
                 Assert.That(lm.Anchor, Is.SameAs(site.Anchor));
                 Assert.That(lm.Root.transform.parent, Is.EqualTo(scene.Root.transform));
-                Assert.That(lm.WallCount, Is.EqualTo(656), "orientation " + k + ": 362 foot + 214 slope + 80 rim wall tiles, counted from the collision plane");
+                Assert.That(lm.WallCount, Is.EqualTo(322), "orientation " + k + ": 136 foot + 146 slope + 40 rim wall tiles, counted from the collision plane");
                 Assert.That(lm.IceCount, Is.EqualTo(0));
                 Assert.That(lm.InteriorCount, Is.EqualTo(0), "orientation " + k + ": nothing is enclosed (the lake is lava, not floor)");
                 Assert.That(lm.RoofRenderers.Length, Is.EqualTo(0), "no roof renderer");
@@ -146,7 +146,7 @@ namespace Roguehalla.Client.Tests
                     Assert.That(art.Tier(x, y) >= 0, Is.EqualTo(wall), "orientation " + k + ": tile (" + x + ", " + y + ") is cone art exactly when it is a wall tile of the footprint");
                     if (art.Tier(x, y) >= 0) covered++;
                 }
-                Assert.That(covered, Is.EqualTo(656));
+                Assert.That(covered, Is.EqualTo(322));
                 Assert.That(art.ConeRenderers.Length, Is.GreaterThan(0), "the cone is drawn");
                 var all = art.ConeRenderers[0].bounds; foreach (var r in art.ConeRenderers) all.Encapsulate(r.bounds);
                 for (int y = 0; y < Size; y++) for (int x = 0; x < Size; x++)
@@ -204,7 +204,7 @@ namespace Roguehalla.Client.Tests
                     Assert.That(art.Tier(x, y), Is.EqualTo(want[y * N + x]), "orientation " + k + ": tier of (" + x + ", " + y + ") follows the packet's depth rule");
                     if (want[y * N + x] >= 0) counts[want[y * N + x]]++;
                 }
-                Assert.That(counts, Is.EqualTo(new[] { 346, 230, 80 }), "foot, slope, rim");
+                Assert.That(counts, Is.EqualTo(new[] { 136, 146, 40 }), "foot, slope, rim");
                 // The lake core: lava tiles (Low) whose eight neighbours are all Low lava.
                 var core = new List<(int x, int y)>();
                 bool Lava(int x, int y) { return site.Map.Tiles[y * N + x] == MapBlob.Low && site.Map.Terrain[y * N + x] == (byte)TerrainKind.Lava; }
@@ -277,11 +277,11 @@ namespace Roguehalla.Client.Tests
                 Assert.That(scene.View.Count, Is.EqualTo(1), "needs the landmark first");
                 var art = VolcanoLandmark.ArtOf(scene.View.Get(0));
                 Assert.That(art, Is.Not.Null, "needs the art first");
-                // The crater: drawing rows 10..19 and columns 9..20 are lava in orientation 0 (the lake proper, apart from the channels).
+                // The crater: drawing rows 6..15 and columns 5..16 are lava in orientation 0 (the lake proper, apart from the channels).
                 bool over = art.GlowRenderers.Any(r =>
                 {
                     var c = ToTiles(r.bounds.center);
-                    return c.x >= FootX + 9 && c.x <= FootX + 21 && c.y >= FootY + 10 && c.y <= FootY + 20;
+                    return c.x >= FootX + 5 && c.x <= FootX + 17 && c.y >= FootY + 6 && c.y <= FootY + 16;
                 });
                 Assert.That(over, Is.True, "a glow whose centre is inside the crater lake");
             }
@@ -297,7 +297,7 @@ namespace Roguehalla.Client.Tests
             {
                 Assert.That(scene.View.Count, Is.EqualTo(1), "needs the landmark first");
                 Assert.That(VolcanoLandmark.ArtOf(scene.View.Get(0)), Is.Not.Null, "needs the art first");
-                var v = scene.View; var near = TileCentre(FootX + 15, FootY + 14); var south = TileCentre(FootX + 15, FootY + Size + 3);
+                var v = scene.View; var near = TileCentre(FootX + 11, FootY + 10); var south = TileCentre(FootX + 11, FootY + Size + 3);
                 for (int i = 0; i < 20; i++) { v.NoteActor(near); v.NoteActor(south); v.Tick(1f / 60f); }
                 int objects = scene.Root.GetComponentsInChildren<Transform>(true).Length;
                 var art = VolcanoLandmark.ArtOf(v.Get(0));
