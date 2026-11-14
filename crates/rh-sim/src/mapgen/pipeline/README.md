@@ -13,6 +13,8 @@ has no process-global mutable cache, I/O, clock or entropy.
 - Their `_with_trace` variants also return the refusing phase and observational cloned main-stream
   continuation words/pool lists. Styled traces include `Styler` at the source lap, before hook
   breach refusal and original-pool hazard clearing. Plain traces preserve their original twelve phases.
+- A styler's `style_runtime::Error::Landmark` (it cannot build round a signature landmark; option on only) refuses
+  the attempt (`Refusal::StyleLandmark`) before the `Styler` trace; any other styler error fails the call.
 - `certified_plain` and `certified_styled` return the first accepted attempt in 0..16, or `None`.
 - `generate_plain` and `generate_styled` search 0..64 when the attempt is `None`, returning typed
   exhaustion. `Some(attempt)` selects exactly that attempt and returns typed refusal if it fails.

@@ -188,8 +188,8 @@ impl<'a> Callbacks<'a> {
         // Signature mode (P-LAND-SENTENCED-1): the rows are lanes in the door orientation (`plan.axis`), while the
         // base rows and the square keep today's orientation; option off both are `plan.axis`, as today.
         // The door is read again here, from the props-time map: nothing between `shape` and `props` writes the church's
-        // tiles or ownership, so it reads as it did in `shape`; if it did not, the styler stops with `Error::Feature` (the generation call fails:
-        // a styler error is not a refused attempt).
+        // tiles or ownership, so it reads as it did in `shape`; if it did not, the styler stops with `Error::Landmark`
+        // and the pipeline refuses the attempt.
         let lanes = lanes::frame(c)?;
         let base_axis = if lanes.is_some() {
             u8::from(!shape::legacy_horizontal(c))

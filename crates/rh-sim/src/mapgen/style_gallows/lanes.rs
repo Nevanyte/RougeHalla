@@ -68,8 +68,8 @@ fn door_span(open: &[i32]) -> Option<(i32, i32)> {
     }
 }
 /// The zone's church as the lanes read it. `Ok(None)` when the zone holds no signature `Church` (option off).
-/// `Err(Error::Feature)` when it holds one whose door cannot be read: a signature zone is never given today's rows
-/// instead of lanes, and the spine is never centred on something that is not the door.
+/// `Err(Error::Landmark)` when it holds one whose door cannot be read (the pipeline refuses the attempt): a signature
+/// zone is never given today's rows instead of lanes, and the spine is never centred on something that is not the door.
 pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
     let Some(f) = b.zone_features().find(|f| f.kind == FeatureKind::Church) else {
         return Ok(None);
@@ -84,7 +84,7 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
         v[1].signum()
     };
     if sign == 0 {
-        return Err(Error::Feature);
+        return Err(Error::Landmark);
     }
     let (line, lo, hi) = match (horizontal, sign > 0) {
         (true, true) => (x1, y0, y1),
@@ -103,7 +103,7 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
             i >= 0 && !b.is_owned(i) && b.tiles[i as usize] == TILE_FLOOR
         })
         .collect();
-    let (first, last) = door_span(&door).ok_or(Error::Feature)?;
+    let (first, last) = door_span(&door).ok_or(Error::Landmark)?;
     let mut yard = (x0, y0, x1, y1);
     for g in b
         .zone_features()

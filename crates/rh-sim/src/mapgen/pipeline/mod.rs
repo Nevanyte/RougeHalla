@@ -83,8 +83,8 @@ pub enum Refusal {
     /// feature in an apron, a landmark in another landmark's apron, the Frost lake away from the cave's mouth, or a
     /// strict certifier failure (only with `Options::signature`).
     SignatureDiscarded,
-    /// P-MAPGEN-STYLE-REFUSE-1 (stub: not yet returned). A styler could not build round a signature landmark in its
-    /// zone (`style_runtime::Error::Landmark`), refused in the Styler phase; the next attempt is tried. Only with
+    /// A styler could not build round a signature landmark in its zone (`style_runtime::Error::Landmark`), refused in
+    /// the Styler phase before the Styler trace and the style contract; the next attempt is tried. Only with
     /// `Options::signature`. Every other styler error still fails the call (`Error::Style`).
     StyleLandmark,
 }
@@ -449,7 +449,15 @@ impl<'f> Pipeline<'f> {
             state.features = layers.features;
             state.feature_owner = layers.feature_owner;
             props = layers.props;
-            result.map_err(Error::Style)?;
+            // A styler that cannot build round a signature landmark refuses the attempt (no later draw on this
+            // attempt; the next re-seeds); any other styler error is a fault and fails the call.
+            match result {
+                Ok(_) => {}
+                Err(style_runtime::Error::Landmark) => {
+                    return Ok(AttemptReport::refused(Refusal::StyleLandmark));
+                }
+                Err(e) => return Err(Error::Style(e)),
+            }
             if !options.decor {
                 props.clear();
             }

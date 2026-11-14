@@ -77,7 +77,10 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    the first layout, then the door axis nearest the camp, admitting any rectangle; a uniform draw among those
    rectangles. A choice that splits the zone's floor or leaves a wall piece under 6 tiles is redrawn.
 6. **Refusal.** A zone with no legal site refuses the attempt in the Landmarks phase (`Refusal::Signature`); the
-   pipeline tries the next one. After records, a signature map is discarded (`Refusal::SignatureDiscarded`) unless
+   pipeline tries the next one. A styler that cannot build round a landmark in its zone (a landmark precondition, such
+   as the Sentenced church's door not reading as three open tiles in one run; never lack of room) returns
+   `style_runtime::Error::Landmark`, and the attempt is refused in the Styler phase (`Refusal::StyleLandmark`, the next
+   one tried); any other styler error still fails the call. After records, a signature map is discarded (`Refusal::SignatureDiscarded`) unless
    every signature tile is still as placed (the cave: walls, and floor carrying its ice), every entrance tile is still
    floor, no styler feature owns a tile of an apron (styler floor claims do not read
    `no_block`), no landmark's tiles lie in another landmark's apron, the Frost zone's largest ice body outside the cave
