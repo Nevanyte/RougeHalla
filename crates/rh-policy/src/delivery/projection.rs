@@ -685,22 +685,22 @@ pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
         .collect()
 }
 
-/// P-FROST-WALL-2: the block for a room whose Frost Wish is `frost_wish`: every code, [`rh_protocol::HudTerm::FrostWish`]
-/// saying which Wish this room runs (0 Freeze, 1 Wall) and the wall's public numbers (codes 24-29) in every room.
-/// STUB: returns the Freeze-only block of [`wire_hud`] unchanged.
-pub fn wire_hud_for(frost_wish: rh_sim::FrostWish) -> rh_protocol::WireHudContent {
-    let _ = frost_wish;
-    wire_hud()
+/// The HUD content block of a room whose Frost Wish is the default, Freeze: [`wire_hud_for`]`(FrostWish::Freeze)`.
+pub fn wire_hud() -> rh_protocol::WireHudContent {
+    wire_hud_for(rh_sim::FrostWish::Freeze)
 }
 
 /// The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): one scaling row per `rh_sim::WeaponId::ALL`
 /// (wire id `code()`) from `rh_sim::modifiers::rules::DEFINITION.weapon_scaling`, and every `rh_protocol::HudTerm` code
 /// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list") and Fire roam constants
-/// (P-WIRE17-HUD-2c). All public content constants, the same for every viewer (no C-OBS concern).
+/// (P-WIRE17-HUD-2c). All public content constants, the same for every viewer (no C-OBS concern), except
+/// (P-FROST-WALL-2) [`rh_protocol::HudTerm::FrostWish`]: which Wish Frost has in this room (`frost_wish`, the room's
+/// `SimConfig::frost_wish`: 0 Freeze, 1 Wall), a room setting, still the same for every viewer of the room. The wall's
+/// public numbers (codes 24-29) are sent in every room.
 ///
 /// A term whose sim source is missing (a content change that drops the value) is left out rather than sent as a made-up
 /// number; `crates/rh-policy/tests/hud_content.rs` requires every code.
-pub fn wire_hud() -> rh_protocol::WireHudContent {
+pub fn wire_hud_for(frost_wish: rh_sim::FrostWish) -> rh_protocol::WireHudContent {
     use rh_protocol::HudTerm::*;
     use rh_sim::abilities::{self as ab, Target};
     use rh_sim::status_runtime::{AbilityId, BLAZE_FIELD_POLICY, TRIAL_FIELD_POLICY};
@@ -760,6 +760,21 @@ pub fn wire_hud() -> rh_protocol::WireHudContent {
             FireRoamBurstAdShare,
             Some(rh_sim::constants::FIRE_ROAM_BURST_AD_SHARE),
         ),
+        // P-FROST-WALL-2: which Wish Frost has here, then Frost Wall's numbers (legacy 78dd8bd4 constants.ts,
+        // barriers.ts).
+        (
+            FrostWish,
+            Some(match frost_wish {
+                rh_sim::FrostWish::Freeze => rh_protocol::hud_content::FROST_WISH_FREEZE,
+                rh_sim::FrostWish::Wall => rh_protocol::hud_content::FROST_WISH_WALL,
+            }),
+        ),
+        (FrostWallRange, Some(ab::FROST_WALL_RANGE)),
+        (FrostWallMinRange, Some(ab::FROST_WALL_MIN_RANGE)),
+        (FrostWallLength, Some(ab::FROST_WALL_LENGTH)),
+        (FrostWallMs, Some(ab::FROST_WALL_MS)),
+        (FrostWallCellReach, Some(rh_sim::barriers::WALL_CELL_REACH)),
+        (FrostWallEndSlack, Some(rh_sim::barriers::WALL_END_SLACK)),
     ]
     .into_iter()
     .filter_map(|(code, value)| {
