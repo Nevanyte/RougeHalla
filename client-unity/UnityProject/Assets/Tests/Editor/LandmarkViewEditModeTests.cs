@@ -203,9 +203,8 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void AnyActorTheViewerMaySeeInsideFadesTheRoofSoItsNameAndBarsShow()
         {
-            // Pinned decision (packet fact 3): the roof sorts at the footprint's south edge, over every actor and overhead name inside, so
-            // the roof fades while ANY actor the client was told about stands inside, not only the local player. ArenaView notes only
-            // actors in the observation (C-OBS); the roof reveals nothing the server did not deliver, and the vision fog (31000) is above it.
+            // Owner ruling 2026-11-13 (P-UNITY-LANDMARK-ROOF-RETURN-1) replaces fact 3: another visible actor inside makes the roof PEEK
+            // (about half), only the local player fades it. ArenaView notes only actors in the observation (C-OBS); the vision fog is above it.
             var site = Cave(0);
             using (var scene = new Scene(site.Map, site.Anchor))
             {
@@ -213,8 +212,8 @@ namespace Roguehalla.Client.Tests
                 var lm = scene.View.Get(0); var v = scene.View;
                 // The local player is outside (not noted inside); a visible mob stands 3 tiles in from the camp.
                 v.NoteActor(TileCentre(site.Mouth[0].x, site.Mouth[0].y + 4));
-                v.NoteActor(TileCentre(site.Camp.x + 1, site.Camp.y + 3)); v.Tick(10f);
-                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofFadedAlpha), "a visible actor inside: the roof does not hide its name and bars");
+                v.NoteOtherActor(TileCentre(site.Camp.x + 1, site.Camp.y + 3)); v.Tick(10f);
+                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofPeekAlpha), "a visible actor inside (not the local player): the roof peeks, so its name and bars show");
                 Assert.That(lm.RoofOrder, Is.LessThan(VisionFog.SortingOrder), "the fog above the roof still dims what the server did not deliver");
             }
         }

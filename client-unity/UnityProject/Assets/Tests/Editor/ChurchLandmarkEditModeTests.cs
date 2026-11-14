@@ -233,10 +233,10 @@ namespace Roguehalla.Client.Tests
                 }
                 v.NoteActor(TileCentre(site.Camp)); v.Tick(10f);
                 foreach (var r in lm.RoofRenderers) Assert.That(r.color.a, Is.EqualTo(LandmarkView.RoofFadedAlpha).Within(.001f), "every drawn roof piece carries the alpha");
-                // A visible actor inside fades it even when the local player is in the graveyard (facts 2 and 3 of P-UNITY-LANDMARK-1).
+                // Owner ruling 2026-11-13: a visible actor inside makes it peek when the local player is in the graveyard.
                 v.Tick(10f);
-                v.NoteActor(TileCentre(site.Yard[0])); v.NoteActor(TileCentre(site.Camp)); v.Tick(10f);
-                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofFadedAlpha));
+                v.NoteActor(TileCentre(site.Yard[0])); v.NoteOtherActor(TileCentre(site.Camp)); v.Tick(10f);
+                Assert.That(lm.RoofAlpha, Is.EqualTo(LandmarkView.RoofPeekAlpha));
             }
         }
 

@@ -300,7 +300,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
-                if (_landmarks != null) _landmarks.NoteActor(WorldPoint(a.X, a.Y));
+                if (_landmarks != null) _landmarks.NoteOtherActor(WorldPoint(a.X, a.Y));
                 ActorField.Note(WorldPoint(a.X, a.Y));
             }
             if (_hasMembership) { _collectWishNotes = true; PresentLatestNpcs(); _collectWishNotes = false; }
@@ -489,7 +489,7 @@ namespace Roguehalla.Client
                 _overlay?.NoteActor(a.Id, a.Archetype, (byte)a.Kind); _hitZones?.NoteActor(a.Id, a.Archetype);
                 if (_collectWishNotes) _wishFx.NoteActor(a.Id, a.Kind, a.Effects, a.Status != ActorStatus.Dead && a.Status != ActorStatus.Mia);
                 if (_regionProps != null) _regionProps.NoteActor(WorldPoint(a.X, a.Y));
-                if (_landmarks != null) _landmarks.NoteActor(WorldPoint(a.X, a.Y));
+                if (_landmarks != null) _landmarks.NoteOtherActor(WorldPoint(a.X, a.Y));
                 ActorField.Note(WorldPoint(a.X, a.Y));
             }
         }

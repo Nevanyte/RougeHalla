@@ -14,6 +14,8 @@ namespace Roguehalla.Client
     {
         /// <summary>Roof alpha with nobody inside, and while an actor is inside (reached at LandmarkView's fade rate, PropFade.FadeRate).</summary>
         public const float RoofOpaqueAlpha = 1f, RoofFadedAlpha = .1f;
+        /// <summary>STUB (P-UNITY-LANDMARK-ROOF-RETURN-1): roof alpha while only another actor, not the local player, is inside.</summary>
+        public const float RoofPeekAlpha = .5f;
 
         readonly List<Landmark> _landmarks = new List<Landmark>();
 
@@ -65,6 +67,15 @@ namespace Roguehalla.Client
                 if (_landmarks[i].Fades(tx, ty)) _landmarks[i].ActorInside = true;
         }
 
+        /// <summary>A delivered actor other than the local player; feet in world space. The roof peeks (RoofPeekAlpha) unless the local player is inside too.</summary>
+        public void NoteOtherActor(Vector3 feet)
+        {
+            if (_landmarks.Count == 0) return;
+            int tx = Mathf.FloorToInt(feet.x), ty = Mathf.FloorToInt(-feet.y / ArenaView.GroundSquash);
+            for (int i = 0; i < _landmarks.Count; i++)
+                if (_landmarks[i].Fades(tx, ty)) _landmarks[i].OtherInside = true;
+        }
+
         /// <summary>Moves each roof toward its target (faded when an actor was noted inside since the last Tick, else opaque), then
         /// forgets the notes. No allocation.</summary>
         public void Tick(float dt)
@@ -72,8 +83,8 @@ namespace Roguehalla.Client
             for (int i = 0; i < _landmarks.Count; i++)
             {
                 var lm = _landmarks[i];
-                float target = lm.ActorInside ? RoofFadedAlpha : RoofOpaqueAlpha;
-                lm.ActorInside = false;
+                float target = lm.ActorInside ? RoofFadedAlpha : lm.OtherInside ? RoofPeekAlpha : RoofOpaqueAlpha;
+                lm.ActorInside = false; lm.OtherInside = false;
                 lm.SetRoofAlpha(Mathf.MoveTowards(lm.RoofAlpha, target, PropFade.FadeRate * dt));
             }
         }
