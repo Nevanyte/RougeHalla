@@ -596,6 +596,7 @@ namespace Roguehalla.Net
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
             Collections.Reset();
+            Collections.BindMap(w.Map);
             Input.ClearPending();
             Latest = null;
             Training = false;

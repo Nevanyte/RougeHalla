@@ -76,12 +76,21 @@ namespace Roguehalla.Net.Protocol
             return null;
         }
 
-        /// <summary>P-FROST-WALL-2b: Frost's Wish in this room; Freeze when the block lacks term 23 (an older server). STUB.</summary>
-        public FrostWishKind FrostWish { get { return FrostWishKind.Freeze; } }
-        /// <summary>P-FROST-WALL-2b: the block carries term 23. STUB.</summary>
-        public bool CarriesFrostWish { get { return false; } }
-        /// <summary>P-FROST-WALL-2b: the wall's six numbers, or null unless the block carries all of terms 24-29. STUB.</summary>
-        public FrostWallNumbers? FrostWall { get { return null; } }
+        /// <summary>P-FROST-WALL-2b: Frost's Wish in this room; Freeze when term 23 is absent or anything but exactly 1.</summary>
+        public FrostWishKind FrostWish { get { var v = Term(HudTerm.FrostWish); return v.HasValue && v.Value == 1 ? FrostWishKind.Wall : FrostWishKind.Freeze; } }
+        /// <summary>P-FROST-WALL-2b: the block carries term 23.</summary>
+        public bool CarriesFrostWish { get { return Term(HudTerm.FrostWish).HasValue; } }
+        /// <summary>P-FROST-WALL-2b: the wall's six numbers, or null unless the block carries all of terms 24-29.</summary>
+        public FrostWallNumbers? FrostWall
+        {
+            get
+            {
+                var a = Term(HudTerm.FrostWallRange); var b = Term(HudTerm.FrostWallMinRange); var c = Term(HudTerm.FrostWallLength);
+                var d = Term(HudTerm.FrostWallMs); var e = Term(HudTerm.FrostWallCellReach); var f = Term(HudTerm.FrostWallEndSlack);
+                if (!a.HasValue || !b.HasValue || !c.HasValue || !d.HasValue || !e.HasValue || !f.HasValue) return null;
+                return new FrostWallNumbers(a.Value, b.Value, c.Value, d.Value, e.Value, f.Value);
+            }
+        }
 
         /// <summary>The scaling row of a weapon id, or null.</summary>
         public WireWeaponScaling ScalingOf(byte id)

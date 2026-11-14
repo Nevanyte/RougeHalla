@@ -57,9 +57,9 @@ namespace Roguehalla.Net
         public uint? Owner, Subject;
         public float X, Y, X2, Y2, Radius, Vx, Vy;
         public double StartedAt, EndsAt;
-        /// <summary>P-FROST-WALL-2b: a wall's tiles in map coordinates (Kind Wall only; null for other kinds). STUB: never filled.</summary>
+        /// <summary>P-FROST-WALL-2b: a wall's tiles in map coordinates (Kind Wall only; null for other kinds).</summary>
         public MapTile[] Tiles;
-        /// <summary>P-FROST-WALL-2b: identity across snapshots (walls only; default for other kinds). STUB: never filled.</summary>
+        /// <summary>P-FROST-WALL-2b: identity across snapshots (walls only; default for other kinds).</summary>
         public AreaKey Key;
     }
     /// <summary>P-FROST-WALL-2b: what identifies a standing wall from one snapshot to the next. The wire carries no field id, and
@@ -308,8 +308,9 @@ namespace Roguehalla.Net
     {
         public uint Tick { get; private set; }
         /// <summary>P-FROST-WALL-2b: gives the view the Welcome map, the size wall tile indices decode against (Session calls it
-        /// on every Welcome). STUB: does nothing.</summary>
-        public void BindMap(MapBlob map) { }
+        /// on every Welcome).</summary>
+        public void BindMap(MapBlob map) { _mapW = map == null ? 0u : map.W; _mapH = map == null ? 0u : map.H; }
+        uint _mapW, _mapH;
         public InventoryView? Inventory { get; private set; }
         public IReadOnlyList<PropView> Props { get; private set; } = Array.Empty<PropView>();
         public PropView? Focus { get; private set; }
@@ -377,6 +378,18 @@ namespace Roguehalla.Net
                     catch (EncodeException e) { throw new InvalidCollectionStateException("invalid trade state: " + e.Message); }
                 }
             }
+            foreach (var item in state.Items)
+            {
+                if (!(item is FieldsState wallCheck)) continue;
+                foreach (var f in wallCheck.Rows)
+                {
+                    if (f.Kind != FieldsState.KindWall) continue;
+                    if (f.Tiles == null || f.Tiles.Length == 0) throw new InvalidCollectionStateException("wall tile list is empty");
+                    uint cells = _mapW * _mapH;
+                    foreach (var t in f.Tiles)
+                        if (t >= cells) throw new InvalidCollectionStateException("wall tile " + t + " is off the " + _mapW + "x" + _mapH + " map");
+                }
+            }
             ValidateQuestPropReferences(state);
             foreach (var item in state.Items)
             {
@@ -423,6 +436,12 @@ namespace Roguehalla.Net
                             X = f.X, Y = f.Y, X2 = f.X2, Y2 = f.Y2, Radius = f.Radius, Vx = f.Vx, Vy = f.Vy,
                             StartedAt = f.StartedAt, EndsAt = f.EndsAt
                         };
+                        if (f.Kind == FieldsState.KindWall)
+                        {
+                            var tiles = new MapTile[f.Tiles.Length];
+                            for (int j = 0; j < tiles.Length; j++) tiles[j] = new MapTile((ushort)(f.Tiles[j] % _mapW), (ushort)(f.Tiles[j] / _mapW));
+                            rows[i].Tiles = tiles; rows[i].Key = new AreaKey(f.StartedAt, f.Tiles[0]);
+                        }
                     }
                     Fields = rows;
                 }
