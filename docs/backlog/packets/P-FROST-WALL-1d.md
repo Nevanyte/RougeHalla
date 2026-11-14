@@ -148,14 +148,37 @@ trade checks range or line together (one notice), then `pick` (`traders.ts:65-66
   (`git show 78dd8bd4:packages/client/src/scenes/RaidScene.ts`, line 727): **without** the wall, while its trader panel
   reads `planMap()` (with it). See "Legacy doubts".
 
+- Satisfiable: with the six reads switched to `barriers::body_map` (a dry run, reverted before commit; the `item_view`
+  sight read at `:316` left on `collision_view`) all 21 tests in the oracle and the 61 `barriers` lib tests pass, and
+  `step_event_window`, `no_alloc`, `frost_wall_no_alloc`, `frost_wall_push_no_alloc`, `barrier_observe_no_alloc`,
+  `frost_wall_replay`, `frost_wall_observe` and `hash_coverage` stay green; the parity report is all MATCH (109 slice
+  scenarios, 300 pathfinding queries); `ability_hash_tape_matches_the_base` fails exactly as on the base (the known
+  carry, below), nothing new.
+
 ## Oracle files (read-only for implementers)
-- `crates/rh-sim/src/barriers_reach_tests.rs`
+- `crates/rh-sim/src/barriers_reach_tests.rs` (21 tests: 7 red, 14 green guards)
 - `docs/backlog/packets/P-FROST-WALL-1d.md`
 Stub (the implementer's): the `mod reach_tests` lines in `crates/rh-sim/src/barriers.rs`. No signature was stubbed: the
 oracle drives only existing APIs.
 
 ## Baseline (on `packet/P-FROST-WALL-1d`, before any implementation)
-(filled after the runs)
+`cargo test --locked -p rh-sim --features trusted-status-probes --lib barriers::reach_tests`: 7 red, each on an
+assertion:
+- `loot_across_the_ice_is_not_picked_up`: "the axe stays" (taken: 0 items left, legacy 1).
+- `the_f_focus_is_not_offered_across_the_ice`: the axe behind the ice carries the F-focus.
+- `a_corpse_in_the_ice_is_not_consumed_by_f_from_beside_it`: "the corpse stays" (eaten).
+- `a_corpse_in_the_ice_is_not_auto_consumed`: eaten by the auto-harvest.
+- `a_player_cannot_trade_across_the_ice`: "legacy's trade line (MASK_MOVE) is stopped by the ice" (traded).
+- `a_player_across_the_ice_is_not_a_visitor`: "no offers rolled" (three rolled).
+- `a_walking_trader_never_steps_into_the_ice`: the broker at (373.6, 336), its disc in column 12, at tick 24.
+Green guards (14): `guard_switch_off_*` for the pick-up and focus, the observation digest (`0x108787a4c319b356`), F and
+auto consume, the trade, the visitor (three offers, stop refreshed) and the walker (x 424 after 40 steps);
+own-side guards with a wall standing for loot, F and auto consume, and the broker (visitor and trade); sight guards
+`guard_the_loot_across_the_ice_is_still_seen` and `guard_the_trade_view_still_lists_a_merchant_across_the_ice`; and
+`guard_the_content_hash_is_the_golden_value`.
+Known red on `85bfd025e`, not this packet's (the coordinator's carry): `--lib ability_hash_tape_matches_the_base`
+(`hash_tape.rs:53`: observation version 29 in the tape, 30 in the code) and one digest assertion in
+`crates/rh-sim/tests/frost_wall_content.rs`.
 
 ## 9. Validation commands
 `export PATH="$HOME/.cargo/bin:$PATH"`, then:
