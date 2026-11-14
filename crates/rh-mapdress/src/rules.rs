@@ -100,7 +100,7 @@ pub struct LandmarkRules {
     /// The landmark's feature kind: `Volcano`, `Church`, `BogTree`, `Cave` or `Hall`. Must equal the anchor's `kind`.
     pub feature: FeatureKind,
     /// P-DRESS-SENTENCED-RINGS-1: where the bands are measured from, when not the anchor's footprint. `None`: the
-    /// anchor's footprint, exactly as before. Stub: parsed only; validated and used by the implementer.
+    /// anchor's footprint, exactly as before. Validated at build; used by `band_plane`.
     pub origin: Option<RingOrigin>,
     pub rings: Vec<BandRing>,
 }
@@ -334,14 +334,17 @@ struct RawOrigin {
     #[serde(default)]
     outside: Option<String>,
 }
-/// Stub: an unknown band name reads as `None` (the implementer refuses it, naming the zone).
-fn stub_band(name: &Option<String>) -> Option<Band> {
+fn origin_band(zone: Zone, which: &str, name: &Option<String>) -> Result<Option<Band>, String> {
     match name.as_deref() {
-        Some("core") => Some(Band::Core),
-        Some("near") => Some(Band::Near),
-        Some("mid") => Some(Band::Mid),
-        Some("far") => Some(Band::Far),
-        _ => None,
+        None => Ok(None),
+        Some("core") => Ok(Some(Band::Core)),
+        Some("near") => Ok(Some(Band::Near)),
+        Some("mid") => Ok(Some(Band::Mid)),
+        Some("far") => Ok(Some(Band::Far)),
+        Some(other) => Err(format!(
+            "zone \"{}\": origin {which} \"{other}\" is not one of core, near, mid, far",
+            zone.as_str()
+        )),
     }
 }
 #[derive(Deserialize)]
@@ -662,13 +665,17 @@ impl Raw {
                             on: r.on.clone(),
                         });
                     }
+                    let origin = match &l.origin {
+                        None => None,
+                        Some(o) => Some(RingOrigin {
+                            feature: o.feature,
+                            inside: origin_band(z, "inside", &o.inside)?,
+                            outside: origin_band(z, "outside", &o.outside)?,
+                        }),
+                    };
                     Some(LandmarkRules {
                         feature: l.feature,
-                        origin: l.origin.as_ref().map(|o| RingOrigin {
-                            feature: o.feature,
-                            inside: stub_band(&o.inside),
-                            outside: stub_band(&o.outside),
-                        }),
+                        origin,
                         rings: band_rings,
                     })
                 }

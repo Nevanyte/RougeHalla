@@ -93,6 +93,7 @@
         ],
       "landmark": {
         "feature": "church",
+        "origin": { "feature": "church", "inside": "near", "outside": "mid" },
         "rings": [
           { "name": "sent-core-flagstone", "band": "core", "groundVariant": 3, "props": [{ "kind": "sent.flag", "density": 14.0 }] },
           { "name": "sent-near-graves", "band": "near", "groundVariant": 4, "props": [{ "kind": "sent.grave", "density": 7.0 }, { "kind": "sent.fence", "density": 3.0 }] },

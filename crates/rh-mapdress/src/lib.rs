@@ -143,6 +143,9 @@ struct Grid<'a> {
     /// Landmark mode: per tile of a zone that has an anchor and a `landmark` rule block, `1 + band index`; 0 elsewhere.
     /// Empty when no zone uses the landmark path.
     bands: Vec<u8>,
+    /// P-DRESS-SENTENCED-RINGS-1: tiles strictly inside the anchor's footprint of a zone whose rings are measured from
+    /// an origin feature (the churchyard): no tall prop stands here. Empty when no zone does.
+    yard: Vec<bool>,
     /// P-DRESS-MARSH-1: per tile, the ground variant of the terrain ring it lies in (valid where `ringed`).
     marsh: Vec<u8>,
     /// Tiles covered by some terrain ring (plain floor of the zone within the ring's reach).
@@ -154,7 +157,7 @@ struct Grid<'a> {
 impl Grid<'_> {
     /// Core band of a landmark-mode zone: tall props of every stage keep out of it.
     fn is_core(&self, i: usize) -> bool {
-        self.bands.get(i) == Some(&1)
+        self.bands.get(i) == Some(&1) || self.yard.get(i) == Some(&true)
     }
     fn zone_of(&self, i: usize) -> u8 {
         self.map.region_grid.get(i).copied().unwrap_or(0)
@@ -334,10 +337,19 @@ fn landmark_anchor<'a>(map: &'a GameMapData, z: &ZoneRules) -> Option<&'a ZoneAn
         .find(|a| a.zone == z.zone && a.kind == lm.feature)
 }
 
-/// The band plane of [`Grid::bands`], from the generator's own `signature::band`.
-fn band_plane(map: &GameMapData, rules: &Rules) -> Vec<u8> {
+/// Whether tile `(x, y)` lies strictly inside `f` (the footprint inset by one tile).
+fn inside_footprint(f: rh_sim::mapdata::TileRect, x: i32, y: i32) -> bool {
+    x > f.x && y > f.y && x < f.x + f.w as i32 - 1 && y < f.y + f.h as i32 - 1
+}
+
+/// The band plane of [`Grid::bands`], from the generator's own `signature::band`, and the yard plane of
+/// [`Grid::yard`]. A zone whose landmark names an origin feature present on the map measures the bands from that
+/// feature's box (largest `tiles`, first on a tie, as [`anchor`]); inside the anchor's footprint inset by one tile a
+/// tile beyond the origin's core band takes `inside`, any other tile the farther of its band and `outside`.
+fn band_plane(map: &GameMapData, rules: &Rules) -> (Vec<u8>, Vec<bool>) {
     let w = map.w as usize;
     let mut out = Vec::new();
+    let mut yard = Vec::new();
     for z in &rules.zones {
         let Some(anchor) = landmark_anchor(map, z) else {
             continue;
@@ -345,13 +357,49 @@ fn band_plane(map: &GameMapData, rules: &Rules) -> Vec<u8> {
         if out.is_empty() {
             out = vec![0u8; w * map.h as usize];
         }
-        for (i, slot) in out.iter_mut().enumerate() {
-            if map.region_grid.get(i).copied() == Some(z.zone.code()) {
-                *slot = 1 + signature::band(anchor, (i % w) as i32, (i / w) as i32) as u8;
+        let origin = z.landmark.as_ref().and_then(|l| l.origin).and_then(|o| {
+            let mut best: Option<&rh_sim::mapdata::MapFeature> = None;
+            for f in &map.features {
+                if f.kind == o.feature
+                    && f.zone == z.zone
+                    && best.is_none_or(|b| f.tiles > b.tiles)
+                {
+                    best = Some(f);
+                }
             }
+            best.map(|f| (o, f.bbox))
+        });
+        let moved = origin.map(|(_, bbox)| {
+            let mut m = anchor.clone();
+            m.footprint = bbox;
+            m
+        });
+        if origin.is_some() && yard.is_empty() {
+            yard = vec![false; w * map.h as usize];
+        }
+        for (i, slot) in out.iter_mut().enumerate() {
+            if map.region_grid.get(i).copied() != Some(z.zone.code()) {
+                continue;
+            }
+            let (x, y) = ((i % w) as i32, (i / w) as i32);
+            let (Some((o, _)), Some(moved)) = (origin, moved.as_ref()) else {
+                *slot = 1 + signature::band(anchor, x, y) as u8;
+                continue;
+            };
+            let b = signature::band(moved, x, y);
+            let b = if inside_footprint(anchor.footprint, x, y) {
+                yard[i] = true;
+                match o.inside {
+                    Some(ins) if b != Band::Core => ins,
+                    _ => b,
+                }
+            } else {
+                o.outside.map_or(b, |out| b.max(out))
+            };
+            *slot = 1 + b as u8;
         }
     }
-    out
+    (out, yard)
 }
 
 /// Chebyshev distance in tiles from every tile to the nearest source tile, by a two-pass chamfer (exact for the
@@ -441,6 +489,7 @@ fn terrain_plane(map: &GameMapData, rules: &Rules) -> (Vec<u8>, Vec<bool>, Vec<b
 fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
     let (w, h) = (map.w as usize, map.h as usize);
     let (marsh, ringed, water) = terrain_plane(map, rules);
+    let (bands, yard) = band_plane(map, rules);
     Grid {
         map,
         w,
@@ -450,7 +499,8 @@ fn new_grid<'a>(map: &'a GameMapData, rules: &Rules) -> Grid<'a> {
         occupied: vec![false; w * h],
         moat: vec![false; w * h],
         filler: vec![false; w * h],
-        bands: band_plane(map, rules),
+        bands,
+        yard,
         marsh,
         ringed,
         water,
