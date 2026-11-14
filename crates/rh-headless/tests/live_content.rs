@@ -4,9 +4,9 @@
 //!     binaries) plays `SimConfig::live_content()` in every field, hitboxes included, except the plan's own timers
 //!     (`lifecycle`, `min_players`, `lobby_seconds`, `fill_seconds` from `sim_config_for(plan)`). Compared as whole
 //!     structs, so a new `SimConfig` field is compared by default.
-//! (c) The next literal copy of the live content world fails a test: no non-test source under `crates/rh-headless/src`
-//!     or `crates/rh-server/src` writes a live-only content value (see [`LIVE_ONLY_MARKERS`]); those values belong to
-//!     `SimConfig::live_content()` in `rh-sim`.
+//! (c) The next literal copy of the live content world fails a test: no non-test source under `crates/rh-headless/src`,
+//!     `crates/rh-server/src` or `crates/rh-headless/examples` (added by P-FROST-WALL-3) writes a live-only content
+//!     value (see [`LIVE_ONLY_MARKERS`]); those values belong to `SimConfig::live_content()` in `rh-sim`.
 use rh_headless::tournament::{sim_config_for, TournamentPlan};
 use rh_headless::tournament_learning::{tournament_world, SeatPolicy};
 use rh_policy::bots::TierId;
@@ -139,7 +139,8 @@ fn code_lines(text: &str) -> Vec<(usize, String)> {
 fn no_source_outside_rh_sim_writes_the_live_content_values() {
     let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut files = Vec::new();
-    for dir in ["rh-headless/src", "rh-server/src"] {
+    // P-FROST-WALL-3: the headless examples too (`source_soak.rs` and `full_map_cost.rs` were whole live copies).
+    for dir in ["rh-headless/src", "rh-server/src", "rh-headless/examples"] {
         rust_files(&crates.join(dir), &mut files);
     }
     assert!(
