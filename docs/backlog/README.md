@@ -469,7 +469,7 @@ commits; the brief is the authority for scope and legacy references. Current sta
 | P-UNITY-GROUND-SAMPLERS-1 | the ground shader compiles for the Web target, so `build-web.sh` finishes (round 9: sampler limit exceeded on gles3) | none | Done (e8940dc5a; [spec](packets/P-UNITY-GROUND-SAMPLERS-1.md); the all-four-lights variant is at 11 samplers; `build-web.sh` still to be run on the merged tree) | none |
 | P-UNITY-SENTENCED-TILES-1 | the Sentenced floor's tiles vary: browns, lighter greys and purples scattered among the dark stone (owner direction 2026-11-13) | none | Reverted before push ([spec](packets/P-UNITY-SENTENCED-TILES-1.md)): in the client the tints were flat vivid fills; rebuilt as part of P-UNITY-GROUND-TINT-1 | client/src/render/zoneArt |
 | P-UNITY-GROUND-TINT-1 | ground tints modulate the ground art (they do not replace it): the server's decoration bands in every zone, and the Sentenced floor's scattered tiles | P-UNITY-DRESS-1 | Brief ([spec](packets/P-UNITY-GROUND-TINT-1.md)); needs oracle | none |
-| P-UNITY-LOOK-TOOLS-1 | a look check any agent can run (editor capture and compare) and the Web round written down, for the tuning lane | none | Brief ([spec](packets/P-UNITY-LOOK-TOOLS-1.md)); needs oracle | none |
+| P-UNITY-LOOK-TOOLS-1 | a look check any agent can run (editor capture and compare) and the Web round written down, for the tuning lane | none | Done (fcb5affc5; [spec](packets/P-UNITY-LOOK-TOOLS-1.md); the Web recipe was written from two rounds and not re-run) | none |
 
 ## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
 

@@ -28,9 +28,11 @@ if [[ ! -d "$PROJECT/Library" ]]; then
   fi
 fi
 
-ASSET="client-unity/UnityProject/Assets/Resources/Showcase/NunitoBold.asset"
-ASSET_CLEAN=0
-[[ -z "$(git -C "$REPO" status --porcelain -- "$ASSET")" ]] && ASSET_CLEAN=1
+# Unity regenerates the font assets under Showcase/ (kerning tables) on an EditMode run. They are under Resources/, so a
+# committed copy would reach the player build: every one that was clean before the run is restored after it.
+SHOWCASE="client-unity/UnityProject/Assets/Resources/Showcase"
+dirty_showcase() { git -C "$REPO" status --porcelain -- "$SHOWCASE" | awk '$1 == "M" { print $2 }' | sort || true; }
+SHOWCASE_DIRTY_BEFORE="$(dirty_showcase)"
 metas() { git -C "$REPO" ls-files --others --exclude-standard -- client-unity/UnityProject/Assets | grep '\.meta$' | sort || true; }
 METAS_BEFORE="$(metas)"
 
@@ -45,10 +47,11 @@ RC=0
   -testResults "$RESULTS" -logFile "$LOG" >/dev/null 2>&1 || RC=$?
 
 # Leave the tree as found.
-if ((ASSET_CLEAN)) && [[ -n "$(git -C "$REPO" status --porcelain -- "$ASSET")" ]]; then
-  git -C "$REPO" checkout -- "$ASSET"
-  echo "editmode: restored NunitoBold.asset"
-fi
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  git -C "$REPO" checkout -- "$f"
+  echo "editmode: restored $(basename "$f")"
+done < <(comm -13 <(printf '%s\n' "$SHOWCASE_DIRTY_BEFORE") <(dirty_showcase))
 NEW_METAS="$(comm -13 <(printf '%s\n' "$METAS_BEFORE") <(metas) | grep -v '^$' || true)"
 if [[ -n "$NEW_METAS" ]]; then
   echo "editmode: untracked .meta files left under Assets/ (track them if they belong to new scripts):"
