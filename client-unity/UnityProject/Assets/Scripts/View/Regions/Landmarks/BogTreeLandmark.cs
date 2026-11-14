@@ -25,7 +25,8 @@ namespace Roguehalla.Client
         const int Ppt = 16;                                       // texture pixels per tile
         const float Sq = ArenaView.GroundSquash;
         const float RootH = .72f, BoleH = 1.75f;                   // world units; RootH clears the wall blocks (face .67)
-        const float Dz = .03f;
+        const float Dz = .055f;
+        const int CanopyPpt = 8;                                  // the canopy is soft foliage: half the bark's resolution, bilinear
         const int CoverRadiusSquared = 9;
         static readonly Color Ink = new Color(.05f, .05f, .04f);
 
@@ -191,9 +192,9 @@ namespace Roguehalla.Client
             lm.Own(tex); return tex;
         }
 
-        static SpriteRenderer NewSprite(Landmark lm, Transform parent, Texture2D tex, string name, Vector3 position, int order)
+        static SpriteRenderer NewSprite(Landmark lm, Transform parent, Texture2D tex, string name, Vector3 position, int order, int ppt = Ppt)
         {
-            var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.zero, Ppt, 0, SpriteMeshType.FullRect);
+            var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.zero, ppt, 0, SpriteMeshType.FullRect);
             lm.Own(sprite);
             var go = new GameObject(name); go.transform.SetParent(parent, false);
             go.transform.localPosition = position;
@@ -214,17 +215,20 @@ namespace Roguehalla.Client
             for (int i = 0; i < px.Length; i++) { px[i] = clear; rowOf[i] = -1; }
             var cmin = new int[g.W]; var cmax = new int[g.W];     // group rows per column, widened by one tile each way
             for (int x = 0; x < g.W; x++) { cmin[x] = int.MaxValue; cmax[x] = -1; }
+            var colH = new float[g.W];                            // the tallest bark in each column and its neighbours: where a ray may start
             for (int y = f.MinY; y <= f.MaxY; y++) for (int x = f.MinX; x <= f.MaxX; x++) if (f.In(x, y))
-                for (int k = Mathf.Max(0, x - 1); k <= Mathf.Min(g.W - 1, x + 1); k++) { cmin[k] = Mathf.Min(cmin[k], y); cmax[k] = Mathf.Max(cmax[k], y); }
+                for (int k = Mathf.Max(0, x - 1); k <= Mathf.Min(g.W - 1, x + 1); k++) { cmin[k] = Mathf.Min(cmin[k], y); cmax[k] = Mathf.Max(cmax[k], y); colH[k] = Mathf.Max(colH[k], f.HSmooth(x + .5f, y + .5f) + .12f); }
             for (int j = 0; j < H; j++)
             {
-                float s = sBottom + (j + .5f) / Ppt, v0 = -s / Sq, v1 = (zMax - s) / Sq;
+                float s = sBottom + (j + .5f) / Ppt, v0 = -s / Sq;
                 for (int i = 0; i < W; i++)
                 {
                     float u = c0 + (i + .5f) / Ppt; int tx = Mathf.FloorToInt(u);
-                    if (tx < 0 || tx >= g.W || cmax[tx] < 0 || v1 < cmin[tx] - 1 || v0 > cmax[tx] + 2) continue;
+                    if (tx < 0 || tx >= g.W || cmax[tx] < 0) continue;
+                    float zStart = Mathf.Min(zMax, colH[tx]), v1 = (zStart - s) / Sq;
+                    if (v1 < cmin[tx] - 1 || v0 > cmax[tx] + 2) continue;
                     float hz = -1f, hv = 0f;
-                    for (float z = zMax; z >= 0f; z -= Dz)
+                    for (float z = zStart; z >= 0f; z -= Dz)
                     {
                         float v = (z - s) / Sq; if (v < 0f || v >= g.H) continue;
                         float h = f.H(u, v);
@@ -248,12 +252,17 @@ namespace Roguehalla.Client
                 }
             }
             var parent = new GameObject(name); parent.transform.SetParent(lm.Root.transform, false);
-            var rowSet = new List<int>(); for (int r = r0; r <= r1; r++) rowSet.Add(r);
-            foreach (int r in rowSet)
+            int rows = r1 - r0 + 1; var bia = new int[rows]; var bib = new int[rows]; var bja = new int[rows]; var bjb = new int[rows];
+            for (int r = 0; r < rows; r++) { bia[r] = int.MaxValue; bib[r] = -1; bja[r] = int.MaxValue; bjb[r] = -1; }
+            for (int j = 0; j < H; j++) for (int i = 0; i < W; i++)          // one pass: each row's pixel box
             {
-                int ia = int.MaxValue, ib = -1, ja = int.MaxValue, jb = -1;
-                for (int j = 0; j < H; j++) for (int i = 0; i < W; i++) if (InStrip(rowOf, W, H, i, j, r)) { ia = Mathf.Min(ia, i); ib = Mathf.Max(ib, i); ja = Mathf.Min(ja, j); jb = Mathf.Max(jb, j); }
-                if (ib < 0) continue;
+                int r = rowOf[j * W + i] - r0; if (r < 0 || r >= rows) continue;
+                bia[r] = Mathf.Min(bia[r], i); bib[r] = Mathf.Max(bib[r], i); bja[r] = Mathf.Min(bja[r], j); bjb[r] = Mathf.Max(bjb[r], j);
+            }
+            for (int rr = 0; rr < rows; rr++)
+            {
+                if (bib[rr] < 0) continue;
+                int r = rr + r0, ia = bia[rr], ib = bib[rr], ja = Mathf.Max(0, bja[rr] - 1), jb = Mathf.Min(H - 1, bjb[rr] + 1);   // one pixel more each way for the shared hairline
                 int sw = ib - ia + 1, sh = jb - ja + 1; var sp = new Color32[sw * sh];
                 for (int j = 0; j < sh; j++) for (int i = 0; i < sw; i++) sp[j * sw + i] = InStrip(rowOf, W, H, ia + i, ja + j, r) ? px[(ja + j) * W + ia + i] : clear;
                 var tex = NewTexture(lm, sw, sh, name + " row " + r); tex.SetPixels32(sp); tex.Apply(false, false);   // readable: the marsh test samples the bark
@@ -341,21 +350,22 @@ namespace Roguehalla.Client
             int minX = g.W, maxX = -1, minY = g.H, maxY = -1;
             for (int y = 0; y < g.H; y++) for (int x = 0; x < g.W; x++) if (cover[y * g.W + x]) { minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x); minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y); }
             if (maxX < 0) return;
-            const float Thick = .35f;
-            float lift = Mathf.Clamp((minY - .4f) * Sq - Thick, .55f, .95f);
+            const float Thick = .4f, North = .45f, Side = .33f;   // the crown reaches the cover's outline and no further: .35 units north, a third of a tile east and west
+            const float lift = 0f;
             float u0 = Mathf.Max(0f, minX - .5f), u1 = Mathf.Min(g.W, maxX + 1.5f);
             float sB = Mathf.Max(-g.H * Sq, -(maxY + 1) * Sq), sT = Mathf.Min(0f, -minY * Sq + lift + Thick + .5f);
-            int W = Mathf.CeilToInt((u1 - u0) * Ppt), H = Mathf.CeilToInt((sT - sB) * Ppt);
+            int W = Mathf.CeilToInt((u1 - u0) * CanopyPpt), H = Mathf.CeilToInt((sT - sB) * CanopyPpt);
             var px = new Color32[W * H]; Color32 clear = new Color32(30, 50, 24, 0);
             var alpha = new bool[W * H];
             Color gap = new Color(.06f, .12f, .06f), dark = new Color(.13f, .23f, .09f), mid = new Color(.26f, .40f, .13f), light = new Color(.50f, .61f, .24f), sick = new Color(.56f, .56f, .20f);
             for (int j = 0; j < H; j++)
             {
-                float s = sB + (j + .5f) / Ppt;
+                float s = sB + (j + .5f) / CanopyPpt;
                 for (int i = 0; i < W; i++)
                 {
-                    float u = u0 + (i + .5f) / Ppt;
+                    float u = u0 + (i + .5f) / CanopyPpt;
                     float su = u, sv = -s / Sq;
+                    if (!(Cov(g, cover, u, sv) || Cov(g, cover, u - Side, sv) || Cov(g, cover, u + Side, sv) || Cov(g, cover, u, sv + North))) { px[j * W + i] = clear; continue; }
                     float wx = (RegionNoise.Periodic(su * 1.3f, sv * 1.3f, 61, 51) - .5f) * .9f, wy = (RegionNoise.Periodic(su * 1.3f, sv * 1.3f, 61, 52) - .5f) * .9f;
                     float qx = (su + wx) * .62f, qy = (sv + wy) * .62f, f1, edge, id;
                     RegionNoise.Worley(Mathf.Repeat(qx, 64f) / 64f, Mathf.Repeat(qy, 64f) / 64f, 64, 3, out f1, out edge, out id);
@@ -373,25 +383,26 @@ namespace Roguehalla.Client
                     c = Color.Lerp(c, light, SmoothStep(.62f, .82f, leaf) * .22f);                    // leaf flecks
                     c = Color.Lerp(c, sick, SmoothStep(.55f, .8f, RegionNoise.Periodic(u * .9f, -s / Sq * .9f, 61, 91)) * .5f);
                     c = Color.Lerp(gap, c, SmoothStep(.0f, .1f, edge) * .8f + .2f * SmoothStep(.0f, .2f, edge));
-                    if (!upper) c = Color.Lerp(gap, c, .55f);            // the crown's underside
+                    if (!upper) c = Color.Lerp(gap, c * .8f, .45f);         // the crown's underside, darker along its south rim
                     Color32 o = c; o.a = 255; px[j * W + i] = o; alpha[j * W + i] = true;
                 }
             }
             for (int i = 0; i < W; i++)                                // hanging moss under the rim
             {
                 float lenKey = RegionNoise.Hash01(i / 2, 5, 33); if (lenKey < .5f) continue;
-                int len = 3 + Mathf.RoundToInt(lenKey * 11f), since = int.MaxValue;
+                int len = 1 + Mathf.RoundToInt(lenKey * 2f), since = int.MaxValue;   // at most .4 units below the rim
                 for (int j = H - 1; j >= 0; j--)
                 {
                     if (alpha[j * W + i]) { since = 0; continue; }
                     if (since == int.MaxValue) continue;
+                    if (!Cov(g, cover, u0 + (i + .5f) / CanopyPpt, -(sB + (j + .5f) / CanopyPpt) / Sq)) { since = int.MaxValue; continue; }   // inside the cover's south edge
                     since++; if (since > len) { since = int.MaxValue; continue; }
                     Color m = Color.Lerp(new Color(.45f, .52f, .34f), new Color(.30f, .38f, .22f), since / (float)len); m.a = .95f - .4f * since / len;
                     px[j * W + i] = m;
                 }
             }
             var tex = NewTexture(lm, W, H, "Bog tree canopy"); tex.SetPixels32(px); tex.Apply(false, false);
-            var sr = NewSprite(lm, lm.Root.transform, tex, "Bog tree canopy", new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0);
+            var sr = NewSprite(lm, lm.Root.transform, tex, "Bog tree canopy", new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, CanopyPpt);
             lm.AddRoofRenderer(sr);
         }
 
@@ -401,6 +412,7 @@ namespace Roguehalla.Client
             float gx = u - .5f, gy = v - .5f; int x0 = Mathf.FloorToInt(gx), y0 = Mathf.FloorToInt(gy); float fx = gx - x0, fy = gy - y0;
             return Mathf.Lerp(Mathf.Lerp(C(g, cover, x0, y0), C(g, cover, x0 + 1, y0), fx), Mathf.Lerp(C(g, cover, x0, y0 + 1), C(g, cover, x0 + 1, y0 + 1), fx), fy);
         }
+        static bool Cov(Grid g, bool[] cover, float u, float v) { return C(g, cover, Mathf.FloorToInt(u), Mathf.FloorToInt(v)) > 0f; }
         static float C(Grid g, bool[] cover, int x, int y) { return x >= 0 && y >= 0 && x < g.W && y < g.H && cover[y * g.W + x] ? 1f : 0f; }
     }
 }
