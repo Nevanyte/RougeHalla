@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
 using UnityEngine;
 
 namespace Roguehalla.Client
@@ -28,9 +29,6 @@ namespace Roguehalla.Client
         readonly List<InterpActor> _actors = new List<InterpActor>(64);
 
         public void Initialize(MatchClient mc) { _mc = mc; }
-
-        /// <summary>STUB (P-UNITY-WEB-DRIVE-2): the delivered landmark anchors as a JSON array (see the packet for the row shape).</summary>
-        public static string AnchorsJson(MapAnchor[] anchors) { return "[]"; }
 
         /// <summary>STUB (P-UNITY-WEB-DRIVE-2): the delivered landmark anchors as a JSON array (see the packet for the row shape).</summary>
         public static string AnchorsJson(MapAnchor[] anchors) { return "[]"; }
