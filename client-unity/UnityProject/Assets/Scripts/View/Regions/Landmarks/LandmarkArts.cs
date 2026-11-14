@@ -30,6 +30,7 @@ namespace Roguehalla.Client
                 case MapBlob.AnchorKindCave: builder = CaveLandmark.Build; return true;
                 case MapBlob.AnchorKindVolcano: builder = VolcanoLandmark.Build; return true;
                 case MapBlob.AnchorKindChurch: builder = ChurchLandmark.Build; return true;
+                case MapBlob.AnchorKindHall: builder = HallLandmark.Build; return true;
                 default: builder = null; return false;
             }
         }
