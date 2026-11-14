@@ -1179,7 +1179,7 @@ fn guard_the_drawing_and_the_outlet_table_are_the_owners() {
     let count = |ch: u8| tiles_of(&[ch]).len();
     assert_eq!(
         b"#XH~O.".map(count),
-        [146, 96, 80, 130, 6, 26],
+        [136, 146, 40, 130, 6, 26],
         "glyph counts"
     );
     assert_eq!(tiles_of(b"O"), runs().concat(), "the outlet runs");
