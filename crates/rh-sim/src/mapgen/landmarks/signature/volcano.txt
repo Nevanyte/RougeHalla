@@ -1,6 +1,8 @@
 ; FIRE VOLCANO blueprint, 22 x 22 tiles. FRONT (toward the coliseum) is the BOTTOM edge.
 ; Owner decision 2026-11-14: 22 across (it replaces the 30 x 30 drawing, which no map could hold), the lava layout of
-; the measured prototype, the look of the 30 x 30 drawing (cut corners, three height tiers).
+; the measured prototype, the look of the 30 x 30 drawing (cut corners, three height tiers). The tiers are lettered by
+; the client's tier rule (depth of a wall tile from the nearest tile that is neither wall nor lava, D the largest:
+; up to 0.4 D foot, up to 0.8 D slope, else rim), so the drawing shows exactly what the art renders.
 ; Cone height tiers, all of them WALL to the generator (the tiers are looks for the artist):
 ;   #  foot (lowest ring)     X  slope (middle ring)     H  rim (highest ring, round the lake)
 ; ~  lava (LOW: walkers cannot cross, shots can): the crater lake in the middle and three channels from it to the front edge
@@ -14,23 +16,23 @@
 ;
 ....##############....
 ...################...
-..##################..
-.####XXXXXXXXXXXX####.
-####XXHHHHHHHHHHXX####
-###XXHHHHHHHHHHHHXX###
-##XXHHHH~~~~~~HHHHXX##
-##XXHHH~~~~~~~~HHHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXHH~~~~~~~~~~HHXX##
-##XXH~~~~~~~~~~~~HXX##
+..###XXXXXXXXXXXX###..
+.###XXXXXXXXXXXXXX###.
+###XXXXXXXXXXXXXXXX###
+##XXXXHHHHHHHHHHXXXX##
+##XXXHHH~~~~~~HHHXXX##
+##XXXHH~~~~~~~~HHXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXX~~~~~~~~~~~~XXX##
 ##XX~~~HHH~~HHH~~~XX##
-##X~~~HHHH~~HHHH~~~X##
+##X~~~XXXX~~XXXX~~~X##
+##X~~XXXXX~~XXXXX~~X##
 ###~~XXXXX~~XXXXX~~###
-###~~XXXXX~~XXXXX~~###
-.##~~XXXXX~~XXXXX~~##.
+.##~~#####~~#####~~##.
 ..#OO#####OO#####OO#..
