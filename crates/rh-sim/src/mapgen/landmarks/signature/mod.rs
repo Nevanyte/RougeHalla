@@ -11,9 +11,11 @@
 //! main stream and the stylers' streams are untouched (G6).
 //!
 //! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church, the cave).
+pub mod blueprint;
 mod bog_tree;
 mod cave;
 mod church;
+pub mod spec;
 mod volcano;
 
 use crate::content::FactionId;
@@ -327,12 +329,24 @@ pub fn band(anchor: &ZoneAnchor, x: i32, y: i32) -> Band {
     }
 }
 
-/// What the step placed in one attempt: the anchors of the zones it built (zone-code order) and the terrain layer the
-/// attempt starts its styler pass from (all zero except the landmarks' own terrain, such as the bog tree's bands).
+/// What the step placed in one attempt: the anchors of the zones it built (zone-code order), the terrain layer the
+/// attempt starts its styler pass from (all zero except the landmarks' own terrain, such as the bog tree's bands), and
+/// (P-MAPGEN-SIG-BLUEPRINT-1) one `Landed` per landmark placed from a drawing, in placement order.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Placed {
     pub anchors: Vec<ZoneAnchor>,
     pub terrain: Vec<u8>,
+    pub landed: Vec<Landed>,
+}
+
+/// P-MAPGEN-SIG-BLUEPRINT-1: one landmark placed from its drawing: the zone, the landing (orientation, origin, box) and
+/// every mark of its legend (ascending by character) with the map tiles it landed on, row-major. Generator working
+/// state (the landing place of the `LandmarkFrame` the stylers will read); never exported.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Landed {
+    pub zone: Zone,
+    pub landing: blueprint::Landing,
+    pub marks: Vec<(u8, Vec<TilePt>)>,
 }
 
 /// Immutable per-pipeline context, reused by every attempt.
@@ -635,7 +649,12 @@ impl<'f> SignatureContext<'f> {
             }
             anchors.push(built.anchor);
         }
-        Ok(Some(Placed { anchors, terrain }))
+        // STUB (P-MAPGEN-SIG-BLUEPRINT-1): no landing recorded yet.
+        Ok(Some(Placed {
+            anchors,
+            terrain,
+            landed: Vec::new(),
+        }))
     }
 
     fn write(&self, stage: &mut LandmarkStage, terrain: &mut [u8], zone: Zone, p: &Piece) {
