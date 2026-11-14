@@ -1735,9 +1735,8 @@ fn own(record: Record) -> Vec<(String, BVal)> {
 /// perception.ts:702-708 `wishView`: the delivered Wish slot as the weapon bar shows it. The source `def` is shared
 /// `ABILITIES[id]`; here it is built from the public catalog only (the row the room plays, `bots::wish::wish_for`: a
 /// `WISHES` row, or legacy's `frostWall` for Frost in a Wall room; `rh_sim::abilities::definition` for the cooldown and
-/// the order flag), in the source's own key order. Members no Brain
-/// reader consumes (blurb, faction, telegraph, icon, colour, shape, cancelledBy, the non-policy effects and effect
-/// durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
+/// the order flag), in the source's own key order. Members no Brain reader consumes (blurb, faction, telegraph, icon,
+/// colour, shape, cancelledBy, the non-policy effects and effect durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
 fn wish_record(
     w: &rh_protocol::WireWishOwner,
     own_effects: u16,

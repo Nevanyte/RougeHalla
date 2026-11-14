@@ -204,7 +204,9 @@ fn wall_between(
     let TargetRule::Point { range, .. } = rule else {
         return None;
     };
-    // Source `t.d < WALL_PEEL_MIN || t.d > WALL_PEEL_DISTANCE`: a NaN distance passes, as it does there.
+    // Source `t.d < WALL_PEEL_MIN || t.d > WALL_PEEL_DISTANCE`: a NaN distance passes, as it does there (a
+    // `RangeInclusive::contains` would refuse it).
+    #[allow(clippy::manual_range_contains)]
     if d < WALL_PEEL_MIN || d > WALL_PEEL_DISTANCE {
         return None;
     }
