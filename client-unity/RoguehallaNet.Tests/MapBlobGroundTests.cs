@@ -146,9 +146,16 @@ namespace Roguehalla.Net.Tests
             const int side = 1024;
             var map = new MapBlob(side, side, new byte[side * side], new byte[side * side], new byte[side * side]);
             var decoded = RoundTrip(map).Map;
-            // Protocol 17: the budget covers five planes (collision, terrain, regions, bushes, ground variants).
+            // The decoded budget covers every byte[] plane the blob has (P-TEST-HARDEN-1: counted, not a literal, so a new plane
+            // edits no test: six today, collision, terrain, regions, bushes, ground variants, patience).
             Assert.AreEqual(3 * Wire.MaxMapTiles, decoded.Tiles.Length + decoded.Terrain.Length + decoded.Regions.Length);
-            Assert.AreEqual(5 * Wire.MaxMapTiles, Wire.MaxMapDecodedBytes);
+            int planes = 0;
+            foreach (var p in typeof(MapBlob).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                if (p.PropertyType == typeof(byte[])) planes++;
+            foreach (var f in typeof(MapBlob).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                if (f.FieldType == typeof(byte[])) planes++;
+            Assert.GreaterOrEqual(planes, 6, "the planes were found");
+            Assert.AreEqual(planes * Wire.MaxMapTiles, Wire.MaxMapDecodedBytes);
 
             var oversized = new byte[Wire.MaxServerFrame + 1];
             Assert.AreEqual(DecodeError.TooLarge, Assert.Throws<DecodeException>(() => ServerMsg.Decode(oversized)).Error);

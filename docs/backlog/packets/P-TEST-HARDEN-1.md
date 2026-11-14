@@ -20,6 +20,8 @@ none.
 
 **Q13, C#.** `MapBlobGroundTests.cs:151` asserts `5 * Wire.MaxMapTiles == Wire.MaxMapDecodedBytes`. `Wire.MaxMapDecodedBytes` is `5 * MaxMapTiles` (`client-unity/RoguehallaNet/Protocol/Codec.cs:26`, copy at `client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs:26`) and nothing in shipped code reads it. The decoder's real budget is `MapBlob.MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles` (`MapBlob.cs:80`), as Rust's `MAX_DECODED_PLANES` (`crates/rh-protocol/src/map.rs:20`). `MapBlob` has six `byte[]` planes (Tiles, Terrain, Regions, Bushes, GroundVariants, Patience; `MapBlob.cs:107-129`). `ecb84602c` set the constant "back to 5x (out of packet)", so test and constant agree on the stale number. **The constant is shipped code**: the fix is `5` to `6` in `Codec.cs` and its Unity copy (the gate's Unity copy check compares them). Flagged for the coordinator: it is outside "test files only", it is a constant no code reads, and it changes no behaviour or look. The implementer may make exactly that edit and nothing else in those two files; if the coordinator refuses, the amended test goes back to the literal.
 
+**Policy change needed for the Rust helper (decide before dispatch).** A counting allocator is an `unsafe impl GlobalAlloc`, and the root `Cargo.toml:14-15` sets `[workspace.lints.rust] unsafe_code = "forbid"`, which no `allow` can lift (first compile of the oracle: "implementation of an `unsafe` method", requested by `-F unsafe-code`). The stub commit `stub: ... rh-sim denies (not forbids) unsafe_code` therefore replaces `[lints] workspace = true` in `crates/rh-sim/Cargo.toml` by `[lints.rust] unsafe_code = "deny"` (the workspace has no other lint) and the one support file carries `#![allow(unsafe_code)]`. The rest of rh-sim still cannot use `unsafe`. This is a build-configuration change the owner has not seen: the coordinator should approve it, or choose another route (a new dev-dependency crate for the counter, which needs `Cargo.toml` and `Cargo.lock`). The oracle verified green against a real thread-local implementation (4 of 4, three runs).
+
 ## 4. Survey: every test that measures allocation
 
 ### Rust (`crates/rh-sim`; all use `dhat::Alloc` as `#[global_allocator]` and read `HeapStats::total_blocks`, so all share the Q11 defect)
@@ -35,7 +37,7 @@ The helper makes the `#[ignore]` + `--test-threads=1` workaround unnecessary for
 
 ## 5. Exclusive write scope
 Helpers (stubbed by the oracle author, replaced by the implementer): `crates/rh-sim/tests/support/alloc_count.rs`; `client-unity/RoguehallaNet.Tests/AllocationProbe.cs`.
-Existing files the implementer edits: `crates/rh-sim/tests/terrain_no_alloc.rs` (both tests move to the helper; its `dhat` use goes); `client-unity/RoguehallaNet.Tests/GarbageTests.cs` (`PerCall` and `RetireAllocationBlock` move to `AllocationProbe`; keep a private `PerCall` forwarder so `AllocationMeasurementTests` still reaches it, or edit that file; tighten the `PlainDecode` assertion to `AreEqual`, see section 8); `client-unity/RoguehallaNet.Tests/AllocationMeasurementTests.cs` (only if the forwarder is dropped); `client-unity/RoguehallaNet.Tests/NameMergeTests.cs`, `NetTests.cs`, `OwnerCombatProtocolTests.cs` (move their measured sections to the helper; `NetTests` replaces `LessThan(1024)` by zero or an explained bound); `client-unity/RoguehallaNet/Protocol/Codec.cs` and its Unity copy (the one constant, section 3).
+Existing files the implementer edits: `crates/rh-sim/Cargo.toml` (already changed by the stub commit; only keep it); `crates/rh-sim/tests/terrain_no_alloc.rs` (both tests move to the helper; its `dhat` use goes); `client-unity/RoguehallaNet.Tests/GarbageTests.cs` (`PerCall` and `RetireAllocationBlock` move to `AllocationProbe`; keep a private `PerCall` forwarder so `AllocationMeasurementTests` still reaches it, or edit that file; tighten the `PlainDecode` assertion to `AreEqual`, see section 8); `client-unity/RoguehallaNet.Tests/AllocationMeasurementTests.cs` (only if the forwarder is dropped); `client-unity/RoguehallaNet.Tests/NameMergeTests.cs`, `NetTests.cs`, `OwnerCombatProtocolTests.cs` (move their measured sections to the helper; `NetTests` replaces `LessThan(1024)` by zero or an explained bound); `client-unity/RoguehallaNet/Protocol/Codec.cs` and its Unity copy (the one constant, section 3).
 NOT in scope: the other 27 Rust files of the survey (follow-up packets, each deleting its dhat use), the Unity EditMode tests, looks, presenters, game rules, `scripts/gate.sh`, `.github/`, `Cargo.toml` (the helper needs no new dependency; `dhat` stays for the files not yet moved).
 
 ## 6. Contracts and references
@@ -53,7 +55,7 @@ Every allocation test keeps asserting what it asserts today (zero, or the decode
 
 ## Oracle files (read-only for implementers)
 - `crates/rh-sim/tests/alloc_count_support.rs`
-- `client-unity/RoguehallaNet.Tests/AllocationProbeTests.cs`
+- `client-unity/RoguehallaNet.Tests/AllocationProbeTests.cs` (red today on the stub's process-wide count; verified green against the real per-thread probe: exact `88 + 40 n` / `176 + 40 n`, 50 runs, three noise threads)
 - `client-unity/RoguehallaNet.Tests/MapBlobGroundTests.cs` (amended, see below)
 
 Stub (implementer replaces): `crates/rh-sim/tests/support/alloc_count.rs`, `client-unity/RoguehallaNet.Tests/AllocationProbe.cs`.
