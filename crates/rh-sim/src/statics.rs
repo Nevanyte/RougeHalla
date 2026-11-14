@@ -411,6 +411,15 @@ fn default_consumables() -> bool {
     true
 }
 
+impl SimConfig {
+    /// P-SIM-LIVE-CONTENT-1 STUB (compile-only surface; the implementer replaces the body): the content world the live
+    /// server plays, every content field including the live hitbox mode. Returns `SimConfig::default()` until then, so
+    /// the oracle tests compile and fail on their assertions.
+    pub fn live_content() -> Self {
+        Self::default()
+    }
+}
+
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
