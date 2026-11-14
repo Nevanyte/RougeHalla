@@ -21,7 +21,7 @@ namespace Roguehalla.Client.Tests
     /// </summary>
     public sealed class LandmarkSeamsEditModeTests
     {
-        const int N = 48, FootX = 9, FootY = 7, Size = 30, ChurchSize = 29;
+        const int N = 48, FootX = 9, FootY = 7, Size = 22, ChurchSize = 29;
 
         [TearDown] public void ClearArtOverrides() { LandmarkArts.ClearOverrides(); }
 
@@ -93,9 +93,9 @@ namespace Roguehalla.Client.Tests
             }
             if (floorBesideChannel)
             {
-                Assert.That(rows[25][7], Is.EqualTo('~'), "guard: row 25 column 7 is a channel tile");
-                Assert.That(rows[25][6], Is.EqualTo('#'), "guard: the tile west of it is wall");
-                rows[25][6] = 'F';
+                Assert.That(rows[19][3], Is.EqualTo('~'), "guard: row 19 column 3 is a channel tile (the left side channel, as row 25 column 7 was in the 30 x 30 drawing)");
+                Assert.That(rows[19][2], Is.EqualTo('#'), "guard: the tile west of it is wall");
+                rows[19][2] = 'F';
             }
             return rows.Select(r => new string(r)).ToArray();
         }
@@ -140,7 +140,7 @@ namespace Roguehalla.Client.Tests
         public void TheLandmarkReportsExactlyTheLavaTilesAsLowWithTerrainLavaInEveryOrientation(int k)
         {
             var site = Volcano(k);
-            Assert.That(site.Lava.Count, Is.EqualTo(160), "guard: the approved drawing has 160 lava tiles");
+            Assert.That(site.Lava.Count, Is.EqualTo(136), "guard: the approved drawing has 136 lava tiles");
             using (var scene = new Scene(site.Map, site.Anchor))
             {
                 Assert.That(scene.View.Count, Is.EqualTo(1), "needs the landmark first");
@@ -152,7 +152,7 @@ namespace Roguehalla.Client.Tests
                     Assert.That(lm.Terrain(x, y), Is.EqualTo(expect ? (byte)TerrainKind.Lava : (byte)0), "orientation " + k + ": Terrain at (" + x + ", " + y + ")");
                     if (lm.IsLow(x, y)) { low++; Assert.That(lm.IsWall(x, y), Is.False, "a low tile is not a wall tile"); }
                 }
-                Assert.That(low, Is.EqualTo(160), "orientation " + k + ": exactly the 160 lava tiles are low");
+                Assert.That(low, Is.EqualTo(136), "orientation " + k + ": exactly the 136 lava tiles are low");
             }
         }
 
@@ -170,7 +170,7 @@ namespace Roguehalla.Client.Tests
                     Assert.That(art.IsLava(x, y), Is.EqualTo(lava.Contains((x, y))), "orientation " + k + ": art lava at (" + x + ", " + y + ")");
                     if (art.IsLava(x, y)) n++;
                 }
-                Assert.That(n, Is.EqualTo(160));
+                Assert.That(n, Is.EqualTo(136));
             }
         }
 
@@ -178,7 +178,7 @@ namespace Roguehalla.Client.Tests
         public void ALavaTileCutOffFromTheLakeByWallsIsLowWithTerrainLavaForTheFramework(int k)
         {
             var site = Volcano(k, cutOff: true);
-            Assert.That(site.Lava.Count, Is.EqualTo(161), "guard: the variant has one more lava tile");
+            Assert.That(site.Lava.Count, Is.EqualTo(137), "guard: the variant has one more lava tile");
             using (var scene = new Scene(site.Map, site.Anchor))
             {
                 Assert.That(scene.View.Count, Is.EqualTo(1), "needs the landmark first");
@@ -218,7 +218,7 @@ namespace Roguehalla.Client.Tests
         public void AFloorTileBesideAChannelIsNotLava(int k)
         {
             var site = Volcano(k, floorBesideChannel: true);
-            Assert.That(site.Lava.Count, Is.EqualTo(160));
+            Assert.That(site.Lava.Count, Is.EqualTo(136));
             using (var scene = new Scene(site.Map, site.Anchor))
             {
                 Assert.That(scene.View.Count, Is.EqualTo(1), "needs the landmark first");
@@ -227,7 +227,7 @@ namespace Roguehalla.Client.Tests
                 Assert.That(lm.IsWall(f.x, f.y) || lm.IsLow(f.x, f.y), Is.False, "guard: the tile is floor");
                 Assert.That(art.IsLava(f.x, f.y), Is.False, "orientation " + k + ": floor beside a channel is not lava (the flood fill takes it)");
                 int n = 0; for (int y = FootY; y < FootY + Size; y++) for (int x = FootX; x < FootX + Size; x++) if (art.IsLava(x, y)) n++;
-                Assert.That(n, Is.EqualTo(160), "orientation " + k + ": the lava is still exactly the 160 low lava tiles");
+                Assert.That(n, Is.EqualTo(136), "orientation " + k + ": the lava is still exactly the 136 low lava tiles");
             }
         }
 

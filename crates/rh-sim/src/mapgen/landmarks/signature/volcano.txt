@@ -1,0 +1,38 @@
+; FIRE VOLCANO blueprint, 22 x 22 tiles. FRONT (toward the coliseum) is the BOTTOM edge.
+; Owner decision 2026-11-14: 22 across (it replaces the 30 x 30 drawing, which no map could hold), the lava layout of
+; the measured prototype, the look of the 30 x 30 drawing (cut corners, three height tiers). The tiers are lettered by
+; the client's tier rule (depth of a wall tile from the nearest tile that is neither wall nor lava, D the largest:
+; up to 0.4 D foot, up to 0.8 D slope, else rim), so the drawing shows exactly what the art renders.
+; Cone height tiers, all of them WALL to the generator (the tiers are looks for the artist):
+;   #  foot (lowest ring)     X  slope (middle ring)     H  rim (highest ring, round the lake)
+; ~  lava (LOW: walkers cannot cross, shots can): the crater lake in the middle and three channels from it to the front edge
+; O  stream OUTLET: the 2 lava tiles where a stream leaves the box. Exactly three, all on the front row (y=21).
+; .  floor (only in the four cut corners of the box, outside the cone)
+; Stream headings at the outlets (degrees off 'straight toward the coliseum', DIR16 uses 22.5-degree steps):
+;   left outlet (x=3-4): 45 degrees to the left, a side stream, 7-10 path tiles
+;   middle outlet (x=10-11): straight ahead, 10-14 path tiles, the longest
+;   right outlet (x=17-18): 45 degrees to the right, a side stream, 7-10 path tiles
+; The streams themselves (random bends, a pool at each end) lie OUTSIDE this box and are not drawn.
+;
+....##############....
+...################...
+..###XXXXXXXXXXXX###..
+.###XXXXXXXXXXXXXX###.
+###XXXXXXXXXXXXXXXX###
+##XXXXHHHHHHHHHHXXXX##
+##XXXHHH~~~~~~HHHXXX##
+##XXXHH~~~~~~~~HHXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXXH~~~~~~~~~~HXXX##
+##XXX~~~~~~~~~~~~XXX##
+##XX~~~HHH~~HHH~~~XX##
+##X~~~XXXX~~XXXX~~~X##
+##X~~XXXXX~~XXXXX~~X##
+###~~XXXXX~~XXXXX~~###
+.##~~#####~~#####~~##.
+..#OO#####OO#####OO#..

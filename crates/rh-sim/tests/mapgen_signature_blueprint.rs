@@ -216,7 +216,7 @@ fn drawings() -> Vec<(&'static str, &'static str, Legend, Cell)> {
         ("cave", cave_text(), cave_legend(), (29, 29)),
         ("church", church_text(), church_legend(), (29, 29)),
         ("bog tree", bog_text(), bog_legend(), (29, 29)),
-        ("volcano", volcano_text(), volcano_legend(), (30, 30)),
+        ("volcano", volcano_text(), volcano_legend(), (22, 22)),
         ("hall", hall_text(), hall_legend(), (37, 37)),
     ]
 }
@@ -265,7 +265,8 @@ fn tiles_of_rect(r: TileRect) -> BTreeSet<Cell> {
 
 /// The rule and target each drawing is landed with in the geometry tests: the cave and the church pinned on `E` at a
 /// camp tile; the tree, the volcano and the hall centred in an inner rect of a site whose side is the drawing's + 4 + 1
-/// for the tree (a 34 site, inner 30) and + 4 for the volcano and the hall (inner 30 and 37).
+/// for the tree (a 34 site, inner 30), + 4 for the hall (inner 37), and the volcano's 34 site (inner 30, the 22 x 22
+/// drawing centred with 4 tiles spare on every side: owner decision 2026-11-14, P-MAPGEN-SIG-SCALE-4).
 fn geometry_target(name: &str) -> (Placement, Target) {
     let b = DEFAULT_DEFINITION.bands[0];
     match name {
@@ -365,7 +366,7 @@ fn every_drawing_parses_and_malformed_grids_do_not() {
 /// The marks and the entrances the drawings hold (verified on the drawings by this oracle): the cave's `E` (14, 7) and
 /// mouth `D` (13-15, 28); the church's `E` (14, 7), door `D` (13-15, 16) and main gate, the open run of the front row
 /// through `E`'s column (12-16, 28); the tree's six causeway tiles on the box edge; the volcano's six outlet tiles on
-/// row 29 (columns 7, 8, 14, 15, 21, 22); the hall's two `E` on column 18 (rows 15 and 27), its shrine door `D`
+/// row 21 (columns 3, 4, 10, 11, 17, 18; the 22 x 22 drawing of P-MAPGEN-SIG-SCALE-4, was row 29 of the 30 x 30); the hall's two `E` on column 18 (rows 15 and 27), its shrine door `D`
 /// (17-19, 7) and its nave on the front row (15-21, 36). The front run counts only open tiles (a glyph writing nothing
 /// or floor): a wall beside the run on the front row is not gate (review note on `church::Blueprint::parse`, which
 /// counted every non-`+` tile). Red on the stub: nothing parses.
@@ -402,7 +403,7 @@ fn the_marks_and_the_entrances_are_found() {
     );
     assert_eq!(tree.tiles_of(b':').len(), 62, "the tree's causeway tiles");
     let volcano = parsed("volcano", volcano_text(), &volcano_legend());
-    let outlets: Vec<Cell> = [7, 8, 14, 15, 21, 22].iter().map(|&x| (x, 29)).collect();
+    let outlets: Vec<Cell> = [3, 4, 10, 11, 17, 18].iter().map(|&x| (x, 21)).collect();
     assert_eq!(
         volcano.marks(),
         vec![(b'O', outlets.clone())],
@@ -520,8 +521,9 @@ fn every_orientation_lands_each_drawing_one_to_one_onto_its_box() {
     }
 }
 
-/// The volcano's outlets turn with the drawing: for each front, the left outlet (7-8, 29) mirrored lands where the
-/// right one (21-22, 29) lands unmirrored and the other way round, the middle one (14-15, 29) on itself, and the left
+/// The volcano's outlets turn with the drawing: for each front, the left outlet (3-4, 21) mirrored lands where the
+/// right one (17-18, 21) lands unmirrored and the other way round, the middle one (10-11, 21) on itself (the 22 x 22
+/// drawing of P-MAPGEN-SIG-SCALE-4; was (7-8, 29), (21-22, 29), (14-15, 29)), and the left
 /// heading (45 degrees left of the front: grid (-1, 1)) mirrored turns to where the right heading (grid (1, 1)) turns
 /// unmirrored. Red on the stub: nothing parses.
 #[test]
@@ -530,7 +532,7 @@ fn the_volcanos_outlets_and_headings_mirror_onto_each_other() {
     let (rule, target) = geometry_target("volcano");
     let set =
         |l: &Landing, gs: &[Cell]| -> BTreeSet<Cell> { gs.iter().map(|&g| l.tile(g)).collect() };
-    let (left, middle, right) = (run(7, 8, 29), run(14, 15, 29), run(21, 22, 29));
+    let (left, middle, right) = (run(3, 4, 21), run(10, 11, 21), run(17, 18, 21));
     for u in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
         let plain_o = Orientation {
             front: u,
@@ -559,10 +561,11 @@ fn the_volcanos_outlets_and_headings_mirror_onto_each_other() {
 
 /// The box rule: the bog tree (29) centred in a 34 site's inner rect (30) lands every tile where today's centre pin
 /// puts it (the drawing's centre on the site's centre tile, the odd spare tile before the box) in all eight
-/// orientations, at two sites; the volcano's box is its 30 inner rect and the hall's its 37 inner rect exactly. Red on
-/// the stub: nothing parses.
+/// orientations, at two sites; the volcano's box is its 30 inner rect shrunk by 4 on every side (22 centred in 30, no
+/// odd spare tile; amended by P-MAPGEN-SIG-SCALE-4, was "its 30 inner rect exactly") and the hall's its 37 inner rect
+/// exactly. Red on the stub: nothing parses.
 #[test]
-fn the_box_rule_matches_todays_tree_and_fills_the_volcano_and_hall_rects() {
+fn the_box_rule_matches_todays_tree_centres_the_volcano_and_fills_the_hall_rect() {
     let b = DEFAULT_DEFINITION.bands[0];
     let tree = parsed("bog tree", bog_text(), &bog_legend());
     for site in [rect(40, 50, 34, 34), rect(117, 3, 34, 34)] {
@@ -603,10 +606,16 @@ fn the_box_rule_matches_todays_tree_and_fills_the_volcano_and_hall_rects() {
         for o in Orientation::all() {
             let l = bp.land(rule, o, &target);
             assert!(l.is_some(), "{name} {o:?}: no landing");
+            // P-MAPGEN-SIG-SCALE-4: the 22 x 22 volcano is centred in its 30 x 30 inner rect, 4 tiles spare a side.
+            let want = if name == "volcano" {
+                shrink(target.inner, 4)
+            } else {
+                target.inner
+            };
             assert_eq!(
                 l.unwrap().footprint,
-                target.inner,
-                "{name} {o:?}: the box is not the inner rect"
+                want,
+                "{name} {o:?}: the box is not the inner rect (the volcano: centred in it)"
             );
         }
     }
@@ -688,7 +697,8 @@ fn spec_of(table: &[Spec], zone: Zone) -> &Spec {
 }
 
 /// `specs(&DEFAULT_DEFINITION)` has one entry per landmark in `reserved_zones` order (Fire, Sentenced, Plague, Frost).
-/// The Fire volcano has no drawing yet (P-MAPGEN-SIG-SCALE-4). The cave, the church and the tree carry their
+/// The Fire volcano carries its `Definition` grid (amended by P-MAPGEN-SIG-SCALE-4, was "no drawing yet"; its legend
+/// and the rest of its entry are pinned by `mapgen_signature_volcano.rs`). The cave, the church and the tree carry their
 /// `Definition` grid, a legend whose characters are exactly the drawing's and whose entries are today's reading of it
 /// (`cave_legend`, `church_legend`, `bog_legend`), their features in today's write order (the church before its
 /// graveyard; the graveyard's anchor point the main gate's middle tile), today's placement (the cave and the church
@@ -707,7 +717,7 @@ fn the_table_has_one_entry_per_landmark_and_its_legends_match_the_drawings() {
     let fire = spec_of(&table, Zone::Fire);
     assert_eq!(
         (fire.kind, fire.drawing),
-        (FeatureKind::Volcano, None),
+        (FeatureKind::Volcano, Some(d.volcano_grid)),
         "the volcano"
     );
     let landmark = |kind| FeatureSpec {
@@ -865,9 +875,10 @@ fn pt(c: Cell) -> TilePt {
 }
 
 /// `Placed.landed` re-derives the Landmarks phase's output, seeds 1-16, attempts 0-1, every accepted phase: one entry
-/// per drawing landmark (Sentenced, Plague, Frost, in placement order); each landing is its table rule's landing in the
-/// zone's site under its own orientation, whose front is the dominant axis of the anchor's `front` and is read at the
-/// pinned camp tile (cave, church) or the site's centre tile (tree); the anchor's centre is that tile, its footprint the
+/// per drawing landmark (Fire, Sentenced, Plague, Frost, in placement order; the volcano added by P-MAPGEN-SIG-SCALE-4);
+/// each landing is its table rule's landing in the zone's site under its own orientation, whose front is the dominant
+/// axis of the anchor's `front` and is read at the pinned camp tile (cave, church) or the site's centre tile (tree,
+/// volcano); the anchor's centre is that tile, its footprint the
 /// landing's box, its entrance the table's entrance rule landed (as a set: P-MAPGEN-SIG-BLUEPRINT-2 sorts it); the landed
 /// marks are the drawing's marks
 /// landed, row-major, and the cave's and the church's `E` is the camp tile; the zone's features are the table's, in its
@@ -885,9 +896,10 @@ fn placed_landed_rederives_every_written_cell() {
             };
             accepted += 1;
             let zones: Vec<Zone> = placed.landed().iter().map(|l| l.zone).collect();
+            // Amended by P-MAPGEN-SIG-SCALE-4: the volcano is landed from its drawing too (was Sentenced, Plague, Frost).
             assert_eq!(
                 zones,
-                vec![Zone::Sentenced, Zone::Plague, Zone::Frost],
+                vec![Zone::Fire, Zone::Sentenced, Zone::Plague, Zone::Frost],
                 "seed {seed} attempt {n}: the landed landmarks"
             );
             for landed in &placed.landed() {

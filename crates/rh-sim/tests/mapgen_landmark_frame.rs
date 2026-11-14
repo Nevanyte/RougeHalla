@@ -254,8 +254,9 @@ fn frame_of(placed: &Placed, z: Zone) -> &LandmarkFrame {
 // ---------------------------------------------------------------------------------------------------------------------
 
 /// Seeds 1-32 attempts 0-1, every accepted Landmarks phase: one frame per reserved zone, in `reserved_zones` order (the
-/// placement order); the drawn landmarks (Sentenced, Plague, Frost) carry their landing, whose box is the anchor's
-/// footprint, and the volcano none; each frame's features are the zone's signature features as written in this phase
+/// placement order); every landmark carries its landing, whose box is the anchor's footprint (amended by
+/// P-MAPGEN-SIG-SCALE-4: the volcano is drawn too; was "the drawn landmarks (Sentenced, Plague, Frost) ..., and the
+/// volcano none"); each frame's features are the zone's signature features as written in this phase
 /// (kind and box, write order); and `Placed::anchors()` reads the frames' anchors, in order.
 #[test]
 fn one_frame_per_reserved_zone_in_placement_order() {
@@ -275,13 +276,9 @@ fn one_frame_per_reserved_zone_in_placement_order() {
         for f in &placed.frames {
             let z = f.anchor.zone;
             assert_eq!(f.zone(), z, "seed {seed} attempt {n}: LandmarkFrame::zone");
-            match (z, f.landing) {
-                (Zone::Fire, None) => {}
-                (Zone::Fire, Some(l)) => {
-                    panic!("seed {seed} attempt {n}: the volcano has a landing {l:?}")
-                }
-                (_, None) => panic!("seed {seed} attempt {n}: {z:?} has no landing"),
-                (_, Some(l)) => assert_eq!(
+            match f.landing {
+                None => panic!("seed {seed} attempt {n}: {z:?} has no landing"),
+                Some(l) => assert_eq!(
                     l.footprint, f.anchor.footprint,
                     "seed {seed} attempt {n} {z:?}: the anchor's footprint is the landing's box"
                 ),
@@ -470,7 +467,9 @@ fn the_frames_cells_are_the_landmarks_tiles_on_the_finished_map() {
 /// Seeds 1-32 attempts 0-1, every accepted Landmarks phase, each frame with a landing: its marks are every tile of
 /// every mark of its drawing's legend, by character then grid order, each on the tile its landing sends it to; the
 /// cave's `D` tiles come in ascending drawing column under every orientation; `heading((0, 1))` is the axis of the
-/// anchor's front and `heading(d)` is the landing's turn of `d`. The volcano (no landing) has no marks and no heading.
+/// anchor's front and `heading(d)` is the landing's turn of `d` (the volcano's six `O` outlets of the 22 x 22 drawing
+/// included: amended by P-MAPGEN-SIG-SCALE-4, was "the volcano (no landing) has no marks and no heading"; a frame with
+/// no landing has none).
 /// At least three orientations of the cave are seen.
 #[test]
 fn marks_keep_grid_order_and_headings_turn_with_the_drawing() {

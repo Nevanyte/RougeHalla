@@ -34,11 +34,11 @@ pub enum Write {
 /// The `Site` predicate a character's map tile must pass for the drawing to land.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Legality {
-    /// `Site::wall`: free floor of the zone, inside the site's inner rect where the `Site` has one (a drawing's always
-    /// does; the volcano's has none), off every camp halo.
+    /// `Site::wall`: free floor of the zone, inside the site's inner rect (a drawing's `Site` always has one), off
+    /// every camp halo.
     Wall,
     /// `Site::wall` and `Site::ground` (also off the legacy landmark protection and every apron marked before): the
-    /// bog tree's walls and marsh.
+    /// bog tree's walls and marsh, the volcano's cone and lava.
     WallGround,
     /// `Site::floor`: free floor of the zone, inside the site's inner rect where the `Site` has one.
     Floor,
@@ -129,6 +129,21 @@ impl Orientation {
         let r = (s * u.1, -s * u.0);
         (d.1 * u.0 + d.0 * r.0, d.1 * u.1 + d.0 * r.1)
     }
+}
+
+/// P-MAPGEN-SIG-SCALE-4: the DIR16 index (`recipe_support::DIR16`, 22.5-degree steps, index 0 = +x, 4 = +y) of map
+/// direction `d`: the largest dot product with `d`, the first on a tie (the rule `signature::front` uses). How a heading
+/// drawn on the grid and turned by `Orientation::turn` (the volcano's outlet headings) becomes a stream heading.
+pub fn dir16(d: Cell) -> u8 {
+    let (dx, dy) = (i64::from(d.0), i64::from(d.1));
+    let mut best = (0usize, i64::MIN);
+    for (k, v) in super::DIR16.iter().enumerate() {
+        let dot = dx * i64::from(v[0]) + dy * i64::from(v[1]);
+        if dot > best.1 {
+            best = (k, dot);
+        }
+    }
+    best.0 as u8
 }
 
 /// How a drawing is placed in its zone's reserved site.

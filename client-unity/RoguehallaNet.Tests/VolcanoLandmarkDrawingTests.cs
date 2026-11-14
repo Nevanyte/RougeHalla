@@ -10,13 +10,13 @@ using MapRect = Roguehalla.Net.Protocol.MapRect;   // Net.Ui has a MapRect of it
 namespace Roguehalla.Net.Tests
 {
     /// <summary>
-    /// P-UNITY-LANDMARK-2 oracle, engine-free half: guards on the approved drawing docs/landmarks/blueprints/volcano.txt (30 x 30; '#', 'X',
+    /// P-UNITY-LANDMARK-2 oracle, engine-free half: guards on the approved drawing docs/landmarks/blueprints/volcano.txt (22 x 22; '#', 'X',
     /// 'H' wall; '~' and 'O' lava = LOW tiles with terrain Lava; '.' floor) and on the tier rule the Unity art must follow
     /// (docs/backlog/packets/P-UNITY-LANDMARK-2.md, "Established facts"). These pass today: they pin the drawing and the rule, not code.
     /// </summary>
     public sealed class VolcanoLandmarkDrawingTests
     {
-        const int Size = 30;
+        const int Size = 22;
 
         static string[] Rows()
         {
@@ -49,14 +49,14 @@ namespace Roguehalla.Net.Tests
             var rows = Rows();
             Assert.That(rows.Length, Is.EqualTo(Size)); Assert.That(rows.All(r => r.Length == Size), Is.True);
             var all = string.Concat(rows);
-            Assert.That(all.Count(c => c == '#'), Is.EqualTo(362), "foot ring");
-            Assert.That(all.Count(c => c == 'X'), Is.EqualTo(214), "slope ring");
-            Assert.That(all.Count(c => c == 'H'), Is.EqualTo(80), "rim ring");
-            Assert.That(all.Count(c => c == '~'), Is.EqualTo(154), "lava");
+            Assert.That(all.Count(c => c == '#'), Is.EqualTo(136), "foot ring");
+            Assert.That(all.Count(c => c == 'X'), Is.EqualTo(146), "slope ring");
+            Assert.That(all.Count(c => c == 'H'), Is.EqualTo(40), "rim ring");
+            Assert.That(all.Count(c => c == '~'), Is.EqualTo(130), "lava");
             Assert.That(all.Count(c => c == 'O'), Is.EqualTo(6), "outlet lava");
-            Assert.That(all.Count(c => c == '.'), Is.EqualTo(84), "floor (the four cut corners)");
-            Assert.That(all.Count(IsLava), Is.EqualTo(160), "the lava tile count inside the box");
-            Assert.That(all.Count(IsWall), Is.EqualTo(656), "the cone's wall tiles");
+            Assert.That(all.Count(c => c == '.'), Is.EqualTo(26), "floor (the four cut corners)");
+            Assert.That(all.Count(IsLava), Is.EqualTo(136), "the lava tile count inside the box");
+            Assert.That(all.Count(IsWall), Is.EqualTo(322), "the cone's wall tiles");
         }
 
         [TestCaseSource(nameof(Orientations))]
@@ -69,7 +69,7 @@ namespace Roguehalla.Net.Tests
                 if (IsLava(rows[y][x])) lava++;
                 if (rows[y][x] == 'O') outlets.Add((x, y));
             }
-            Assert.That(lava, Is.EqualTo(160));
+            Assert.That(lava, Is.EqualTo(136));
             Assert.That(outlets.Count, Is.EqualTo(6));
             // All six on one border line of the box (the front edge), as three runs of exactly two.
             bool onX0 = outlets.All(o => o.x == 0), onX1 = outlets.All(o => o.x == Size - 1), onY0 = outlets.All(o => o.y == 0), onY1 = outlets.All(o => o.y == Size - 1);
@@ -147,16 +147,16 @@ namespace Roguehalla.Net.Tests
         public void TheTierRuleReproducesTheDrawingsRingsAndPutsEveryRimTileNearerTheLakeThanEveryFootTile(int k)
         {
             var rows = Orient(Rows(), k); var t = Tiers(rows); var lake = LakeDistance(rows);
-            Assert.That(t.Count(v => v == 0), Is.EqualTo(346), "foot tiles (the drawing draws 362)");
-            Assert.That(t.Count(v => v == 1), Is.EqualTo(230), "slope tiles (the drawing draws 214)");
-            Assert.That(t.Count(v => v == 2), Is.EqualTo(80), "rim tiles (the drawing draws 80)");
+            Assert.That(t.Count(v => v == 0), Is.EqualTo(136), "foot tiles (the drawing draws 136)");
+            Assert.That(t.Count(v => v == 1), Is.EqualTo(146), "slope tiles (the drawing draws 146)");
+            Assert.That(t.Count(v => v == 2), Is.EqualTo(40), "rim tiles (the drawing draws 40)");
             int wrong = 0;
             for (int i = 0; i < t.Length; i++)
             {
                 char c = rows[i / Size][i % Size];
                 if (IsWall(c) && "#XH".IndexOf(c) != t[i]) wrong++;
             }
-            Assert.That(wrong, Is.LessThanOrEqualTo(16), "orientation " + k + ": the rule reproduces the drawn rings on all but 16 of 656 tiles");
+            Assert.That(wrong, Is.EqualTo(0), "orientation " + k + ": the rule reproduces the drawn rings on all 322 wall tiles");
             double rimFar = 0, footNear = double.MaxValue;
             for (int i = 0; i < t.Length; i++)
             {

@@ -62,13 +62,17 @@ fn attempt_limit() -> u64 {
 
 /// The worst attempt index allowed over seeds 1-32: P-MAPGEN-SIG-RESERVE-1's bound (coordinator decision 2026-11-13;
 /// measured with the fixed cave and the site's territory relabel: 4; today 1).
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: worst 12.
 fn worst_attempt_allowed() -> u64 {
-    7
+    12
 }
 
 /// The most attempts seeds 1-32 may use in all: P-MAPGEN-SIG-RESERVE-1's bound (measured 59; today 41).
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: 137 in all.
 fn attempts_allowed() -> u64 {
-    70
+    137
 }
 
 /// The longest floor path from the cave's mouth to the zone's largest unowned ice body (the end-of-attempt lake rule,

@@ -178,6 +178,9 @@ const LAKE: &str = r#"Guarantee { zone: Frost, rule: "lake-at-mouth" }"#;
 const SPAWN_RATIO: &str = "SpawnRatio";
 const PREFIX: &str = "Prefix";
 const RADIUS_POST: &str = "Repair(RadiusPost)";
+const SIG: &str = "Signature";
+const SPAWN_POOL: &str = "SpawnPool";
+const FLOOR_SHARE: &str = "Repair(FloorShare)";
 
 /// Seeds 1-32, option on: each refused attempt's label, in attempt order; the seed's map is the next attempt. Taken on
 /// the stub (`packet/P-MAPGEN-GUARANTEES-1`'s stub commit, today's behaviour) with the packet's mapping applied: an
@@ -185,39 +188,57 @@ const RADIUS_POST: &str = "Repair(RadiusPost)";
 /// certifier all pass) is `Guarantee { Frost, "lake-at-mouth" }`; every other label is today's. Measured on the stub's
 /// base: 14 `SignatureDiscarded` over seeds 1-32, 11 of them failing the lake rule alone and 3 failing `intact`'s other
 /// parts with the lake rule passing; no attempt fails the lake rule together with another check; no `SignaturePools`.
+///
+/// Re-pinned by P-MAPGEN-SIG-SCALE-4 (2026-11-14) from its build: the 22 x 22 volcano with three streams and the Fire
+/// fan moved every option-on attempt. 57 refusals over seeds 1-32 (89 attempts): `Signature` 18 (the Fire volcano's
+/// streams or floor split), `SpawnRatio` 14, `Prefix` 9, lake-at-mouth 6, `Repair(RadiusPost)` 5, `SignatureDiscarded`
+/// 2, `SpawnPool` 2, `Repair(FloorShare)` 1.
 fn pinned_labels() -> [(i64, &'static [&'static str]); 32] {
     [
         (1, &[LAKE]),
-        (2, &[SPAWN_RATIO, PREFIX, SD, LAKE]),
-        (3, &[]),
+        (2, &[]),
+        (3, &[SPAWN_RATIO]),
         (4, &[]),
-        (5, &[SD]),
+        (5, &[]),
         (6, &[]),
-        (7, &[LAKE, SPAWN_RATIO]),
-        (8, &[LAKE]),
-        (9, &[LAKE]),
+        (7, &[SIG, SPAWN_RATIO]),
+        (8, &[RADIUS_POST]),
+        (9, &[LAKE, SIG]),
         (10, &[]),
         (11, &[]),
-        (12, &[RADIUS_POST, LAKE, LAKE]),
-        (13, &[SPAWN_RATIO]),
-        (14, &[]),
+        (12, &[SIG]),
+        (13, &[SIG, SPAWN_RATIO, LAKE]),
+        (14, &[SPAWN_RATIO]),
         (15, &[]),
-        (16, &[]),
-        (17, &[PREFIX]),
-        (18, &[]),
-        (19, &[LAKE]),
+        (16, &[SIG, SPAWN_RATIO]),
+        (17, &[PREFIX, SD]),
+        (18, &[SIG, PREFIX, SD, SIG, SIG, SPAWN_RATIO, RADIUS_POST]),
+        (19, &[]),
         (20, &[]),
-        (21, &[]),
-        (22, &[PREFIX]),
-        (23, &[]),
-        (24, &[PREFIX]),
-        (25, &[LAKE]),
-        (26, &[LAKE]),
-        (27, &[LAKE]),
-        (28, &[]),
-        (29, &[SD]),
-        (30, &[]),
-        (31, &[]),
+        (21, &[RADIUS_POST]),
+        (
+            22,
+            &[
+                PREFIX,
+                SIG,
+                SPAWN_POOL,
+                RADIUS_POST,
+                SIG,
+                SPAWN_RATIO,
+                PREFIX,
+                SIG,
+                SPAWN_RATIO,
+            ],
+        ),
+        (23, &[SPAWN_RATIO, SIG, SIG, SPAWN_RATIO]),
+        (24, &[PREFIX, FLOOR_SHARE, LAKE, SPAWN_RATIO]),
+        (25, &[SIG]),
+        (26, &[SPAWN_RATIO, SIG, SIG, PREFIX, SIG, SPAWN_RATIO, LAKE]),
+        (27, &[]),
+        (28, &[LAKE, SPAWN_POOL]),
+        (29, &[SPAWN_RATIO]),
+        (30, &[RADIUS_POST, PREFIX, PREFIX, PREFIX]),
+        (31, &[SIG]),
         (32, &[]),
     ]
 }
@@ -445,7 +466,8 @@ fn a_lake_failure_is_refused_after_records_as_the_frost_guarantee() {
             }
         }
     }
-    assert_eq!(seen, 11, "lake-at-mouth refusals over seeds 1-32");
+    // 11 on P-MAPGEN-GUARANTEES-1's base; 6 since P-MAPGEN-SIG-SCALE-4 (`pinned_labels`).
+    assert_eq!(seen, 6, "lake-at-mouth refusals over seeds 1-32");
     let (seed, n) = first.expect("a lake refusal");
     let fixed = coliseum::fixed_layout();
     let got = pipeline::Pipeline::new(&fixed).generate_styled(seed, Some(n), on());
