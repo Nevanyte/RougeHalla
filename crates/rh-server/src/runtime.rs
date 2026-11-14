@@ -1,5 +1,7 @@
 //! Explicit endpoint configuration. The protocol Hello carries no room mode: each process hosts one profile.
-use rh_sim::{abilities, mob_runtime::MobMode, terrain, Arena, ArenaMode, FactionMode, SimConfig};
+use rh_sim::{mob_runtime::MobMode, terrain, Arena, ArenaMode, SimConfig};
+#[cfg(test)] // `tests` names it through `super::*`
+use rh_sim::abilities;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Profile {
@@ -42,13 +44,13 @@ pub fn lobby_timing_flag(args: &[String]) -> Result<crate::bot_fill::LobbyTiming
 }
 
 /// The hitbox mode of the LIVE runtimes (`--runtime source-arena`, `--runtime training` and `--first-playable`, the
-/// profiles players join) when `--hitboxes` is absent. The ONE line the coordinator changes to `Archetypes` to flip the
-/// live default (after the client's prediction and chest aim are verified; owner sign-off 2026-11-10, DEVIATIONS
-/// DEV-009/DEV-010); `--hitboxes legacy` stays the override. The bare core binary (no `--runtime`, `--runtime core`) is a
-/// development profile and stays `LegacyCircle` whatever this says. `tests::which_runtimes_default_to_which_hitbox_mode`
-/// pins both, so the flip is a deliberate two-line change (this constant and the pinned expectation).
-pub const LIVE_DEFAULT_HITBOXES: rh_sim::archetype::HitboxMode =
-    rh_sim::archetype::HitboxMode::Archetypes;
+/// profiles players join) when `--hitboxes` is absent: the live content world's ([`SimConfig::live_content`]), defined
+/// beside it in `rh_sim::statics` (P-SIM-LIVE-CONTENT-1) so headless tools can name it too; flipping it is a line there
+/// (owner sign-off 2026-11-10, DEVIATIONS DEV-009/DEV-010). `--hitboxes legacy` stays the override. The bare core binary
+/// (no `--runtime`, `--runtime core`) is a development profile and stays `LegacyCircle` whatever this says.
+/// `tests::which_runtimes_default_to_which_hitbox_mode` pins both, so the flip is a deliberate two-line change (the
+/// constant and the pinned expectation).
+pub use rh_sim::statics::LIVE_DEFAULT_HITBOXES;
 
 /// `--hitboxes legacy|archetypes`, else `default`.
 pub fn hitboxes_flag(
@@ -206,43 +208,30 @@ impl Settings {
         Ok(Some(settings))
     }
 
+    /// The live content world ([`SimConfig::live_content`], P-SIM-LIVE-CONTENT-1) with the server's own fields: the
+    /// lobby timers, `--hitboxes`, and for the practice room its overrides (no lifecycle, camps, quests, hazards, mobs
+    /// or initial loot; training dummies). Every other rule (regen, camp buff themes, Frost's Wish, factions, abilities,
+    /// walk hints) is the live world's, written only in `live_content()`.
     pub fn sim(&self) -> SimConfig {
-        let training = self.profile == Profile::Training;
-        SimConfig {
-            walk_hints: Some(true),
-            regen: true,
-            // Owner decision 2026-11-10 (legacy f8cd956e): passive regeneration out of combat only (P-REGEN-COMBAT-1).
-            regen_in_combat: rh_sim::RegenInCombat::Off,
-            // Owner decision 2026-11-10 (legacy a7b5c4ce): each zone's camps pay a themed stat, spread evenly and within
-            // reach of every camp (P-CAMP-BUFF-THEMES-1). Training has no camps: only its config identity changes.
-            camp_buffs: rh_sim::CampBuffRule::Themed,
-            frost_wish: rh_sim::FrostWish::Freeze,
-            quests: !training,
-            training,
-            dummies: training,
-            hazards: if training {
-                terrain::Mode::Off
-            } else {
-                // Owner decision 2026-11-12: factions keep their home-ground benefits (the legacy rule): Fire is not
-                // burned by embers, Plague is not slowed by bog, Frost does not slide on ice, Holy heals more on
-                // healing ground.
-                terrain::Mode::Map
-            },
-            abilities: abilities::Mode::Full,
-            faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-            lifecycle: if training {
-                ArenaMode::Off
-            } else {
-                ArenaMode::Source(Default::default())
-            },
-            mob_mode: if training { MobMode::Off } else { MobMode::Pve },
-            initial_loot: !training,
-            consumables: true,
+        let live = SimConfig {
             min_players: self.min_players,
             lobby_seconds: self.lobby_seconds,
             fill_seconds: self.fill_seconds,
             hitboxes: self.hitboxes,
-            ..SimConfig::default()
+            ..SimConfig::live_content()
+        };
+        match self.profile {
+            Profile::SourceArena => live,
+            Profile::Training => SimConfig {
+                training: true,
+                dummies: true,
+                quests: false,
+                hazards: terrain::Mode::Off,
+                lifecycle: ArenaMode::Off,
+                mob_mode: MobMode::Off,
+                initial_loot: false,
+                ..live
+            },
         }
     }
 
