@@ -129,9 +129,18 @@ fn walk_detour_max() -> i32 {
     2
 }
 
-/// Owner direction: about today's share of the zone's free ground as bog, within about a fifth (median over seeds).
-fn share_ratio_window() -> (f64, f64) {
-    (0.8, 1.2)
+/// Owner decision 2026-11-13 (night, on the larger bog tree; brief P-LAND-PLAGUE-1-fix-3): the tree's own marsh counts
+/// as the zone's bog. The median over seeds of (tree bog + styler bog tiles, option on) / (styler bog tiles, option
+/// off) is at least the first number. Before the larger tree the rule was the pools' share alone within a fifth of
+/// today's. The second number is a ceiling against runaway bog, not an owner figure.
+fn bog_ratio_window() -> (f64, f64) {
+    (0.8, 1.5)
+}
+
+/// Owner decision 2026-11-13 (night): the free pools alone keep at least this much of today's share of the zone's
+/// free ground as bog (median over seeds; measured when decided: 0.51 on seeds 1-32, 0.44 over seeds 1-96).
+fn pool_share_ratio_min() -> f64 {
+    0.35
 }
 
 /// Large near, small far: the mean pool area of the near band is at least this many times the far band's, over seeds
@@ -875,10 +884,33 @@ fn pools_on_routes(maps: &[Landed]) -> Vec<String> {
 // Budget and barrows.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// 8. Budget: the median over seeds 1-32 of (styler bog share option on) / (bog share option off) lies in
-///    `share_ratio_window`.
+/// 8. Budget (owner decision 2026-11-13, night): the median over seeds 1-32 of (tree bog + styler bog tiles, option
+///    on) / (styler bog tiles, option off) lies in `bog_ratio_window`. The test keeps its name: the zone's bog, the
+///    tree's marsh and the free pools together, stays within a fifth below today's.
 #[test]
 fn bog_share_of_free_ground_stays_within_a_fifth_of_todays() {
+    let mut ratios = Vec::new();
+    for (l, (seed, off)) in maps().iter().zip(off_maps()) {
+        assert_eq!(l.seed, *seed);
+        let m = &l.map;
+        let tree = (0..m.tiles.len()).filter(|&i| is_tree_bog(m, i)).count();
+        let on = (tree + styler_bog(m).len()) as f64;
+        ratios.push(on / styler_bog(off).len() as f64);
+    }
+    let mut sorted = ratios.clone();
+    let mid = median(&mut sorted);
+    let (lo, hi) = bog_ratio_window();
+    assert!(
+        (lo..=hi).contains(&mid),
+        "median (tree bog + pool bog) on / bog off, in tiles: {mid:.3} outside [{lo}, {hi}]; per seed {:?}",
+        ratios.iter().map(|r| format!("{r:.2}")).collect::<Vec<_>>()
+    );
+}
+
+/// 8b. The free pools alone (owner decision 2026-11-13, night): the median over seeds 1-32 of (styler bog share of
+///     free ground, option on) / (bog share, option off) is at least `pool_share_ratio_min`.
+#[test]
+fn pool_bog_alone_keeps_a_third_of_todays_share() {
     let mut ratios = Vec::new();
     for (l, (seed, off)) in maps().iter().zip(off_maps()) {
         assert_eq!(l.seed, *seed);
@@ -889,10 +921,10 @@ fn bog_share_of_free_ground_stays_within_a_fifth_of_todays() {
     }
     let mut sorted = ratios.clone();
     let mid = median(&mut sorted);
-    let (lo, hi) = share_ratio_window();
     assert!(
-        (lo..=hi).contains(&mid),
-        "median on/off bog-share ratio {mid:.3} outside [{lo}, {hi}]; per seed {:?}",
+        mid >= pool_share_ratio_min(),
+        "median on/off pool bog-share ratio {mid:.3} under {}; per seed {:?}",
+        pool_share_ratio_min(),
         ratios.iter().map(|r| format!("{r:.2}")).collect::<Vec<_>>()
     );
 }
@@ -932,11 +964,12 @@ fn barrows_without_rock(maps: &[Landed]) -> Vec<String> {
     findings
 }
 
-/// Measured (brief section 12, on the reserved sites): option on today holds 312 of the 397 option-off barrows (79%)
-/// over seeds 1-32, because the tree's reserved site moves the camps the barrows stand between. The floor leaves the
-/// same room as before the reservation (85 against 94) for barrows to give way to the pools.
+/// Owner decision 2026-11-13 (night, on the larger bog tree; brief P-LAND-PLAGUE-1-fix-3): 55, was 70. The 29 x 29
+/// tree and its apron take about a fifth of the zone's free ground (3604 tiles against 4460 on the median map), so
+/// fewer barrows fit: measured when decided, 228 of 397 on seeds 1-32 (57%) and 725 of 1198 over seeds 1-96 (61%).
+/// History: 85 before the reserved site, 70 on it (312 of 397).
 fn barrow_share_min() -> usize {
-    70
+    55
 }
 
 /// 9b. The pools are free: no barrow owns bog (today each barrow owns its crescent; the barrow itself, its rock and
