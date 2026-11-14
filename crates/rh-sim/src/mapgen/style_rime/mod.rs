@@ -1,4 +1,5 @@
 //! Frost stage-six callbacks. All writes use the guarded phase-specific runtime.
+mod guarantees;
 mod lakes;
 mod routes;
 mod rules;
@@ -14,6 +15,7 @@ use crate::mapgen::{
     },
     terrain_gate::{PropKind, TerrainKind},
 };
+pub use guarantees::guarantees;
 pub use rules::{default_definition, visit_content, Definition};
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

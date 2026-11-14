@@ -94,6 +94,13 @@ pub enum Refusal {
     /// finished map a Plague spawn's walk to the coliseum grows by more than the pools' detour when styler bog is
     /// avoided, or a `BogPool` owns no bog (`plague_pools::keeps`; only with `Options::signature`).
     SignaturePools,
+    /// P-MAPGEN-GUARANTEES-1: a signature map discarded at the end of the attempt, after `intact` and the certifier,
+    /// because the end-of-attempt guarantee `rule` of `zone`'s styler fails on the finished map
+    /// (`style_zones::guarantees`; only with `Options::signature`). STUB: never produced yet.
+    Guarantee {
+        zone: Zone,
+        rule: &'static str,
+    },
 }
 #[derive(Debug)]
 pub enum Error {

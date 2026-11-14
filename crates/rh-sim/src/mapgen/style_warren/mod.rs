@@ -1,4 +1,5 @@
 //! Plague stage-six Barrows callbacks. Landmark selection remains in the accepted stage-four recipe.
+mod guarantees;
 mod planning;
 mod pools;
 mod rules;
@@ -19,6 +20,7 @@ use crate::mapgen::style_runtime::{
     SurfaceKind,
 };
 use crate::mapgen::terrain_gate::PropKind;
+pub use guarantees::{dry_pools, guarantees, is_styler_bog};
 /// The pool tunables, for the pipeline's end-of-attempt check (P-LAND-PLAGUE-1-fix-2: `walk_detour`).
 pub(crate) use pools::POOLS;
 pub use rules::{default_definition, visit_content, Definition};

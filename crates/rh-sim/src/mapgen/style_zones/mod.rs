@@ -12,6 +12,8 @@ use crate::mapgen::{
     style_runtime::{self, Error, Geometry, Inputs, Metadata, State},
     style_sanctum, style_scorch, style_warren, terrain_gate,
 };
+mod guarantee;
+pub use guarantee::{guarantees, walk_growth, Guarantee};
 /// Only the four source StyleOptions.caps overrides. Other runtime defaults keep their existing owner.
 #[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

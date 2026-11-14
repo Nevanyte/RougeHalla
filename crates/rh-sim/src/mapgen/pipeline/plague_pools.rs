@@ -71,7 +71,7 @@ fn owner(m: &GameMapData, i: usize) -> Option<usize> {
 }
 
 /// Bog a `BogPool` owns: the Plague styler's pools (the tree's bog and unowned bog are not).
-fn is_styler_bog(m: &GameMapData, i: usize) -> bool {
+pub(crate) fn is_styler_bog(m: &GameMapData, i: usize) -> bool {
     is_bog(m, i) && owner(m, i).is_some_and(|k| m.features[k].kind == FeatureKind::BogPool)
 }
 
