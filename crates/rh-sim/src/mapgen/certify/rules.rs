@@ -196,8 +196,8 @@ pub const SIGNATURE_KINDS: [Kind; 7] = [
         kind: K::Graveyard,
         params_min: 0,
         wall: true,
-        low: false,
-        terrain: 0,
+        low: true,
+        terrain: R.fence_kind,
         jobs: &[J::Cover],
     },
     Kind {

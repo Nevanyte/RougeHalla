@@ -106,16 +106,7 @@ impl Blueprint {
     /// The drawing in `text`, or `None` unless it is a square grid of the six characters with one `E` and
     /// `2 * mouth + 1` `D` tiles in one run on the front row.
     pub(super) fn parse(text: &str, mouth: i32) -> Option<Self> {
-        let rows: Vec<&[u8]> = text
-            .lines()
-            .filter(|l| !l.starts_with(';') && !l.is_empty())
-            .map(str::as_bytes)
-            .collect();
-        let side = i32::try_from(rows.len()).ok().filter(|&n| n > 0)?;
-        if rows.iter().any(|r| r.len() != rows.len()) {
-            return None;
-        }
-        let cells: Vec<u8> = rows.concat();
+        let (side, cells) = grid(text)?;
         if !cells.iter().all(|c| b"#R=.ED".contains(c)) {
             return None;
         }
@@ -144,11 +135,38 @@ impl Blueprint {
     /// Where grid tile (gx, gy) lands with `E` on camp tile `t`, the front toward unit axis `u`, mirrored or not:
     /// unmirrored the drawing's +gx goes to r = (u.1, -u.0), mirrored to -r.
     fn land(&self, t: (i32, i32), u: (i32, i32), mirrored: bool, g: (i32, i32)) -> (i32, i32) {
-        let s = if mirrored { -1 } else { 1 };
-        let r = (u.1 * s, -u.0 * s);
-        let (a, c) = (g.1 - self.camp.1, g.0 - self.camp.0);
-        (t.0 + a * u.0 + c * r.0, t.1 + a * u.1 + c * r.1)
+        land(self.camp, t, u, mirrored, g)
     }
+}
+
+/// A drawing's grid, shared by the cave and the church (P-MAPGEN-SIG-SCALE-2): the lines of `text` that neither start
+/// with `;` nor are empty, as (side, row-major characters); `None` unless they form a non-empty square.
+pub(super) fn grid(text: &str) -> Option<(i32, Vec<u8>)> {
+    let rows: Vec<&[u8]> = text
+        .lines()
+        .filter(|l| !l.starts_with(';') && !l.is_empty())
+        .map(str::as_bytes)
+        .collect();
+    let side = i32::try_from(rows.len()).ok().filter(|&n| n > 0)?;
+    rows.iter()
+        .all(|r| r.len() == rows.len())
+        .then(|| (side, rows.concat()))
+}
+
+/// Where grid tile `g` lands with grid tile `e` on map tile `t`, the drawing's front (+gy) toward unit axis `u`,
+/// mirrored or not: unmirrored the drawing's +gx goes to r = (u.1, -u.0), mirrored to -r. Shared by the cave and the
+/// church.
+pub(super) fn land(
+    e: (i32, i32),
+    t: (i32, i32),
+    u: (i32, i32),
+    mirrored: bool,
+    g: (i32, i32),
+) -> (i32, i32) {
+    let s = if mirrored { -1 } else { 1 };
+    let r = (u.1 * s, -u.0 * s);
+    let (a, c) = (g.1 - e.1, g.0 - e.0);
+    (t.0 + a * u.0 + c * r.0, t.1 + a * u.1 + c * r.1)
 }
 
 /// The blueprint cave round camp tile `t` (P-MAPGEN-SIG-SCALE-1), or `None` (the attempt is refused) when the site
