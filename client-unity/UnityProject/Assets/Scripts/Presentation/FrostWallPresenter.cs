@@ -77,6 +77,7 @@ namespace Roguehalla.Client
             public void UploadShape() { Mesh.SetVertices(_v); }
             public void UploadColors() { if (_colorsDirty) { Mesh.SetColors(_c); _colorsDirty = false; } }
             public void Active(bool on) { if (Go.activeSelf != on) Go.SetActive(on); }
+            public Color32 ColorOf(int q) { return _c[q * 4]; }
         }
 
         sealed class Block { public QuadMesh Mesh; public MeshRenderer Renderer; public MapTile Tile; public float TopAlpha; }
@@ -193,6 +194,42 @@ namespace Roguehalla.Client
         public float BlockTopAlpha(int i) { return BlockAt(i).TopAlpha; }
         /// <summary>The colour of the block's top, alpha ignored.</summary>
         public Color32 BlockTopColor(int i) { BlockAt(i); return TopColor; }
+
+        // ---- what is drawn, as colours (P-UNITY-FROST-WALL-READ-1 oracle: FrostWallReadEditModeTests) ----
+        /// <summary>The parts of a standing block whose colours the oracle reads.</summary>
+        public enum BlockPart { Top, Face, Edge }
+        /// <summary>The parts of the aim preview whose colours the oracle reads.</summary>
+        public enum PreviewPart { Fill, Outline, Ring, Line, Dot }
+
+        /// <summary>The colour, alpha included, of every quad of block <paramref name="i"/> that draws <paramref name="part"/>, as it is on the mesh now
+        /// (after the last <see cref="Tick"/>): Top the surface, Face the front, Edge every quad that outlines the block's silhouette (rim, base line, any
+        /// outline or shadow line). A part drawn in two tones lists both. Contract for the implementer: list EVERY quad that draws the part.</summary>
+        public Color32[] BlockLayers(int i, BlockPart part)
+        {
+            var m = BlockAt(i).Mesh;
+            switch (part)
+            {
+                case BlockPart.Top: return new[] { m.ColorOf(1) };
+                case BlockPart.Face: return new[] { m.ColorOf(0) };
+                default: { var l = new Color32[BlockQuads - 2]; for (int q = 2; q < BlockQuads; q++) l[q - 2] = m.ColorOf(q); return l; }
+            }
+        }
+
+        /// <summary>The colour, alpha included, of every quad that draws <paramref name="part"/> of the preview as it is on the mesh now (after the last
+        /// <see cref="Tick"/>, so the pulse is in it). Fill and Outline list the first tile's quads (empty with no tile). Same contract as
+        /// <see cref="BlockLayers"/>: every quad of the part.</summary>
+        public Color32[] PreviewLayers(PreviewPart part)
+        {
+            int ql = RingSegments + MaxPreviewTiles * 5;
+            switch (part)
+            {
+                case PreviewPart.Ring: return new[] { _preview.ColorOf(0) };
+                case PreviewPart.Fill: return _pvCount > 0 ? new[] { _preview.ColorOf(RingSegments) } : new Color32[0];
+                case PreviewPart.Outline: return _pvCount > 0 ? new[] { _preview.ColorOf(RingSegments + 1) } : new Color32[0];
+                case PreviewPart.Line: return new[] { _preview.ColorOf(ql) };
+                default: return new[] { _preview.ColorOf(ql + 1) };
+            }
+        }
 
         // ---- the cast telegraph ----
         /// <summary>A Wish start under <c>Wall</c>: a line <paramref name="length"/> long across (<paramref name="x"/>,
