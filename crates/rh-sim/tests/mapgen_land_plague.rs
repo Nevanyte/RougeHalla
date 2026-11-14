@@ -36,7 +36,7 @@
 //!   (option off there is no tree: all Plague floor). Bog share = styler bog / free ground.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone, ZoneAnchor};
 use rh_sim::mapgen::landmarks::signature::{band, Band, DEFAULT_DEFINITION};
-use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline};
+use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline, style_warren, style_zones};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::OnceLock;
 
@@ -1167,24 +1167,33 @@ fn wide_maps_certify_clean_and_keep_the_tree() {
 
 // --------------------------------------------------------------------------------------------------------------------
 // P-LAND-PLAGUE-1-fix-2 (brief `docs/backlog/packets/P-LAND-PLAGUE-1-fix-2.md`): the pipeline's end-of-attempt pool
-// check (`pipeline::plague_pools`) on today's maps, seeds 1-96 (the two cached map sets).
+// check on today's maps, seeds 1-96 (the two cached map sets). Amended by P-MAPGEN-GUARANTEES-1: the check is the
+// Plague styler's guarantees `pool-walks` and `pool-wet` (`style_warren`), measured here through
+// `style_zones::walk_growth` with styler bog forbidden and `style_warren::dry_pools`; its refusal is
+// `Refusal::Guarantee { zone: Plague, .. }` (was `Refusal::SignaturePools`).
 // --------------------------------------------------------------------------------------------------------------------
 
-/// The pipeline's check measures this oracle's walk: on every accepted map of seeds 1-96, `plague_pools::walk_growth`
-/// equals `bog_detours` (per Plague spawn of the pool that a walk reaches, in pool order), and no `BogPool` is dry.
+/// Styler bog avoided: each Plague spawn's walk growth on `m` (`style_zones::walk_growth`).
+fn pool_walk_growth(m: &GameMapData) -> Vec<i32> {
+    style_zones::walk_growth(m, Zone::Plague, |i| style_warren::is_styler_bog(m, i))
+}
+
+/// The pipeline's check measures this oracle's walk: on every accepted map of seeds 1-96, the walk growth with styler
+/// bog forbidden equals `bog_detours` (per Plague spawn of the pool that a walk reaches, in pool order), and no
+/// `BogPool` is dry.
 #[test]
 fn the_end_of_attempt_check_measures_this_oracles_walk_on_seeds_1_to_96() {
     let mut findings = Vec::new();
     for l in maps().iter().chain(wide_maps()) {
         let m = &l.map;
-        let (check, oracle) = (pipeline::plague_pools::walk_growth(m), bog_detours(m));
+        let (check, oracle) = (pool_walk_growth(m), bog_detours(m));
         if check != oracle {
             findings.push(format!(
                 "seed {}: the check measures {check:?}, the oracle {oracle:?}",
                 l.seed
             ));
         }
-        let dry = pipeline::plague_pools::dry_pools(m);
+        let dry = style_warren::dry_pools(m);
         if !dry.is_empty() {
             findings.push(format!("seed {}: dry BogPool features {dry:?}", l.seed));
         }
@@ -1196,17 +1205,23 @@ fn the_end_of_attempt_check_measures_this_oracles_walk_on_seeds_1_to_96() {
 /// accepted map passes it with the pools' detour.
 #[test]
 fn no_attempt_of_seeds_1_to_96_is_refused_by_the_pool_check() {
-    let refused = format!("{:?}", Some(pipeline::Refusal::SignaturePools));
+    // Today's label, and the guarantees' (`format!("{:?}", report.refusal)`).
+    let refused =
+        |r: &str| r == "Some(SignaturePools)" || r.starts_with("Some(Guarantee { zone: Plague");
     let mut findings = Vec::new();
     for l in maps().iter().chain(wide_maps()) {
-        let n = l.refusals.iter().filter(|r| **r == refused).count();
+        let n = l.refusals.iter().filter(|r| refused(r)).count();
         if n > 0 {
             findings.push(format!(
                 "seed {}: {n} attempts refused by the pool check",
                 l.seed
             ));
         }
-        if !pipeline::plague_pools::keeps(&l.map, walk_detour_max()) {
+        let keeps = pool_walk_growth(&l.map)
+            .iter()
+            .all(|&g| g <= walk_detour_max())
+            && style_warren::dry_pools(&l.map).is_empty();
+        if !keeps {
             findings.push(format!(
                 "seed {}: the accepted map fails the pool check",
                 l.seed
