@@ -150,8 +150,15 @@ pub fn validate_with_definition(
             }
         }
     }
+    let lava = d
+        .kinds
+        .iter()
+        .position(|k| k.key == "lava")
+        .and_then(|k| u8::try_from(k).ok());
     let far: Vec<_> = (0..n)
         .filter(|&i| tiles[i] == TILE_LOW && dist[i] < 0)
+        // P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): a signature landmark's own lava is exempt.
+        .filter(|&i| !crate::mapgen::landmarks::signature::t5_exempt(map, i, lava))
         .collect();
     if let Some(&i) = far.first() {
         out.push(format!(

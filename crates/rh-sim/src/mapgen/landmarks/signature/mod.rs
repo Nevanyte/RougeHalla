@@ -76,7 +76,8 @@ pub struct Definition {
     /// Pools: the squared radii tried, largest first.
     pub pool_d2: &'static [i32],
     /// Volcano: the zone's total lava (the cone's crater lake, channels and outlets, the streams and the pools;
-    /// inclusive). PROVISIONAL (P-MAPGEN-SIG-SCALE-4): worked from the drawing, the owner amends it after measurement.
+    /// inclusive). PROVISIONAL (P-MAPGEN-SIG-SCALE-4): the window round the prototype's measured 221-244; the coordinator
+    /// finalises it after measurement on the build.
     pub lava_budget: (usize, usize),
     /// The tiles beyond each entrance tile, along the front, that must be `Site::open` for an entry whose table row says
     /// `doorway` (the church's main gate, the cave's mouth; `stamp`).
@@ -134,7 +135,7 @@ pub struct Definition {
     /// rect (toward the coliseum, along the front axis of the site's centre tile), `fan_depth` tiles deep and as wide
     /// as the inner rect plus `fan_side` tiles on each side, clipped to the map. Camp halos (the Prefix's camp
     /// placement) and the legacy landmark stage's buildings (its protection) keep out of it; the streams and their
-    /// pools run in it. Stub: not read yet.
+    /// pools run in it (`fan`).
     pub fan_depth: i32,
     pub fan_side: i32,
 }
@@ -155,7 +156,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     stream_gap: 3,
     start_d2: 20,
     pool_d2: &[4, 2],
-    lava_budget: (240, 310),
+    lava_budget: (200, 270),
     doorway: 2,
     lake_reach: 8,
     lake_tries: 8,
@@ -267,6 +268,80 @@ fn axis(f: u8) -> (i32, i32) {
     } else {
         (0, v[1].signum())
     }
+}
+
+/// P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): the Fire fan of reserved site `r`, inclusive (x0, y0, x1, y1)
+/// clipped to the map; `None` for a zone other than Fire. It lies in front of the site's inner rect (the site less its
+/// apron, `bands[0]`), along the front axis read at the site's centre tile (`front`, then `axis`: the tile and rule of
+/// the volcano's anchor, so the fan and the drawing's front row agree), `fan_depth` tiles deep and as wide as the inner
+/// rect plus `fan_side` tiles on each side. Its two readers: the Prefix's camp placement keeps every camp's halo out of
+/// it (`attempt`), the legacy landmark stage keeps its buildings out of it (`stage`). Nothing else is forbidden there:
+/// the volcano's streams and pools run in it.
+pub fn fan(r: &ReservedSite, d: &Definition) -> Option<(usize, usize, usize, usize)> {
+    if r.zone != Zone::Fire {
+        return None;
+    }
+    let b = d.bands[0];
+    let (w, h) = (r.rect.w as i32, r.rect.h as i32);
+    let (x0, y0, x1, y1) = (
+        r.rect.x + b,
+        r.rect.y + b,
+        r.rect.x + w - 1 - b,
+        r.rect.y + h - 1 - b,
+    );
+    let (depth, side) = (d.fan_depth, d.fan_side);
+    let (a0, b0, a1, b1) = match axis(front(r.rect.x + w / 2, r.rect.y + h / 2)) {
+        (0, 1) => (x0 - side, y1 + 1, x1 + side, y1 + depth),
+        (0, -1) => (x0 - side, y0 - depth, x1 + side, y0 - 1),
+        (1, 0) => (x1 + 1, y0 - side, x1 + depth, y1 + side),
+        _ => (x0 - depth, y0 - side, x0 - 1, y1 + side),
+    };
+    let clip = |v: i32, n: usize| v.clamp(0, n as i32 - 1) as usize;
+    Some((clip(a0, W), clip(b0, H), clip(a1, W), clip(b1, H)))
+}
+
+/// P-MAPGEN-SIG-SCALE-4: whether the certifier's halo of a camp placed inside a reserved site (the church's, the cave's)
+/// reaches into the Fire fan. Those camps are fixed with the sites, before camp placement can keep them out of the fan:
+/// the Prefix fails the round when one does (the partition and the sites are drawn again).
+pub(crate) fn fan_holds_a_site_camp(reserved: &[ReservedSite], d: &Definition) -> bool {
+    let Some((x0, y0, x1, y1)) = reserved.iter().find_map(|r| fan(r, d)) else {
+        return false;
+    };
+    let mut halo = vec![0u8; W * H];
+    for t in reserved.iter().filter_map(|r| r.camp) {
+        mark_halo(&mut halo, t);
+    }
+    (y0..=y1).any(|y| (x0..=x1).any(|x| halo[y * W + x] != 0))
+}
+
+/// The signature landmarks' feature kinds: each zone's landmark and its parts, not the stylers' features (the legacy
+/// `LavaRiver`, the craters) nor the legacy landmark recipes' `Landmark`.
+pub fn landmark_kind(kind: FeatureKind) -> bool {
+    matches!(
+        kind,
+        FeatureKind::Volcano
+            | FeatureKind::LavaStream
+            | FeatureKind::LavaPool
+            | FeatureKind::Church
+            | FeatureKind::Graveyard
+            | FeatureKind::BogTree
+            | FeatureKind::Cave
+    )
+}
+
+/// P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): terrain rule T5 (a LOW tile lies within the snap reach of floor)
+/// does not count tile `i` of `m` when it is a signature landmark's own lava: LOW, of terrain `lava` (the lava code of
+/// the reader's own terrain table), owned (the feature grid) by a `landmark_kind` feature: the volcano's walled-in
+/// crater lake. Every other far LOW tile still fails. The one definition the terrain gate and the certifier both read.
+/// Option-off maps have no signature feature, so no option-off verdict changes.
+pub fn t5_exempt(m: &GameMapData, i: usize, lava: Option<u8>) -> bool {
+    m.tiles.get(i) == Some(&TILE_LOW)
+        && lava.is_some_and(|lava| m.terrain.get(i) == Some(&lava))
+        && m.feature_grid
+            .get(i)
+            .and_then(|&f| usize::from(f).checked_sub(1))
+            .and_then(|k| m.features.get(k))
+            .is_some_and(|f| landmark_kind(f.kind))
 }
 
 /// G4: the band of a tile relative to a zone's anchor, nearest first.

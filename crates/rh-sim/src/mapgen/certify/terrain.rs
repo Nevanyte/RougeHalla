@@ -182,10 +182,19 @@ pub(super) fn errors(m: &GameMapData, o: &Options) -> Vec<String> {
             }
         }
     }
+    let lava = KEYS
+        .iter()
+        .position(|&k| k == "lava")
+        .and_then(|k| u8::try_from(k).ok());
     group(
         m,
         5,
-        |i| m.tiles[i] == 2 && d[i] == usize::MAX,
+        // P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): a signature landmark's own lava is exempt.
+        |i| {
+            m.tiles[i] == 2
+                && d[i] == usize::MAX
+                && !crate::mapgen::landmarks::signature::t5_exempt(m, i, lava)
+        },
         |c, i| {
             format!(
                 "{c} LOW tile(s) more than {} tiles from any floor, first {}",
