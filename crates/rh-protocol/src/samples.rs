@@ -312,6 +312,7 @@ fn sample_field() -> WireField {
         vy: 0.,
         started_at: 1000.5,
         ends_at: 6000.5,
+        tiles: Vec::new(),
     }
 }
 fn state_sample() -> ServerMsg {
@@ -654,6 +655,7 @@ fn state_all_max_budget() -> ServerMsg {
             vy: f32::MAX,
             started_at: f64::MAX / 2.0,
             ends_at: f64::MAX,
+            tiles: Vec::new(),
         })
         .collect();
     let reward_start = u32::MAX - MAX_REWARD_CHESTS as u32 + 1;

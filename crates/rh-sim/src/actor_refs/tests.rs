@@ -306,6 +306,7 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
         vy: 0.,
         started_at: 0.,
         ends_at: 100.,
+        tiles: Vec::new(),
     });
     raw.events.push(SeenEvent::Hit {
         victim: mob,

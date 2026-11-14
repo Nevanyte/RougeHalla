@@ -18,6 +18,7 @@ fn field() -> WireField {
         vy: 0.,
         started_at: 1000.5,
         ends_at: 6000.5,
+        tiles: Vec::new(),
     }
 }
 fn state() -> ServerMsg {

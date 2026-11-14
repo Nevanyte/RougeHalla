@@ -14,6 +14,18 @@ pub const ROSTER_FLAG_BOT: u8 = 1;
 pub const MAX_MIN_PLAYERS: u8 = MAX_ROSTER as u8;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
+/// P-FROST-WALL-2: State key 3 field kind codes (`rh_sim::status_runtime::FieldKind` order). A code at or above
+/// [`FIELD_KIND_COUNT`] is refused ("field").
+pub const FIELD_KIND_ZONE: u8 = 0;
+pub const FIELD_KIND_CLOUD: u8 = 1;
+pub const FIELD_KIND_TRAIL: u8 = 2;
+/// A standing Frost Wall: the only kind whose row carries a tile list.
+pub const FIELD_KIND_WALL: u8 = 3;
+/// STUB (P-FROST-WALL-2): becomes 4 when the wall row is on the wire.
+pub const FIELD_KIND_COUNT: u8 = 3;
+/// Most tiles one wall row may carry (P-FROST-WALL-2): a wall takes at most 17 tiles with the legacy numbers (length
+/// 224, reach 24, end slack 8, any angle); 64 leaves room for a retune. A count of 0 or above this is "wall tiles".
+pub const MAX_WALL_TILES: usize = 64;
 pub const MAX_REWARD_CHESTS: usize = 512;
 pub const MAX_QUEST_ROWS: usize = 20;
 pub const MAX_QUEST_ROSTER: usize = 8;
@@ -325,7 +337,7 @@ pub struct WireProps {
 }
 
 /// Public geometry and already-redacted actors only. No runtime field ID or private source record.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct WireField {
     pub kind: u8,
     pub ability: u8,
@@ -340,6 +352,10 @@ pub struct WireField {
     pub vy: f32,
     pub started_at: f64,
     pub ends_at: f64,
+    /// P-FROST-WALL-2: a wall's tiles (kind [`FIELD_KIND_WALL`] only): row-major tile indices into the Welcome map,
+    /// strictly ascending, 1..=[`MAX_WALL_TILES`] of them, each below `map::MAX_MAP_TILES`. Empty for every other kind.
+    /// STUB: neither written, read nor checked yet.
+    pub tiles: Vec<u32>,
 }
 
 /// The viewer's own private planning deal (key 8). Never another player's options; the server resolves every fact so a
@@ -1941,6 +1957,8 @@ impl WireField {
             vy: r.f32()?,
             started_at: r.f64()?,
             ends_at: r.f64()?,
+            // STUB (P-FROST-WALL-2): a wall row's tile list is read here.
+            tiles: Vec::new(),
         };
         if result.valid() {
             Ok(result)

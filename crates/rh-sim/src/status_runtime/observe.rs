@@ -18,6 +18,10 @@ pub struct FieldView {
     pub vy: f64,
     pub started_at: f64,
     pub ends_at: f64,
+    /// P-FROST-WALL-2: a standing wall's tiles (row-major indices into the arena map, ascending: the barrier row the
+    /// sim blocks on); empty for every other kind, and then absent from the serialized form.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tiles: Vec<u32>,
 }
 impl FieldView {
     fn from_field(f: &Field, seen: impl Fn(PlayerId) -> bool) -> Self {
@@ -35,6 +39,8 @@ impl FieldView {
             vy: f.vy,
             started_at: f.started_at,
             ends_at: f.ends_at,
+            // STUB (P-FROST-WALL-2): the wall's barrier tiles go here.
+            tiles: Vec::new(),
         }
     }
     pub(crate) fn cmp(&self, b: &Self) -> std::cmp::Ordering {

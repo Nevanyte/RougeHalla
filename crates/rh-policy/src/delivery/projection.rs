@@ -685,6 +685,14 @@ pub fn wire_weapons() -> Vec<rh_protocol::WireWeapon> {
         .collect()
 }
 
+/// P-FROST-WALL-2: the block for a room whose Frost Wish is `frost_wish`: every code, [`rh_protocol::HudTerm::FrostWish`]
+/// saying which Wish this room runs (0 Freeze, 1 Wall) and the wall's public numbers (codes 24-29) in every room.
+/// STUB: returns the Freeze-only block of [`wire_hud`] unchanged.
+pub fn wire_hud_for(frost_wish: rh_sim::FrostWish) -> rh_protocol::WireHudContent {
+    let _ = frost_wish;
+    wire_hud()
+}
+
 /// The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): one scaling row per `rh_sim::WeaponId::ALL`
 /// (wire id `code()`) from `rh_sim::modifiers::rules::DEFINITION.weapon_scaling`, and every `rh_protocol::HudTerm` code
 /// from the sim's Wish definitions (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Field list") and Fire roam constants

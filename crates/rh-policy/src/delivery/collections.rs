@@ -349,6 +349,8 @@ fn fields(observation: &Observation) -> Vec<WireField> {
             vy: f.vy as f32,
             started_at: f.started_at,
             ends_at: f.ends_at,
+            // STUB (P-FROST-WALL-2): a wall's tiles ride here.
+            tiles: Vec::new(),
         })
         .collect()
 }
