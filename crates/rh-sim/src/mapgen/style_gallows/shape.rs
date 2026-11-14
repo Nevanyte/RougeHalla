@@ -146,7 +146,7 @@ impl Callbacks<'_> {
         let bb = b.zone.bbox;
         // Signature mode (P-LAND-SENTENCED-1): `Some` only when the zone holds a signature `Church`; option off this is
         // `None` and every line below runs as today. `Err` when a `Church` is there but its door does not read as three
-        // open tiles in one run: the styler stops (the generation call fails).
+        // open tiles in one run: `Error::Landmark`, and the pipeline refuses the attempt.
         let lanes = lanes::frame(&b)?;
         let horizontal = legacy_horizontal(&b);
         let (t_lo, n_t, s_lo, n_s) = if horizontal {

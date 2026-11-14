@@ -59,7 +59,10 @@ table bounds, finite positive tile scale, and bounded policy/feature lengths. Re
 refused before a transaction. Route baseline costs plus worst grid path cost stay below the shared field's signed
 sentinel. Fence detour depths stay within Int16. Policy validation rejects nonfinite/negative percentages/rims,
 excessive joins/costs/pieces/group/share limits and stream-offset overflow. Invalid indices that the source treats as
-ordinary refusals remain refusals; malformed structural input is a typed `Error`. Exact parity is claimed in this
+ordinary refusals remain refusals; malformed structural input is a typed `Error`. One `Error` is not a fault:
+`Error::Landmark` (P-MAPGEN-STYLE-REFUSE-1) says the zone's signature landmark cannot be built round, and the pipeline
+refuses the attempt and tries the next. A styler returns it only for a landmark precondition, never for lack of room,
+and only in signature mode. Exact parity is claimed in this
 explicit admitted domain, not for JS undefined accesses, overflow-alias artifacts or unbounded custom definitions.
 
 `Definition` is the single runtime policy read by allocation-free `visit_content` (16 words, including the shared 1030-permille route stretch ceiling consumed by faction callbacks). Shared terrain/prop
