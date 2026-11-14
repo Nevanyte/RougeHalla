@@ -22,6 +22,8 @@ Bots: a fair observation carries the wall like any other viewer's; the Brain's u
 
 ## 2. Dependencies
 - P-SIM-LIVE-CONTENT-1 merged (the live content world has one definition; the flip is one line there).
+- P-FROST-WALL-1c merged (cannon landings, zombies, bruiser reach and Wind emblems read the wall; the wall's
+  numbers are in content).
 - P-FROST-WALL-1b merged (fighters under the wall, walks under way, mob paths and blink landings read the wall):
   the profiles must not select a half-built rule.
 - Serial with every packet touching `observe.rs`, `status_runtime/observe.rs`, `state.rs`, `samples.rs`, the C# and
