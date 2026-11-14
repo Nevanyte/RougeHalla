@@ -113,6 +113,13 @@ Sonnet. Small; the Plague half changes what a dressed map looks like, so it is s
 
 ## Notes from previous attempts
 
+**Coordinator amendment (2026-11-13, after attempt 1).** `Wire.MaxMapDecodedBytes` is out of this packet. An existing test,
+`MapBlobGroundTests.cs:151` (`ValidatesMaximumDecodedPlaneBudgetBeforeAllocatingAndHonorsFrameCap`), asserts that it equals
+`5 * Wire.MaxMapTiles`, so correcting or deleting the constant needs a change to an existing test, which is the owner's to
+approve. The oracle test `TheStaleDecodedBytesConstantIsGoneOrSixPlanes` is removed; the constant stays 5x and unused, and
+the enforced limit stays `MapBlob`'s private `MaxDecodedPlaneBytes` (6x, equal to Rust's `MAX_DECODED_PLANES`). The run limit
+(`Wire.MaxMapRuns` at 6x, used by `MapBlob`) is unchanged in scope.
+
 ## Established facts (oracle-author, 2026-11-13; all on the branch at `coord/int-26`)
 
 1. **Shadows.** `RegionShadowMap.Collect` (`View/Atmosphere/RegionShadows.cs:67-87`): wall and low tiles are casters of
