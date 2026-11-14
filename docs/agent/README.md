@@ -18,6 +18,9 @@ on 2026-11-10; it replaces the earlier per-lane habits (Codex Root, DeepSeek, So
 
 Routing between them is the table in `CLAUDE.md`.
 
+Small changes of a named looks-only value do not take a packet: they go through the [tuning lane](TUNING_LANE.md)
+(owner direction 2026-11-13).
+
 ## Lifecycle of a packet
 
 ```

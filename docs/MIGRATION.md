@@ -4,6 +4,23 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner direction 2026-11-14 (chat, early): the coordinator builds leverage; wrap up and finalise the plan
+
+After round 10 the owner wrote: "Since we are using the fable model I do not see your job as fit for making small
+changes. Instead your job is making those future small charges easier writing and making architecture so that sonnet
+sun agents can easily make small changes. Please wrap up the changes and finalize everything on the initial spec made
+in this chat." And on the cave's roof at about 10 percent: "Maybe up it to 20% visibility it's barely visible".
+What follows:
+- **A tuning lane** for small changes ([agent/TUNING_LANE.md](agent/TUNING_LANE.md)): a named looks-only dial, moved
+  inside the range its test pins, by one Sonnet implementer, with no brief and no oracle author; the dials index is
+  [unity/DIALS.md](unity/DIALS.md); the look check is [unity/LOOK_CHECK.md](unity/LOOK_CHECK.md). P-UNITY-LOOK-TOOLS-1
+  commits the session's capture tool and writes the Web round down so agents can run both. A routing row for the lane
+  in `CLAUDE.md` waits for the owner's approval (a protected path).
+- **The roof at 20 percent** is the lane's first change (`roof-faded`, with its range widened on the owner's words).
+- **The coordinator stops iterating on looks.** Open look work goes to Sonnet through packets already briefed
+  (P-UNITY-GROUND-TINT-1) or the lane; the coordinator sequences what is left of the plan, merges, and runs the finish
+  steps.
+
 ## Screenshot round 10 (2026-11-13, past midnight): the Web build script is clean, the roof rule works, the Sentenced floor is pulled
 
 Web build of `d6ab750da` (the staged tree), a local server with and without `--signature-landmarks`; about 95 shots in
