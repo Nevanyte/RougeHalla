@@ -59,6 +59,13 @@ namespace Roguehalla.Client
         /// joins); false outside the footprint and on the mouth.</summary>
         public bool RoofCovers(int x, int y) { return Local(x, y, out int i) && _roofMask[i]; }
 
+        /// <summary>SEAMS-1 stub: true for a Low tile (collision class low: walkers cannot cross, shots can) inside the footprint. Not yet read from the map.</summary>
+        public bool IsLow(int x, int y) { return false; }
+        /// <summary>SEAMS-1 stub: the delivered terrain code (TerrainKind as a byte) of a footprint tile; 0 outside the footprint. Not yet read from the map.</summary>
+        public byte Terrain(int x, int y) { return 0; }
+        /// <summary>SEAMS-1 stub: an art hands over the tiles under its roof or canopy; RoofCovers and the fade will read them. Does nothing yet.</summary>
+        public void SetCover(IEnumerable<MapTile> tiles) { }
+
         bool Local(int x, int y, out int i)
         {
             int lx = x - FootX, ly = y - FootY; i = ly * FootW + lx;

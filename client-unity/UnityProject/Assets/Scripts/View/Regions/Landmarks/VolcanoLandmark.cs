@@ -13,12 +13,12 @@ namespace Roguehalla.Client
     {
         public const int Foot = 0, Slope = 1, Rim = 2;
 
-        int _x, _y, _w, _h; int[] _tier = new int[0];
+        int _x, _y, _w, _h; int[] _tier = new int[0]; bool[] _lava = new bool[0];
         SpriteRenderer[] _cone = new SpriteRenderer[0], _glow = new SpriteRenderer[0];
 
-        internal void Set(int x, int y, int w, int h, int[] tier, SpriteRenderer[] cone, SpriteRenderer[] glow)
+        internal void Set(int x, int y, int w, int h, int[] tier, bool[] lava, SpriteRenderer[] cone, SpriteRenderer[] glow)
         {
-            _x = x; _y = y; _w = w; _h = h; _tier = tier; _cone = cone; _glow = glow;
+            _x = x; _y = y; _w = w; _h = h; _tier = tier; _lava = lava; _cone = cone; _glow = glow;
         }
 
         /// <summary>The height tier of map tile (x, y) (Foot, Slope or Rim) when it is a wall tile of the footprint; -1 for every other tile
@@ -27,6 +27,13 @@ namespace Roguehalla.Client
         {
             int lx = x - _x, ly = y - _y;
             return lx >= 0 && ly >= 0 && lx < _w && ly < _h ? _tier[ly * _w + lx] : -1;
+        }
+
+        /// <summary>Whether the art treats map tile (x, y) as lava (SEAMS-1: what the art found, exposed for the tests); false outside the footprint.</summary>
+        public bool IsLava(int x, int y)
+        {
+            int lx = x - _x, ly = y - _y;
+            return lx >= 0 && ly >= 0 && lx < _w && ly < _h && _lava[ly * _w + lx];
         }
 
         /// <summary>The renderers that draw the cone (every one under the landmark's root, on the walls' row rule).</summary>
@@ -71,7 +78,7 @@ namespace Roguehalla.Client
             BuildCone(lm, g, cone);
             BuildCrust(lm, g);
             BuildGlows(lm, g, glow);
-            art.Set(lm.FootX, lm.FootY, lm.FootW, lm.FootH, g.Tier, cone.ToArray(), glow.ToArray());
+            art.Set(lm.FootX, lm.FootY, lm.FootW, lm.FootH, g.Tier, g.Lava, cone.ToArray(), glow.ToArray());
             Arts.Add(lm, art);
         }
 
