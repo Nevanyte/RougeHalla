@@ -19,13 +19,15 @@ namespace Roguehalla.Client
         public static readonly Color32 TopColor = new Color32(0xe1, 0xf5, 0xfe, 0xff);
         // P-UNITY-FROST-WALL-READ-1: a deeper, more saturated face and a dark navy outline, same ice-blue hue family (legacy 4fc3f7 and 0288d1
         // sit too close to Frost's pale ground); the preview's own fixed colours (the faction tint is too close to the ground).
-        public static readonly Color32 FaceColor = new Color32(0x2a, 0x9d, 0xe0, 0xff);
-        public static readonly Color32 EdgeColor = new Color32(0x0b, 0x3a, 0x66, 0xff);
-        public static readonly Color32 InvalidTint = new Color32(0xef, 0x53, 0x50, 0xff);
+        // The unlit sprite material shows a vertex colour lifted (about the sRGB encode of the byte: 0b3a66 renders near 4e86af), so the darks below are
+        // written very dark on purpose: they are what a player sees as mid-dark ice, outline and red.
+        public static readonly Color32 FaceColor = new Color32(0x0f, 0x67, 0xca, 0xff);
+        public static readonly Color32 EdgeColor = new Color32(0x02, 0x16, 0x38, 0xff);
+        public static readonly Color32 InvalidTint = new Color32(0xaa, 0x08, 0x10, 0xff);
         /// <summary>The valid preview's coloured core, the dark neutral halo under every preview mark, and the crack's darkening and white-hot flash colours.</summary>
-        public static readonly Color32 ValidTint = new Color32(0x4f, 0xc3, 0xf7, 0xff);
-        public static readonly Color32 PreviewHaloColor = new Color32(0x10, 0x10, 0x12, 0xff);
-        public static readonly Color32 CrackColor = new Color32(0x06, 0x18, 0x30, 0xff);
+        public static readonly Color32 ValidTint = new Color32(0x0c, 0x78, 0xd2, 0xff);
+        public static readonly Color32 PreviewHaloColor = new Color32(0x03, 0x0c, 0x1e, 0xff), InvalidHaloColor = new Color32(0x50, 0x05, 0x0a, 0xff);
+        public static readonly Color32 CrackColor = new Color32(0x01, 0x06, 0x12, 0xff);
         public static readonly Color32 CrackHotColor = new Color32(0xff, 0xff, 0xff, 0xff);
         /// <summary>The outline's thickness round each block (sim px) and how strongly the crack darkens the block and flashes its rim (alpha at the end).</summary>
         public const float EdgeWidth = 3f, CrackDarkAlpha = .5f, CrackHotAlpha = .9f;
@@ -41,7 +43,7 @@ namespace Roguehalla.Client
             PreviewLineAlpha = .95f, PreviewDotAlpha = .95f, PreviewRingAlpha = .9f, PulseSpeed = .008f;
         /// <summary>Preview marks are two or three tones: a dark halo (alpha for tile outlines, line and dot; for the big reach ring), then white, then the
         /// colour (outline: halo and white only). Widths in sim px: halo, white, colour, tile-outline halo, tile-outline white.</summary>
-        public const float PreviewHaloAlpha = .8f, PreviewRingHaloAlpha = .55f, PreviewHaloWidth = 5f, PreviewMidWidth = 3.2f, PreviewCoreWidth = 1.6f,
+        public const float PreviewHaloAlpha = .9f, PreviewRingHaloAlpha = .8f, PreviewHaloWidth = 5f, PreviewMidWidth = 3.2f, PreviewCoreWidth = 1.6f,
             PreviewOutlineHaloWidth = 3.6f, PreviewOutlineWidth = 2f;
         /// <summary>Telegraph: line alpha at the start and what the gathering adds, core alpha.</summary>
         public const float TelegraphAlpha = .15f, TelegraphGather = .35f, TelegraphCoreAlpha = .6f;
@@ -185,11 +187,12 @@ namespace Roguehalla.Client
             m.Rect(1, -hw, -hd + lift, hw, hd + lift);        // top
             for (int pass = 0; pass < 2; pass++)
             {
-                int o = pass == 0 ? 2 : 8;
-                if (north) m.Collapse(o); else m.Rect(o, -hw, hd + lift - e, hw, hd + lift);                  // rim: north
-                if (south) m.Collapse(o + 1); else m.Rect(o + 1, -hw, -hd + lift, hw, -hd + lift + e);        // rim: south (top meets face)
-                if (west) m.Collapse(o + 2); else m.Rect(o + 2, -hw, -hd, -hw + e, hd + lift);                // rim: west, down the face too
-                if (east) m.Collapse(o + 3); else m.Rect(o + 3, hw - e, -hd, hw, hd + lift);                  // rim: east
+                // pass 1 is the crack's white-hot line: just inside the dark outline, so the flash never washes the outline out
+                int o = pass == 0 ? 2 : 8; float a = pass == 0 ? 0 : e, b = pass == 0 ? e : e * 2;
+                if (north) m.Collapse(o); else m.Rect(o, -hw + a, hd + lift - b, hw - a, hd + lift - a);                  // north
+                if (south) m.Collapse(o + 1); else m.Rect(o + 1, -hw + a, -hd + lift + a, hw - a, -hd + lift + b);       // south (top meets face)
+                if (west) m.Collapse(o + 2); else m.Rect(o + 2, -hw + a, -hd + (pass == 0 ? 0 : e), -hw + b, hd + lift - a); // west, down the face too
+                if (east) m.Collapse(o + 3); else m.Rect(o + 3, hw - b, -hd + (pass == 0 ? 0 : e), hw - a, hd + lift - a);   // east
             }
             if (south) m.Collapse(6); else m.Rect(6, -hw, -hd, hw, -hd + e); // base line
             m.Rect(7, -hw, -hd, hw, hd + lift);               // crack darkening over the whole block
@@ -363,10 +366,10 @@ namespace Roguehalla.Client
         void PreviewColors()
         {
             var white = new Color32(255, 255, 255, 255);
-            var rh = With(PreviewHaloColor, PreviewRingHaloAlpha); var rm = With(white, PreviewRingAlpha); var rc = With(_pvTint, PreviewRingAlpha);
+            var halo = _pvCount == 0 ? InvalidHaloColor : PreviewHaloColor; var rh = With(halo, PreviewRingHaloAlpha); var rm = With(white, PreviewRingAlpha); var rc = With(_pvTint, PreviewRingAlpha);
             for (int i = 0; i < RingSegments; i++) { _preview.Color(PvRingHalo + i, rh); _preview.Color(PvRingMid + i, rm); _preview.Color(PvRingCore + i, rc); }
             var fill = With(_pvTint, PreviewFillAlpha + PreviewFillPulse * _pulse);
-            var oh = With(PreviewHaloColor, PreviewHaloAlpha); var om = With(white, PreviewOutlineAlpha + PreviewOutlinePulse * _pulse);
+            var oh = With(halo, PreviewHaloAlpha); var om = With(white, PreviewOutlineAlpha + PreviewOutlinePulse * _pulse);
             for (int i = 0; i < _pvCount; i++)
             {
                 _preview.Color(PvFill + i, fill);
