@@ -17,6 +17,7 @@ pub mod blueprint;
 mod bog_tree;
 mod cave;
 mod church;
+pub mod frame;
 pub mod spec;
 mod volcano;
 
@@ -301,6 +302,9 @@ pub struct Placed {
     pub anchors: Vec<ZoneAnchor>,
     pub terrain: Vec<u8>,
     pub landed: Vec<Landed>,
+    /// P-MAPGEN-LANDMARK-FRAME-1: one frame per zone built, in placement order (`reserved_zones`). Replaces `anchors` and
+    /// `landed` (read them through `Placed::anchors()` and `Placed::landed()`).
+    pub frames: Vec<frame::LandmarkFrame>,
 }
 
 /// P-MAPGEN-SIG-BLUEPRINT-1: one landmark placed from its drawing: the zone, the landing (orientation, origin, box) and
@@ -664,6 +668,7 @@ impl<'f> SignatureContext<'f> {
             anchors,
             terrain,
             landed,
+            frames: Vec::new(),
         }))
     }
 

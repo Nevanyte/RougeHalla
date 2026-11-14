@@ -333,6 +333,7 @@ fn replay_zone(
     let mut rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &hard,
             no_block: &nb,
@@ -811,6 +812,7 @@ fn small_runtime<'a>(
     Runtime::new(
         s,
         Inputs {
+            landmark: None,
             geometry: g,
             hard: zero,
             no_block: zero,
@@ -928,6 +930,7 @@ fn malformed_inputs_refuse_before_any_write() {
     assert_eq!(s, original);
     let badwalk = vec![i32::MAX; n];
     let i = Inputs {
+        landmark: None,
         geometry: &g,
         hard: &zero,
         no_block: &zero,

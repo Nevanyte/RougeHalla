@@ -1,5 +1,6 @@
 //! Exact five-faction stage-six driver. Full map generation, hook contracts and certification stay outside.
 use crate::mapdata::Zone;
+use crate::mapgen::landmarks::signature::frame::LandmarkFrame;
 use crate::mapgen::{
     attempt::{validate_input, StyleCamp},
     coliseum::{FixedDefinition, FixedLayout},
@@ -46,6 +47,9 @@ pub struct Input<'a> {
     pub no_block: Option<&'a [u8]>,
     pub no_prop: Option<&'a [u8]>,
     pub caps: Option<&'a Caps>,
+    /// P-MAPGEN-LANDMARK-FRAME-1: the signature landmarks the Landmarks phase placed (`Placed::frames`, one per zone it
+    /// built); `None` with the option off. Each zone's styler sees its own frame as `BaseContext::landmark`.
+    pub landmarks: Option<&'a [LandmarkFrame]>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct Entry {
@@ -366,6 +370,8 @@ impl<'f> Registry<'f> {
                     centre_walk: input.centre_walk,
                     seed: input.seed,
                     attempt: input.attempt,
+                    // Stub (P-MAPGEN-LANDMARK-FRAME-1): the implementer passes this zone's frame from `input.landmarks`.
+                    landmark: None,
                 },
                 Metadata {
                     terrain: self.catalog.kinds,

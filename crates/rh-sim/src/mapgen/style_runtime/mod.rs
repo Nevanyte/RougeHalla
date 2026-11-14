@@ -361,6 +361,8 @@ impl Kinds {
 }
 pub struct Inputs<'a> {
     pub geometry: &'a Geometry,
+    /// P-MAPGEN-LANDMARK-FRAME-1: this zone's signature landmark (`BaseContext::landmark`); `None` with the option off.
+    pub landmark: Option<&'a crate::mapgen::landmarks::signature::frame::LandmarkFrame>,
     pub hard: &'a [u8],
     pub no_block: &'a [u8],
     pub no_prop: &'a [u8],

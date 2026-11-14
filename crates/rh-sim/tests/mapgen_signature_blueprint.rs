@@ -884,13 +884,13 @@ fn placed_landed_rederives_every_written_cell() {
                 continue;
             };
             accepted += 1;
-            let zones: Vec<Zone> = placed.landed.iter().map(|l| l.zone).collect();
+            let zones: Vec<Zone> = placed.landed().iter().map(|l| l.zone).collect();
             assert_eq!(
                 zones,
                 vec![Zone::Sentenced, Zone::Plague, Zone::Frost],
                 "seed {seed} attempt {n}: the landed landmarks"
             );
-            for landed in &placed.landed {
+            for landed in &placed.landed() {
                 let z = landed.zone;
                 let s = spec_of(&table, z);
                 let bp = parsed(&format!("{z:?}"), s.drawing.unwrap_or(""), &s.legend);
@@ -902,7 +902,7 @@ fn placed_landed_rederives_every_written_cell() {
                         (inner.x + inner.w as i32 / 2, inner.y + inner.h as i32 / 2)
                     }
                 };
-                let a = placed.anchors.iter().find(|a| a.zone == z);
+                let a = placed.anchors().find(|a| a.zone == z);
                 assert!(a.is_some(), "seed {seed} attempt {n}: no {z:?} anchor");
                 let a = a.unwrap();
                 assert_eq!(a.front, front(t), "seed {seed} {z:?}: the anchor's front");

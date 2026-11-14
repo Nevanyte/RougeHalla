@@ -527,6 +527,7 @@ fn replay(row: &Value, metadata: &Value, actual: bool) {
     let mut rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &hard,
             no_block: &nb,

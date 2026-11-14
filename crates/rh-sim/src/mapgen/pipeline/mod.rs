@@ -452,6 +452,8 @@ impl<'f> Pipeline<'f> {
                     no_block: None,
                     no_prop: None,
                     caps: None,
+                    // Stub (P-MAPGEN-LANDMARK-FRAME-1): the implementer passes `placed`'s frames.
+                    landmarks: None,
                 },
                 &mut style,
             );

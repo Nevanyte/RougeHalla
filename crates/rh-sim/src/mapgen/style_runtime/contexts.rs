@@ -18,6 +18,9 @@ pub struct BaseContext<'a> {
     pub camps: &'a [CampInfo],
     pub spawns: &'a [i32],
     pub centre_walk: Option<&'a [i32]>,
+    /// P-MAPGEN-LANDMARK-FRAME-1: the zone's signature landmark as the Landmarks phase placed it; `None` with the option
+    /// off or without one. The one branch point for signature mode: stylers read the landmark here, never from features.
+    pub landmark: Option<&'a crate::mapgen::landmarks::signature::frame::LandmarkFrame>,
     features: &'a [MapFeature],
     owner: &'a [u16],
 }
@@ -53,6 +56,7 @@ impl<'a> Runtime<'a> {
             camps: &self.input.geometry.camps,
             spawns: self.input.spawns,
             centre_walk: self.input.centre_walk,
+            landmark: self.input.landmark,
             features: &self.state.features,
             owner: &self.state.feature_owner,
         }

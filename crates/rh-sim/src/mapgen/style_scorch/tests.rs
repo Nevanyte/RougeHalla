@@ -547,6 +547,7 @@ fn replay_policy(
     let mut rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &hard,
             no_block: &nb,
@@ -1052,6 +1053,7 @@ fn malformed_forge_boxes_refuse_both_callbacks_before_writes() {
         let mut rt = Runtime::new(
             &mut state,
             Inputs {
+                landmark: None,
                 geometry: &geometry,
                 hard: &empty,
                 no_block: &empty,
