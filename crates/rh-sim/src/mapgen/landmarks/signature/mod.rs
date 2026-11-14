@@ -1556,25 +1556,22 @@ mod tests {
         assert!(checked >= 8, "only {checked} relabelled sites checked");
     }
 
-    /// One finished option-on map (seed 1, its first accepted attempt), shared by the entrance tests below.
-    fn signature_map() -> &'static GameMapData {
-        static MAP: std::sync::OnceLock<GameMapData> = std::sync::OnceLock::new();
-        MAP.get_or_init(|| {
-            let fixed = crate::mapgen::coliseum::fixed_layout();
-            let generator = crate::mapgen::pipeline::Pipeline::new(&fixed);
-            let options = crate::mapgen::pipeline::Options {
-                decor: false,
-                signature: true,
-                ..crate::mapgen::pipeline::Options::default()
-            };
-            (0..16)
-                .find_map(|n| {
-                    generator
-                        .styled_attempt(1, n, options)
-                        .expect("generator error")
-                })
-                .expect("seed 1: no option-on map in 16 attempts")
-        })
+    /// One finished option-on map (seed 1, its first accepted attempt), as the entrance tests below start from.
+    fn signature_map() -> GameMapData {
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let generator = crate::mapgen::pipeline::Pipeline::new(&fixed);
+        let options = crate::mapgen::pipeline::Options {
+            decor: false,
+            signature: true,
+            ..crate::mapgen::pipeline::Options::default()
+        };
+        (0..16)
+            .find_map(|n| {
+                generator
+                    .styled_attempt(1, n, options)
+                    .expect("generator error")
+            })
+            .expect("seed 1: no option-on map in 16 attempts")
     }
 
     /// The map's anchor of `zone`, the feature id (one-based, as `feature_grid`) of its feature of `kind`, and the tile
@@ -1604,7 +1601,7 @@ mod tests {
     fn the_volcanos_outlets_as_built_are_intact() {
         let fixed = crate::mapgen::coliseum::fixed_layout();
         let ctx = SignatureContext::new(&fixed);
-        let m = signature_map();
+        let m = &signature_map();
         let (a, volcano, _) = door_of(m, Zone::Fire, FeatureKind::Volcano);
         assert_eq!(a.entrance.len(), 6, "the volcano's outlets");
         for p in &a.entrance {
@@ -1625,7 +1622,7 @@ mod tests {
     fn an_outlet_turned_to_a_volcano_wall_is_not_intact() {
         let fixed = crate::mapgen::coliseum::fixed_layout();
         let ctx = SignatureContext::new(&fixed);
-        let mut m = signature_map().clone();
+        let mut m = signature_map();
         let (_, volcano, i) = door_of(&m, Zone::Fire, FeatureKind::Volcano);
         m.tiles[i] = TILE_WALL;
         m.terrain[i] = 0;
@@ -1640,7 +1637,7 @@ mod tests {
     fn a_church_doorway_turned_to_an_owned_church_wall_is_not_intact() {
         let fixed = crate::mapgen::coliseum::fixed_layout();
         let ctx = SignatureContext::new(&fixed);
-        let mut m = signature_map().clone();
+        let mut m = signature_map();
         let (_, church, i) = door_of(&m, Zone::Sentenced, FeatureKind::Church);
         assert_eq!((m.tiles[i], m.feature_grid[i]), (TILE_FLOOR, 0));
         m.tiles[i] = TILE_WALL;
@@ -1655,7 +1652,7 @@ mod tests {
     fn a_cave_mouth_tile_owned_by_the_cave_is_not_intact() {
         let fixed = crate::mapgen::coliseum::fixed_layout();
         let ctx = SignatureContext::new(&fixed);
-        let mut m = signature_map().clone();
+        let mut m = signature_map();
         let (_, cave, i) = door_of(&m, Zone::Frost, FeatureKind::Cave);
         assert_eq!((m.tiles[i], m.feature_grid[i]), (TILE_FLOOR, 0));
         m.feature_grid[i] = cave;
