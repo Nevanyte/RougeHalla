@@ -3,10 +3,15 @@
 ```
 PACKET:          P-MAPGEN-LANDMARK-FRAME-1 — serves the land-generation lane's architecture review of 2026-11-13
                  (finding 1), order (B): after the blueprint packets, before P-MAPGEN-GUARANTEES-1, SCALE-4 and HOLY-1
-BRANCH:          agent/opus/P-MAPGEN-LANDMARK-FRAME-1 @ 749e2ce57 (implementation; this hand-off is the next commit),
+BRANCH:          agent/opus/P-MAPGEN-LANDMARK-FRAME-1 @ 791765b21 (implementation 3917619ff + 791765b21; the same tree as
+                 749e2ce57, which the lane's session replayed after splitting one of its own packet commits into a
+                 stub: and an oracle: commit; hand-off commits after it),
                  stacked on agent/opus/P-MAPGEN-SIG-BLUEPRINT-2 (run the gate with --base agent/opus/P-MAPGEN-SIG-BLUEPRINT-2
                  until -2 is merged)
-GATE:            not run by the implementer (the lane's session runs the full gate)
+GATE:            PASS (full, `scripts/gate.sh --oracle packet/P-MAPGEN-LANDMARK-FRAME-1 --base
+                 agent/opus/P-MAPGEN-SIG-BLUEPRINT-2`, run by the lane's session on 7e715bd57) [skipped: Postgres suites
+                 (no DATABASE_URL); the CI/owner-hardware-only steps the gate lists]. The first run stopped in the path
+                 checks because the lane's own `oracle:` commit had touched signature/mod.rs (split, tree identical)
 CHANGED:         crates/rh-sim/src/mapgen/landmarks/signature/{frame.rs, mod.rs}; crates/rh-sim/src/mapgen/pipeline/mod.rs;
                  crates/rh-sim/src/mapgen/style_zones/mod.rs; crates/rh-sim/src/mapgen/style_rime/{mod.rs, shape.rs (comment)};
                  crates/rh-sim/src/mapgen/style_gallows/{lanes.rs, mod.rs (comment), shape.rs (comment)};
@@ -133,3 +138,29 @@ styler; `lanes.rs`'s `door_span` tests run unchanged (the helper is the same).
   `aprons_apart`'s `bbox == footprint` lookup can read the frame instead.
 - Readers that need a mark's tiles in map order must sort them (`mark` returns grid order); the Frost mouth order is
   behaviour.
+
+## Review (reviewer-opus, 2026-11-14): LAND, no notes
+Read-only, from the code and the drawings, not only the measured seeds.
+- Each reader takes the values it took before on every reachable path. Fire: the anchor `volcano::place` builds is field
+  for field what was read back from the feature. Plague: the marsh touches all four edges of `bog.txt`, so the landing
+  box is the feature box in every orientation; the entrance the anchor now carries is read by nothing (`band` reads the
+  footprint). Frost: every edge tile of `cave.txt` is wall but the three `D` tiles, the doorway check keeps the tile
+  beyond each open, and the Frost shape step reads the anchor before it writes: the old scan could only find `D`, all
+  three, in the same row-major order. Sentenced: the old scan line is the drawing's row of `D`; every other tile on it
+  is an owned wall, and the `D` tiles stay unowned floor through shape and props (they are in the church box's apron):
+  the old and new `Error::Landmark` fire in the same states.
+- Option off cannot leak: the pipeline is the only place that sets `Input::landmarks`, `style_zones` builds the only
+  `Inputs`, `Runtime::base` the only `BaseContext`.
+- `finish` exports what it exported before: records recomputes each box from ownership, and after the Landmarks phase
+  nothing can take or clear a landmark tile's owner (every owner write requires owner 0; nothing writes owner 0).
+- The shape serves the next packets: guarantees take `&LandmarkFrame`; the volcano's outlets are marks with `grid` and
+  `heading()`; the hall can be found by `features[0]`, stable through records.
+
+Carried forward (not fix packets):
+- A drawing edit that moves a church's `D` off its front row is no longer caught by the lanes (the old scan line
+  implied it): `f.heading((0, 1)) == Some(if horizontal { (sign, 0) } else { (0, sign) })` restores the check. For the
+  packet that next edits `lanes.rs`.
+- The oracle and `mapgen_style_refusal.rs` build `LandmarkFrame` with struct literals in one helper each: the first
+  packet that adds a field moves them to `tests/support`.
+- `style_gallows/README.md` and `style_rime/README.md` still describe the feature reads.
+- Three comment lines over 120 columns (`style_rime/shape.rs`, `style_scorch/mod.rs`, `style_warren/shape.rs`).
