@@ -2,9 +2,8 @@
 //! existing TIERS / PERSONAS numbers, scored by headless tournament placement, writing the best table found as JSON for
 //! review. It never changes the compiled tables or the checked-in table: adopting a searched table is a separate,
 //! reviewed change.
-use rh_headless::tournament::{parse_lineup, sim_config_for, TournamentPlan};
-use rh_headless::tournament_cli::default_arena;
-use rh_headless::tournament_learning::SeatPolicy;
+use rh_headless::tournament::{parse_lineup, TournamentPlan};
+use rh_headless::tournament_learning::{tournament_world, SeatPolicy};
 use rh_headless::tune::{
     check_held_out_seed, evidence, search, search_file_with_evidence, table_file, SearchConfig,
 };
@@ -132,8 +131,7 @@ fn run(argv: &[String]) -> Result<(), String> {
     if let Some(seed) = held_out {
         check_held_out_seed(&config, seed)?;
     }
-    let arena = default_arena();
-    let sim = sim_config_for(&config.plan);
+    let (arena, sim) = tournament_world(&config.plan, config.policy);
     let result = search(&config, &arena, &sim);
     let ev = evidence(&config, &result, &arena, &sim, held_out)?;
     let text = serde_json::to_string_pretty(&search_file_with_evidence(&config, &result, &ev))

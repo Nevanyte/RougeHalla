@@ -3,12 +3,11 @@
 //! only in the diagnostic measurement wrapper and here for total throughput. Clocks never enter
 //! policy inputs or authoritative simulation.
 use rh_headless::tournament::{
-    aggregate_with, format_report_with, mean_game_ms, play_measured, sim_config_for, GameSummary,
-    ReportMeta,
+    aggregate_with, format_report_with, mean_game_ms, play_measured, GameSummary, ReportMeta,
 };
 use rh_headless::tournament_cli::{
-    default_arena, json_payload, json_payload_with_policy, lineup_text, parse_args, plan_of,
-    write_telemetry, USAGE,
+    json_payload, json_payload_with_policy, lineup_text, parse_args, plan_of, write_telemetry,
+    USAGE,
 };
 use rh_headless::tournament_learning::{
     check_learning, learning_file, play_learning, play_policy, split_learning_args, LearnStore,
@@ -76,10 +75,10 @@ fn main() -> std::process::ExitCode {
         }
     };
     let plan = plan_of(&args);
-    let arena = default_arena();
     // The plan stands for the experiment: the run's configuration is derived from it at this call site (the source's
     // planOf config), so --patience/--sudden reach the real sim timers instead of being carried only in the payload.
-    let config = sim_config_for(&plan);
+    let (arena, config) =
+        rh_headless::tournament_learning::tournament_world(&plan, learning.policy);
     let started = Instant::now();
     let mut store = LearnStore::new();
     let (games, game_ms): (Vec<GameSummary>, Option<f64>) = if plan.learn {

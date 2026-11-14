@@ -678,20 +678,25 @@ pub struct MatchSummary {
 /// Loads a legacy `rh-map/1` collision file or an admitted `rh-map/2` full gameplay map.
 pub fn load_arena(path: &str) -> Result<Arena, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    arena_from_text(&text, path)
+}
+
+/// [`load_arena`] over text already in hand; `path` only names the source in errors.
+pub fn arena_from_text(text: &str, path: &str) -> Result<Arena, String> {
     #[derive(serde::Deserialize)]
     struct Tag {
         format: String,
     }
-    let tag: Tag = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+    let tag: Tag = serde_json::from_str(text).map_err(|e| format!("{path}: {e}"))?;
     match tag.format.as_str() {
         "rh-map/1" => {
             let file: rh_sim::arenas::MapFile =
-                serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+                serde_json::from_str(text).map_err(|e| format!("{path}: {e}"))?;
             file.into_arena()
         }
         "rh-map/2" => {
             let file: rh_sim::mapdata::MapExport =
-                serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+                serde_json::from_str(text).map_err(|e| format!("{path}: {e}"))?;
             file.validate()
                 .map_err(|e| format!("{path}: {e}"))?
                 .into_arena()

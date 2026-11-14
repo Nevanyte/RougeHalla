@@ -301,15 +301,37 @@ impl LearnStore {
 /// P-BOT-BRAIN-CHOICES-1: the world (arena, sim config) a tournament with `policy` seats plays. The source tournament
 /// plays a generated map with mobs on (`packages/server/src/bots/tournament/headlessRoom.ts:26-34`, `:110`).
 ///
-/// STUB (the implementer replaces the Brain arm): today every policy plays the practice arena with the headless config
-/// (no mobs, no camps, no loot), so a Brain seat never meets the decisions legacy records (`opener|…`, `second|…`).
-/// The Human arm must stay exactly this (byte-identical output for the default seats).
+/// A Brain tournament plays the admitted seed1 map (compiled in, so the binary needs no working directory) with the
+/// `--runtime source-arena` content settings (`rh-server/src/runtime.rs` `Settings::sim`): mobs, initial loot, quests,
+/// consumables, faction mode on, `hazards: Map` and `regen_in_combat: Off` as the live runtime has them. The plan's
+/// lifecycle, `min_players`, `lobby_seconds` and `fill_seconds` stay the plan's. Every other policy plays the practice
+/// arena with the headless config, byte-identical to before.
 pub fn tournament_world(plan: &TournamentPlan, policy: SeatPolicy) -> (Arena, SimConfig) {
-    let _ = policy;
-    (
-        crate::tournament_cli::default_arena(),
-        crate::tournament::sim_config_for(plan),
+    let base = crate::tournament::sim_config_for(plan);
+    if policy != SeatPolicy::Brain {
+        return (crate::tournament_cli::default_arena(), base);
+    }
+    let arena = crate::arena_from_text(
+        include_str!("../../rh-sim/src/mapdata/fixtures/seed1.map.json"),
+        "seed1.map.json",
     )
+    .expect("the admitted seed1 map loads");
+    let sim = SimConfig {
+        walk_hints: Some(true),
+        regen: true,
+        regen_in_combat: rh_sim::RegenInCombat::Off,
+        camp_buffs: rh_sim::CampBuffRule::Themed,
+        frost_wish: rh_sim::FrostWish::Freeze,
+        quests: true,
+        hazards: rh_sim::terrain::Mode::Map,
+        abilities: rh_sim::abilities::Mode::Full,
+        faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
+        mob_mode: rh_sim::mob_runtime::MobMode::Pve,
+        initial_loot: true,
+        consumables: true,
+        ..base
+    };
+    (arena, sim)
 }
 
 /// One game of a learning series: the bias its seats were built with, its summary, and the records in arrival order.
