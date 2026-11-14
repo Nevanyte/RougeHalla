@@ -35,20 +35,41 @@ pub struct Mark {
     pub tile: TilePt,
 }
 
-/// The step's per-zone results, read through the frames (the implementation removes the `anchors` and `landed` fields:
-/// the frames are the one record of what was placed).
+/// The step's per-zone results, read through the frames (the frames are the one record of what was placed).
 impl super::Placed {
     /// Each built zone's anchor, in placement order (`reserved_zones`): `frames[i].anchor`.
     pub fn anchors(&self) -> impl Iterator<Item = &ZoneAnchor> + '_ {
-        // Stub (P-MAPGEN-LANDMARK-FRAME-1): today's field; the implementer reads `frames`.
-        self.anchors.iter()
+        self.frames.iter().map(|f| &f.anchor)
     }
 
     /// One `Landed` per landmark placed from a drawing (a frame with a landing), in placement order, its marks grouped
     /// by character ascending, each mark's tiles row-major on the map (P-MAPGEN-SIG-BLUEPRINT-1's record).
+    ///
+    /// The characters are the frame's marks': a legend mark with no tile in its drawing would be missing here, which
+    /// `SignatureContext::from_definition` rules out for every drawing of the table (a debug assertion).
     pub fn landed(&self) -> Vec<super::Landed> {
-        // Stub (P-MAPGEN-LANDMARK-FRAME-1): today's field; the implementer derives it from `frames`.
-        self.landed.clone()
+        self.frames
+            .iter()
+            .filter_map(|f| {
+                let landing = f.landing?;
+                // `marks` is ascending by character: each run of one character is one mark.
+                let mut marks: Vec<(u8, Vec<TilePt>)> = Vec::new();
+                for m in &f.marks {
+                    match marks.last_mut() {
+                        Some((ch, tiles)) if *ch == m.ch => tiles.push(m.tile),
+                        _ => marks.push((m.ch, vec![m.tile])),
+                    }
+                }
+                for (_, tiles) in &mut marks {
+                    tiles.sort_unstable_by_key(|p| (p.y, p.x));
+                }
+                Some(super::Landed {
+                    zone: f.zone(),
+                    landing,
+                    marks,
+                })
+            })
+            .collect()
     }
 }
 
@@ -60,16 +81,15 @@ impl LandmarkFrame {
 
     /// The map tiles of mark `ch`, in grid order (the drawing's row-major order, not the map's).
     pub fn mark(&self, ch: u8) -> impl Iterator<Item = TilePt> + '_ {
-        // Stub (P-MAPGEN-LANDMARK-FRAME-1): the implementer returns `ch`'s tiles from `marks`, in their order.
-        let _ = ch;
-        core::iter::empty()
+        self.marks
+            .iter()
+            .filter(move |m| m.ch == ch)
+            .map(|m| m.tile)
     }
 
     /// The map direction of the drawing's direction `grid_dir` (`Orientation::turn` of the landing): `heading((0, 1))`
     /// is the drawing's front. `None` without a landing.
     pub fn heading(&self, grid_dir: Cell) -> Option<Cell> {
-        // Stub (P-MAPGEN-LANDMARK-FRAME-1): the implementer turns `grid_dir` by `landing`'s orientation.
-        let _ = grid_dir;
-        None
+        self.landing.map(|l| l.orientation.turn(grid_dir))
     }
 }

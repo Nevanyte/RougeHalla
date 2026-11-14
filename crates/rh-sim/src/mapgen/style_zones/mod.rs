@@ -370,8 +370,10 @@ impl<'f> Registry<'f> {
                     centre_walk: input.centre_walk,
                     seed: input.seed,
                     attempt: input.attempt,
-                    // Stub (P-MAPGEN-LANDMARK-FRAME-1): the implementer passes this zone's frame from `input.landmarks`.
-                    landmark: None,
+                    // P-MAPGEN-LANDMARK-FRAME-1: this zone's own frame, if the Landmarks phase built one here.
+                    landmark: input
+                        .landmarks
+                        .and_then(|frames| frames.iter().find(|f| f.zone() == faction)),
                 },
                 Metadata {
                     terrain: self.catalog.kinds,
