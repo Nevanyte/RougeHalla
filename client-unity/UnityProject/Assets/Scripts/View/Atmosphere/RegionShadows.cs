@@ -86,8 +86,9 @@ namespace Roguehalla.Client
                 if (!RegionPropArt.TryGet(pl.Art, out var art)) continue;
                 float height = art.Height * pl.Scale; if (height < MinPropHeight) continue;
                 float len = LengthAt(field, pl.X, pl.Y); if (len <= 0f) continue;
-                float hw = Mathf.Max(.07f, art.Width * pl.Scale * (art.Tall ? .16f : .30f)), hd = .09f;
-                float strength = art.Tall ? .9f : .75f; _propStrengths.Add(strength); _propHalfWidths.Add(hw);
+                bool tall = RegionProps.IsTall(pl, art);
+                float hw = Mathf.Max(.07f, art.Width * pl.Scale * (tall ? .16f : .30f)), hd = .09f;
+                float strength = tall ? .9f : .75f; _propStrengths.Add(strength); _propHalfWidths.Add(hw);
                 Add(pl.X - hw, pl.Y - hd, pl.X + hw, pl.Y + hd, TileOffset(height * .85f, len), strength);
             }
         }
