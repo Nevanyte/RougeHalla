@@ -4,6 +4,9 @@
 #   scripts/gate.sh --quick                     iterate: fmt, then clippy/tests/checks for the crates and areas you changed
 #   scripts/gate.sh                             full local gate: everything below that runs on a Mac (the hand-off gate)
 #   scripts/gate.sh --oracle packet/<ID>        also: oracle files (packet commits, captures, golden vectors, packages/) untouched
+#   scripts/gate.sh --oracle-check              on packet/<ID>, before an implementer starts: oracle: commits hold no
+#                                               source file; fmt and clippy clean; the tests build; red only in oracle files
+#                                               (Rust oracles; prints GATE ORACLE-CHECK PASS, never GATE PASS)
 #   scripts/gate.sh --base <ref>                compare against <ref> instead of the integration branch
 #   scripts/gate.sh --keep-going                run every step even after one fails; result line "GATE FAIL (n steps): a; b"
 #   scripts/gate.sh --list-steps                print the full-mode step order and run nothing
@@ -26,17 +29,24 @@ while (($#)); do
     --full) MODE=full ;;
     --base) BASE="${2:?--base needs a ref}"; shift ;;
     --oracle) ORACLE="${2:?--oracle needs a ref}"; shift ;;
+    --oracle-check) MODE=oracle-check ;;
     --allow-protected) ALLOW_PROTECTED=1 ;;
     --coordinator) COORD=1 ;;
     --regen-fixtures) REGEN=1 ;;
     --allow-artefacts) ARTEFACTS=1 ;;
     --keep-going) KEEP_GOING=1 ;;
     --list-steps) LIST=1 ;;
-    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1 (see --help)"; exit 2 ;;
   esac
   shift
 done
+# --oracle-check judges the red tests itself and prints its own success line; with --keep-going a red clippy would only be
+# recorded and the mode would still end in its success line.
+if [[ "$MODE" == oracle-check ]] && ((KEEP_GOING)); then
+  echo "GATE FAIL: --oracle-check cannot be combined with --keep-going (a red clippy would be recorded, not fatal, and the mode would still print its success line)"
+  exit 2
+fi
 
 ROOT="$(git rev-parse --show-toplevel)"; cd "$ROOT"
 command -v cargo >/dev/null 2>&1 || export PATH="$HOME/.cargo/bin:$PATH"
@@ -275,6 +285,20 @@ if [[ -n "$ORACLE" ]]; then
   ((REGEN)) && bad="$(grep -vE '^protocol/fixtures/' <<<"$bad" || true)"
   [[ -z "$bad" ]] || fail "captured fixtures or golden vectors changed since $ORACLE (regenerate only via the documented commands, with --regen-fixtures for wire packets):"$'\n'"$bad"
 fi
+if [[ "$MODE" == oracle-check ]]; then
+  # A packet branch: the files of every commit that is not "stub:" are read-only for the implementer (the --oracle
+  # rule above), so such a commit holds tests, captures and the brief, never a source file the implementer must edit.
+  # In-crate test modules (tests.rs, *_tests.rs, a tests/ directory) may be oracle files.
+  PACKET_ORACLE_FILES="$(
+    git log --no-merges --format='%H %s' "$MB..HEAD" | while read -r sha subject; do
+      if [[ "$subject" == stub:* ]]; then continue; fi
+      git diff-tree -r --root --no-commit-id --name-only "$sha"
+    done | sort -u
+  )"
+  [[ -n "$PACKET_ORACLE_FILES" ]] || fail "no oracle commit since $BASE: a packet branch has a commit that is not 'stub:' holding its tests and brief"
+  bad="$(grep -E '^crates/[^/]+/src/|(^|/)Cargo\.toml$' <<<"$PACKET_ORACLE_FILES" | grep -vE '(^|/)tests\.rs$|_tests\.rs$|/tests/' || true)"
+  [[ -z "$bad" ]] || fail "source files in a commit that is not 'stub:' (the implementer could not edit them; move them into a stub: commit):"$'\n'"$bad"
+fi
 if grep -qE '(^|/)Cargo\.toml$' <<<"$CHANGED"; then
   note "WARNING: a Cargo.toml changed. New dependencies need coordinator approval; the coordinator regenerates Cargo.lock."
 fi
@@ -319,6 +343,44 @@ if [[ -n "${GATE_TEST_STEPS:-}" ]]; then
     run "${line%%::*}" bash -c "${line#*::}"
   done <<<"$GATE_TEST_STEPS"
   finish "fake steps only, not a real gate result" 43
+fi
+
+if [[ "$MODE" == oracle-check ]]; then
+  # The preflight of a packet branch (stub plus oracle), before an implementer starts. PASS means: the formatter and
+  # clippy are clean, every test target builds (an oracle fails on an assertion, never at compile time), at least one
+  # target is red on the stub, and every red target is an oracle file of this packet. What it cannot see: whether a
+  # red test fails for the reason the brief gives (read the assertion messages it prints).
+  if ((WORKSPACE_WIDE)); then CRATES="$(ls crates)"; fi
+  [[ -n "$CRATES" ]] || fail "no Rust crate changed since $BASE: --oracle-check reads cargo test targets only; for a C# or JS oracle run --quick and confirm the red tests by hand"
+  RED=()
+  run "rustfmt" cargo fmt --all -- --check
+  for c in $CRATES; do
+    [[ -f "crates/$c/Cargo.toml" ]] || continue
+    feat=(); [[ "$c" == rh-sim ]] && feat=(--features trusted-status-probes)
+    run "clippy $c (all features)" cargo clippy --locked -p "$c" --all-targets --all-features -- -D warnings
+    run "tests of $c build" cargo test --locked -p "$c" "${feat[@]}" --no-run
+    echo "== tests of $c on the stub (every target, no fail-fast)"
+    echo "   \$ cargo test --locked -p $c ${feat[*]} --no-fail-fast"
+    cargo test --locked -p "$c" "${feat[@]}" --no-fail-fast >"$STEP_LOG" 2>&1 || true
+    cat "$STEP_LOG" >>"$LOG"
+    while read -r target; do
+      [[ -n "$target" ]] || continue
+      case "$target" in
+        "-p $c --test "*) file="crates/$c/tests/${target##* }.rs"; grep -qxF "$file" <<<"$PACKET_ORACLE_FILES" \
+          || { grep -E '^(---- .* ----|thread .* panicked|test .* FAILED)' "$STEP_LOG" | tail -n 20; fail "red outside the oracle: $target ($file is not in an oracle commit of this packet)"; } ;;
+        "-p $c --lib") grep -E "^crates/$c/src/" <<<"$PACKET_ORACLE_FILES" | grep -qE '(^|/)tests\.rs$|_tests\.rs$|/tests/' \
+          || { grep -E '^(---- .* ----|thread .* panicked|test .* FAILED)' "$STEP_LOG" | tail -n 20; fail "red outside the oracle: $target (no in-crate test module of $c is in an oracle commit of this packet)"; } ;;
+        *) fail "red outside the oracle: $target" ;;
+      esac
+      RED+=("$target")
+      note "red on the stub: $target"
+    done <<<"$(grep -oE 'to rerun pass `[^`]+`' "$STEP_LOG" | sed -E 's/^to rerun pass `(.*)`$/\1/' | sort -u)"
+    grep -E "panicked at|^assertion |^  left: |^ right: " "$STEP_LOG" | grep -vE '^\s*$' | head -n 12 | sed 's/^/     | /' || true
+  done
+  ((${#RED[@]})) || fail "the oracle is green on the stub: no test target fails, so there is nothing for an implementer to make pass"
+  # Its own success line, not the plain pass line: this tree is red by design, and coordinators grep for the plain one.
+  echo; echo "GATE ORACLE-CHECK PASS — red on the stub, in oracle files only: ${RED[*]}"; echo "log: $LOG"
+  exit 0
 fi
 
 if [[ "$MODE" == quick ]]; then

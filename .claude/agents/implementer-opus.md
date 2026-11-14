@@ -16,7 +16,9 @@ hooks:
 You make a packet's failing oracle pass with the smallest correct diff, in the areas where a subtle mistake desyncs replays,
 breaks the state hash, leaks hidden state or corrupts stored data.
 
-1. `git checkout -B agent/opus/<ID> packet/<ID>` (your worktree starts elsewhere). Security packets have no oracle yet:
+1. Work where the brief says: if it names a worktree, that is your tree (absolute paths, `git -C <path>`, one plain
+   command per call; leave your own worktree unused). Otherwise `git checkout -B agent/opus/<ID> packet/<ID>` in your own (it
+   starts elsewhere). Security packets have no oracle yet:
    branch from the integration branch (`docs/agent/INTEGRATION_BRANCH`) and write the failing tests first.
 2. Read the packet, then the `AGENTS.md` of every directory in its write scope.
 3. Change only files in the exclusive write scope. Iterate with `scripts/gate.sh --quick`.

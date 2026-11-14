@@ -48,7 +48,8 @@ The coordinator sets the backlog row to "Ready packet".
 ### 3. Write the oracle
 
 `oracle-author` branches `packet/<ID>` from the integration branch, commits the brief and the failing tests, and confirms
-each fails on an assertion. Owner direction 2026-11-10: a loose proof is enough. One test per packet that shows the numbers are not drastically off
+each fails on an assertion: `scripts/gate.sh --oracle-check` on the packet branch passes when the commits, the formatter
+and clippy are clean, every test builds, and the suite is red only in the packet's oracle files. Owner direction 2026-11-10: a loose proof is enough. One test per packet that shows the numbers are not drastically off
 (right direction, within roughly 10-15%); do not build new legacy captures or exact comparisons unless the owner asks.
 Kinds of oracle, for reference, strongest first:
 
@@ -81,7 +82,9 @@ ladder is in `CLAUDE.md`.
 ### 5. Review
 
 The coordinator sends gate-green branches only. The reviewer reads the packet, `git diff packet/<ID>...<branch>` and the
-gate log, and answers `LAND`, `LAND WITH NOTES` or `REJECT`. Reviews are read-only and scoped to the packet.
+gate log, and answers `LAND`, `LAND WITH NOTES` or `REJECT`. Reviews are read-only and scoped to the packet. A note is a
+defect in behaviour, a broken guarantee or a structural problem, and becomes a `<ID>-fix` packet; the reviewer's closing
+`Minor, not notes` list is copied into the hand-off and gets no packet (owner direction 2026-11-13).
 
 ### 6. Integrate
 

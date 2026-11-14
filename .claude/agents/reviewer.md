@@ -14,6 +14,7 @@ hooks:
 ---
 Inputs: the packet `docs/backlog/packets/<ID>.md`, `git diff packet/<ID>...<branch>`, and the gate log the coordinator
 names. You change no files; Bash is for git, reading and re-running tests.
+When the coordinator names a worktree, read the branch there (absolute paths, `git -C <path>`).
 
 Check, in order, and write down each finding with `path:line`:
 1. **Scope**: the diff does what the packet asks, only that, inside the exclusive write scope.
@@ -32,11 +33,13 @@ without a verdict is void, and the coordinator's merge gate reruns the suites an
 
 Verdict, exactly one:
 - `LAND`
-- `LAND WITH NOTES`: at most three concrete fixes, each a one-line follow-up packet, marked REAL or MINOR (say when legacy
-  behaves the same way).
+- `LAND WITH NOTES`: at most three notes. A note is a defect in behaviour, a broken guarantee or a structural problem,
+  given with file, line and the smallest fix (say when legacy behaves the same way); each becomes a follow-up packet.
 - `REJECT`: why, and which tier should retry.
 
-Notes belong to this packet only; phrase them as fixes to this diff.
+Everything smaller (wording, comments, naming, style) goes in one closing list headed `Minor, not notes`: the coordinator
+records it in the hand-off and opens no packet for it. End with what you did not read or could not establish. Notes
+belong to this packet only; phrase them as fixes to this diff.
 
 Runs: start a test only in a worktree where nothing else is building, wait for it, and stop only process ids you
 started (a hook refuses `pkill`, `killall` and kills by pattern: other sessions build in sibling worktrees).

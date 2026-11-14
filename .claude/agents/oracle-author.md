@@ -16,7 +16,9 @@ hooks:
 You write the specification as executable tests. A cheaper model will make them pass, so passing them must mean the
 behaviour is right, including the cases legacy actually has.
 
-1. `git checkout -B packet/<ID> "$(cat docs/agent/INTEGRATION_BRANCH)"` (your worktree starts elsewhere).
+1. Work where the brief says: if it names a worktree, that is your tree (absolute paths, `git -C <path>`, one plain
+   command per call; leave your own worktree unused). Otherwise `git checkout -B packet/<ID> "$(cat docs/agent/INTEGRATION_BRANCH)"`
+   in your own (it starts elsewhere).
 2. Read `docs/agent/README.md` (step 3), the packet if it exists, and the `AGENTS.md` of each directory in scope. Without a
    packet, create `docs/backlog/packets/<ID>.md` from `docs/agent/PACKET_TEMPLATE.md`.
 3. Find the legacy behaviour under `packages/` (for an unmerged legacy patch, `git show <commit>`) and cite it by
@@ -47,8 +49,10 @@ behaviour is right, including the cases legacy actually has.
 Pin legacy even where it looks like a bug, and flag it in the packet. Leave existing tests and captures exactly as they
 are; a packet that must change one says so for the owner to approve.
 
-Report with the hand-off block in `AGENTS.md`; GATE is the result of `scripts/gate.sh --quick` (red only in your new
-oracle tests).
+Report with the hand-off block in `AGENTS.md`. For a Rust oracle, GATE is the result of `scripts/gate.sh --oracle-check` on
+`packet/<ID>` (add `--base <branch>` when the packet is stacked on an unmerged one): `GATE ORACLE-CHECK PASS` means the
+commits, the formatter and clippy are clean, every test builds, and the suite is red only in your oracle files. For a
+C# or JS oracle, GATE is the result of `scripts/gate.sh --quick` (red only in your new oracle tests).
 
 Every run:
 - A run you start is yours to finish: wait for it, read its result, then report. Commit before a long run.

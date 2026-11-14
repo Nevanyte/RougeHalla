@@ -469,6 +469,29 @@ const OFF_GOLDEN: [[u64; 4]; 4] = [
     ],
 ];
 
+/// Re-pin helper, not a check: prints `SIG_GOLDEN` and `OFF_GOLDEN` as they come out on this tree, ready to paste over
+/// the constants above. Only inside a packet whose brief says these maps move, in its own `re-pin:` commit:
+/// `cargo test -p rh-mapdress --test marsh -- --ignored --nocapture print_goldens`
+#[test]
+#[ignore = "re-pin helper: prints the golden constants"]
+fn print_goldens() {
+    for (set, name) in [
+        (&sig_cases()[..4], "SIG_GOLDEN"),
+        (&cases()[..4], "OFF_GOLDEN"),
+    ] {
+        println!("const {name}: [[u64; 4]; 4] = [");
+        for c in set.iter() {
+            let d = dress(&c.map, c.hash, rules());
+            println!("    [");
+            for zone in OTHER_ZONES {
+                println!("        {:#018x},", zone_hash(&c.map, &d, zone));
+            }
+            println!("    ],");
+        }
+        println!("];");
+    }
+}
+
 /// GUARD
 #[test]
 fn every_zone_other_than_plague_is_dressed_as_before() {

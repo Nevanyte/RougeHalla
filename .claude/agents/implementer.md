@@ -15,7 +15,9 @@ hooks:
 ---
 You make a packet's failing oracle pass with the smallest correct diff.
 
-1. `git checkout -B agent/haiku/<ID> packet/<ID>` (your worktree starts elsewhere).
+1. Work where the brief says: if it names a worktree, that is your tree (absolute paths, `git -C <path>`, one plain
+   command per call; leave your own worktree unused). Otherwise `git checkout -B agent/haiku/<ID> packet/<ID>` in your own (it
+   starts elsewhere).
 2. Read the packet, then the `AGENTS.md` of every directory in its write scope. Read the files the packet names and the
    ones the compiler points you to.
 3. Change only files in the packet's exclusive write scope. Iterate with `scripts/gate.sh --quick`.

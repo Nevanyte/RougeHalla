@@ -517,6 +517,22 @@ const NO_ORIGIN_GOLDEN: [u64; 4] = [
     0x2e07_4093_5dd4_9b2f,
 ];
 
+/// Re-pin helper, not a check: prints `NO_ORIGIN_GOLDEN` as it comes out on this tree, ready to paste over the constant
+/// above. Only inside a packet whose brief says these maps move, in its own `re-pin:` commit:
+/// `cargo test -p rh-mapdress --test sentenced_rings -- --ignored --nocapture print_goldens`
+#[test]
+#[ignore = "re-pin helper: prints the golden constants"]
+fn print_goldens() {
+    println!("const NO_ORIGIN_GOLDEN: [u64; 4] = [");
+    for c in sig_cases().iter().take(4) {
+        println!(
+            "    {:#018x},",
+            fnv(&dress(&c.map, c.hash, shipped_without_origin()))
+        );
+    }
+    println!("];");
+}
+
 #[test]
 fn a_file_without_origin_dresses_signature_maps_exactly_as_today() {
     for (c, want) in sig_cases().iter().zip(NO_ORIGIN_GOLDEN) {

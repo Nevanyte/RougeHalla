@@ -13,6 +13,9 @@ oracles, routes implementation, reads gate results and reviews, and integrates. 
 records and `Cargo.lock`. It sends lookups to `scout` and code to the implementer tiers, keeping its own context for
 decisions; a fix of a few lines it may make itself, through the same gate.
 
+A session that owns one line of work beside the coordinator is a **lane**. Before a lane dispatches, pushes or asks for
+a merge: [docs/agent/LANES.md](docs/agent/LANES.md).
+
 ## Routing
 
 | Work | Agent | Model / effort |
@@ -21,6 +24,7 @@ decisions; a fix of a few lines it may make itself, through the same gate.
 | Packet brief plus one failing oracle test (loose proof; see AGENTS.md) | `oracle-author` | Sonnet / medium; Opus / high (model override) for `rh-sim` state, tick, RNG, hash and wire packets |
 | Mechanical work with a clear oracle: renames, fixture refresh by documented command, docs, small tests outside `rh-sim` | `implementer` | Haiku / medium |
 | **Default implementer**: any single-area task with an oracle; C#/Unity; CI, `hosting/`, scripts; L1 escalation | `implementer-sonnet` | Sonnet / medium |
+| Map-generator refactor inside `rh-sim` alone (single crate) that changes no generated map and no draw, proven by a digest guard in its oracle | `implementer-sonnet` | Sonnet / medium; `reviewer-opus` reviews |
 | `rh-sim` tick order, state, RNG or save/hash; wire format; migrations; security; cross-crate; L2 escalation | `implementer-opus` | Opus / high |
 | A **dial** change: a named constant listed in a dials index (`docs/unity/DIALS.md`), moved inside its pinned range; looks, layout or feel only ([docs/agent/TUNING_LANE.md](docs/agent/TUNING_LANE.md)) | `implementer-sonnet`, no packet, no reviewer | Sonnet / medium |
 | Determinism, replay, state-hash or parity divergence that Opus failed twice (L3) | `debugger` | Fable 5.2 / high |
@@ -51,12 +55,15 @@ Rules:
 
 1. The packet exists in `docs/backlog/packets/<ID>.md` and names its phase/item, write scope and oracle files.
 2. `oracle-author` commits the brief and failing oracle on `packet/<ID>`, branched from the integration branch
-   (`docs/agent/INTEGRATION_BRANCH`). The oracle fails for the right reason: an assertion, not a compile error.
-3. The implementer works on `agent/<model>/<ID>` from `packet/<ID>` in its own worktree, iterating with
-   `scripts/gate.sh --quick`, finishing with `scripts/gate.sh --quick --oracle packet/<ID>`. The full gate is the
-   coordinator's, on the merged tree.
-4. Only gate-green branches are reviewed. Verdict: `LAND`, `LAND WITH NOTES` (at most three notes, each becoming a
-   `<ID>-fix` packet at the same tier) or `REJECT` (with the tier that retries).
+   (`docs/agent/INTEGRATION_BRANCH`). The oracle fails for the right reason: an assertion, not a compile error
+   (`scripts/gate.sh --oracle-check` passes on `packet/<ID>` before an implementer starts).
+3. The implementer works on `agent/<model>/<ID>` from `packet/<ID>` in its own worktree or the one its brief names,
+   iterating with `scripts/gate.sh --quick`, finishing with `scripts/gate.sh --quick --oracle packet/<ID>`. The full gate
+   is the coordinator's, on the merged tree.
+4. Only gate-green branches are reviewed. Verdict: `LAND`, `LAND WITH NOTES` (at most three notes, each a defect in
+   behaviour, a broken guarantee or a structural problem, each becoming a `<ID>-fix` packet at the same tier) or `REJECT`
+   (with the tier that retries). The reviewer's `Minor, not notes` list goes into the hand-off and gets no packet (owner
+   direction 2026-11-13).
 5. The coordinator merges `LAND` branches into the integration branch, runs the full gate on the merge
    (`scripts/gate.sh --coordinator --keep-going`), records the result in the MIGRATION checkpoint, and removes the
    worktrees it claimed (`scripts/agent-worktrees.sh clean --session <id>`). A worktree without a row in
@@ -68,7 +75,8 @@ Rules:
   overlap. The backlog's shared-file rule applies: packets touching `schedule.rs`, `content.rs`, `observe.rs`, the
   protocol and decoders, `wire.rs`, `Cargo.toml` or the capture tool merge one at a time.
 - Give sub-agents paths and the packet, never pasted files. Worktree agents start from the coordinator's `HEAD`
-  (`worktree.baseRef` in `.claude/settings.json`), so their first command checks out their own branch.
+  (`worktree.baseRef` in `.claude/settings.json`), so their first command checks out their own branch, unless the brief
+  names the worktree to work in.
 - Reviewer notes are scoped to one packet. They never become new rules in this file or `AGENTS.md`.
 - After each launch, `scripts/agent-worktrees.sh claim <agent-id> <packet> <session>`; when the agent has reported,
   `done <agent-id>`.
