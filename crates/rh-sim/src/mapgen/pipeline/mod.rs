@@ -82,21 +82,20 @@ pub enum Refusal {
     /// The signature step found no legal landmark site for a zone, refused in the Landmarks phase before spawns and
     /// stylers (only with `Options::signature`). A finished map discarded later is `SignatureDiscarded`.
     Signature,
-    /// A signature map discarded by the end-of-attempt check, after records: a landmark no longer whole, a styler
-    /// feature in an apron, a landmark in another landmark's apron, the Frost lake away from the cave's mouth, or a
-    /// strict certifier failure (only with `Options::signature`).
+    /// A signature map discarded by the end-of-attempt check, after records: a landmark no longer whole
+    /// (`SignatureContext::intact`: owned tiles, entrances), a styler feature in an apron, a landmark in another
+    /// landmark's apron, or a strict certifier failure (only with `Options::signature`). Checked before the stylers'
+    /// guarantees (`Guarantee`).
     SignatureDiscarded,
     /// A styler could not build round a signature landmark in its zone (`style_runtime::Error::Landmark`), refused in
     /// the Styler phase before the Styler trace and the style contract; the next attempt is tried. Only with
     /// `Options::signature`. Every other styler error still fails the call (`Error::Style`).
     StyleLandmark,
-    /// P-LAND-PLAGUE-1-fix-2: a signature map discarded at the end of the attempt, after the check above, because on the
-    /// finished map a Plague spawn's walk to the coliseum grows by more than the pools' detour when styler bog is
-    /// avoided, or a `BogPool` owns no bog (`plague_pools::keeps`; only with `Options::signature`).
-    SignaturePools,
-    /// P-MAPGEN-GUARANTEES-1: a signature map discarded at the end of the attempt, after `intact` and the certifier,
-    /// because the end-of-attempt guarantee `rule` of `zone`'s styler fails on the finished map
-    /// (`style_zones::guarantees`; only with `Options::signature`). STUB: never produced yet.
+    /// P-MAPGEN-GUARANTEES-1: a signature map discarded at the end of the attempt, after records, `intact` and the
+    /// certifier, because the end-of-attempt guarantee `rule` of `zone`'s styler fails on the finished map
+    /// (`style_zones::guarantees`; only with `Options::signature`). The landmark frames run in placement order
+    /// (`signature::reserved_zones`), each zone's list in order; the first failure is reported. Today: Plague
+    /// `"pool-walks"`, `"pool-wet"`; Frost `"lake-at-mouth"`.
     Guarantee {
         zone: Zone,
         rule: &'static str,
@@ -145,8 +144,9 @@ pub struct Pipeline<'f> {
     /// Test seam (P-MAPGEN-STYLE-REFUSE-1): the styler pass of attempt `.0` returns `.1` instead of its own result.
     #[cfg(test)]
     style_fault: Option<(u64, style_runtime::Error)>,
-    /// The most steps styler bog may add to a Plague spawn's walk on the finished map (`POOLS.walk_detour`).
-    pool_detour: i32,
+    /// The stylers' end-of-attempt guarantees by zone: `style_zones::guarantees`, or a test seam's list
+    /// (`with_guarantees`).
+    guarantees: fn(Zone) -> &'static [style_zones::Guarantee],
 }
 impl<'f> Pipeline<'f> {
     /// Test seam (P-MAPGEN-STYLE-REFUSE-1): every attempt runs as usual, but the styler pass of attempt `attempt`
@@ -202,14 +202,17 @@ impl<'f> Pipeline<'f> {
             styles: style_zones::Registry::new(fixed).map_err(Error::Style)?,
             #[cfg(test)]
             style_fault: None,
-            pool_detour: super::style_warren::POOLS.walk_detour,
+            guarantees: style_zones::guarantees,
         })
     }
-    /// Test seam (P-LAND-PLAGUE-1-fix-2): the end-of-attempt pool check with another detour.
+    /// Test seam (P-MAPGEN-GUARANTEES-1): the end of an option-on attempt runs `lookup`'s guarantees instead of the
+    /// registered ones (`style_zones::guarantees`).
     #[cfg(test)]
-    #[allow(dead_code)] // Read by `plague_pools_tests` only.
-    pub(crate) fn with_pool_detour(mut self, detour: i32) -> Self {
-        self.pool_detour = detour;
+    pub(crate) fn with_guarantees(
+        mut self,
+        lookup: fn(Zone) -> &'static [style_zones::Guarantee],
+    ) -> Self {
+        self.guarantees = lookup;
         self
     }
     pub fn plain_attempt(
@@ -699,8 +702,7 @@ impl<'f> Pipeline<'f> {
             &mut state.territory_grid,
         )
         .map_err(|_| Error::Leaf("records admission"))?;
-        let placed_any = placed.is_some();
-        if let Some(p) = placed {
+        if let Some(p) = &placed {
             self.signature.finish(&mut map, &p.frames);
         }
         observe(Phase::Records, &frame.rng, &kept);
@@ -726,13 +728,22 @@ impl<'f> Pipeline<'f> {
         {
             return Ok(AttemptReport::refused(Refusal::Terrain));
         }
-        // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
-        if placed_any && (!self.signature.intact(&map) || !certifies(&map)) {
-            return Ok(AttemptReport::refused(Refusal::SignatureDiscarded));
-        }
-        // P-LAND-PLAGUE-1-fix-2: the Plague pools keep the spawns' walks on the finished map, and no pool is dry.
-        if placed_any && !plague_pools::keeps(&map, self.pool_detour) {
-            return Ok(AttemptReport::refused(Refusal::SignaturePools));
+        if let Some(p) = &placed {
+            // G5: a signature map is kept only whole and certified clean; otherwise the next attempt is tried.
+            if !self.signature.intact(&map) || !certifies(&map) {
+                return Ok(AttemptReport::refused(Refusal::SignatureDiscarded));
+            }
+            // P-MAPGEN-GUARANTEES-1: then each landmark frame's zone's guarantees, frames in placement order, each list
+            // in order; the first that fails names the refusal. Pure reads of the finished map: no draw.
+            for f in &p.frames {
+                let zone = f.zone();
+                if let Some(g) = (self.guarantees)(zone).iter().find(|g| !(g.check)(&map, f)) {
+                    return Ok(AttemptReport::refused(Refusal::Guarantee {
+                        zone,
+                        rule: g.rule,
+                    }));
+                }
+            }
         }
         observe(Phase::Gates, &frame.rng, &kept);
         Ok(AttemptReport {
@@ -839,3 +850,233 @@ fn spawn_gate(
 mod style_refusal_tests;
 #[cfg(test)]
 mod tests;
+
+/// P-MAPGEN-GUARANTEES-1: the guarantees' place in the pipeline, through the `with_guarantees` seam (no attempt of
+/// seeds 1-96 fails a pool rule, and none fails two guarantees, so only a seam shows the refusal and the order).
+/// Replaces the two pipeline tests of P-LAND-PLAGUE-1-fix-2 that used the old pool-detour seam.
+#[cfg(test)]
+mod guarantee_tests {
+    use super::*;
+    use crate::mapdata::FeatureKind;
+    use crate::mapgen::landmarks::signature::frame::LandmarkFrame;
+    use crate::mapgen::style_warren::is_styler_bog;
+    use crate::mapgen::style_zones::{guarantees, walk_growth, Guarantee};
+
+    fn on() -> Options {
+        Options {
+            decor: false,
+            signature: true,
+            ..Options::default()
+        }
+    }
+
+    /// `"pool-walks"` with a detour of -1: every finished map with a reachable Plague spawn fails it.
+    fn walks_strict(m: &GameMapData, _: &LandmarkFrame) -> bool {
+        walk_growth(m, Zone::Plague, |i| is_styler_bog(m, i))
+            .iter()
+            .all(|&g| g <= -1)
+    }
+
+    /// The registered `"pool-wet"`.
+    fn wet(m: &GameMapData, f: &LandmarkFrame) -> bool {
+        let g = guarantees(Zone::Plague)
+            .iter()
+            .find(|g| g.rule == "pool-wet")
+            .expect("registered");
+        (g.check)(m, f)
+    }
+
+    fn never(_: &GameMapData, _: &LandmarkFrame) -> bool {
+        false
+    }
+
+    fn always(_: &GameMapData, _: &LandmarkFrame) -> bool {
+        true
+    }
+
+    /// The registry with the Plague list's `"pool-walks"` at a detour of -1.
+    fn strict_pools(zone: Zone) -> &'static [Guarantee] {
+        const PLAGUE: &[Guarantee] = &[
+            Guarantee {
+                rule: "pool-walks",
+                check: walks_strict,
+            },
+            Guarantee {
+                rule: "pool-wet",
+                check: wet,
+            },
+        ];
+        match zone {
+            Zone::Plague => PLAGUE,
+            z => guarantees(z),
+        }
+    }
+
+    /// A Plague rule and a Frost rule that both fail.
+    fn plague_and_frost_fail(zone: Zone) -> &'static [Guarantee] {
+        const PLAGUE: &[Guarantee] = &[Guarantee {
+            rule: "plague-fails",
+            check: never,
+        }];
+        const FROST: &[Guarantee] = &[Guarantee {
+            rule: "frost-fails",
+            check: never,
+        }];
+        match zone {
+            Zone::Plague => PLAGUE,
+            Zone::Frost => FROST,
+            _ => &[],
+        }
+    }
+
+    /// Every zone with a frame has a failing rule.
+    fn every_zone_fails(zone: Zone) -> &'static [Guarantee] {
+        const FIRE: &[Guarantee] = &[Guarantee {
+            rule: "fire-fails",
+            check: never,
+        }];
+        match zone {
+            Zone::Fire => FIRE,
+            z => plague_and_frost_fail(z),
+        }
+    }
+
+    /// One zone with a passing rule, then two failing ones.
+    fn two_fail_in_frost(zone: Zone) -> &'static [Guarantee] {
+        const FROST: &[Guarantee] = &[
+            Guarantee {
+                rule: "frost-holds",
+                check: always,
+            },
+            Guarantee {
+                rule: "frost-second",
+                check: never,
+            },
+            Guarantee {
+                rule: "frost-third",
+                check: never,
+            },
+        ];
+        match zone {
+            Zone::Frost => FROST,
+            _ => &[],
+        }
+    }
+
+    /// Seed 1's kept attempt with the registered guarantees, option on, and its map.
+    fn seed_1_kept(p: &Pipeline<'_>) -> (u64, GameMapData) {
+        (0..16)
+            .find_map(|n| {
+                p.styled_attempt(1, n, on())
+                    .expect("generator error")
+                    .map(|m| (n, m))
+            })
+            .expect("seed 1 lands with the option on")
+    }
+
+    /// The refusal of seed 1's kept attempt under `lookup`.
+    fn refusal_under(lookup: fn(Zone) -> &'static [Guarantee]) -> Option<Refusal> {
+        let fixed = super::super::coliseum::fixed_layout();
+        let (n, _) = seed_1_kept(&Pipeline::new(&fixed));
+        let (report, _) = Pipeline::new(&fixed)
+            .with_guarantees(lookup)
+            .styled_attempt_with_trace(1, n, on())
+            .expect("a refusal is not an error");
+        assert!(report.map.is_none());
+        report.refusal
+    }
+
+    #[test]
+    fn the_pipeline_discards_a_finished_map_a_guarantee_refuses_and_never_errs() {
+        let fixed = super::super::coliseum::fixed_layout();
+        let today = Pipeline::new(&fixed);
+        let strict = Pipeline::new(&fixed).with_guarantees(strict_pools);
+        let seed = 1;
+        let (n, m) = seed_1_kept(&today);
+        assert!(
+            m.features.iter().any(|f| f.kind == FeatureKind::BogPool),
+            "precondition: the map has pools"
+        );
+        assert!(
+            !walk_growth(&m, Zone::Plague, |i| is_styler_bog(&m, i)).is_empty(),
+            "precondition: a Plague spawn's walk is measured"
+        );
+        let (report, trace) = strict
+            .styled_attempt_with_trace(seed, n, on())
+            .expect("a refusal is not an error");
+        assert_eq!(
+            report.refusal,
+            Some(Refusal::Guarantee {
+                zone: Zone::Plague,
+                rule: "pool-walks"
+            }),
+            "seed {seed} attempt {n}: the end-of-attempt pool guarantee refuses"
+        );
+        assert!(report.map.is_none());
+        assert_eq!(
+            trace.last().map(|t| t.phase),
+            Some(Phase::Records),
+            "refused after records, before the gates are observed, like SignatureDiscarded"
+        );
+        // A refused attempt is `Ok(None)` to `certified_styled`'s loop (`first_attempt`), which then tries the next one.
+        assert_eq!(
+            strict
+                .styled_attempt(seed, n, on())
+                .expect("never an error"),
+            None,
+            "no map, and no repaired or downgraded one"
+        );
+    }
+
+    #[test]
+    fn option_off_maps_never_run_the_guarantees() {
+        let fixed = super::super::coliseum::fixed_layout();
+        let today = Pipeline::new(&fixed);
+        let off = Options {
+            decor: false,
+            ..Options::default()
+        };
+        for strict in [
+            Pipeline::new(&fixed).with_guarantees(strict_pools),
+            Pipeline::new(&fixed).with_guarantees(every_zone_fails),
+        ] {
+            for seed in 1..=2 {
+                let a = today.certified_styled(seed, off).expect("generator error");
+                assert!(a.is_some(), "seed {seed}: an option-off map");
+                assert_eq!(
+                    strict.certified_styled(seed, off).expect("generator error"),
+                    a,
+                    "seed {seed}: option off, no frame, the guarantees never run"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn frames_run_in_placement_order_and_each_list_in_its_order() {
+        // Plague is placed before Frost (`signature::reserved_zones`): its failure is reported.
+        assert_eq!(
+            refusal_under(plague_and_frost_fail),
+            Some(Refusal::Guarantee {
+                zone: Zone::Plague,
+                rule: "plague-fails"
+            })
+        );
+        // Fire is placed first of all.
+        assert_eq!(
+            refusal_under(every_zone_fails),
+            Some(Refusal::Guarantee {
+                zone: Zone::Fire,
+                rule: "fire-fails"
+            })
+        );
+        // Within one zone, the first failing rule of its list; a passing rule before it does not refuse.
+        assert_eq!(
+            refusal_under(two_fail_in_frost),
+            Some(Refusal::Guarantee {
+                zone: Zone::Frost,
+                rule: "frost-second"
+            })
+        );
+    }
+}

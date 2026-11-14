@@ -871,8 +871,9 @@ impl<'f> SignatureContext<'f> {
     /// of it): every tile a member feature owns lies in the feature's zone and holds what the table writes there
     /// (`owned`: the legend's walls, LOW and floor with their terrain; the volcano's hand list), every entrance tile is
     /// floor; no styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
-    /// (`aprons_apart`); and the Frost zone's largest ice body outside the cave at the cave's mouth
-    /// (`cave::lake_at_mouth`). A pure predicate: it draws nothing and changes nothing.
+    /// (`aprons_apart`). A pure predicate: it draws nothing and changes nothing. The stylers' own end-of-attempt rules
+    /// (the Frost lake, the Plague pools) are not judged here: the pipeline runs them after this and the certifier
+    /// (`style_zones::guarantees`, P-MAPGEN-GUARANTEES-1).
     pub fn intact(&self, map: &GameMapData) -> bool {
         let rules: Vec<Option<&Owned>> = map
             .features
@@ -952,11 +953,7 @@ impl<'f> SignatureContext<'f> {
                         )
                 })
         });
-        owned_ok
-            && door_ok
-            && apron_ok
-            && self.aprons_apart(map)
-            && cave::lake_at_mouth(map, &self.rules)
+        owned_ok && door_ok && apron_ok && self.aprons_apart(map)
     }
 
     /// G1, G5 (P-MAPGEN-SIG-FROST-2): no tile of one landmark lies in another landmark's apron, for every ordered pair
