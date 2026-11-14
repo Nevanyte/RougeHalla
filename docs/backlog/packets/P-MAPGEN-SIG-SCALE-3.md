@@ -5,14 +5,16 @@
   blueprints approved: `docs/landmarks/blueprints/`). Third of four (P-MAPGEN-SIG-SCALE-1 is the worked example).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase)
 - **Reviewer:** reviewer-opus
-- **Integration base:** feature/unity-rework @ 2e51457dd (the cave, P-MAPGEN-SIG-SCALE-1, is in it).
+- **Integration base:** feature/unity-rework @ cbe6d639b (rebased by the coordinator from 2e51457dd; the cave,
+  P-MAPGEN-SIG-SCALE-1, and the anchors on the wire, P-WIRE17-MAP-3 with `crates/rh-server/tests/map_anchor_seeds.rs`,
+  are in it).
   P-MAPGEN-SIG-SCALE-2 (the church) has **not** landed: its stub adds a grid field to the same `Definition`; the two
   are rebased in order by the coordinator (a one-line conflict in `signature/mod.rs` at most).
 - **D-rules touched:** D1: option off byte- and draw-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim
   tick, wire or content-hash change
 - **Status:** oracle written (2026-11-13, oracle-author, Opus) on `packet/P-MAPGEN-SIG-SCALE-3`.
 
-## What the owner must know (oracle author, 2026-11-13; measured on 2e51457dd, seeds 1-64, option on)
+## What the owner must know (oracle author, 2026-11-13; measured on 2e51457dd and again on cbe6d639b with the same numbers, seeds 1-64, option on)
 
 | run | attempts 1-32 | worst index 1-32 | attempts 1-64 | worst index 1-64 | seeds without a map |
 |---|---|---|---|---|---|
@@ -46,7 +48,7 @@ site (RESERVE-1), the rotation and the mirror:
   `(rect.x + rect.w / 2, rect.y + rect.h / 2)` (offset (17, 17) at side 34; the tile `inside_camp` measures the front
   from). The box is then the centre +- 14 both ways in every orientation and mirror: offset (3, 3) from the site's
   corner, inside the inner rect (offsets 2-31) with one free inner-rect tile on the low side of each axis. (The site has
-  no camp; this oracle proposes the centre rule, because it is orientation-free and leaves no choice to draw.)
+  no camp; this oracle proposed the centre rule, orientation-free with no choice to draw; accepted with the anchor.)
 - **Rotation:** the front row faces the dominant axis of DIR16 from the centre tile toward the coliseum
   (`axis(front(centre))`, the cave's rule).
 - **Mirror:** one draw of the Plague zone's signature stream (`ReservedSite::stream`, after the reservation's draw):
@@ -54,10 +56,28 @@ site (RESERVE-1), the rotation and the mirror:
 - **Anchor:** zone Plague, kind `BogTree`; `centre` the site's centre tile (= the feature's anchor point `(ax, ay)`, a
   trunk tile, strictly inside the footprint); `footprint` the 29 x 29 box; `front` the DIR16 index from the centre;
   `entrance` **the causeway openings: the six `:` tiles on the drawing's outer rows and columns** (grid (12, 0),
-  (13, 0) on the back row, (0, 11), (0, 12) on the left column, (13, 28), (14, 28) on the front row), placed. Neither
-  the earlier brief nor the hand-over defined the tree's entrance; this oracle proposes it (flagged for the coordinator:
-  six tiles, where the cave has three and the church five; all on the map and on the footprint's edge, so the wire
-  decoder's and `map_anchor_seeds.rs`'s rules hold).
+  (13, 0) on the back row, (0, 11), (0, 12) on the left column, (13, 28), (14, 28) on the front row), placed. Six
+  tiles, where the cave has three and the church five; the wire's cap is `MAX_ANCHOR_ENTRANCE` = 16
+  (`rh-protocol/src/map.rs:119`). Under the prototype `cargo test -p rh-server --test map_anchor_seeds` passes (centre
+  strictly inside the footprint, entrance on the map, under the cap, the served anchors equal the generator's).
+
+**Anchor accepted (coordinator, 2026-11-13 evening).** The oracle author proposed the anchor above; the coordinator
+accepted it, so it is no longer a proposal:
+- Anchor: footprint the 29 x 29 box; centre grid (14, 14); entrance the six causeway tiles on the box's edge, (12, 0),
+  (13, 0), (0, 11), (0, 12), (13, 28), (14, 28) in the drawing's coordinates, turned and mirrored with the box.
+- The Unity art (P-UNITY-LANDMARK-4) stamps exactly that anchor, draws no gate at the entrances, and reads everything
+  else from the delivered tiles: the trunk is the largest 8-connected wall group in the footprint, the stumps are the
+  other wall groups, and the canopy cover is dry floor near the trunk.
+- So the generator must keep: the trunk with its roots ONE wall group; the three stumps separate wall groups NOT
+  touching it (8-connected, so not even diagonally); bog as floor with terrain bog; causeways plain floor.
+- Verified on the grid (oracle author): under 8-connectivity the drawing's walls are exactly four groups, 137 (the
+  trunk with its three roots) and three stumps of 6, none touching the trunk group even diagonally; 4-connectivity gives
+  the same four groups. `the_generators_bog_blueprint_is_the_approved_drawing` pins this (8-connected `piece_sizes` =
+  6, 6, 6, 137). Every stump and its eight neighbours lie inside the box, so `the_bog_tree_is_the_blueprint_under_one_of
+  _eight_orientations` (tiles equal the drawing, the tree owns nothing else) implies the same groups inside the
+  footprint on every generated map; no further test is needed. The generator and the certifier count the same way as
+  the art: `smallest_piece` (`church.rs:231-255`) and the certifier's `pieces` rule (`certify::components(.., true)`)
+  are both 8-connected, so there is no 4/8 difference to note.
 - **Refusal:** any `T`/`r` or `%` tile not `Site::wall && Site::ground` (free Plague floor inside the inner rect, off
   every camp halo, off the legacy landmark protection and every apron marked before), any `.`/`:` tile not
   `Site::floor`, a wall piece under `R.piece_min` (the stumps are exactly 6 = `piece_min`), or the zone's floor split:
@@ -99,7 +119,7 @@ No size search, no `bog_min`, no quadrant rule, no outer-third test (the site ca
 - `docs/adr/0028-signature-landmarks.md` (decision 4 rewritten for the blueprint; G9's "not yet built" note names the
   tree as built; the Measurements section)
 - Not in scope: `style_warren/` (no change needed: see below), `crates/rh-mapdress/**` (the coordinator re-pins its
-  digests at merge), every existing test (the amendments below are the coordinator's/owner's).
+  digests at merge), every existing test (the three amended below are oracle files).
 
 ## 6. Contracts and references
 - ADR 0028 G1-G10, decisions 3, 4, 11, 12; C-PARITY (option off byte-identical, G8); `rh-sim` determinism rules (no
@@ -123,14 +143,17 @@ No size search, no `bog_min`, no quadrant rule, no outer-third test (the site ca
 
 ## 8. Acceptance checks
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_bog_tree` green (4 tests red today).
-- Every other `mapgen_signature_*` target green once the coordinator applies the three amendments below (they are red
-  under the prototype for the stated reasons and green with the amendments).
+- Every other `mapgen_signature_*` target green, the three amended tests included (green under the prototype), and
+  `cargo test -p rh-server --test map_anchor_seeds` green.
 - `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-SCALE-3` passes (the coordinator runs the full gate and re-pins
   the `rh-mapdress` digests).
 - The ignored `report_seeds_1_to_64` prints the table's columns; the implementer quotes it in the hand-off.
 
 ## Oracle files (read-only for implementers)
 - `crates/rh-sim/tests/mapgen_signature_bog_tree.rs` (new)
+- `crates/rh-sim/tests/mapgen_signature_core.rs` (amended: `g3_the_finished_map_carries_the_zone_anchors`,
+  `shape_bog_tree_stands_in_the_outer_third_ringed_by_bog`)
+- `crates/rh-sim/tests/mapgen_signature_scale.rs` (amended: `the_other_three_landmarks_are_unchanged`)
 - `docs/backlog/packets/P-MAPGEN-SIG-SCALE-3.md`
 - The stub commit's files (`signature/mod.rs`: the empty `Definition::bog_grid`; `signature/bog.txt`) are the
   implementer's: the field must hold `include_str!("bog.txt")`, and the copy must stay byte-equal to the docs.
@@ -169,31 +192,32 @@ Guards (green today and under the prototype):
 Not proved by the oracle: seeds beyond 32 (the report covers 1-64); that the mirror is a fair coin; the time per map;
 the `rh-mapdress` digests; what the Plague styler on `P-LAND-PLAGUE-1` does with the larger tree.
 
-## Existing oracles that must change (NOT edited in the oracle commit; the stub does not need them; coordinator/owner)
+## Existing oracles amended (third commit, `oracle: P-MAPGEN-SIG-SCALE-3 amend the three tests that pin the rule-drawn tree`; approved by the landmark lane, 2026-11-13)
 
 Run under the prototype, every `mapgen_signature_*` target, `mapgen_land_sentenced`, the `rh-sim` lib's `mapgen::`
-tests, `rh-mapdress` and `rh-server`'s `map_pool` tests: exactly these fail.
-1. `crates/rh-sim/tests/mapgen_signature_core.rs` `g3_the_finished_map_carries_the_zone_anchors` (line 742-745):
-   "seed 1: a tree has no door". Proposed: replace the assertion "the Plague anchor's entrance is empty" with "every
-   Plague entrance tile is floor on the footprint's edge" (or drop it; this oracle pins the entrance exactly).
-2. `crates/rh-sim/tests/mapgen_signature_core.rs` `shape_bog_tree_stands_in_the_outer_third_ringed_by_bog` (lines
-   384-486): "seed 1: the trunk is not one piece (4)". It treats every wall the tree owns as the trunk, so the three free
-   stumps (owner-approved, "three more root stumps stand free in the marsh") fail it, and roots touch the marsh.
-   Proposed, as SCALE-1 did for the cave's shape guards: keep "the centre lies in the reserved site / outer third", "the
-   centre is a wall tile of the tree", "at least 9 walls", "the rest is bog floor (at least 12) in all four quadrants";
-   drop "the walls are one piece", "no trunk terrain" and "no bog touches the trunk" (blueprint equality pins all three
-   exactly).
-3. `crates/rh-sim/tests/mapgen_signature_scale.rs` `the_other_three_landmarks_are_unchanged` (SCALE-1's guard; line
-   790): "seed 1 attempt 0: the volcano, church or bog tree moved". It pins the tree as it is today, which this packet
-   replaces by design. Proposed: drop the tree from its digest (skip `BogTree` features and the Plague anchor as it
-   already skips the cave) and re-pin with these values (seed, attempt, digest of the volcano and church only,
-   measured on the stub commit with the amended digest): (1,0) 0x8c46_fd6c_2a91_e159, (1,1) 0xd65b_7b72_989c_547d, (2,0) 0xd9de_f016_c1d3_97ec, (2,1) 0,
+tests, `rh-mapdress` and `rh-server`'s `map_pool` tests: exactly these three tests failed (plus two `rh-mapdress`
+digests, below). Each is amended; all three are green on the stub (today's tree) and under the prototype (re-applied on
+cbe6d639b), so they are guards for the implementer, not red oracles.
+1. `crates/rh-sim/tests/mapgen_signature_core.rs` `g3_the_finished_map_carries_the_zone_anchors`: was "the Plague
+   anchor's entrance is empty" ("seed 1: a tree has no door" under the prototype). Now: every Plague entrance tile is
+   floor on the footprint's edge (the exact six tiles are pinned by this packet's new file). Trivially true today
+   (no entrance).
+2. `crates/rh-sim/tests/mapgen_signature_core.rs` `shape_bog_tree_stands_in_the_outer_third_ringed_by_bog`: was "the
+   trunk (every wall the tree owns) is one piece, without terrain, and no bog touches it" ("seed 1: the trunk is not one
+   piece (4)" under the prototype: the three free stumps). Now: the centre is a wall of the tree in its reserved site
+   (else the outer third); the 8-connected wall piece holding the centre has at least 9 tiles; every wall of the tree
+   carries no terrain; the rest of the tree is bog floor, at least 12 tiles, in all four quadrants. Dropped: "the walls
+   are one piece" and "no bog touches the trunk" (the drawing's stumps and roots break them; blueprint equality pins
+   the layout). What remains overlaps the new file's equality test, but runs on the `certified_styled` maps of seeds
+   1-16 and holds for the old rule-drawn tree too.
+3. `crates/rh-sim/tests/mapgen_signature_scale.rs` `the_other_three_landmarks_are_unchanged` (SCALE-1's guard): it
+   pinned the tree as it is today ("seed 1 attempt 0: the volcano, church or bog tree moved" under the prototype). Now
+   its digest skips `BogTree` features and the Plague anchor as it already skipped the cave, re-pinned on the stub with
+   (1,0) 0x8c46_fd6c_2a91_e159, (1,1) 0xd65b_7b72_989c_547d, (2,0) 0xd9de_f016_c1d3_97ec, (2,1) 0,
    (3,0) 0xc3fb_6a95_77e8_3c68, (3,1) 0xfbda_c5dd_f01d_bf8b, (4,0) 0xbcd6_c7f8_c4c5_fef6, (4,1) 0xe011_7dec_285d_eadf,
    (5,0) 0xdc51_3636_ef93_1a07, (5,1) 0xd3d9_c4b7_9052_c500, (6,0) 0xba9f_f7b0_ccc0_13e3, (6,1) 0x6c22_5bef_0da5_c4b0,
-   (7,0) 0x9c08_27c4_14f6_2dc1, (7,1) 0xf45d_e6e2_0805_ee45, (8,0) 0x142b_c64a_6d01_3a5a, (8,1) 0x668e_daaf_2fcd_cc1b.
-   The prototype was not run with this amended digest; it left the volcano, church and cave digests of this oracle
-   equal to today's, which implies the same.
-- Amendments 1 and 2 as proposed were not run; 1 is what this oracle's anchor test checks (green under the prototype).
+   (7,0) 0x9c08_27c4_14f6_2dc1, (7,1) 0xf45d_e6e2_0805_ee45, (8,0) 0x142b_c64a_6d01_3a5a, (8,1) 0x668e_daaf_2fcd_cc1b;
+   green on the stub and under the prototype.
 - Left for the coordinator at merge (digests of option-on maps; every option-on map moves):
   `crates/rh-mapdress/tests/anchor.rs` `NO_ANCHOR_GOLDEN` (`a_signature_map_stripped_of_its_anchors_is_dressed_as_today`)
   and `crates/rh-mapdress/tests/marsh.rs` `SIG_GOLDEN` (`every_zone_other_than_plague_is_dressed_as_before`), both red
@@ -236,13 +260,14 @@ stays, the reservation reads it).
 - Section 3's lines: `bog_tree.rs:10-105` is `:11-107`; `mod.rs:41-51` is `:43-53`.
 - Section 5 named `style_warren/` "where it assumes the tree's size": on the base it assumes nothing (above); removed.
 - Section 8's size, quadrant and halo checks are replaced by blueprint equality; its "Re-pinned in the oracle commit"
-  list is replaced by "Existing oracles that must change" (the coordinator's instruction: not edited here).
+  list is replaced by "Existing oracles amended" (a third oracle commit, approved by the landmark lane).
 - Section 2 says the Plague site lies beyond the outer-third line on 24 of 64 seeds; the hand-over (section 3) and ADR
   0028 decision 4 say 20 of 64. Not re-measured here.
 - The hand-over's "No inside camp, so no relabel: measure `Repair(RadiusPost)` with the fixed tree first": measured,
   6 against today's 8; no relabel.
 - The hand-over defines no entrance for the tree (section 4 says "the opening tiles named above", section 3 names none
-  for the tree); this brief proposes the six causeway openings.
+  for the tree); this brief proposed the six causeway openings, and the coordinator accepted them (2026-11-13 evening,
+  section 1).
 
 ## Measurements (seeds 1-64, option on; debug test build on macOS arm64; the prototype was reverted before the commits)
 The prototype (a throwaway patch kept outside the repository, in the oracle author's scratch directory as
@@ -253,8 +278,14 @@ entrance the six openings; `Definition::bog_grid = include_str!("bog.txt")`. Thi
 test green. Box offset (3, 3) on 64 of 64 seeds; fronts over seeds 1-64: (-1, 0) on 23, (1, 0) on 12, (0, 1) on 14,
 (0, -1) on 15; mirrored on 29 of 64 (35 with the other mapping); 0 `Signature` refusals. Under the prototype every
 `mapgen_signature_*` target, `mapgen_land_sentenced`, the `rh-sim` lib's `mapgen::` tests (200, `style_warren`
-included), `rh-mapdress` and `rh-server`'s `map_pool` tests pass except the three tests and two digests listed in
-"Existing oracles that must change".
+included), `rh-mapdress` and `rh-server`'s `map_pool` tests pass except the three tests (now amended) and two
+digests listed in "Existing oracles amended".
+
+Re-run on cbe6d639b (after the coordinator's rebase): the prototype (the patch's `bog_tree.rs` part, plus the three
+`mod.rs` lines by hand, since the stub already holds the field) gives the same numbers, 46 / 2 on seeds 1-32 and
+109 / 6 on 1-64, the same refusals; the stub (today's tree) still 59 / 4 and 132 / 9 (SCALE-1's report). The bounds
+(59, 4) stand. Under the prototype the ten new tests, the three amended ones and `cargo test -p rh-server --test
+map_anchor_seeds` pass.
 
 ## 9. Validation commands
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_bog_tree`

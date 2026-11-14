@@ -91,27 +91,28 @@ fn pinned_off() -> [(i64, &'static str, u64); 8] {
     ]
 }
 
-/// The volcano, church and bog tree the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before
-/// this packet: (seed, attempt, `others_digest`). The cave is placed last on its own stream, so they never move
-/// (measured on the stub commit, today's generator; seed 2 attempt 1 fails its prefix: 0).
+/// The volcano and church the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet:
+/// (seed, attempt, `others_digest`). The cave is placed last on its own stream, so they never move (measured on the stub
+/// commit, today's generator; seed 2 attempt 1 fails its prefix: 0). Amended by P-MAPGEN-SIG-SCALE-3: the bog tree is
+/// the blueprint now and is left out (re-pinned on that packet's stub commit; its oracle pins the tree).
 fn pinned_others() -> [(i64, u64, u64); 16] {
     [
-        (1, 0, 0xd9ba_613a_4474_c7ee),
-        (1, 1, 0x2a75_0f06_9384_8ae0),
-        (2, 0, 0xbd85_f8e8_8767_6a78),
+        (1, 0, 0x8c46_fd6c_2a91_e159),
+        (1, 1, 0xd65b_7b72_989c_547d),
+        (2, 0, 0xd9de_f016_c1d3_97ec),
         (2, 1, 0),
-        (3, 0, 0x8aa0_d9e6_24e1_d87c),
-        (3, 1, 0x01b8_77a3_5ec1_3bd3),
-        (4, 0, 0xdf5d_b3da_1628_4f58),
-        (4, 1, 0x6c5c_6afc_34b8_2fad),
-        (5, 0, 0xb2d8_517f_3b6d_8abf),
-        (5, 1, 0xe437_228a_63c7_6eb9),
-        (6, 0, 0xea56_abaf_2647_6df3),
-        (6, 1, 0x9ccd_e25f_6558_984c),
-        (7, 0, 0xd650_f4c7_cd14_f347),
-        (7, 1, 0xe3b4_5492_d4c1_37a5),
-        (8, 0, 0xe11a_9fce_9b30_151a),
-        (8, 1, 0x21a3_639b_0fe0_8e87),
+        (3, 0, 0xc3fb_6a95_77e8_3c68),
+        (3, 1, 0xfbda_c5dd_f01d_bf8b),
+        (4, 0, 0xbcd6_c7f8_c4c5_fef6),
+        (4, 1, 0xe011_7dec_285d_eadf),
+        (5, 0, 0xdc51_3636_ef93_1a07),
+        (5, 1, 0xd3d9_c4b7_9052_c500),
+        (6, 0, 0xba9f_f7b0_ccc0_13e3),
+        (6, 1, 0x6c22_5bef_0da5_c4b0),
+        (7, 0, 0x9c08_27c4_14f6_2dc1),
+        (7, 1, 0xf45d_e6e2_0805_ee45),
+        (8, 0, 0x142b_c64a_6d01_3a5a),
+        (8, 1, 0x668e_daaf_2fcd_cc1b),
     ]
 }
 
@@ -407,8 +408,8 @@ fn fnv(bytes: &[u8]) -> u64 {
     h
 }
 
-/// FNV-1a 64 of what the Landmarks phase places for the volcano, the church with its graveyard and the bog tree on
-/// (seed, attempt), option on: their anchors (JSON) and, for every feature the phase leaves except the cave, the
+/// FNV-1a 64 of what the Landmarks phase places for the volcano and the church with its graveyard on (seed, attempt),
+/// option on: their anchors (JSON) and, for every feature the phase leaves except the cave and the bog tree, the
 /// feature (JSON) and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
 fn others_digest(seed: i64, n: u64) -> u64 {
     let fixed = coliseum::fixed_layout();
@@ -431,11 +432,15 @@ fn others_digest(seed: i64, n: u64) -> u64 {
         return 0;
     };
     let mut bytes = Vec::new();
-    for a in placed.anchors.iter().filter(|a| a.zone != Zone::Frost) {
+    for a in placed
+        .anchors
+        .iter()
+        .filter(|a| a.zone != Zone::Frost && a.zone != Zone::Plague)
+    {
         bytes.extend(serde_json::to_vec(a).unwrap());
     }
     for (k, f) in st.state.features.iter().enumerate() {
-        if f.kind == FeatureKind::Cave {
+        if matches!(f.kind, FeatureKind::Cave | FeatureKind::BogTree) {
             continue;
         }
         bytes.extend(serde_json::to_vec(f).unwrap());
@@ -782,15 +787,15 @@ fn option_off_is_todays_generator() {
     }
 }
 
-/// Guard. The volcano, the church with its graveyard and the bog tree the Landmarks phase places are today's
-/// (`pinned_others`): the cave is placed last and draws only from the Frost stream.
+/// Guard. The volcano and the church with its graveyard the Landmarks phase places are today's (`pinned_others`): the
+/// cave is placed last and draws only from the Frost stream (the bog tree left out by P-MAPGEN-SIG-SCALE-3).
 #[test]
 fn the_other_three_landmarks_are_unchanged() {
     for (seed, n, digest) in pinned_others() {
         assert_eq!(
             others_digest(seed, n),
             digest,
-            "seed {seed} attempt {n}: the volcano, church or bog tree moved"
+            "seed {seed} attempt {n}: the volcano or church moved"
         );
     }
 }

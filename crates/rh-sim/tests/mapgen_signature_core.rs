@@ -380,9 +380,13 @@ fn g1_g2_one_bog_tree_and_one_church_placed_before_the_stylers() {
 // Shapes.
 // --------------------------------------------------------------------------------------------------------------------
 
-/// Plague: the tree's centre (the feature's anchor point) is trunk, in the outer third of the zone's radial extent; the
-/// trunk is one solid piece of at least 9 wall tiles with dry ground round it; the rest of the tree is bog floor (at
-/// least 12 tiles) in all four quadrants round the trunk.
+/// Plague: the tree's centre (the feature's anchor point) is one of the tree's walls, in its reserved site (else in the
+/// outer third of the zone's radial extent); the wall piece holding the centre (the trunk with its roots, 8-connected)
+/// has at least 9 tiles; every wall of the tree carries no terrain; the rest of the tree is bog floor (at least 12
+/// tiles) in all four quadrants round the centre. Amended by P-MAPGEN-SIG-SCALE-3 (the tree is the approved blueprint):
+/// the walls are no longer one piece (the drawing has three free root stumps) and roots touch the marsh, so "the trunk
+/// is one piece" and "no bog touches the trunk" are dropped; the exact layout is pinned by
+/// `mapgen_signature_bog_tree.rs` (`the_bog_tree_is_the_blueprint_under_one_of_eight_orientations`).
 #[test]
 fn shape_bog_tree_stands_in_the_outer_third_ringed_by_bog() {
     for (seed, m) in maps() {
@@ -424,7 +428,7 @@ fn shape_bog_tree_stands_in_the_outer_third_ringed_by_bog() {
             );
         }
         let tiles = owned(m, k);
-        let trunk: Vec<Cell> = tiles
+        let walls: Vec<Cell> = tiles
             .iter()
             .copied()
             .filter(|&c| m.tiles[at(m, c).unwrap()] == T_WALL)
@@ -435,45 +439,31 @@ fn shape_bog_tree_stands_in_the_outer_third_ringed_by_bog() {
             .filter(|&c| m.tiles[at(m, c).unwrap()] != T_WALL)
             .collect();
         assert!(
-            trunk.contains(&centre),
+            walls.contains(&centre),
             "seed {seed}: no trunk at {centre:?}"
         );
+        let trunk = components(&walls, true)
+            .into_iter()
+            .find(|p| p.contains(&centre))
+            .unwrap_or_default();
         assert!(
             trunk.len() >= 9,
             "seed {seed}: trunk of {} tiles",
             trunk.len()
         );
-        assert_eq!(
-            components(&trunk, false).len(),
-            1,
-            "seed {seed}: the trunk is not one piece"
-        );
-        for &c in &trunk {
+        for &c in &walls {
             assert_eq!(
                 m.terrain[at(m, c).unwrap()],
                 0,
-                "seed {seed}: trunk tile {c:?} has terrain"
+                "seed {seed}: tree wall {c:?} has terrain"
             );
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    let n = (c.0 + dx, c.1 + dy);
-                    if trunk.contains(&n) {
-                        continue;
-                    }
-                    let i = at(m, n).unwrap();
-                    assert_ne!(
-                        m.terrain[i], BOG,
-                        "seed {seed}: bog at {n:?} touches the trunk"
-                    );
-                }
-            }
         }
         assert!(bog.len() >= 12, "seed {seed}: {} bog tiles", bog.len());
         for &c in &bog {
             let i = at(m, c).unwrap();
             assert!(
                 m.tiles[i] == T_FLOOR && m.terrain[i] == BOG,
-                "seed {seed}: tree tile {c:?} is neither trunk nor bog floor"
+                "seed {seed}: tree tile {c:?} is neither wall nor bog floor"
             );
         }
         for (sx, sy) in [(1, 1), (-1, 1), (-1, -1), (1, -1)] {
@@ -740,10 +730,19 @@ fn g3_the_finished_map_carries_the_zone_anchors() {
             }
             assert_eq!(a.front, expected_front(m, c), "seed {seed}: {zone:?} front");
         }
-        assert!(
-            anchor(seed, m, Zone::Plague).entrance.is_empty(),
-            "seed {seed}: a tree has no door"
-        );
+        // Amended by P-MAPGEN-SIG-SCALE-3: the blueprint tree's entrance is its causeway openings (pinned exactly by
+        // `mapgen_signature_bog_tree.rs`); here, every entrance tile is floor on the footprint's edge.
+        let tree_anchor = anchor(seed, m, Zone::Plague);
+        let fp = grow(tree_anchor.footprint, 0);
+        for p in &tree_anchor.entrance {
+            let c = (p.x, p.y);
+            let on_edge =
+                inside(fp, c) && (c.0 == fp.0 || c.0 == fp.2 || c.1 == fp.1 || c.1 == fp.3);
+            assert!(
+                on_edge && at(m, c).is_some_and(|i| m.tiles[i] == T_FLOOR),
+                "seed {seed}: Plague entrance tile {c:?} is not floor on the footprint's edge {fp:?}"
+            );
+        }
         let json = serde_json::to_string(m).unwrap();
         let back: GameMapData = serde_json::from_str(&json).unwrap();
         assert_eq!(&back, m, "seed {seed}: JSON round trip");
