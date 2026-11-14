@@ -106,14 +106,6 @@ namespace Roguehalla.Client
         public static Color32[] BakeVariants(MapBlob map)
         {
             int w = map.W, h = map.H; var px = new Color32[w * h];
-            // Sentenced floor: every region-2 tile takes its family's tint, chosen from the tile's coordinates alone (SentencedTiles.Family); a server variant below overrides it.
-            if (map.Regions != null && map.Regions.Length == px.Length)
-                for (int i = 0; i < px.Length; i++)
-                {
-                    if (map.Regions[i] != (byte)RegionId.Sentenced) continue;
-                    var st = Roguehalla.Net.Ui.SentencedTiles.Tint(Roguehalla.Net.Ui.SentencedTiles.Family(i % w, i / w));
-                    if (st.Strength > 0f) px[i] = new Color32(st.R, st.G, st.B, (byte)Mathf.RoundToInt(Mathf.Clamp01(st.Strength) * 255f));
-                }
             var plane = map.GroundVariants; if (plane == null || plane.Length != w * h) return px;
             System.Collections.Generic.HashSet<byte> warned = null;
             for (int i = 0; i < px.Length; i++)
