@@ -15,6 +15,7 @@ using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using MapRect = Roguehalla.Net.Protocol.MapRect;
+using ArenaView = Roguehalla.Client.ArenaView;
 
 namespace Roguehalla.Editor
 {
