@@ -234,8 +234,8 @@ pub fn relabelled_zones() -> [Zone; 1] {
 /// the other camps' halos out of the site, not their territories: without this the blueprint's walls cut those
 /// territories and repair hands the pieces to camps beyond the territory radius (`Repair(RadiusPost)`). Called by the
 /// pipeline on repair's copy of the territory grid on option-on attempts only (no sites otherwise: nothing changes). A
-/// pure write: no draw.
-pub(crate) fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], territory: &mut [u8]) {
+/// pure write: no draw. Public so that P-MAPGEN-SIG-SCALE-2's oracle (`tests/mapgen_signature_church.rs`) can call it.
+pub fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], territory: &mut [u8]) {
     for r in reserved
         .iter()
         .filter(|r| relabelled_zones().contains(&r.zone))
@@ -1061,33 +1061,12 @@ mod tests {
         }
     }
 
-    /// P-MAPGEN-SIG-SCALE-1: the Frost site (whole rect) takes its camp's label (index + 1); a Sentenced site, a site
-    /// without a camp and no sites at all leave the grid as it was.
+    /// `relabel_sites`'s precondition predicate: a second camp in the rect is found; one just outside it is not. (Which
+    /// sites take which label is P-MAPGEN-SIG-SCALE-2's oracle, `tests/mapgen_signature_church.rs`
+    /// `relabel_sites_labels_the_frost_and_the_sentenced_sites`, moved there from this test.)
     #[test]
-    fn only_the_frost_sites_tiles_take_its_camps_label() {
-        let camps = vec![camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
-        let before = vec![7u8; W * H];
-        let mut grid = before.clone();
-        relabel_sites(&[], &camps, &mut grid);
-        assert_eq!(grid, before, "no sites");
-        let others = [
-            site(Zone::Sentenced, 29, 30, Some(camps[1].site)),
-            site(Zone::Plague, 10, 10, None),
-            site(Zone::Frost, 40, 40, None),
-        ];
-        relabel_sites(&others, &camps, &mut grid);
-        assert_eq!(grid, before, "no Frost site with a camp");
-        relabel_sites(
-            &[site(Zone::Frost, 60, 60, Some(camps[2].site))],
-            &camps,
-            &mut grid,
-        );
-        for (i, &label) in grid.iter().enumerate() {
-            let (x, y) = ((i % W) as i32, (i / W) as i32);
-            let inside = (60..64).contains(&x) && (60..63).contains(&y);
-            assert_eq!(label, if inside { 3 } else { 7 }, "({x}, {y})");
-        }
-        // The precondition's predicate: a second camp in the rect is found; one just outside it is not.
+    fn stray_camp_finds_a_second_camp_in_the_site() {
+        let camps = [camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
         let frost = site(Zone::Frost, 60, 60, Some(camps[2].site));
         let crowded = [camp(4, 61, 61), camp(4, 63, 62), camp(4, 64, 62)];
         assert_eq!(stray_camp(&frost, &crowded, 0), Some(1));
