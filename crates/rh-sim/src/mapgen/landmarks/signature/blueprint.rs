@@ -9,7 +9,10 @@
 //! `u` and `(1, 0)` to `r = (u.1, -u.0)` unmirrored, `-r` mirrored; `Orientation::turn` is that linear map, applied to
 //! tiles and to directions alike (so a heading drawn on the grid turns and mirrors with the tiles).
 //!
-//! STUB: every function returns a placeholder; the implementer replaces the bodies.
+//! Pure reading and geometry: no draw, no map. The reader judges the text's shape and characters, never the drawing's
+//! content (where its marks lie, whether a mouth is one run): the approved drawings are pinned byte for byte and by
+//! their orientation oracles. What a landing writes, and whether the site can hold it, is the stamp's
+//! (`super::stamp`), which reads the per-landmark table (`super::spec`).
 use crate::mapdata::{FeatureKind, TileRect};
 
 /// A grid tile `(gx, gy)` or a map tile `(x, y)`, or a direction in either.
@@ -118,9 +121,12 @@ impl Orientation {
     }
 
     /// The map direction of grid direction `d`: its front component (`d.1`) along `front`, its side component (`d.0`)
-    /// along `r = (front.1, -front.0)`, negated when mirrored. STUB: returns `(0, 0)`.
-    pub fn turn(&self, _d: Cell) -> Cell {
-        (0, 0)
+    /// along `r = (front.1, -front.0)`, negated when mirrored.
+    pub fn turn(&self, d: Cell) -> Cell {
+        let u = self.front;
+        let s = if self.mirrored { -1 } else { 1 };
+        let r = (s * u.1, -s * u.0);
+        (d.1 * u.0 + d.0 * r.0, d.1 * u.1 + d.0 * r.1)
     }
 }
 
@@ -167,54 +173,174 @@ pub struct Landing {
 }
 
 impl Landing {
-    /// The map tile grid tile `g` lands on: `origin + orientation.turn(g)`. STUB: returns `origin`.
-    pub fn tile(&self, _g: Cell) -> Cell {
-        self.origin
+    /// The map tile grid tile `g` lands on: `origin + orientation.turn(g)`.
+    pub fn tile(&self, g: Cell) -> Cell {
+        let d = self.orientation.turn(g);
+        (self.origin.0 + d.0, self.origin.1 + d.1)
     }
+}
+
+/// A glyph that leaves its tile walkable: it writes nothing or floor.
+fn open(g: &Glyph) -> bool {
+    matches!(g.write, Write::Nothing | Write::Floor(_))
 }
 
 impl Blueprint {
     /// The drawing in `text` read with `legend`: the grid lines (neither empty nor starting with `;`), every one as
-    /// long as the first, every character in the legend. STUB: always `Err(ParseError::Empty)`.
-    pub fn parse(_text: &str, _legend: &Legend) -> Result<Self, ParseError> {
-        Err(ParseError::Empty)
+    /// long as the first, every character in the legend. The first fault found, in reading order, is the error.
+    pub fn parse(text: &str, legend: &Legend) -> Result<Self, ParseError> {
+        let rows: Vec<&[u8]> = text
+            .lines()
+            .filter(|l| !l.is_empty() && !l.starts_with(';'))
+            .map(str::as_bytes)
+            .collect();
+        let expected = rows.first().ok_or(ParseError::Empty)?.len();
+        for (row, line) in rows.iter().enumerate() {
+            if line.len() != expected {
+                return Err(ParseError::Ragged {
+                    row,
+                    len: line.len(),
+                    expected,
+                });
+            }
+            if let Some(gx) = line.iter().position(|&ch| legend.glyph(ch).is_none()) {
+                return Err(ParseError::Unknown {
+                    ch: line[gx],
+                    at: (gx as i32, row as i32),
+                });
+            }
+        }
+        Ok(Self {
+            w: expected as i32,
+            h: rows.len() as i32,
+            cells: rows.concat(),
+            legend: legend.clone(),
+        })
     }
 
-    /// `(w, h)`: the columns and rows of the grid. STUB.
+    /// `(w, h)`: the columns and rows of the grid.
     pub fn size(&self) -> Cell {
         (self.w, self.h)
     }
 
-    /// The character at grid tile `g`, `None` off the grid. STUB: `None`.
-    pub fn char_at(&self, _g: Cell) -> Option<u8> {
-        let _ = &self.cells;
-        None
+    /// The character at grid tile `g`, `None` off the grid.
+    pub fn char_at(&self, g: Cell) -> Option<u8> {
+        let on = (0..self.w).contains(&g.0) && (0..self.h).contains(&g.1);
+        on.then(|| self.cells[(g.1 * self.w + g.0) as usize])
     }
 
     pub fn legend(&self) -> &Legend {
         &self.legend
     }
 
-    /// The grid tiles of character `ch`, row-major (`gy`, then `gx`). STUB: empty.
-    pub fn tiles_of(&self, _ch: u8) -> Vec<Cell> {
-        Vec::new()
+    /// Every grid tile with its glyph, row-major. `parse` gave every character a glyph, so every tile is here.
+    pub fn glyphs(&self) -> impl Iterator<Item = (Cell, &Glyph)> + '_ {
+        self.cells.iter().enumerate().filter_map(|(k, &ch)| {
+            let g = (k as i32 % self.w, k as i32 / self.w);
+            self.legend.glyph(ch).map(|glyph| (g, glyph))
+        })
     }
 
-    /// Every mark of the legend (glyphs with `mark`), ascending by character, with its grid tiles row-major. STUB:
-    /// empty.
+    /// The grid tiles of character `ch`, row-major (`gy`, then `gx`).
+    pub fn tiles_of(&self, ch: u8) -> Vec<Cell> {
+        self.cells
+            .iter()
+            .enumerate()
+            .filter(|&(_, &c)| c == ch)
+            .map(|(k, _)| (k as i32 % self.w, k as i32 / self.w))
+            .collect()
+    }
+
+    /// Every mark of the legend (glyphs with `mark`), ascending by character, with its grid tiles row-major.
     pub fn marks(&self) -> Vec<(u8, Vec<Cell>)> {
-        Vec::new()
+        let mut chars: Vec<u8> = self.legend.0.iter().filter(|g| g.mark).map(|g| g.ch).collect();
+        chars.sort_unstable();
+        chars.dedup();
+        chars.into_iter().map(|ch| (ch, self.tiles_of(ch))).collect()
     }
 
-    /// The entrance's grid tiles under `rule`, row-major. STUB: empty.
-    pub fn entrance(&self, _rule: EntranceRule) -> Vec<Cell> {
-        Vec::new()
+    /// The entrance's grid tiles under `rule`, row-major.
+    pub fn entrance(&self, rule: EntranceRule) -> Vec<Cell> {
+        match rule {
+            EntranceRule::Mark(ch) => self.tiles_of(ch),
+            EntranceRule::Edge(ch) => self
+                .tiles_of(ch)
+                .into_iter()
+                .filter(|&(gx, gy)| gx == 0 || gy == 0 || gx == self.w - 1 || gy == self.h - 1)
+                .collect(),
+            EntranceRule::FrontRun(ch) => self.front_run(ch),
+            EntranceRule::None => Vec::new(),
+        }
+    }
+
+    /// `EntranceRule::FrontRun(ch)`: the run of open tiles of the front row through the one column of `ch`'s tiles.
+    fn front_run(&self, ch: u8) -> Vec<Cell> {
+        let marks = self.tiles_of(ch);
+        let Some(&(col, _)) = marks.first() else {
+            return Vec::new();
+        };
+        let y = self.h - 1;
+        let open_at = |gx: i32| {
+            self.char_at((gx, y))
+                .and_then(|c| self.legend.glyph(c))
+                .is_some_and(open)
+        };
+        if marks.iter().any(|&(gx, _)| gx != col) || !open_at(col) {
+            return Vec::new();
+        }
+        let (mut lo, mut hi) = (col, col);
+        while open_at(lo - 1) {
+            lo -= 1;
+        }
+        while open_at(hi + 1) {
+            hi += 1;
+        }
+        (lo..=hi).map(|gx| (gx, y)).collect()
     }
 
     /// Where the drawing lands under orientation `o` by rule `rule` in `target`; `None` when the rule cannot place it:
     /// `Pin` with no camp tile or a mark that is not exactly one tile, `Centre` with the turned box wider or taller than
-    /// the inner rect. Pure geometry: the tiles' legality is the stamp's. STUB: `None`.
-    pub fn land(&self, _rule: Placement, _o: Orientation, _target: &Target) -> Option<Landing> {
-        None
+    /// the inner rect. Pure geometry: the tiles' legality is the stamp's.
+    pub fn land(&self, rule: Placement, o: Orientation, target: &Target) -> Option<Landing> {
+        // The box of the drawing turned about grid (0, 0): its corner nearest the map origin, and its size.
+        let far = (self.w - 1, self.h - 1);
+        let corners = [(0, 0), (far.0, 0), (0, far.1), far].map(|g| o.turn(g));
+        let lo = corners
+            .iter()
+            .fold(corners[0], |m, c| (m.0.min(c.0), m.1.min(c.1)));
+        let hi = corners
+            .iter()
+            .fold(corners[0], |m, c| (m.0.max(c.0), m.1.max(c.1)));
+        let size = (hi.0 - lo.0 + 1, hi.1 - lo.1 + 1);
+        let origin = match rule {
+            Placement::Pin(ch) => {
+                let t = target.camp?;
+                let [g] = self.tiles_of(ch)[..] else {
+                    return None;
+                };
+                let d = o.turn(g);
+                (t.0 - d.0, t.1 - d.1)
+            }
+            Placement::Centre => {
+                let inner = target.inner;
+                let spare = (inner.w as i32 - size.0, inner.h as i32 - size.1);
+                if spare.0 < 0 || spare.1 < 0 {
+                    return None;
+                }
+                // An odd spare tile goes before the box.
+                let corner = (inner.x + (spare.0 + 1) / 2, inner.y + (spare.1 + 1) / 2);
+                (corner.0 - lo.0, corner.1 - lo.1)
+            }
+        };
+        Some(Landing {
+            orientation: o,
+            origin,
+            footprint: TileRect {
+                x: origin.0 + lo.0,
+                y: origin.1 + lo.1,
+                w: size.0 as u32,
+                h: size.1 as u32,
+            },
+        })
     }
 }
