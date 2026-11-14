@@ -126,6 +126,11 @@ pub struct Definition {
     /// the 29 x 29 grid, front (toward the coliseum) at the bottom. Parsed once per context (`cave::Blueprint`); a grid
     /// that does not parse refuses every option-on attempt at the cave (`Refusal::Signature`).
     pub cave_grid: &'static str,
+    /// P-MAPGEN-SIG-SCALE-3: the Plague bog tree's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text
+    /// of `bog.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/bog.txt` (the docs are not in the
+    /// server image's build context). Lines starting `;` are its legend; the rest is the 29 x 29 grid, front (toward the
+    /// coliseum) at the bottom. STUB: empty until the implementer reads the copy with `include_str!("bog.txt")`.
+    pub bog_grid: &'static str,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -185,6 +190,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     site_side: 34,
     site_depth: 9,
     cave_grid: include_str!("cave.txt"),
+    bog_grid: "",
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
