@@ -31,9 +31,9 @@ namespace Roguehalla.Net.Ui
         };
         static byte ToByte(float gain) { return (byte)(int)(gain * 128f + .5f); }
 
-        /// <summary>The edge kind of this variant in this region. STUB (P-UNITY-GROUND-BANDS-1): every code is Tile, as drawn today; the packet makes the band codes Soft.
-        /// A code without a look (0, above 8, or an unknown region) is Tile.</summary>
-        public static GroundVariantEdge EdgeOf(int region, byte variant) { return GroundVariantEdge.Tile; }
+        /// <summary>The edge kind of this variant in this region: every code with a look is a band the server's rules lay (rings, landmark bands, marsh bands), so Soft; a code without a look
+        /// (0, above 8, or an unknown region) is Tile. The Sentenced scatter has no code: it is client-rolled in GroundTint.Bake and always drawn crisp. A new variant code is one row in TryGet.</summary>
+        public static GroundVariantEdge EdgeOf(int region, byte variant) { return TryGet(region, variant, out _) ? GroundVariantEdge.Soft : GroundVariantEdge.Tile; }
 
         public static bool TryGet(int region, byte variant, out GroundVariantTint tint)
         {

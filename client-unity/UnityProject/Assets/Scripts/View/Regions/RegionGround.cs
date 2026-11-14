@@ -72,14 +72,18 @@ namespace Roguehalla.Client
             var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
             Material.SetTexture("_TempleTex", pierTex);
-            // Server ground variants: one texel per tile (rgb tint, a strength), point sampled. _VariantOn stays 0 on a map without a tinted tile.
-            var variantTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
-            var variantPx = BakeVariants(map);
+            // Server ground variants, one texture twice as wide as the map: texel 2x of a row is tile x's crisp texel (rgb gain, a strength; the Sentenced scatter and every Tile-edge variant),
+            // texel 2x + 1 is its soft gain (the bands; the shader blends four of them by hand, so the plane needs no sampler of its own and no extra texture). Both read through the point sampler.
+            var vin = BakeVariantInputs(map);
+            var variantTex = new Texture2D(w * 2, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
+            var variantPx = new Color32[w * 2 * h];
+            for (int i = 0; i < w * h; i++) { variantPx[i * 2] = vin.Tile[i]; variantPx[i * 2 + 1] = vin.Soft[i]; }
             variantTex.SetPixelData(variantPx, 0); variantTex.Apply(false, true); _owned.Add(variantTex);
             Material.SetTexture("_VariantTex", variantTex);
-            // On only when some tile carries a tint: a plane of zeros (or of unknown variants) costs no extra sample.
-            bool anyVariant = false; for (int i = 0; i < variantPx.Length; i++) if (variantPx[i].a != 0) { anyVariant = true; break; }
+            // On only when some tile carries a tint (a plane of zeros costs no extra sample); the soft path (the bands' blend and warp) only when a band exists.
+            bool anyVariant = vin.SoftActive; for (int i = 0; i < vin.Tile.Length && !anyVariant; i++) if (vin.Tile[i].a != 0) anyVariant = true;
             Material.SetFloat("_VariantOn", anyVariant ? 1f : 0f);
+            Material.SetFloat("_VariantSoft", vin.SoftActive ? 1f : 0f);
             Material.SetVector("_Coliseum", ColiseumBounds(map.Regions, w, h));
 
             Material.SetVector("_Map", new Vector4(w, h, ArenaView.GroundSquash, 0));
@@ -128,8 +132,45 @@ namespace Roguehalla.Client
         /// <see cref="GroundVariantInputs.Tile"/> is today's whole plane and the soft gain is neutral everywhere.</summary>
         public static GroundVariantInputs BakeVariantInputs(MapBlob map)
         {
-            return new GroundVariantInputs { Width = map.W, Height = map.H, Tile = BakeVariants(map), SoftActive = false };
+            int w = map.W, h = map.H; var tile = BakeVariants(map); var soft = new Color32[w * h];
+            var plane = map.GroundVariants; bool hasPlane = plane != null && plane.Length == w * h;
+            bool hasRegions = map.Regions != null && map.Regions.Length == tile.Length;
+            var terrain = RegionMap.EffectiveTerrain(map);
+            var isSoft = new bool[w * h]; bool any = false;
+            var neutral = new Color32(Roguehalla.Net.Ui.GroundTint.NeutralByte, Roguehalla.Net.Ui.GroundTint.NeutralByte, Roguehalla.Net.Ui.GroundTint.NeutralByte, 255);
+            for (int i = 0; i < soft.Length; i++)
+            {
+                soft[i] = neutral;
+                int region = hasRegions ? map.Regions[i] : 0; byte v = hasPlane ? plane[i] : (byte)0;
+                if (Roguehalla.Net.Ui.GroundVariantLook.EdgeOf(region, v) != Roguehalla.Net.Ui.GroundVariantEdge.Soft) continue;
+                Roguehalla.Net.Ui.GroundVariantLook.TryGet(region, v, out var look);
+                var g = Roguehalla.Net.Ui.GroundTint.Apply(1f, 1f, 1f, look);
+                soft[i] = new Color32(GainByte(g[0]), GainByte(g[1]), GainByte(g[2]), 255); isSoft[i] = true; any = true;
+                // The band's part leaves the crisp plane; the scatter family (Sentenced) stays there as today.
+                tile[i] = Roguehalla.Net.Ui.GroundTint.Bake(region, 0, i % w, i / w, out var fam)
+                    ? new Color32(fam.R, fam.G, fam.B, (byte)Mathf.RoundToInt(Mathf.Clamp01(fam.Strength) * 255f)) : default(Color32);
+            }
+            if (any && terrain != null && terrain.Length == w * h)
+            {
+                // A terrain tile (bog, lava, ice) carries no variant: it takes the mean gain of the band tiles round it, so the band does not fade under the terrain's own soft edge.
+                var fill = new System.Collections.Generic.List<(int, Color32)>();
+                for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x; if (isSoft[i] || terrain[i] == 0) continue;
+                    int n = 0, r = 0, gg = 0, b = 0;
+                    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h || !isSoft[yy * w + xx]) continue;
+                        var c = soft[yy * w + xx]; r += c.r; gg += c.g; b += c.b; n++;
+                    }
+                    if (n > 0) fill.Add((i, new Color32((byte)(r / n), (byte)(gg / n), (byte)(b / n), 255)));
+                }
+                foreach (var (i, c) in fill) soft[i] = c;
+            }
+            return new GroundVariantInputs { Width = w, Height = h, Tile = tile, Soft = soft, SoftActive = any };
         }
+
+        static byte GainByte(float gain) { return (byte)Mathf.Clamp(Mathf.RoundToInt(gain * 128f), 0, 255); }
 
         Texture2D Tex(string name, int w, int h, Color32[] px)
         {
@@ -260,9 +301,17 @@ namespace Roguehalla.Client
         public Color32[] Tile;
         /// <summary>True when the map has at least one Soft-edge tile (the shader then needs the soft path); false for a map with only Tile variants, the scatter, or none.</summary>
         public bool SoftActive;
+        /// <summary>The soft part: one texel per tile (rgb a gain, byte 128 neutral), texel centres at tile centres, blended bilinearly by the shader (after its ragged warp, which the CPU leaves out).</summary>
+        public Color32[] Soft;
 
-        /// <summary>The soft part's gain at a point (tile coordinates, bilinear as the shader samples it); (1, 1, 1) where no soft band reaches. STUB: always neutral.</summary>
-        public Vector3 SoftGainAt(float tx, float ty) { return Vector3.one; }
+        /// <summary>The soft part's gain at a point (tile coordinates, bilinear as the shader samples it); (1, 1, 1) where no soft band reaches.</summary>
+        public Vector3 SoftGainAt(float tx, float ty)
+        {
+            if (Soft == null) return Vector3.one;
+            float u = tx - .5f, v = ty - .5f; int i = Mathf.FloorToInt(u), j = Mathf.FloorToInt(v); float fx = u - i, fy = v - j;
+            Vector3 At(int x, int y) { var c = Soft[Mathf.Clamp(y, 0, Height - 1) * Width + Mathf.Clamp(x, 0, Width - 1)]; return new Vector3(c.r, c.g, c.b) / 128f; }
+            return Vector3.Lerp(Vector3.Lerp(At(i, j), At(i + 1, j), fx), Vector3.Lerp(At(i, j + 1), At(i + 1, j + 1), fx), fy);
+        }
 
         /// <summary>The Tile texel's gain at the tile containing the point, times <see cref="SoftGainAt"/>: what the shader multiplies the ground by (before its edge noise).</summary>
         public Vector3 GainAt(float tx, float ty)
