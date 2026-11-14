@@ -870,6 +870,29 @@ mod guarantee_tests {
         }
     }
 
+    /// The pipeline runs a zone's guarantees once per landmark frame, and only the reserving zones have a frame. A list
+    /// registered for any other zone would never run: this fails first, and the author of that zone's landmark packet
+    /// adds its zone to `signature::reserved_zones` (or changes this test with the reason).
+    #[test]
+    fn only_zones_with_a_frame_have_guarantees() {
+        use crate::mapgen::landmarks::signature::reserved_zones;
+        for zone in [
+            Zone::Fire,
+            Zone::Sentenced,
+            Zone::Plague,
+            Zone::Frost,
+            Zone::Holy,
+        ] {
+            if !reserved_zones().contains(&zone) {
+                assert!(
+                    guarantees(zone).is_empty(),
+                    "{zone:?} has no landmark frame, so its {} registered guarantee(s) would never run",
+                    guarantees(zone).len()
+                );
+            }
+        }
+    }
+
     /// `"pool-walks"` with a detour of -1: every finished map with a reachable Plague spawn fails it.
     fn walks_strict(m: &GameMapData, _: &LandmarkFrame) -> bool {
         walk_growth(m, Zone::Plague, |i| is_styler_bog(m, i))

@@ -6,7 +6,8 @@
 //! finished map and the zone's frame: no draw, nothing written. Generator rules, not content: nothing here is folded into
 //! the content hash (`visit_content`).
 //!
-//! Lookups are functions, not `pub const` items: `tests/content.rs` reads every `pub const` as a tunable.
+//! Lookups are functions returning slice literals, with no const item at all: `tests/content.rs` reads every upper-case
+//! `const` or `static`, a local one included, as a tunable.
 use crate::constants::TILE;
 use crate::mapdata::{GameMapData, Zone};
 use crate::mapgen::landmarks::signature::frame::LandmarkFrame;
@@ -22,6 +23,11 @@ pub struct Guarantee {
 /// The guarantees of `zone`'s styler, in the order they run: each styler's list, written beside it
 /// (`style_rime::guarantees`: `"lake-at-mouth"`; `style_warren::guarantees`: `"pool-walks"`, `"pool-wet"`); none yet
 /// for Fire, Sentenced and Holy.
+///
+/// A list runs only for a zone that has a landmark frame on the attempt (`signature::reserved_zones`): the pipeline
+/// loops over the frames, not over the zones. Holy has no frame until its hall is a signature landmark
+/// (P-MAPGEN-SIG-HOLY-1), so a rule registered for Holy before then would never run and no pin would notice:
+/// `pipeline::guarantee_tests::only_zones_with_a_frame_have_guarantees` keeps that from happening quietly.
 pub fn guarantees(zone: Zone) -> &'static [Guarantee] {
     match zone {
         Zone::Frost => crate::mapgen::style_rime::guarantees(),
