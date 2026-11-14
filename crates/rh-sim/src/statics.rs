@@ -411,12 +411,46 @@ fn default_consumables() -> bool {
     true
 }
 
+/// The hitbox mode of the live content world ([`SimConfig::live_content`]), re-exported by the server as
+/// `rh_server::runtime::LIVE_DEFAULT_HITBOXES`: the default of `--runtime source-arena`, `--runtime training` and
+/// `--first-playable` when `--hitboxes` is absent (`--hitboxes legacy` overrides). The ONE line to change to flip the
+/// live default (owner sign-off 2026-11-10, ADR 0024, DEVIATIONS DEV-009/DEV-010); the server's
+/// `runtime::tests::which_runtimes_default_to_which_hitbox_mode` pins it, so a flip is a deliberate two-line change.
+pub const LIVE_DEFAULT_HITBOXES: crate::archetype::HitboxMode =
+    crate::archetype::HitboxMode::Archetypes;
+
 impl SimConfig {
-    /// P-SIM-LIVE-CONTENT-1 STUB (compile-only surface; the implementer replaces the body): the content world the live
-    /// server plays, every content field including the live hitbox mode. Returns `SimConfig::default()` until then, so
-    /// the oracle tests compile and fail on their assertions.
+    /// P-SIM-LIVE-CONTENT-1: the content world the live server plays (`--runtime source-arena`), every content field
+    /// including the live hitbox mode. The ONE definition: the server's `Settings::sim` (and its practice room), the
+    /// Brain tournament world and the tuner build on it and set only their own fields (lobby timers, lifecycle, the
+    /// practice overrides, `--hitboxes`). A change to what the live game plays is a line here.
+    ///
+    /// The timers (`min_players`, `lobby_seconds`, `fill_seconds`) are [`SimConfig::default`]'s, which the source-arena
+    /// runtime also defaults to; `lifecycle` is the source arena's default rules. `SimConfig::default()` (the headless,
+    /// parity and test world) is a different world and stays as it is.
     pub fn live_content() -> Self {
-        Self::default()
+        Self {
+            abilities: crate::abilities::Mode::Full,
+            lifecycle: crate::ArenaMode::Source(crate::ArenaRules::default()),
+            initial_loot: true,
+            consumables: true,
+            // Owner decision 2026-11-12: factions keep their home-ground benefits (the legacy rule): Fire is not burned
+            // by embers, Plague is not slowed by bog, Frost does not slide on ice, Holy heals more on healing ground.
+            hazards: crate::terrain::Mode::Map,
+            faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
+            mob_mode: crate::mob_runtime::MobMode::Pve,
+            regen: true,
+            quests: true,
+            walk_hints: Some(true),
+            hitboxes: LIVE_DEFAULT_HITBOXES,
+            // Owner decision 2026-11-10 (legacy f8cd956e): passive regeneration out of combat only (P-REGEN-COMBAT-1).
+            regen_in_combat: RegenInCombat::Off,
+            // Owner decision 2026-11-10 (legacy a7b5c4ce): each zone's camps pay a themed stat, spread evenly and within
+            // reach of every camp (P-CAMP-BUFF-THEMES-1).
+            camp_buffs: CampBuffRule::Themed,
+            frost_wish: FrostWish::Freeze,
+            ..Self::default()
+        }
     }
 }
 
