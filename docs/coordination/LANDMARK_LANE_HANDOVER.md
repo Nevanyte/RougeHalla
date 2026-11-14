@@ -13,7 +13,7 @@ Read with: [LANDMARK_GENERATION_SPEC.md](LANDMARK_GENERATION_SPEC.md) (its updat
 
 | Packet | What | State you inherit |
 |---|---|---|
-| P-MAPGEN-STYLE-REFUSE-1 | A styler that cannot build round its landmark refuses the attempt instead of failing generation (`pipeline/mod.rs:422`, `style_runtime/`, the lanes' door case) | Brief on the integration branch; no oracle. Lands before the church. |
+| P-MAPGEN-STYLE-REFUSE-1 | A styler that cannot build round its landmark refuses the attempt instead of failing generation (`pipeline/mod.rs:422`, `style_runtime/`, the lanes' door case) | **Merged 2026-11-13** (`style_runtime::Error::Landmark` mapped to `Refusal::StyleLandmark` in `pipeline/mod.rs`). |
 | P-MAPGEN-SIG-SCALE-2 | The church with its graveyard and churchyard as the approved 29 x 29 drawing | Brief (amended twice; arrives on the integration branch with the cave merge); no oracle. Its guards are in section 3. |
 | P-MAPGEN-SIG-SCALE-3 | The bog tree as the approved 29 x 29 drawing | Brief; no oracle |
 | P-MAPGEN-SIG-SCALE-4 | The volcano as the approved 30 x 30 drawing, exactly three streams | Brief; no oracle. `style_scorch/` is in its scope. |

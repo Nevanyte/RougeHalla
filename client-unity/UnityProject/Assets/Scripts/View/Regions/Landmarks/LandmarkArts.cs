@@ -7,7 +7,7 @@ namespace Roguehalla.Client
 
     /// <summary>
     /// P-UNITY-LANDMARK-1: the registration point for a kind's art. Follow-up packets add one case to <see cref="TryGet"/>:
-    /// P-UNITY-LANDMARK-2 Volcano, -3 Church, -4 BogTree, -5 Hall; this packet registers Cave only.
+    /// P-UNITY-LANDMARK-2 Volcano and -3 Church are registered; -4 BogTree and -5 Hall are still to come.
     /// </summary>
     public static class LandmarkArts
     {

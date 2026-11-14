@@ -35,8 +35,8 @@ none (DEV-020)
 ## 5. Exclusive write scope
 - new `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` (+ `.meta`)
 - `Landmarks/LandmarkArts.cs`: one `case MapBlob.AnchorKindBogTree` line
-- `Landmarks/Landmark.cs` and `LandmarkView.cs`: only to let an art supply its own cover mask for the fade (today the
-  fade reads the interior set, and a solid tree has no interior); the cave's behaviour and tests must not change
+- the cover seam (an art hands the landmark its own cover set) comes from P-UNITY-LANDMARK-SEAMS-1, which lands first: no
+  framework file is in this packet's scope
 - not `ArenaView.cs`, not `CaveLandmark.cs`, not `Protocol/**`, not `crates/**`, not the blueprints
 - Existing test, changed by the oracle author only (mechanical; the coordinator flags it to the owner):
   `LandmarkViewEditModeTests.TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts` and
