@@ -10,6 +10,12 @@
 //! no decor). Nothing pins an option-on map, hash, attempt number or tile position: the landmark lane changes every
 //! option-on map several times while this packet is open (P-MAPGEN-SIG-RESERVE-1, -SCALE-3).
 //!
+//! P-LAND-PLAGUE-1-fix (brief `docs/backlog/packets/P-LAND-PLAGUE-1-fix.md`): the hard guarantees (pool shape, area and
+//! spacing, the ring, the apron, spawn walks, pads and halos, barrows' rock, no barrow owning bog, clean certification
+//! with the tree) must also hold on a second block of seeds, 33-96, which the pools were not tuned on: the `wide_*`
+//! tests. The statistical rules (budget, barrow share, size by band, all three sizes, worst attempt) stay on seeds
+//! 1-32; the ignored `report_wide` prints their figures for 33-96 and 1-96.
+//!
 //! Definitions (tile units):
 //! * bog: a floor tile (0) whose terrain is the bog code (`signature::DEFAULT_DEFINITION.bog`, 5).
 //! * the tree's bog: bog owned by the `BogTree` feature. Styler bog: every other bog tile of the Plague region (today
@@ -38,6 +44,11 @@ type Cell = (i32, i32);
 
 fn seeds() -> std::ops::RangeInclusive<i64> {
     1..=32
+}
+
+/// P-LAND-PLAGUE-1-fix: the second block of seeds, outside the 32 the pools were tuned on.
+fn wide_seeds() -> std::ops::RangeInclusive<i64> {
+    33..=96
 }
 
 /// The attempts `certified_styled` may use (`pipeline` rules, `certified_attempts`).
@@ -188,32 +199,48 @@ fn land(generator: &pipeline::Pipeline<'_>, seed: i64) -> Landed {
     )
 }
 
+fn land_range(range: std::ops::RangeInclusive<i64>) -> Vec<Landed> {
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    range.map(|seed| land(&generator, seed)).collect()
+}
+
+fn off_range(range: std::ops::RangeInclusive<i64>) -> Vec<(i64, GameMapData)> {
+    let fixed = coliseum::fixed_layout();
+    let generator = pipeline::Pipeline::new(&fixed);
+    range
+        .map(|seed| {
+            let m = generator
+                .certified_styled(seed, off_options())
+                .expect("generator error")
+                .unwrap_or_else(|| panic!("seed {seed}: no option-off map"));
+            (seed, m)
+        })
+        .collect()
+}
+
 /// Seeds 1-32 with the option on, generated once per test binary.
 fn maps() -> &'static Vec<Landed> {
     static MAPS: OnceLock<Vec<Landed>> = OnceLock::new();
-    MAPS.get_or_init(|| {
-        let fixed = coliseum::fixed_layout();
-        let generator = pipeline::Pipeline::new(&fixed);
-        seeds().map(|seed| land(&generator, seed)).collect()
-    })
+    MAPS.get_or_init(|| land_range(seeds()))
+}
+
+/// Seeds 33-96 with the option on, generated once per test binary.
+fn wide_maps() -> &'static Vec<Landed> {
+    static MAPS: OnceLock<Vec<Landed>> = OnceLock::new();
+    MAPS.get_or_init(|| land_range(wide_seeds()))
 }
 
 /// Seeds 1-32 with the option off (today's generator, the server's options), generated once per test binary.
 fn off_maps() -> &'static Vec<(i64, GameMapData)> {
     static MAPS: OnceLock<Vec<(i64, GameMapData)>> = OnceLock::new();
-    MAPS.get_or_init(|| {
-        let fixed = coliseum::fixed_layout();
-        let generator = pipeline::Pipeline::new(&fixed);
-        seeds()
-            .map(|seed| {
-                let m = generator
-                    .certified_styled(seed, off_options())
-                    .expect("generator error")
-                    .unwrap_or_else(|| panic!("seed {seed}: no option-off map"));
-                (seed, m)
-            })
-            .collect()
-    })
+    MAPS.get_or_init(|| off_range(seeds()))
+}
+
+/// Seeds 33-96 with the option off, generated once per test binary (the wide report only).
+fn wide_off_maps() -> &'static Vec<(i64, GameMapData)> {
+    static MAPS: OnceLock<Vec<(i64, GameMapData)>> = OnceLock::new();
+    MAPS.get_or_init(|| off_range(wide_seeds()))
 }
 
 fn at(m: &GameMapData, c: Cell) -> Option<usize> {
@@ -576,8 +603,12 @@ fn median(v: &mut [f64]) -> f64 {
 /// 1. Pools are bodies, not crescents: every pool holds a full 5-across disc (inscribed r2 at least `small_core_r2`).
 #[test]
 fn every_styler_pool_holds_a_full_five_across_disc() {
+    verdict("thin pools", &thin_pools(maps()));
+}
+
+fn thin_pools(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         for p in pools(&l.map) {
             let r2 = inscribed_r2(&p);
             if r2 < small_core_r2() {
@@ -593,15 +624,19 @@ fn every_styler_pool_holds_a_full_five_across_disc() {
             }
         }
     }
-    verdict("thin pools", &findings);
+    findings
 }
 
 /// 2. Pool area lies between one full 5-across disc (two overlapping small discs less their rough rims) and five
 ///    12-across discs (four large discs plus their rough rims).
 #[test]
 fn pool_area_lies_between_two_small_discs_and_four_large_discs() {
+    verdict("pool areas", &pool_areas(maps()));
+}
+
+fn pool_areas(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         for p in pools(&l.map) {
             if p.len() < pool_area_min() || p.len() > pool_area_max() {
                 findings.push(format!(
@@ -615,14 +650,18 @@ fn pool_area_lies_between_two_small_discs_and_four_large_discs() {
             }
         }
     }
-    verdict("pool areas", &findings);
+    findings
 }
 
 /// 3. Pools are merged or at least 8 tiles apart.
 #[test]
 fn distinct_pools_are_at_least_eight_tiles_apart() {
+    verdict("pools too close", &pools_too_close(maps()));
+}
+
+fn pools_too_close(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         let ps = pools(&l.map);
         for i in 0..ps.len() {
             for j in i + 1..ps.len() {
@@ -640,7 +679,7 @@ fn distinct_pools_are_at_least_eight_tiles_apart() {
             }
         }
     }
-    verdict("pools too close", &findings);
+    findings
 }
 
 /// 4. Large near the tree, small far: over seeds 1-32 the mean area of near-band pools is at least
@@ -721,8 +760,12 @@ fn all_three_sizes_occur_and_maps_with_three_pools_mix_sizes() {
 ///    not of the pool is floor without terrain, in the Plague zone, outside every camp halo, owned by no feature.
 #[test]
 fn every_pool_has_a_two_tile_ring_of_plain_floor_in_the_zone_off_camp_halos() {
+    verdict("pool rings", &pool_rings(maps()));
+}
+
+fn pool_rings(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         let m = &l.map;
         let halo = halo(m);
         for p in pools(m) {
@@ -765,14 +808,18 @@ fn every_pool_has_a_two_tile_ring_of_plain_floor_in_the_zone_off_camp_halos() {
             }
         }
     }
-    verdict("pool rings", &findings);
+    findings
 }
 
 /// 7. No styler bog in the tree's footprint or its apron (the core band).
 #[test]
 fn no_styler_bog_in_the_tree_footprint_or_its_apron() {
+    verdict("bog in the apron", &bog_in_the_apron(maps()));
+}
+
+fn bog_in_the_apron(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         let a = anchor(l.seed, &l.map);
         let inside: Vec<Cell> = styler_bog(&l.map)
             .into_iter()
@@ -787,7 +834,7 @@ fn no_styler_bog_in_the_tree_footprint_or_its_apron() {
             ));
         }
     }
-    verdict("bog in the apron", &findings);
+    findings
 }
 
 /// Pools keep off spawn routes and camp clearings: from every Plague spawn the walk to the coliseum (4-connected
@@ -795,8 +842,12 @@ fn no_styler_bog_in_the_tree_footprint_or_its_apron() {
 /// lies on a spawn pad (5x5) or in a camp halo.
 #[test]
 fn pools_keep_off_spawn_walks_spawn_pads_and_camp_halos() {
+    verdict("pools on routes or clearings", &pools_on_routes(maps()));
+}
+
+fn pools_on_routes(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         let m = &l.map;
         let (halo, pads) = (halo(m), spawn_pads(m));
         let detours = bog_detours(m);
@@ -817,7 +868,7 @@ fn pools_keep_off_spawn_walks_spawn_pads_and_camp_halos() {
             ));
         }
     }
-    verdict("pools on routes or clearings", &findings);
+    findings
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -851,20 +902,11 @@ fn bog_share_of_free_ground_stays_within_a_fifth_of_todays() {
 ///    barrows.
 #[test]
 fn barrows_keep_their_rock_and_their_number() {
-    let mut findings = Vec::new();
+    let mut findings = barrows_without_rock(maps());
     let (mut on_total, mut off_total) = (0, 0);
     for (l, (_, off)) in maps().iter().zip(off_maps()) {
-        let bs = barrows(&l.map);
-        on_total += bs.len();
+        on_total += barrows(&l.map).len();
         off_total += barrows(off).len();
-        for (k, walls, _) in bs {
-            if walls < certify::rules::R.piece_min {
-                findings.push(format!(
-                    "seed {}: barrow feature {k} owns {walls} wall tiles",
-                    l.seed
-                ));
-            }
-        }
     }
     if 100 * on_total < barrow_share_min() * off_total {
         findings.push(format!(
@@ -873,6 +915,21 @@ fn barrows_keep_their_rock_and_their_number() {
         ));
     }
     verdict("barrows", &findings);
+}
+
+fn barrows_without_rock(maps: &[Landed]) -> Vec<String> {
+    let mut findings = Vec::new();
+    for l in maps {
+        for (k, walls, _) in barrows(&l.map) {
+            if walls < certify::rules::R.piece_min {
+                findings.push(format!(
+                    "seed {}: barrow feature {k} owns {walls} wall tiles",
+                    l.seed
+                ));
+            }
+        }
+    }
+    findings
 }
 
 /// Measured (brief section 12, on the reserved sites): option on today holds 312 of the 397 option-off barrows (79%)
@@ -886,8 +943,12 @@ fn barrow_share_min() -> usize {
 ///     tunnel, is unchanged).
 #[test]
 fn no_barrow_owns_bog() {
+    verdict("barrows owning bog", &barrows_owning_bog(maps()));
+}
+
+fn barrows_owning_bog(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         for (k, _, wet) in barrows(&l.map) {
             if wet > 0 {
                 findings.push(format!(
@@ -897,7 +958,7 @@ fn no_barrow_owns_bog() {
             }
         }
     }
-    verdict("barrows owning bog", &findings);
+    findings
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -908,8 +969,12 @@ fn no_barrow_owns_bog() {
 ///     bog.
 #[test]
 fn maps_certify_clean_and_keep_the_tree() {
+    verdict("certification and the tree", &certify_and_tree(maps()));
+}
+
+fn certify_and_tree(maps: &[Landed]) -> Vec<String> {
     let mut findings = Vec::new();
-    for l in maps() {
+    for l in maps {
         let m = &l.map;
         let c = certify::certify(
             m,
@@ -937,7 +1002,7 @@ fn maps_certify_clean_and_keep_the_tree() {
         }
         anchor(l.seed, m);
     }
-    verdict("certification and the tree", &findings);
+    findings
 }
 
 /// Attempts stay bounded: the worst attempt index over seeds 1-32 is at most 8.
@@ -986,6 +1051,85 @@ fn option_off_maps_are_todays() {
             "seed {seed}: decor moved the bog"
         );
     }
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+// P-LAND-PLAGUE-1-fix: the hard guarantees on seeds 33-96 (the same checks and bounds as above, on maps the pools were
+// not tuned on). Each map set is generated once per test binary; a guarantee is a property of every map, so no seed is
+// named here.
+// --------------------------------------------------------------------------------------------------------------------
+
+/// Test 1 on seeds 33-96: every pool holds a full 5-across disc.
+#[test]
+fn wide_every_styler_pool_holds_a_full_five_across_disc() {
+    verdict("thin pools, seeds 33-96", &thin_pools(wide_maps()));
+}
+
+/// Test 2 on seeds 33-96: pool area between one full 5-across disc and five 12-across discs.
+#[test]
+fn wide_pool_area_lies_between_two_small_discs_and_four_large_discs() {
+    verdict("pool areas, seeds 33-96", &pool_areas(wide_maps()));
+}
+
+/// Test 3 on seeds 33-96: pools are merged or at least 8 tiles apart.
+#[test]
+fn wide_distinct_pools_are_at_least_eight_tiles_apart() {
+    verdict(
+        "pools too close, seeds 33-96",
+        &pools_too_close(wide_maps()),
+    );
+}
+
+/// Test 6 on seeds 33-96: the two-tile ring of plain floor (this also answers review note 3: no ring tile is owned).
+#[test]
+fn wide_every_pool_has_a_two_tile_ring_of_plain_floor_in_the_zone_off_camp_halos() {
+    verdict("pool rings, seeds 33-96", &pool_rings(wide_maps()));
+}
+
+/// Test 7 on seeds 33-96: no styler bog in the tree's footprint or apron.
+#[test]
+fn wide_no_styler_bog_in_the_tree_footprint_or_its_apron() {
+    verdict(
+        "bog in the apron, seeds 33-96",
+        &bog_in_the_apron(wide_maps()),
+    );
+}
+
+/// The walk test on seeds 33-96: no Plague spawn's walk to the coliseum grows by more than `walk_detour_max` steps when
+/// styler bog is avoided, and no styler bog on a spawn pad or in a camp halo. A hard guarantee (owner: pools keep off
+/// spawn routes): a map that breaks it must never be served, on any seed.
+#[test]
+fn wide_pools_keep_off_spawn_walks_spawn_pads_and_camp_halos() {
+    verdict(
+        "pools on routes or clearings, seeds 33-96",
+        &pools_on_routes(wide_maps()),
+    );
+}
+
+/// Test 9's per-barrow rule on seeds 33-96: every Plague barrow keeps its rock (the share of barrows is a figure of the
+/// wide report, not a check).
+#[test]
+fn wide_barrows_keep_their_rock() {
+    verdict("barrows, seeds 33-96", &barrows_without_rock(wide_maps()));
+}
+
+/// Test 9b on seeds 33-96: no barrow owns bog.
+#[test]
+fn wide_no_barrow_owns_bog() {
+    verdict(
+        "barrows owning bog, seeds 33-96",
+        &barrows_owning_bog(wide_maps()),
+    );
+}
+
+/// Test 10 on seeds 33-96: every accepted map certifies clean under the strict certifier and keeps its bog tree with
+/// its own bog. (`land` already fails a seed that gives no map in `attempt_limit` attempts.)
+#[test]
+fn wide_maps_certify_clean_and_keep_the_tree() {
+    verdict(
+        "certification and the tree, seeds 33-96",
+        &certify_and_tree(wide_maps()),
+    );
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -1159,13 +1303,99 @@ fn greedy_capacity(
 #[test]
 #[ignore]
 fn report_seeds_1_to_32() {
-    let mut cols: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    tally(maps(), off_maps()).print("seeds 1-32");
+}
+
+/// P-LAND-PLAGUE-1-fix: the same figures for the seeds the pools were not tuned on (33-96) and for all of 1-96: per
+/// seed rows of 33-96, then the summary of 33-96, then the summary of 1-96. Slow (two blocks of maps and M5's greedy
+/// packing per seed); a release build is advised.
+#[test]
+#[ignore]
+fn report_wide() {
+    let mut wide = tally(wide_maps(), wide_off_maps());
+    wide.print("seeds 33-96");
+    let mut all = Tally::quiet(maps(), off_maps());
+    all.add(wide);
+    all.print("seeds 1-96");
+}
+
+/// The report's accumulators over one block of seeds.
+#[derive(Default)]
+struct Tally {
+    cols: BTreeMap<String, Vec<f64>>,
+    refused: BTreeMap<String, usize>,
+    by_band: BTreeMap<String, (usize, usize)>,
+    close_pairs: [usize; 2],
+    sizes_seen: BTreeMap<String, usize>,
+}
+
+impl Tally {
+    /// The tally of a block without its per-seed rows.
+    fn quiet(on: &[Landed], off: &[(i64, GameMapData)]) -> Tally {
+        tally_rows(on, off, false)
+    }
+
+    fn add(&mut self, other: Tally) {
+        for (k, v) in other.cols {
+            self.cols.entry(k).or_default().extend(v);
+        }
+        for (k, n) in other.refused {
+            *self.refused.entry(k).or_default() += n;
+        }
+        for (k, (n, a)) in other.by_band {
+            let e = self.by_band.entry(k).or_default();
+            e.0 += n;
+            e.1 += a;
+        }
+        self.close_pairs[0] += other.close_pairs[0];
+        self.close_pairs[1] += other.close_pairs[1];
+        for (k, n) in other.sizes_seen {
+            *self.sizes_seen.entry(k).or_default() += n;
+        }
+    }
+
+    fn print(&mut self, label: &str) {
+        eprintln!("== summary, {label} (min / median / max) ==");
+        for (k, v) in &mut self.cols {
+            summary(k, v);
+        }
+        eprintln!(
+            "M3 pairs of pieces closer than {}: on {} off {}",
+            pool_gap_min(),
+            self.close_pairs[0],
+            self.close_pairs[1]
+        );
+        for (b, (n, area)) in &self.by_band {
+            eprintln!(
+                "M4 band {b}: {n} pieces, mean area {:.1}",
+                *area as f64 / *n as f64
+            );
+        }
+        eprintln!("size classes of today's pieces: {:?}", self.sizes_seen);
+        eprintln!(
+            "refusals before the accepted attempt (option on): {:?}",
+            self.refused
+        );
+    }
+}
+
+/// The tally of a block, printing one row per seed.
+fn tally(on: &[Landed], off: &[(i64, GameMapData)]) -> Tally {
+    tally_rows(on, off, true)
+}
+
+fn tally_rows(on: &[Landed], off_maps: &[(i64, GameMapData)], rows: bool) -> Tally {
+    let mut t = Tally::default();
+    let Tally {
+        cols,
+        refused,
+        by_band,
+        close_pairs,
+        sizes_seen,
+    } = &mut t;
     let mut push = |k: &str, v: f64| cols.entry(k.to_string()).or_default().push(v);
-    let mut refused: BTreeMap<String, usize> = BTreeMap::new();
-    let mut by_band: BTreeMap<String, (usize, usize)> = BTreeMap::new();
-    let mut close_pairs = [0usize; 2];
-    let mut sizes_seen: BTreeMap<String, usize> = BTreeMap::new();
-    for (l, (_, off)) in maps().iter().zip(off_maps()) {
+    for (l, (seed, off)) in on.iter().zip(off_maps) {
+        assert_eq!(l.seed, *seed);
         let m = &l.map;
         let a = anchor(l.seed, m);
         for r in &l.refusals {
@@ -1333,25 +1563,11 @@ fn report_seeds_1_to_32() {
             boff.len(),
             bon.iter().filter(|b| b.2 > 0).count()
         );
-        eprintln!("{row}");
+        if rows {
+            eprintln!("{row}");
+        }
     }
-    for (k, v) in &mut cols {
-        summary(k, v);
-    }
-    eprintln!(
-        "M3 pairs of pieces closer than {}: on {} off {}",
-        pool_gap_min(),
-        close_pairs[0],
-        close_pairs[1]
-    );
-    for (b, (n, area)) in &by_band {
-        eprintln!(
-            "M4 band {b}: {n} pieces, mean area {:.1}",
-            *area as f64 / *n as f64
-        );
-    }
-    eprintln!("size classes of today's pieces: {sizes_seen:?}");
-    eprintln!("refusals before the accepted attempt (option on): {refused:?}");
+    t
 }
 
 /// One sheet line per tile row of the Plague zone's bounding box (`SHEET` header, then `SHEET|` rows). Characters:
