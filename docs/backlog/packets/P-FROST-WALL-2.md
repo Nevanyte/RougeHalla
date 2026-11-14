@@ -201,8 +201,50 @@ wire code, if wanted, belong with or after P-FROST-WALL-2a: **flagged to the coo
   `run "JS frost wall vectors" node tools/protocol-js/check-frost-wall.mjs`).
 
 ## Oracle files (read-only for implementers)
-- this brief
-- (listed with each `oracle:` commit below)
+- `docs/backlog/packets/P-FROST-WALL-2.md` (this brief)
+- `crates/rh-sim/tests/frost_wall_observe.rs` (8 tests: 7 red, 1 green guard): a viewer seeing the wall gets it with
+  tiles, owner, segment and 4000 ms; one seeing none of it gets neither wall nor landing centre (and the near viewer
+  does get the centre); the first-end rule (legacy) both ways; an unseated viewer; the public snapshot; it falls and
+  leaves every observation; Freeze guard; `OBSERVATION_VERSION` 30.
+- `crates/rh-protocol/tests/frost_wall_wire.rs` (11 tests: 9 red, 2 green guards): constants; the layout by a
+  hand-written builder; the caps (64 tiles, the last index, one tile); decoder refusals (kind 4, count 0, count 65,
+  truncated list, tile >= MAX_MAP_TILES, repeated, descending); encoder refusals; 512 walls of 64 tiles fit a frame;
+  vectors `state_frost_wall`, `state_frost_wall_max`, `welcome_frost_wall` (and `welcome` with all 30 codes) by value;
+  malformed `state_field_kind_unknown`, `state_wall_tiles_zero`, `state_wall_tiles_over`, `state_wall_tiles_truncated`,
+  `state_wall_tile_off_map`, `state_wall_tile_order`, and `welcome_hud_term_code` moved to code 30. Guards: protocol 17;
+  other kinds keep their bytes.
+- `client-unity/RoguehallaNet.Tests/FrostWallProtocolTests.cs` (8 tests, all red): the same rows, refusals with the Rust
+  reasons, encoder refusals, the three vectors and the six malformed ones from `v17.json`.
+- `tools/protocol-js/check-frost-wall.mjs` (fails at its first check): the probe's JSON for a wall row (`tiles` after
+  `endsAt`, no `tiles` key on other kinds), refusals, the vectors, Welcome codes 0..29.
+- `crates/rh-policy/tests/frost_wall_delivery.rs` (4 tests: 3 red, 1 green guard): a real sim's wall through
+  `CollectionPublisher` into key 3 and a seat's `CollectionView` with its tiles; Freeze guard; `wire_hud_for` (every code,
+  23 = 0/1, the six numbers; `wire_hud() == wire_hud_for(Freeze)`; the block encodes); identities 30/24.
+- `crates/rh-server/tests/frost_wall_welcome.rs` (1 test, red): a room's Welcome carries `wire_hud_for(its frost_wish)`.
+
+Stub commits (the implementer's to replace): `crates/rh-sim/src/status_runtime/observe.rs` (`FieldView.tiles`, filled with
+nothing), `crates/rh-sim/src/actor_refs/tests.rs` and `crates/rh-protocol/tests/state.rs` (struct literals gain
+`tiles: Vec::new()`; no assertion changed), `crates/rh-protocol/src/state.rs` (`WireField.tiles`, no `Copy`, the kind
+codes with `FIELD_KIND_COUNT` still 3, `MAX_WALL_TILES`), `crates/rh-protocol/src/hud_content.rs` (codes 23-29 and
+`FROST_WISH_*`; `HUD_TERM_COUNT` still 23), `crates/rh-protocol/src/samples.rs` (literals), `crates/rh-policy/src/
+delivery/{collections.rs, projection.rs}` (`tiles: Vec::new()`; `wire_hud_for` returning `wire_hud()`), C#
+`Protocol/State.cs` (`WireField.Tiles`, `FieldsState.Kind*`, `KindCount` still 3, `MaxWallTiles`) and
+`Protocol/WireHudContent.cs` (`HudTerm` codes 23-29; `TermCount` still 23), with the synced Unity copy.
+
+## Baseline (on `packet/P-FROST-WALL-2`, before any implementation)
+Every red test fails on an assertion, an `expect` of today's refusal, or a missing named vector (the fixture file
+exists; the vector is absent: an assertion in each harness), never on a compile error:
+- `cargo test -p rh-sim --test frost_wall_observe`: 7 failed ("slot 0 sees the standing wall: []", version 29 != 30, ...).
+- `cargo test -p rh-protocol --test frost_wall_wire`: 9 failed (`FIELD_KIND_COUNT` 3 != 4; count 0 decodes as
+  `BadField("field")`; the encoder refuses the wall row as `"field"`; "missing server vector state_frost_wall").
+- `dotnet test client-unity/RoguehallaNet.Tests --filter FrostWallProtocolTests`: 7 failed of 8, all red but the
+  trail-bytes check (`OtherKindsCarryNoTileList` passes: a guard).
+- `node tools/protocol-js/check-frost-wall.mjs`: "a wall row is refused: bad field".
+- `cargo test -p rh-policy --test frost_wall_delivery`: 3 failed ("one wall row in key 3: []", 29 != 30, "the block
+  carries FrostWallRange").
+- `cargo test -p rh-server --test frost_wall_welcome`: 1 failed (`None` != `Some(0.0)`).
+- Satisfiable: the observation tests were run against a dry-run of the two filters removed and the barrier tiles copied
+  (reverted before commit): every test passed once the rig stepped past the 30 s sight memory.
 
 ## 9. Validation commands
 `export PATH="$HOME/.cargo/bin:$HOME/.dotnet:$PATH"`, then
