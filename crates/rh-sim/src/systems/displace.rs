@@ -27,12 +27,14 @@ pub(crate) fn apply(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: Pla
         execute(k, w, pf, id, to)
     }
 }
+/// Moves any fighter, a player or a mob (legacy `displace` takes a `Combatant`; a rising Frost Wall sets mobs down too,
+/// P-FROST-WALL-1b).
 fn execute(k: &MatchStatic, w: &mut World, pf: &mut Pathfinder, id: PlayerId, to: Vec2) {
     let now = w.server_time;
     let held = crate::barriers::held(w);
     let gates_locked = w.rt.gates_locked;
-    if let Some(i) = w.idx(id) {
-        let p = &mut w.players[i];
+    if let Some(ix) = w.fighter_idx(id) {
+        let p = w.core_mut(ix);
         let goal = p.motion.path.as_slice().last().copied();
         p.body.x = to.x;
         p.body.y = to.y;

@@ -125,6 +125,122 @@ pub fn wall_cells(map: &TileMap, seg: &WallSegment, out: &mut Vec<u32>) {
     }
 }
 
+// ---- The push-out of a rising wall (P-FROST-WALL-1b; legacy 78dd8bd4 `abilities.ts:532-616` `raiseWall`) ----
+//
+// The search's numbers are legacy's module-local `WALL_PUSH_STEP = 4` and `WALL_PUSH_MAX = 96` (`:532-533`) and the gap's
+// `PLAYER_RADIUS + 32` (`:585`). They are literals inside the functions below, not consts: they are read only under
+// `SimConfig::frost_wish = Wall` and stay out of `content_hash` with the other wall numbers until P-FROST-WALL-2.
+
+/// The wall's unit normal, pointing away from the caster (legacy `raiseWall` `nx`, `ny`): from where the caster stood to
+/// the wall's centre, along the caster's facing when that is shorter than 1 u (or not a number).
+pub(crate) fn wall_normal(seg: &WallSegment, origin: Vec2, facing: f64) -> (f64, f64) {
+    let mut nx = seg.cx - origin.x;
+    let mut ny = seg.cy - origin.y;
+    let nd = crate::math::sqrt(nx * nx + ny * ny);
+    if nd >= 1. {
+        nx /= nd;
+        ny /= nd;
+    } else {
+        nx = crate::math::cos(facing);
+        ny = crate::math::sin(facing);
+    }
+    (nx, ny)
+}
+
+/// Does a body at `p` touch one of `cells` (legacy `raiseWall` `overlaps`)? Any of the tiles under the box of half-side
+/// `PLAYER_RADIUS + 1` round `p`, whatever the fighter's hitbox. `w` is the map's width in tiles; an index off the map's
+/// row wraps as legacy's `ty * w + tx` does, and only ever names a tile `cells` holds.
+pub(crate) fn overlaps(cells: &[u32], w: u32, p: Vec2) -> bool {
+    let r = crate::constants::PLAYER_RADIUS + 1.;
+    let x0 = crate::math::floor_i64((p.x - r) / TILE);
+    let x1 = crate::math::floor_i64((p.x + r) / TILE);
+    let y0 = crate::math::floor_i64((p.y - r) / TILE);
+    let y1 = crate::math::floor_i64((p.y + r) / TILE);
+    for ty in y0..=y1 {
+        for tx in x0..=x1 {
+            let i = ty * i64::from(w) + tx;
+            if u32::try_from(i).is_ok_and(|i| cells.binary_search(&i).is_ok()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Where a fighter at `p` that the wall's `cells` land on is set down (legacy `raiseWall` `:574-582`): from its spot
+/// projected onto the wall's line, outward along the normal `n` in steps of 4 up to 96, first on its own side (the
+/// caster's side for the caster, the far side for one exactly on the line), then on the other; the first spot whose body
+/// touches no wall tile and whose disc is clear on `before` (the map without this wall). `None`: no room on either side.
+pub(crate) fn set_down(
+    before: &TileMap,
+    cells: &[u32],
+    w: u32,
+    seg: &WallSegment,
+    (nx, ny): (f64, f64),
+    p: Vec2,
+    caster: bool,
+) -> Option<Vec2> {
+    let (step, max) = (4., 96.);
+    let along = (p.x - seg.cx) * nx + (p.y - seg.cy) * ny;
+    let first: f64 = if caster {
+        -1.
+    } else if along >= 0. {
+        1.
+    } else {
+        -1.
+    };
+    for side in [first, -first] {
+        let bx = p.x - along * nx;
+        let by = p.y - along * ny;
+        let mut d = step;
+        while d <= max {
+            let q = Vec2::new(bx + nx * side * d, by + ny * side * d);
+            if !overlaps(cells, w, q)
+                && crate::geometry::circle_clear(
+                    before,
+                    q,
+                    crate::constants::PLAYER_RADIUS,
+                    crate::map::MASK_MOVE,
+                )
+            {
+                return Some(q);
+            }
+            d += step;
+        }
+    }
+    None
+}
+
+/// The gap a fighter at `p` with no room on either side keeps (legacy `raiseWall` `:585-590`): every cell whose tile
+/// centre is within `PLAYER_RADIUS + 32` of `p` on both axes (a square) leaves the wall. The rest stay ascending.
+pub(crate) fn keep_gap(cells: &mut Vec<u32>, w: u32, p: Vec2) {
+    let r = crate::constants::PLAYER_RADIUS + 32.;
+    cells.retain(|&i| {
+        let px = f64::from(i % w) * TILE + TILE / 2.;
+        let py = f64::from(i / w) * TILE + TILE / 2.;
+        !((px - p.x).abs() <= r && (py - p.y).abs() <= r)
+    });
+}
+
+/// Does the walk from `from` along `path` run into anything on `map` (legacy `raiseWall` `:605-610`: each leg tested with
+/// `segmentClear(after, from, p, PLAYER_RADIUS)`)?
+pub(crate) fn walk_blocked(map: &TileMap, from: Vec2, path: &[Vec2]) -> bool {
+    let mut from = from;
+    for &p in path {
+        if !crate::geometry::segment_clear(
+            map,
+            from,
+            p,
+            crate::constants::PLAYER_RADIUS,
+            crate::map::MASK_MOVE,
+        ) {
+            return true;
+        }
+        from = p;
+    }
+    false
+}
+
 /// One standing barrier: the wall field it belongs to and its tiles (ascending row-major indices, FLOOR on the open map).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]

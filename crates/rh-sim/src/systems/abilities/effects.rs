@@ -265,8 +265,13 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
 /// Raises a barrier (legacy 78dd8bd4 `raiseWall`) square to the line from where the caster stood as its effects began
 /// to its (cast-time clamped) aim point, measured again with the range slack. Its tiles are the FLOOR tiles under it on
 /// the map bodies read now (gates, and any wall already standing, excluded). The wall outlives its caster and falls at
-/// its time, the teleport or the run's end. Setting down fighters it lands on and re-planning walks already under way
-/// are P-FROST-WALL-1b.
+/// its time, the teleport or the run's end.
+///
+/// P-FROST-WALL-1b (legacy `raiseWall` `:556-613`): every standing fighter (quest givers excepted) the wall would trap is
+/// set down clear of it on its own side ([`crate::barriers::set_down`]); one with no room on either side keeps a gap
+/// round it ([`crate::barriers::keep_gap`]); a wall left with no tile is not raised. Then the field and its row are added,
+/// the fighters found a spot are displaced in fighter order, and every other standing fighter whose walk now runs into
+/// the ice plans it again to its last waypoint (an unreachable goal leaves it an empty path: it stops).
 fn raise_wall(cx: &mut Cx, l: Landing, src: StatusSource, ms: f64, length: f64) {
     let a::Target::Placed { range, min_range } =
         a::definition_for(&cx.k.config, l.cast.ability).target
@@ -287,11 +292,38 @@ fn raise_wall(cx: &mut Cx, l: Landing, src: StatusSource, ms: f64, length: f64) 
         length,
         facing,
     );
+    let k = cx.k;
     let mut cells = Vec::new();
+    // Fighters the wall lands on, and where each is set down, in fighter order (players, then mobs).
+    let mut moves: Vec<(PlayerId, Vec2)> = Vec::new();
     {
         let held = crate::barriers::held(cx.w);
-        let before = crate::barriers::body_map(cx.k, &held, cx.w.rt.gates_locked);
+        let before = crate::barriers::body_map(k, &held, cx.w.rt.gates_locked);
         crate::barriers::wall_cells(before, &seg, &mut cells);
+        if cells.is_empty() {
+            return;
+        }
+        let width = before.w;
+        let normal = crate::barriers::wall_normal(&seg, l.origin, facing);
+        for i in 0..cx.w.fighter_count() {
+            let ix = FighterIx::of_slot(i);
+            if !cx.w.standing(ix)
+                || (!cx.w.is_player(ix)
+                    && cx.w.mobs[i - cx.w.players.len()].kind
+                        == crate::mob_runtime::MobKind::QuestGiver)
+            {
+                continue;
+            }
+            let c = cx.w.core(ix);
+            let p = c.pos();
+            if !crate::barriers::overlaps(&cells, width, p) {
+                continue;
+            }
+            match crate::barriers::set_down(before, &cells, width, &seg, normal, p, c.id == l.id) {
+                Some(to) => moves.push((c.id, to)),
+                None => crate::barriers::keep_gap(&mut cells, width, p),
+            }
+        }
     }
     if cells.is_empty() {
         return;
@@ -314,7 +346,33 @@ fn raise_wall(cx: &mut Cx, l: Landing, src: StatusSource, ms: f64, length: f64) 
             .0
             .push(crate::barriers::Barrier { field: id, cells });
     }
-    crate::barriers::sync(cx.k, cx.w);
+    crate::barriers::sync(k, cx.w);
+    // `displace` re-plans a walk in hand on the new map; everyone else whose walk now runs into the ice plans it again.
+    for &(id, to) in &moves {
+        super::super::displace::apply(k, cx.w, cx.pf, id, to);
+    }
+    let held = crate::barriers::held(cx.w);
+    let after = crate::barriers::body_map(k, &held, cx.w.rt.gates_locked);
+    for i in 0..cx.w.fighter_count() {
+        let ix = FighterIx::of_slot(i);
+        if !cx.w.standing(ix) {
+            continue;
+        }
+        let c = cx.w.core(ix);
+        let path = c.motion.path.as_slice();
+        let Some(&goal) = path.last() else {
+            continue;
+        };
+        if moves.iter().any(|m| m.0 == c.id) || !crate::barriers::walk_blocked(after, c.pos(), path)
+        {
+            continue;
+        }
+        let (from, foot) = (c.pos(), c.foot());
+        cx.w.core_mut(ix)
+            .motion
+            .path
+            .replan(cx.pf, after, from, goal, foot);
+    }
 }
 
 #[cfg(test)]
