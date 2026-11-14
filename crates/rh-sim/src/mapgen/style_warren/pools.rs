@@ -3,12 +3,13 @@
 //! zone's `BogTree` (`pipeline::Options::signature`); option off never calls this file.
 //!
 //! A pool is two to four overlapping discs of one size (small, medium, large), each disc's rim roughened by stateless
-//! noise (the core is never eaten), owned by one `BogPool` feature. Each pool keeps a ring of plain floor round it,
+//! noise (the core is never eaten), laid as one `BogPool` feature. Each pool keeps a ring of plain floor round it,
 //! reserved so no barrow rock or floor claim lands there (`rh-mapdress` lays water and mud in it). Two pools are merged
 //! (one body) or `gap` tiles apart. Pools keep off the route guard's corridor, the camp clearings and halos, the spawn
 //! pads, the tree's apron and, where they can, the rock of the barrows today's rule would site. Bands are filled
 //! nearest first, each with its own sizes; while the zone holds less than its bog budget, pools of two to four more
-//! discs are then laid merged onto the pools already standing.
+//! discs are then laid merged onto the pools already standing, each of them a `BogPool` of its own: a merged body has
+//! several owners, so a reader finds a pool as a 4-connected piece of styler bog, not as one feature.
 //!
 //! Draws: only the styler's own shape stream (`c.streams.rng`), nine per pool slot (disc count, then four
 //! parent/direction pairs), in laying order; candidate order and rough rims are stateless noise.

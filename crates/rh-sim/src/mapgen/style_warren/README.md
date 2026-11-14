@@ -48,8 +48,9 @@ Set `RH_STYLE_WARREN_OUTPUT` to write or check a separate capture destination; t
 checked-in `style-warren.json` fixture.
 
 Signature mode (P-LAND-PLAGUE-1, no legacy counterpart, `pipeline::Options::signature` only): when the zone holds
-the bog tree, `pools.rs` lays the bog as free pools of overlapping rough discs by band round the tree (one `BogPool`
-feature each, a reserved ring of plain floor round each pool), keeping off the rock today's rule would site where it
+the bog tree, `pools.rs` lays the bog as free pools of overlapping rough discs by band round the tree (each laid as one
+`BogPool` feature; discs merged onto a standing pool are a further feature, so one body of bog may have several
+owners; a reserved ring of plain floor round each pool), keeping off the rock today's rule would site where it
 can; the barrows are then sited by today's rule with no crescent on what the pools leave. That path draws from the
 shape stream; with the option off nothing in it runs and the legacy capture above is unchanged. Its tunables are
 `pools::POOLS`, outside `visit_content`.

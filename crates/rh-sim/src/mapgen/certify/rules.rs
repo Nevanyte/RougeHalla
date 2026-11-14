@@ -160,7 +160,8 @@ pub const KINDS: [Kind; 13] = [
         jobs: &[J::Cover],
     },
 ];
-/// The signature landmarks' kinds (P-MAPGEN-SIGNATURE-CORE-1; no legacy counterpart), kept apart from the legacy
+/// The signature-mode kinds: the seven signature landmarks' kinds (P-MAPGEN-SIGNATURE-CORE-1; no legacy counterpart)
+/// and one styler kind, the Plague styler's `BogPool` (P-LAND-PLAGUE-1), eight rows in all, kept apart from the legacy
 /// table above so that table, and `content_hash`, stay the source's own: only maps generated with
 /// `pipeline::Options::signature` (default off) carry these kinds. No params; the map's anchor carries their geometry.
 ///
@@ -176,9 +177,10 @@ pub const KINDS: [Kind; 13] = [
 /// lakes are numbered by its plan. Ice must still keep floor on all eight sides (`ice-neighbours`) and stay off camp
 /// clearings and halos (`terrain-protected`).
 ///
-/// Plague (P-LAND-PLAGUE-1): `BogPool` is one free pool of the Plague styler in signature mode: owned floor carrying
+/// Plague (P-LAND-PLAGUE-1): `BogPool` is free bog of the Plague styler in signature mode: owned floor carrying
 /// terrain bog (owning it is what `feature-hazards` asks of hazard floor in a strict zone). No wall, no LOW, terrain 0
-/// (the row's terrain binds LOW tiles only), no params, job crossing.
+/// (the row's terrain binds LOW tiles only), no params, job crossing. A pool laid on its own is one feature; discs
+/// merged onto a standing pool are a further `BogPool`, so one 4-connected body of bog may have several owners.
 pub const SIGNATURE_KINDS: [Kind; 8] = [
     Kind {
         kind: K::BogTree,
