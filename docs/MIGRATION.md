@@ -25,6 +25,15 @@ coordinates picks base stone, a lighter grey, a brown or a purple; DEV-033). Sho
 tints, the owner said: **"New sentenced floor looks good"**: DEV-033 is recorded as signed on that. Still owed: before
 and after screenshots from the running client.
 
+**Landmark roofs (the same night).** Round 9 showed the cave's roof still open 30 s after the player left. The cause,
+by reading: the roof fades for any actor the server is delivering, and the camp's mobs stay delivered through the
+mouth (to about 7 to 10 tiles) and, for 30 s, through the walls by the reveal trail. The coordinator put three
+options (partial fade; the local player only; leave as is); the owner answered: **"1, fade to about 10% (mostly see
+through) still should roughly see the fact that you are in the cave"**. Rule from here, for every landmark roof and
+canopy: the local player under it, about 10 percent (still faintly there); only other visible actors under it, about
+half; nobody, opaque. P-UNITY-LANDMARK-ROOF-RETURN-1; the one existing test that pinned "any visible actor fades it
+fully" is amended to the ruling.
+
 **What follows.** The zones' look in the running client stands. P-UNITY-ZONE-CONTRAST-1, briefed from the dark renders,
 is withdrawn unbuilt. Kept as a preference for when the bog tree is redrawn: Plague may lean toward a sunny southern
 swamp. The coordinator's rule from here: no picture from a capture tool goes to the owner before it has been compared
