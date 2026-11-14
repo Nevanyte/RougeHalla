@@ -16,18 +16,16 @@ namespace Roguehalla.Client
         // ---- looks-only dials (docs/unity/DIALS.md) ----
         /// <summary>Legacy ice colours (FieldView.ts WALL_TOP, WALL_FRONT, WALL_EDGE) and the preview's invalid tint
         /// (AbilityAim.ts 0xef5350).</summary>
-        public static readonly Color32 TopColor = new Color32(0xe1, 0xf5, 0xfe, 0xff);
+        public static readonly Color32 TopColor = new Color32(0xf1, 0xfb, 0xff, 0xff);
         // P-UNITY-FROST-WALL-READ-1: a deeper, more saturated face and a dark navy outline, same ice-blue hue family (legacy 4fc3f7 and 0288d1
         // sit too close to Frost's pale ground); the preview's own fixed colours (the faction tint is too close to the ground).
-        // The unlit sprite material shows a vertex colour lifted (about the sRGB encode of the byte: 0b3a66 renders near 4e86af), so the darks below are
-        // written very dark on purpose: they are what a player sees as mid-dark ice, outline and red.
-        public static readonly Color32 FaceColor = new Color32(0x0f, 0x67, 0xca, 0xff);
-        public static readonly Color32 EdgeColor = new Color32(0x02, 0x16, 0x38, 0xff);
-        public static readonly Color32 InvalidTint = new Color32(0xaa, 0x08, 0x10, 0xff);
+        public static readonly Color32 FaceColor = new Color32(0x45, 0xaa, 0xe6, 0xff);
+        public static readonly Color32 EdgeColor = new Color32(0x16, 0x53, 0x81, 0xff);
+        public static readonly Color32 InvalidTint = new Color32(0xd5, 0x32, 0x47, 0xff);
         /// <summary>The valid preview's coloured core, the dark neutral halo under every preview mark, and the crack's darkening and white-hot flash colours.</summary>
-        public static readonly Color32 ValidTint = new Color32(0x0c, 0x78, 0xd2, 0xff);
-        public static readonly Color32 PreviewHaloColor = new Color32(0x03, 0x0c, 0x1e, 0xff), InvalidHaloColor = new Color32(0x50, 0x05, 0x0a, 0xff);
-        public static readonly Color32 CrackColor = new Color32(0x01, 0x06, 0x12, 0xff);
+        public static readonly Color32 ValidTint = new Color32(0x3d, 0xb6, 0xea, 0xff);
+        public static readonly Color32 PreviewHaloColor = new Color32(0x0a, 0x1c, 0x34, 0xff), InvalidHaloColor = new Color32(0x69, 0x0c, 0x04, 0xff);
+        public static readonly Color32 CrackColor = new Color32(0x0d, 0x2a, 0x4b, 0xff);
         public static readonly Color32 CrackHotColor = new Color32(0xff, 0xff, 0xff, 0xff);
         /// <summary>The outline's thickness round each block (sim px) and how strongly the crack darkens the block and flashes its rim (alpha at the end).</summary>
         public const float EdgeWidth = 3f, CrackDarkAlpha = .5f, CrackHotAlpha = .9f;
@@ -43,7 +41,7 @@ namespace Roguehalla.Client
             PreviewLineAlpha = .95f, PreviewDotAlpha = .95f, PreviewRingAlpha = .9f, PulseSpeed = .008f;
         /// <summary>Preview marks are two or three tones: a dark halo (alpha for tile outlines, line and dot; for the big reach ring), then white, then the
         /// colour (outline: halo and white only). Widths in sim px: halo, white, colour, tile-outline halo, tile-outline white.</summary>
-        public const float PreviewHaloAlpha = .9f, PreviewRingHaloAlpha = .8f, PreviewHaloWidth = 5f, PreviewMidWidth = 3.2f, PreviewCoreWidth = 1.6f,
+        public const float PreviewHaloAlpha = 1f, PreviewRingHaloAlpha = .8f, PreviewHaloWidth = 5f, PreviewMidWidth = 3.2f, PreviewCoreWidth = 1.6f,
             PreviewOutlineHaloWidth = 3.6f, PreviewOutlineWidth = 2f;
         /// <summary>Telegraph: line alpha at the start and what the gathering adds, core alpha.</summary>
         public const float TelegraphAlpha = .15f, TelegraphGather = .35f, TelegraphCoreAlpha = .6f;
@@ -62,10 +60,10 @@ namespace Roguehalla.Client
         sealed class QuadMesh
         {
             public readonly GameObject Go; public readonly Mesh Mesh;
-            readonly Vector3[] _v; readonly Color32[] _c; bool _colorsDirty;
+            readonly Vector3[] _v; readonly Color32[] _c; readonly Color[] _l; bool _colorsDirty;
             public QuadMesh(string name, Transform parent, int quads, int order, bool wideBounds, List<UnityEngine.Object> owned)
             {
-                _v = new Vector3[quads * 4]; _c = new Color32[quads * 4];
+                _v = new Vector3[quads * 4]; _c = new Color32[quads * 4]; _l = new Color[quads * 4];
                 Go = new GameObject(name); Go.transform.SetParent(parent, false);
                 var mf = Go.AddComponent<MeshFilter>(); var r = Go.AddComponent<MeshRenderer>();
                 ShowcaseSprites.Initialize();
@@ -74,7 +72,7 @@ namespace Roguehalla.Client
                 Mesh = new Mesh { name = name }; Mesh.MarkDynamic();
                 var tri = new int[quads * 6];
                 for (int q = 0; q < quads; q++) { int o = q * 4, t = q * 6; tri[t] = o; tri[t + 1] = o + 1; tri[t + 2] = o + 2; tri[t + 3] = o; tri[t + 4] = o + 2; tri[t + 5] = o + 3; }
-                Mesh.SetVertices(_v); Mesh.SetColors(_c); Mesh.SetTriangles(tri, 0); Mesh.uv = new Vector2[quads * 4];
+                Mesh.SetVertices(_v); Mesh.SetColors(_l); Mesh.SetTriangles(tri, 0); Mesh.uv = new Vector2[quads * 4];
                 if (wideBounds) Mesh.bounds = new Bounds(Vector3.zero, new Vector3(4000, 4000, 1));
                 mf.sharedMesh = Mesh; owned.Add(Mesh); Go.SetActive(false);
             }
@@ -92,10 +90,14 @@ namespace Roguehalla.Client
             {
                 int o = q * 4;
                 if (_c[o].r == col.r && _c[o].g == col.g && _c[o].b == col.b && _c[o].a == col.a) return;
-                _c[o] = col; _c[o + 1] = col; _c[o + 2] = col; _c[o + 3] = col; _colorsDirty = true;
+                _c[o] = col; _c[o + 1] = col; _c[o + 2] = col; _c[o + 3] = col;
+                // The project is in Linear colour space and the unlit sprite material reads mesh vertex colours as linear values, so an sRGB
+                // constant written as is renders lifted and washed out: convert here (alpha stays as is) so a constant renders as its own hex.
+                var lin = ((Color)col).linear; lin.a = col.a / 255f;
+                _l[o] = lin; _l[o + 1] = lin; _l[o + 2] = lin; _l[o + 3] = lin; _colorsDirty = true;
             }
             public void UploadShape() { Mesh.SetVertices(_v); }
-            public void UploadColors() { if (_colorsDirty) { Mesh.SetColors(_c); _colorsDirty = false; } }
+            public void UploadColors() { if (_colorsDirty) { Mesh.SetColors(_l); _colorsDirty = false; } }
             public void Active(bool on) { if (Go.activeSelf != on) Go.SetActive(on); }
             public Color32 ColorOf(int q) { return _c[q * 4]; }
         }
