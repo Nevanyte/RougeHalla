@@ -864,14 +864,32 @@ fn guard_switch_off_a_swing_meets_the_ball_in_reach() {
     );
 }
 
-// ---- identities: this packet moves none (owner decision 2026-11-12: the wall's numbers enter content with the wire,
-// in P-FROST-WALL-2) ----
+// ---- identities: P-FROST-WALL-1c moved none. P-FROST-WALL-2a (the wall's numbers enter content, owner decision
+// 2026-11-12) moves the content hash once, to the one pinned value `GOLDEN_CONTENT_HASH` in `tests/content.rs`; this
+// guard follows that value instead of repeating a literal, so the next move is written in one place. ----
 
 #[test]
-fn guard_the_content_hash_does_not_move_in_this_packet() {
+fn guard_the_content_hash_is_the_golden_value() {
+    // The needle is split so the const scan of `tests/content.rs` does not read this line as a declaration.
+    let needle = ["const", "GOLDEN_CONTENT_HASH"].join(" ");
+    let src = include_str!("../tests/content.rs");
+    let line = src
+        .lines()
+        .find(|l| l.trim_start().starts_with(&needle))
+        .expect("tests/content.rs declares GOLDEN_CONTENT_HASH");
+    let hex = line
+        .split('=')
+        .nth(1)
+        .expect("a value")
+        .trim()
+        .trim_end_matches(';')
+        .trim()
+        .trim_start_matches("0x")
+        .replace('_', "");
+    let golden = u64::from_str_radix(&hex, 16).expect("GOLDEN_CONTENT_HASH is a hex literal");
     assert_eq!(
         crate::content::content_hash(),
-        0x4674_a176_a28e_3c7a,
-        "P-FROST-WALL-1c moves no identity: the wall's numbers stay out of content until P-FROST-WALL-2"
+        golden,
+        "the content hash moves only together with GOLDEN_CONTENT_HASH (tests/content.rs)"
     );
 }

@@ -268,14 +268,12 @@ pub const LAST_STAND_FLOOR: f64 = 1.;
 pub const LAST_STAND_HASTE: f64 = 0.3;
 pub const LAST_STAND_HEAL: f64 = 0.3;
 // Frost Wall (unreleased legacy 78dd8bd4 `shared/src/abilities.ts`, `constants.ts`; P-FROST-WALL-1). Read only under
-// `SimConfig::frost_wish = Wall`; folded into content_hash with the frostWall id in P-FROST-WALL-2.
-pub const FROST_WALL_RANGE: f64 = 450.;
-pub const FROST_WALL_MIN_RANGE: f64 = 64.;
-/// Seven tiles.
-pub const FROST_WALL_LENGTH: f64 = 224.;
-pub const FROST_WALL_MS: f64 = 4000.;
-pub const FROST_WALL_CAST_MS: f64 = 250.;
-pub const FROST_WALL_COOLDOWN_MS: f64 = 45000.;
+// `SimConfig::frost_wish = Wall`. The numbers are content registry rows (`constants.rs`, P-FROST-WALL-2a), folded into
+// content_hash there; the catalog row with the frostWall id comes in P-FROST-WALL-2.
+pub use crate::constants::{
+    FROST_WALL_CAST_MS, FROST_WALL_COOLDOWN_MS, FROST_WALL_LENGTH, FROST_WALL_MIN_RANGE,
+    FROST_WALL_MS, FROST_WALL_RANGE,
+};
 pub const fn wish(faction: FactionId) -> AbilityId {
     match faction {
         FactionId::Frost => AbilityId::Freeze,
@@ -549,7 +547,8 @@ pub fn visit_content(mut word: impl FnMut(u64)) {
             }
             Target::Self_ => word(1),
             Target::Point => word(2),
-            // No catalog row is placed until P-FROST-WALL-2 (the wall row is config-selected and not folded yet).
+            // No catalog row is placed until P-FROST-WALL-2 (the wall row is config-selected; its numbers are already
+            // registry rows, folded through REGISTRY).
             Target::Placed { range, min_range } => {
                 word(3);
                 word(range.to_bits());
