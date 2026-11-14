@@ -125,6 +125,10 @@ None: signature maps and landmark decoration have no legacy counterpart (DEV-020
 - Option off (no anchors): dressing byte-identical (`OFF_GOLDEN`; the new `option_off_maps_are_dressed_identically...`).
 - A rules file without `origin` (the shipped file minus the field): byte-identical to today (`NO_ORIGIN_GOLDEN`, and
   `tests/anchor.rs` `NO_ANCHOR_GOLDEN`).
+- `tests/anchor.rs`: for every zone without an origin (Fire, Plague, Frost, Holy) the three amended tests assert exactly what
+  they asserted before (the helper is `signature::band` from the anchor there); for Sentenced they assert the new rule.
+  `no_tall_prop_of_any_stage_stands_in_the_core_band` now also bars tall props from the whole churchyard (strictly inside
+  the footprint); a tall prop on the fence line itself is allowed.
 - `tests/landmark_rules.rs`: one ring per band, at most one far, distinct grounds, no tall prop in the core ring: all keep
   holding (the zones.json rings do not change).
 
@@ -135,6 +139,10 @@ None: signature maps and landmark decoration have no legacy counterpart (DEV-020
 
 ## Oracle files (read-only for implementers)
 - `crates/rh-mapdress/tests/sentenced_rings.rs`
+- `crates/rh-mapdress/tests/anchor.rs` (amended in the commit `oracle: ... amend anchor.rs`, lane-approved: the three tests
+  `every_ring_prop_stands_in_the_band_its_ring_declares_inside_its_own_zone`, `the_ground_plane_follows_the_band_of_each_floor_tile`
+  and `no_tall_prop_of_any_stage_stands_in_the_core_band` restate the band through the zone's ring origin via one helper,
+  `tile_band(map, zone, ..)`; `each_zone_has_ring_props_in_its_near_and_mid_bands_on_every_seed` uses the same helper)
 
 Red on assertion on the stub (8): `the_shipped_file_measures_sentenced_from_the_church_building_and_no_other_zone_has_an_origin`
 ("sentenced.signature.landmark has no origin"), `a_malformed_origin_is_refused_naming_the_zone_and_the_value` ("a malformed

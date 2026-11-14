@@ -360,9 +360,7 @@ fn band_plane(map: &GameMapData, rules: &Rules) -> (Vec<u8>, Vec<bool>) {
         let origin = z.landmark.as_ref().and_then(|l| l.origin).and_then(|o| {
             let mut best: Option<&rh_sim::mapdata::MapFeature> = None;
             for f in &map.features {
-                if f.kind == o.feature
-                    && f.zone == z.zone
-                    && best.is_none_or(|b| f.tiles > b.tiles)
+                if f.kind == o.feature && f.zone == z.zone && best.is_none_or(|b| f.tiles > b.tiles)
                 {
                     best = Some(f);
                 }
