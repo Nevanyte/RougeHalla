@@ -31,6 +31,9 @@ mod percept;
 mod source_input;
 #[cfg(test)]
 mod tests;
+// P-FROST-WALL-BOTS-1 oracle: a Brain seat in a Frost Wall room is handed legacy's wall def and walls a chaser.
+#[cfg(test)]
+mod frost_wall_brain_tests;
 // P-BOT-BRAIN-THEMED-1 oracle: the route values a camp by the stat its kills pay.
 #[cfg(test)]
 mod themed_camp_tests;

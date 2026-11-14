@@ -66,7 +66,7 @@ fn identities_move_for_the_carrier_actor() {
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        24,
+        25,
         "the projected quest row carries it (P-WIRE17-MAP-2)"
     );
 }

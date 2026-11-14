@@ -51,7 +51,9 @@ use std::time::{Duration, Instant};
 /// viewer is delivered that fighter; bots do not decide on it.
 /// Version 24 (observation 30, P-FROST-WALL-2): the observation and the projected State key 3 carry a standing Frost
 /// Wall (field kind 3) with its tile list; bots do not decide on it.
-pub const POLICY_CONTRACT_VERSION: u16 = 24;
+/// Version 25 (observation 30, P-FROST-WALL-BOTS-1): [`MatchStart`] carries `frost_wish`, the room's Frost Wish (the
+/// room-wide public value every human client reads from the Welcome's HUD block, term 23); bots aim Frost Wall by it.
+pub const POLICY_CONTRACT_VERSION: u16 = 25;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1901,7 +1903,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 24);
+        assert_eq!(POLICY_CONTRACT_VERSION, 25);
     }
 }
 
