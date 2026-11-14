@@ -72,8 +72,9 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    or marsh reach every edge row and column, so the feature's `bbox` that `finish` re-reads is the box), entrance the
    six causeway tiles on the box's edge (grid (12, 0), (13, 0), (0, 11), (0, 12), (13, 28), (14, 28), turned and
    mirrored with the box). The attempt is refused (`Refusal::Signature`) when a wall or marsh tile is not free Plague
-   floor off every halo and every apron marked before the step (`masks.near1`: the legacy buildings grown by one tile,
-   and the volcano's) inside the inner rect, a dry or causeway tile is not free Plague floor inside it, a wall piece is
+   floor off every halo, off the legacy landmark protection (`protect`, as `Site::ground` reads it) and off every apron
+   marked before the step (`masks.near1`: the legacy buildings grown by one tile, and the volcano's) inside the inner
+   rect, a dry or causeway tile is not free Plague floor inside it, a wall piece is
    under `piece_min`, or the walls split the zone's floor; the tree is never served smaller. The site (decision 12)
    carries the outer-third rule: a Plague site lies beyond the outer-third line + 2 where one fits (20 of seeds 1-64 at
    34 tiles, on each seed's accepted attempt), else it is the zone's deepest free square (the other 44), its centre still beyond the zone's centroid (coordinator
