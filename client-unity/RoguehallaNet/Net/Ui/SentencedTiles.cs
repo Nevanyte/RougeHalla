@@ -10,13 +10,13 @@ namespace Roguehalla.Net.Ui
         /// <summary>The family indices the packet names: 0 the zone's own dark stone (baked as no tint), then a lighter grey, a brown and a purple. More families may follow.</summary>
         public const int Base = 0, LighterGrey = 1, Brown = 2, Purple = 3;
 
-        // Family tints, blended at strength .6 over the shader's stone (base 31, 30, 37). Resulting albedos: lighter grey about (42, 43, 50), brown (44, 31, 22), purple (38, 27, 50).
+        // Family tints, blended at strength .6 over the shader's stone (base 31, 30, 37). Resulting albedos: lighter grey about (48, 50, 57), brown (44, 27, 15), purple (38, 21, 54).
         static readonly GroundVariantTint[] Tints =
         {
             new GroundVariantTint(31, 30, 37, 0f),
-            new GroundVariantTint(49, 52, 59, .6f),     // lighter, cool slate grey
-            new GroundVariantTint(53, 32, 12, .6f),     // warm umber brown
-            new GroundVariantTint(43, 25, 59, .6f),     // muted plum
+            new GroundVariantTint(59, 63, 70, .6f),     // lighter, cool slate grey
+            new GroundVariantTint(53, 25, 0, .6f),     // warm umber brown
+            new GroundVariantTint(43, 15, 65, .6f),     // muted plum
         };
 
         /// <summary>How many families there are (at least 4).</summary>
