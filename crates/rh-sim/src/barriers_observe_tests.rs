@@ -13,6 +13,10 @@
 //! The rule pinned here (proposed DEV-036, see the brief): the wall's owner receives it whatever the sight; any other
 //! viewer receives the whole wall when one of its tiles is visible to it (`vision::point_visible` on a tile centre), and
 //! nothing when none is. `tests/frost_wall_observe.rs` is amended to the same rule (coordinator-approved).
+//!
+//! Amended by P-FROST-WALL-PUBLIC-1 (owner decision 2026-11-14: a standing wall is temporary terrain, sent to every
+//! seated viewer): the one expectation that a viewer who sees none of the wall is sent nothing (the guard half of
+//! `the_caster_receives_its_wall_even_when_none_of_it_is_in_sight`) now expects the wall. The rest still holds.
 use super::*;
 use crate::{
     abilities::{self as a, Slot},
@@ -211,8 +215,9 @@ fn the_caster_receives_its_wall_when_a_rock_hides_the_first_end() {
 }
 
 /// The owner's rule is not "some tile in sight": a rock column (8..=9, every row) hides the whole wall from its caster,
-/// who still receives it. The bystander on the caster's side, who is not its owner, sees none of it and is sent nothing
-/// (guard, green today and after).
+/// who still receives it. The bystander on the caster's side, who is not its owner, sees none of it; amended by
+/// P-FROST-WALL-PUBLIC-1 (owner decision 2026-11-14), it is sent the whole wall too, and is told the owner because it
+/// sees the caster.
 #[test]
 fn the_caster_receives_its_wall_even_when_none_of_it_is_in_sight() {
     let map = map_where(|x, _| (8..=9).contains(&x));
@@ -231,9 +236,17 @@ fn the_caster_receives_its_wall_even_when_none_of_it_is_in_sight() {
         )),
         "the scene hides every tile of the wall from the caster"
     );
-    assert!(
-        observed_walls(&s, other).is_empty(),
-        "guard: a viewer who is not the owner and sees nothing of the wall is sent nothing"
+    let theirs = observed_walls(&s, other);
+    assert_eq!(
+        theirs.len(),
+        1,
+        "a viewer who is not the owner and sees nothing of the wall is sent it: a standing wall is public (P-FROST-WALL-PUBLIC-1)"
+    );
+    assert_eq!(theirs[0].tiles, column_12(), "the whole wall");
+    assert_eq!(
+        theirs[0].owner,
+        Some(caster),
+        "the bystander sees the caster on its own side of the rock: the owner is named"
     );
     let seen = observed_walls(&s, caster);
     assert_eq!(seen.len(), 1, "the owner is sent its wall whatever it sees");
