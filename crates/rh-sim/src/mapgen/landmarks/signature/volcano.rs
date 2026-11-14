@@ -607,3 +607,112 @@ fn pool(
     });
     (out.len() >= crate::mapgen::certify::rules::R.piece_min && block).then_some(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mapdata::Zone;
+
+    /// The streams as the Landmarks phase lays them, whether or not the attempt later certifies: on every attempt of
+    /// seeds 1-12, attempts 0-5, whose Landmarks phase places the volcano, the Fire frame writes the volcano, then
+    /// stream and pool per outlet run in grid order; each stream's lava touches its own run only, is one 4-connected
+    /// band two tiles wide, measures (`length`) inside its run's `outlet_len` range against its own pool, the middle
+    /// strictly the longest; no stream or pool touches another's lava. At least one attempt places it.
+    #[test]
+    fn landmarks_phase_streams_keep_the_volcano_guarantees() {
+        use crate::mapgen::attempt::{begin_attempt_signature, AttemptContext};
+        use crate::mapgen::landmarks::{recipes::Recipes, stage::StageContext};
+        use FeatureKind::{LavaPool, LavaStream, Volcano};
+        let fixed = crate::mapgen::coliseum::fixed_layout();
+        let context = AttemptContext::new(&fixed);
+        let signature = super::super::SignatureContext::new(&fixed);
+        let d = *signature.definition();
+        let close = |a: Cell, b: Cell| (a.0 - b.0).abs().max((a.1 - b.1).abs()) <= 1;
+        let xy = |i: usize| ((i % W) as i32, (i / W) as i32);
+        let mut placed = 0;
+        for seed in 1..=12 {
+            for n in 0..6 {
+                let Some(frame) = begin_attempt_signature(&context, seed, n, true).expect("prefix")
+                else {
+                    continue;
+                };
+                let Some(mut stage) = StageContext::new(&fixed)
+                    .apply(&frame, &Recipes::default())
+                    .expect("stage")
+                else {
+                    continue;
+                };
+                let Some(p) = signature
+                    .apply_only(&frame, &mut stage, Zone::Fire)
+                    .expect("input")
+                else {
+                    continue;
+                };
+                placed += 1;
+                let f = &p.frames[0];
+                let kinds: Vec<FeatureKind> = f.features.iter().map(|&(k, _)| k).collect();
+                assert_eq!(
+                    kinds,
+                    [Volcano, LavaStream, LavaPool, LavaStream, LavaPool, LavaStream, LavaPool],
+                    "seed {seed} attempt {n}"
+                );
+                let runs: Vec<Vec<Cell>> = f
+                    .marks
+                    .chunks(2)
+                    .map(|c| c.iter().map(|m| (m.tile.x, m.tile.y)).collect())
+                    .collect();
+                let fire: Vec<usize> = (0..stage.state.features.len())
+                    .filter(|&k| {
+                        stage.state.features[k].zone == Zone::Fire
+                            && matches!(stage.state.features[k].kind, LavaStream | LavaPool)
+                    })
+                    .collect();
+                let lava = |k: usize| -> Vec<usize> {
+                    (0..W * H)
+                        .filter(|&i| {
+                            usize::from(stage.state.feature_owner[i]) == k + 1
+                                && stage.state.tiles[i] == TILE_LOW
+                        })
+                        .collect()
+                };
+                let bodies: Vec<(Vec<usize>, Vec<usize>)> =
+                    fire.chunks(2).map(|c| (lava(c[0]), lava(c[1]))).collect();
+                let mut lens = Vec::new();
+                for (r, (s, pool)) in bodies.iter().enumerate() {
+                    let touched: Vec<usize> = (0..runs.len())
+                        .filter(|&q| s.iter().any(|&i| runs[q].iter().any(|&t| close(xy(i), t))))
+                        .collect();
+                    assert_eq!(touched, [r], "seed {seed} attempt {n}: stream {r} runs");
+                    assert_eq!(pieces4(s), 1, "seed {seed} attempt {n}: stream {r} ford");
+                    assert!(
+                        first_thin(s).is_none(),
+                        "seed {seed} attempt {n}: stream {r} thin"
+                    );
+                    let len = length(s, &runs[r], pool).expect("joined");
+                    let (lo, hi) = d.outlet_len[r];
+                    assert!(
+                        (lo..=hi).contains(&len),
+                        "seed {seed} attempt {n}: stream {r} length {len}"
+                    );
+                    lens.push(len);
+                }
+                assert!(
+                    lens[1] > lens[0] && lens[1] > lens[2],
+                    "seed {seed} attempt {n}: {lens:?}"
+                );
+                for a in 0..bodies.len() {
+                    for b in a + 1..bodies.len() {
+                        let (x, y) = (&bodies[a], &bodies[b]);
+                        let touch =
+                            x.0.iter()
+                                .chain(&x.1)
+                                .any(|&i| y.0.iter().chain(&y.1).any(|&j| close(xy(i), xy(j))));
+                        assert!(!touch, "seed {seed} attempt {n}: bodies {a} and {b} touch");
+                    }
+                }
+            }
+        }
+        assert!(placed > 0, "no attempt placed the volcano");
+        eprintln!("volcano placed on {placed} of 72 attempts");
+    }
+}
