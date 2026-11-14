@@ -117,13 +117,13 @@ impl<'f> StageContext<'f> {
                         }
                     }
                 }
-                // P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): and out of the Fire fan in front of the volcano.
-                let d = crate::mapgen::landmarks::signature::DEFAULT_DEFINITION;
-                if let Some((x0, y0, x1, y1)) = crate::mapgen::landmarks::signature::fan(r, &d) {
-                    for y in y0..=y1 {
-                        for x in x0..=x1 {
-                            p[y * W + x] = 1;
-                        }
+            }
+            // P-MAPGEN-SIG-SCALE-4 (owner decision 2026-11-14): and out of the Fire fan in front of the volcano, as the
+            // Prefix reserved it (`AttemptState::fans`, from the Prefix's own signature definition).
+            for &(x0, y0, x1, y1) in &prefix.fans {
+                for y in y0..=y1 {
+                    for x in x0..=x1 {
+                        p[y * W + x] = 1;
                     }
                 }
             }

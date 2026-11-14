@@ -274,8 +274,9 @@ fn axis(f: u8) -> (i32, i32) {
 /// clipped to the map; `None` for a zone other than Fire. It lies in front of the site's inner rect (the site less its
 /// apron, `bands[0]`), along the front axis read at the site's centre tile (`front`, then `axis`: the tile and rule of
 /// the volcano's anchor, so the fan and the drawing's front row agree), `fan_depth` tiles deep and as wide as the inner
-/// rect plus `fan_side` tiles on each side. Its two readers: the Prefix's camp placement keeps every camp's halo out of
-/// it (`attempt`), the legacy landmark stage keeps its buildings out of it (`stage`). Nothing else is forbidden there:
+/// rect plus `fan_side` tiles on each side. The Prefix computes it once, with its own definition, and records it
+/// (`AttemptState::fans`); its two readers: the Prefix's camp placement keeps every camp's halo out of it (`attempt`),
+/// the legacy landmark stage keeps its buildings out of the recorded fan (`stage`). Nothing else is forbidden there:
 /// the volcano's streams and pools run in it.
 pub fn fan(r: &ReservedSite, d: &Definition) -> Option<(usize, usize, usize, usize)> {
     if r.zone != Zone::Fire {

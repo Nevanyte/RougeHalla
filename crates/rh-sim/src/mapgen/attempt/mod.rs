@@ -30,6 +30,10 @@ pub struct AttemptState {
     /// P-MAPGEN-SIG-RESERVE-1: each styled zone's reserved landmark site, in the order Fire, Sentenced, Plague, Frost;
     /// empty with the signature option off. Generator working state only (never exported).
     pub reserved: Vec<ReservedSite>,
+    /// P-MAPGEN-SIG-SCALE-4: the fans the Prefix reserved with its signature definition (`signature::fan` of each
+    /// reserved site; the Fire site's, inclusive (x0, y0, x1, y1)), the one record the legacy landmark stage reads, so
+    /// both readers keep out of the same tiles; empty with the signature option off. Generator working state only.
+    pub fans: Vec<(usize, usize, usize, usize)>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct AttemptFrame {
@@ -210,7 +214,7 @@ fn assemble_with(
         let partition = crate::mapgen::zones::partition_zones(&context.zones, rng);
         observe(PrefixStage::Partition, round + 1, partition.as_ref(), None);
         let partition = partition?;
-        let (layout, reserved) = if signature {
+        let (layout, reserved, fans) = if signature {
             match context.sites.reserve(&partition.zone, &order, &mut streams) {
                 Some(reserved) => {
                     let sites: Vec<Reserve> = reserved
@@ -235,20 +239,19 @@ fn assemble_with(
                     // church's, the cave's) is fixed already: when its halo reaches into the fan the round fails, as a
                     // camp failure does, and the partition and the sites are drawn again.
                     let d = context.sites.definition();
+                    let fans: Vec<(usize, usize, usize, usize)> = reserved
+                        .iter()
+                        .filter_map(|r| crate::mapgen::landmarks::signature::fan(r, d))
+                        .collect();
                     let mut sites = sites;
-                    sites.extend(
-                        reserved
-                            .iter()
-                            .filter_map(|r| crate::mapgen::landmarks::signature::fan(r, d))
-                            .map(|(x0, y0, x1, y1)| Reserve {
-                                zone: 0,
-                                x0,
-                                y0,
-                                x1,
-                                y1,
-                                camp: None,
-                            }),
-                    );
+                    sites.extend(fans.iter().map(|&(x0, y0, x1, y1)| Reserve {
+                        zone: 0,
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        camp: None,
+                    }));
                     let layout =
                         if crate::mapgen::landmarks::signature::fan_holds_a_site_camp(&reserved, d)
                         {
@@ -258,13 +261,14 @@ fn assemble_with(
                                 &camps, rng, &partition, &sites,
                             )
                         };
-                    (layout, reserved)
+                    (layout, reserved, fans)
                 }
-                None => (None, Vec::new()),
+                None => (None, Vec::new(), Vec::new()),
             }
         } else {
             (
                 crate::mapgen::zones::camps::place_camps(&camps, rng, &partition),
+                Vec::new(),
                 Vec::new(),
             )
         };
@@ -312,6 +316,7 @@ fn assemble_with(
             style_camps,
             layout_rounds: round + 1,
             reserved,
+            fans,
         });
     }
     None
