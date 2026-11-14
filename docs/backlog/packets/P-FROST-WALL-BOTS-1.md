@@ -6,6 +6,8 @@
 - **Integration base:** `6a476dc54` (the coordinator's staging head; the live world plays Frost Wall since P-FROST-WALL-3)
 - **D-rules touched:** D1 loose proof against legacy `78dd8bd4` (`abilityPolicy.ts` and its test, ported case by case) ·
   D2 n/a · D5/D6/D9: none (a bot decision rule plus one public, room-wide fact handed to the seat: see "Seat input")
+- **Identities:** policy contract 24 -> 25 (`MatchStart::frost_wish`, a seat-input field; coordinator ruling
+  2026-11-14). Protocol 17, observation 30, checkpoint, replay and content hash unchanged.
 
 ## 1. ID and outcome
 In a room whose Frost Wish is Frost Wall (`SimConfig::frost_wish = Wall`: every live profile since P-FROST-WALL-3,
@@ -78,11 +80,13 @@ Legacy's rule is in the unreleased commit `78dd8bd4` (NOT merged into `packages/
 - `crates/rh-policy/src/bots/bot.rs` (`HumanBot::reset` hands `MatchStart::frost_wish` to its Wish module).
 - `crates/rh-policy/src/bots/brain_bot.rs` (`BrainBot::reset` hands it to its composer).
 - `crates/rh-policy/src/bots/temporal_percept/brain/compose14.rs` (`wish_record` emits the Frost Wall def when the
-  composer's Frost Wish is the wall; `Composer14::with_frost_wish`).
+  composer's Frost Wish is the wall; `Composer14::with_frost_wish` exists (stub); a way for `SeatComposer14` to take it
+  WITHOUT changing `SeatComposer14::new`'s signature, which `compose14/reconcile_tests.rs:91` calls).
 - `crates/rh-policy/src/bots/temporal_percept/brain/adapters.rs`, `crates/rh-policy/src/bots/temporal_percept/modules/source_input.rs`
   (parse a declared `do: "wall"` effect into `AbilityRank::wall`), `crates/rh-policy/src/bots/temporal_percept/modules/wishes.rs`
-  (`declared_rank` passes it on), `crates/rh-policy/src/bots/temporal_percept/modules/types.rs` (the field's doc).
-- `crates/rh-policy/src/lib.rs`: the doc comment of `POLICY_CONTRACT_VERSION` / `MatchStart::frost_wish` only.
+  (`declared_rank` already passes it on), `crates/rh-policy/src/bots/temporal_percept/modules/types.rs` (the field's doc).
+- `crates/rh-policy/src/lib.rs`: the doc comment of `MatchStart::frost_wish` only (the stub already bumped the
+  contract to 25 and wrote its version note).
 - Not: the sim, the wire, `content.rs`, `observe.rs`, `rh-protocol`, `Cargo.lock`, any `parity/` capture, any oracle
   file, any other test file (the stub commit already made every mechanical edit to existing tests: see 8).
 
@@ -92,7 +96,7 @@ Legacy's rule is in the unreleased commit `78dd8bd4` (NOT merged into `packages/
   fact, the room's Frost Wish, which every human client receives in the Welcome (HUD term 23, `wire_hud_for`). See
   "Seat input" below.
 - R-ML: a hand rule ported from legacy; nothing learned.
-- C-POLICY / `POLICY_CONTRACT_VERSION`: see "Seat input" (a conflict with the coordinator's expectation is flagged).
+- C-POLICY / `POLICY_CONTRACT_VERSION`: 24 -> 25 (see "Seat input").
 - DEV-029 (Frost Wall) and P-FROST-WALL-3's "Bot evidence" (the bots' wasted walls today).
 
 ## 7. Behaviour to preserve
@@ -101,8 +105,10 @@ Legacy's rule is in the unreleased commit `78dd8bd4` (NOT merged into `packages/
   (`every_captured_cast_decision_matches_the_source` over `parity/policy/bot-wish.json`, 100+ cases, all Freeze-era
   defs), `wish_module_tests.rs`, `wish/source_core.rs` tests, `temporal_percept/modules/{catalog,source,controls}_tests.rs`
   (the `bot-private-modules` corpus), `temporal_percept/brain/{tests,controls_tests,hand_tests}.rs` (the
-  `bot-private-brain` corpus), the compose14 tests, `crates/rh-headless/tests/{bots,brain_choices,tournament}.rs`
-  (default world: Freeze), and the new guards in the oracle files.
+  `bot-private-brain` corpus), the compose14 tests, `crates/rh-headless/tests/{bots,tournament}.rs` (default world:
+  Freeze), and the new guards in the oracle files. `brain_choices.rs`, `brain_bots.rs`, `tournament_learning.rs` and
+  `learn_tune_fix.rs` run the Brain tournament world (live content: the WALL): their decisions move, their loose bounds
+  held with the trial implementation (see Baseline).
 - RNG: legacy's rule draws nothing; this packet adds no draw to the decision. The humanizer's ground click (motor lane)
   replaces the lock click for a wall, as legacy's hand does for any point cast; only in a Wall room.
 - `parity/policy/**` and `parity/**`: untouched; `cargo run -p rh-parity --bin parity-report` all MATCH.
@@ -113,11 +119,60 @@ Legacy's rule is in the unreleased commit `78dd8bd4` (NOT merged into `packages/
 - `cargo test --locked -p rh-policy frost_wall` (every new test green; the guards were green before).
 - `cargo test --locked -p rh-policy` green (no existing test changed beyond the stub commit's mechanical edits).
 - `cargo test --locked --release -p rh-headless --test frost_wall_bots --test frost_wall_live` green.
-- `cargo test --locked --release -p rh-headless --test brain_choices --test brain_bots --test bots` green.
+- `cargo test --locked --release -p rh-headless --test brain_choices --test brain_bots --test bots --test tournament
+  --test tournament_learning --test learn_tune_fix` green.
 - `scripts/gate.sh --oracle packet/P-FROST-WALL-BOTS-1` passes (full).
 
 ## Oracle files (read-only for implementers)
-(filled in by the oracle commit)
+- `docs/backlog/packets/P-FROST-WALL-BOTS-1.md` (this brief)
+- `crates/rh-policy/src/bots/frost_wall_bots_tests.rs` (new). Red today: `frost_wall_the_row_a_wall_room_plays_is_legacys_frost_wall`,
+  `frost_wall_legacy_abilitypolicy_cases` (abilityPolicy.test.ts:217-231 case by case), `frost_wall_the_peel_window_is_inclusive_and_the_wall_lies_between_the_bot_and_the_chaser`
+  (56 and 260 cast, 70% exact to 1e-6, a diagonal chaser with the point strictly between, no LOS test, `targetable`
+  `Some(false)` refuses / `None` passes), `frost_wall_escape_walls_off_the_threat_or_the_foe_inside_the_window_only`
+  (threatened, a mob foe, the measured escape distance, 40 and 300 draw nothing), `frost_wall_blocking_bits_and_the_easy_tier`
+  (abilityPolicy.test.ts:50-60 for the wall; Easy keeps `[Escape]`), the HumanBot seat on staged frames
+  (`..._drops_the_wall_between_itself_and_the_enemy_on_it`: a hit-memory chaser at 130, aim within 32 u of 91 u east;
+  `..._walls_an_enemy_walking_at_it`: chasing by observed motion; `..._does_not_wall_an_enemy_standing_off`), both
+  stacks as seats in a real Wall sim (`frost_wall_a_humanbot_seat_walls_a_chaser_in_a_wall_room`,
+  `frost_wall_a_brain_seat_walls_a_chaser_in_a_wall_room`: the seat's own proposed command, read from `Seat::cmds`). Guards (green today): `guard_frost_wall_a_freeze_room_and_the_other_wishes_keep_their_rows_and_decisions`,
+  `guard_frost_wall_a_humanbot_in_a_freeze_room_casts_freeze_as_today`, `guard_frost_wall_match_start_carries_the_rooms_frost_wish`,
+  `guard_frost_wall_both_seats_freeze_the_chaser_in_a_freeze_room`.
+- `crates/rh-policy/src/bots/temporal_percept/brain/frost_wall_brain_tests.rs` (new): red
+  `frost_wall_a_brain_seat_in_a_wall_room_is_handed_legacys_frost_wall_def`, `frost_wall_the_brains_def_walls_a_chaser_seventy_percent_of_the_way_and_nobody_standing_off`
+  (the real composer -> `adapters::module_percept` -> `admit_ranks` -> `source_decide_cast` path); guard
+  `guard_frost_wall_a_brain_composer_not_told_the_wall_hands_todays_freeze_def`.
+- `crates/rh-headless/tests/frost_wall_bots.rs` (new, release only, ignored in debug):
+  `live_brains_wall_off_the_enemies_coming_at_them`: live world, 8 Brains, seeds 2, 3, 6 cut at 3,600 ticks; at least
+  one "peel wall" (a Frost `CastStarted` whose aim projects at (0.2, 1.0) of the way from the caster to the nearest
+  living player, within 48 u of that line, that player having closed 20 u or more over the previous 10 ticks) plus
+  P-FROST-WALL-3's no-stall criteria. Command: `cargo test --locked --release -p rh-headless --test frost_wall_bots` (30 s).
+
+Existing tests changed in the `stub:` commits (mechanical, for the coordinator/owner to approve): `MatchStart`
+literals gain `frost_wish: FrostWish::Freeze` (`bots/bot.rs` test helper, `bot/reset_stream_tests.rs`,
+`planning_parity_tests.rs`, `wish_module_tests.rs`); exhaustive `PolicyEffect` matches gain a `Wall { .. } => None` arm
+(`wish_parity_tests.rs`, `temporal_percept/modules/catalog_tests.rs`, `wish/source_core.rs` and `modules/wishes.rs`
+in-file tests); rank literals gain `wall: false` (same in-file tests).
+
+Mechanical pins moved (policy contract 24 -> 25, in a `stub:` commit; flagged to the owner):
+- `crates/rh-policy/src/lib.rs:1906` (`assert_eq!(POLICY_CONTRACT_VERSION, 25)`, in-file test)
+- `crates/rh-policy/tests/frost_wall_delivery.rs:24`
+- `crates/rh-policy/tests/hud_clock_delivery.rs:78`
+- `crates/rh-policy/tests/hud_delivery.rs:85`
+- `crates/rh-policy/tests/hud_panel_delivery.rs:70`
+- `crates/rh-policy/tests/hud_roam_terms.rs:52`
+- `crates/rh-policy/tests/quest_carrier_delivery.rs:69`
+Seven pins in all (the coordinator's count was eight; `git grep` finds seven). No C# or JS mirror of the policy contract
+number exists (searched `client-unity/`, `tools/`, `protocol/`). Every other use reads the constant. Docs that state 24
+are historical records of earlier packets (`docs/backlog/README.md:460`, `packets/P-FROST-WALL-2.md`,
+`packets/P-FROST-WALL-1d.md`) and stay as they are. Proposed edits to coordinator-only records:
+`docs/MIGRATION.md` checkpoint identities (policy contract 25 after this packet); `docs/CONTRACTS.md:20` (it still says
+policy contract 22).
+
+Coordinator-approved amendment (its own `oracle-amend (coordinator-approved):` commit):
+`crates/rh-headless/tests/frost_wall_live.rs` `a_live_humanbot_match_with_frost_seats_finishes_under_the_wall` moves
+from seed 6 to seed 16. Under legacy's rule seed 6 raises no wall and runs to 9,000 ticks, so the smoke would go red.
+Seed 16 passes both before (2,670 ticks, 2 walls) and after (2,044 ticks, 1 wall). The smoke checks "no stall under
+the wall"; the peel itself is proved by the staged-frame tests.
 
 ## 9. Validation commands
 - `export PATH="$HOME/.cargo/bin:$PATH"`
@@ -134,7 +189,39 @@ decision that moves (the corpus guards catch it), the Easy filter that is indexe
 outside `WISHES` returns `None` there), and the Brain's def that is rebuilt from the catalog in `compose14.rs`.
 
 ## 11. Known traps
-(see "Established facts")
+See "Established facts / Traps", plus:
+- `WishModule::reset` rebuilds `Self::new()`: a frost-wish field set before it is wiped unless kept.
+- `SeatComposer14::new` is called by an existing test: add the Frost Wish another way.
+- In a Wall room the sim ignores a unit id on Frost's Wish (`CastStarted.target` is `None` either way): a test that
+  reads only sim events cannot tell a Freeze-aimed wall from legacy's; the seat tests read the proposed command.
+
+## Baseline (`packet/P-FROST-WALL-BOTS-1` at the oracle commit; debug unless stated)
+- `cargo test --locked -p rh-policy --lib frost_wall`: 17 tests; 12 red on assertions (the row is Freeze's intent
+  order; the casts are unit casts `id: Some(..)`, or none where a wall is due; the Brain's composed def is Freeze's), 5
+  guards green.
+- `cargo test --locked --release -p rh-headless --test frost_wall_bots`: red (0 peel walls over seeds 2, 3, 6; walls 1,
+  0, 1).
+- Throw-away implementation (about 120 lines: `wall_between` + the two branches, the Frost Wall row and `wish_for`,
+  the Easy filter, `WishModule` and `BrainBot` taking `MatchStart::frost_wish`, `wish_record` choosing the row, the two
+  `do: "wall"` parsers), applied and reverted, never committed: all 17 rh-policy oracle tests green;
+  `cargo test --locked -p rh-policy` all green (544 lib tests and the integration tests: every Freeze corpus unchanged);
+  release `frost_wall_bots` green (Brain seeds 2/3/6: walls 3/2/3, peel walls 1/1/1, no fault, self-kill or idle
+  caster, caster moved at most 12.9 u on landing); release `brain_bots`, `brain_choices`, `bots`, `tournament`,
+  `tournament_learning`, `learn_tune_fix` green; `frost_wall_live` green only with the seed-16 change (seed 6: 0 walls,
+  cut off at 9,000).
+- HumanBot live matches with the trial (seeds 1-30, cap 9,000): 11 walls, every one an escape from a mob (no player
+  within view) or from a player already on it; ZERO walls against a chasing player: live HumanBots are never chased
+  by a player inside 56-260 u when their Wish is up. Under today's Freeze-aimed code the same seeds cast at foes up
+  to 380 u away (P-FROST-WALL-3).
+
+## NOT ESTABLISHED
+- That the rule wins more, or that Frost's win rate moves either way (no measurement of outcomes).
+- That a live HumanBot ever peels a chasing player (zero in 30 seeds); its peel is proved only on staged frames and in
+  a hand-driven two-player sim.
+- Tick-exact agreement with legacy's bot (loose proof; the seat checks allow the humanizer's 32 u scatter).
+- For the owner, in plain words: in 30 seeded live matches the fill bots (HumanBot) raised 11 walls under the trial,
+  and none of them against a player chasing the bot. So with legacy's rule a human will rarely see a fill bot use the
+  wall. The Brain does use it (one wall between itself and an approaching enemy in each of seeds 2, 3 and 6).
 
 ## Established facts (oracle author, 2026-11-14, base `6a476dc54`)
 
@@ -188,14 +275,14 @@ the seat's own successive observed positions. No sim state is read.
   Every live and headless seat is built through `MatchStart::of` (`rh-server/src/room.rs:1011,1257`,
   `rh-headless/src/lib.rs:156`, `wirebench.rs:272`), so no crate outside `rh-policy` changes. Struct-literal
   constructions exist only in `rh-policy` tests (six sites: the stub sets them to `FrostWish::Freeze`).
-- **Contract version (flag for the coordinator):** the brief was asked to keep `POLICY_CONTRACT_VERSION` at 24 as "a
-  decision rule, not the seat interface". The rule itself is versionless, but the seat interface DOES gain a field:
-  the history in `lib.rs:26-54` bumps on every seat-input addition, including ones "bots do not decide on" (v19-v24),
-  and v2 was the `MatchStart` change. Attach compatibility is not affected (a policy that ignores the field is
-  unchanged; `attach_fault` compares only numbers). This packet keeps 24 as instructed: no oracle test pins a new
-  number, and the implementer adds one line to the v24 note naming `MatchStart::frost_wish`. If the coordinator rules
-  that a seat-input field must bump, eight existing tests pin 24 (`lib.rs:1900`, `tests/frost_wall_delivery.rs:23`,
-  `tests/hud_*.rs`, `tests/quest_carrier_delivery.rs`) and must change with owner approval.
+- **Why the seat may be given it (C-OBS):** `frost_wish` is a room setting, the same for every viewer. The room sends
+  it to every human client in the Welcome's HUD block (term 23, `wire_hud_for`). It is neither match state nor a
+  secret, and a bot seat learns no more than a human player in the same room knows before the first frame.
+- **Contract version: 24 -> 25 (coordinator ruling 2026-11-14).** The seat interface gains a field, and the history in
+  `lib.rs:26-54` bumps on every seat-input addition (v2 was the `MatchStart` change; v19-v24 bumped even for facts
+  "bots do not decide on"). The rule itself is versionless. The bump is in a `stub:` commit with its version note, and
+  the seven pins are moved mechanically (listed under "Oracle files"). Attach compatibility works as for every bump:
+  `attach_fault` refuses a policy built for 24.
 
 ### (3) Freeze: nothing changes
 - The `parity/policy/` captures that exercise Wish decisions: `bot-wish.json` (`wish_parity_tests.rs`, the static
@@ -216,7 +303,7 @@ the nearest-threat choice is the existing ordered scan. The one RNG difference i
 with no unit id goes through `ground_click` (motor lane scatter) instead of `lock_click`, as Blaze already does.
 
 ### (5) Policy contract
-See (2b): kept at 24 per instruction; flagged.
+See (2b): 24 -> 25.
 
 ### Traps
 - `EASY_AI` (`wish.rs:238-244`) is indexed by the row's position in `WISHES`; a Frost Wall row outside `WISHES` makes
