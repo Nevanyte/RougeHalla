@@ -82,8 +82,19 @@ fn apron() -> i32 {
 /// lane fence share) lies in this range. BUDGET SHORT: the owner's target is [0.8, 1.2]; the lanes ceiling measured
 /// 0.81 and the ceiling after the detour rule 0.78 (median), so the lower bound is set at 0.6, leaving 0.18 for what
 /// the estimate does not model (route repair, relaxation, the runtime's placement checks).
+///
+/// Owner decision 2026-11-13 (night; brief P-MAPGEN-SIG-SCALE-2-fix): with the 29 x 29 church the lanes alone hold
+/// 0.53 of option off's share (the box and its apron take ground the lanes cannot use), and the churchyard's own fence
+/// is judged with them (`combined_floor`). The lanes' own lower bound is 0.45, was 0.6.
 fn budget() -> (f64, f64) {
-    (0.6, 1.2)
+    (0.45, 1.2)
+}
+
+/// Owner decision 2026-11-13 (night): lane fence and the churchyard's own fence together (the LOW tiles the
+/// `Graveyard` feature owns: the churchyard fence and the plot fences of the church's drawing) hold at least this much
+/// of option off's lane fence, in tiles, on the median map of seeds 1-32.
+fn combined_floor() -> f64 {
+    0.75
 }
 
 /// Every seed keeps at least this ratio (same measure as `budget`): the smallest ceiling after detours measured 0.53.
@@ -616,6 +627,47 @@ fn lane_fence_share_stays_near_option_off() {
     assert!(
         (lo..=hi).contains(&m),
         "median on/off lane fence share ratio {m:.3} is outside [{lo}, {hi}]\n{}",
+        rows.iter()
+            .map(|r| r.1.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
+/// Rule 5b (owner decision 2026-11-13, night): the lanes and the churchyard's own fence together. Per seed, (lane fence
+/// tiles + LOW tiles owned by a Sentenced `Graveyard`, option on) / (lane fence tiles, option off); the median over seeds
+/// 1-32 is at least `combined_floor`.
+#[test]
+fn lane_and_churchyard_fence_together_stay_near_option_off() {
+    let rows: Vec<(f64, String)> = maps()
+        .iter()
+        .zip(off_maps())
+        .map(|(l, off)| {
+            let m = &l.map;
+            let yard = (0..m.tiles.len())
+                .filter(|&i| {
+                    m.region_grid[i] == sentenced()
+                        && m.tiles[i] == 2
+                        && owner_kind(m, i) == Some(FeatureKind::Graveyard)
+                })
+                .count();
+            let (on_f, _) = share_parts(m);
+            let (off_f, _) = share_parts(off);
+            let r = (on_f + yard) as f64 / (off_f as f64).max(1.0);
+            (
+                r,
+                format!(
+                    "seed {}: lanes {on_f} + churchyard {yard} against {off_f} off, ratio {r:.2}",
+                    l.seed
+                ),
+            )
+        })
+        .collect();
+    let m = median(rows.iter().map(|r| r.0).collect());
+    assert!(
+        m >= combined_floor(),
+        "median (lane + churchyard fence) on / lane fence off, in tiles: {m:.3} under {}\n{}",
+        combined_floor(),
         rows.iter()
             .map(|r| r.1.as_str())
             .collect::<Vec<_>>()

@@ -91,28 +91,29 @@ fn pinned_off() -> [(i64, &'static str, u64); 8] {
     ]
 }
 
-/// The volcano and church the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet:
-/// (seed, attempt, `others_digest`). The cave is placed last on its own stream, so they never move (measured on the stub
-/// commit, today's generator; seed 2 attempt 1 fails its prefix: 0). Amended by P-MAPGEN-SIG-SCALE-3: the bog tree is
-/// the blueprint now and is left out (re-pinned on that packet's stub commit; its oracle pins the tree).
+/// The volcano the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet: (seed,
+/// attempt, `others_digest`). The cave is placed last on its own stream, so it never moves (seed 2 attempt 1 fails its
+/// prefix: 0). Amended by P-MAPGEN-SIG-SCALE-3: the bog tree is the blueprint now and is left out; amended by
+/// P-MAPGEN-SIG-SCALE-2: the church and its graveyard too (re-measured on that packet's stub rebased onto the tree, and
+/// equal under its prototype; its oracle pins the church).
 fn pinned_others() -> [(i64, u64, u64); 16] {
     [
-        (1, 0, 0x8c46_fd6c_2a91_e159),
-        (1, 1, 0xd65b_7b72_989c_547d),
-        (2, 0, 0xd9de_f016_c1d3_97ec),
+        (1, 0, 0x8e42_fd3c_7a33_c95f),
+        (1, 1, 0x19b3_a5eb_9c7b_3706),
+        (2, 0, 0x6b77_87ce_903d_dc34),
         (2, 1, 0),
-        (3, 0, 0xc3fb_6a95_77e8_3c68),
-        (3, 1, 0xfbda_c5dd_f01d_bf8b),
-        (4, 0, 0xbcd6_c7f8_c4c5_fef6),
-        (4, 1, 0xe011_7dec_285d_eadf),
-        (5, 0, 0xdc51_3636_ef93_1a07),
-        (5, 1, 0xd3d9_c4b7_9052_c500),
-        (6, 0, 0xba9f_f7b0_ccc0_13e3),
-        (6, 1, 0x6c22_5bef_0da5_c4b0),
-        (7, 0, 0x9c08_27c4_14f6_2dc1),
-        (7, 1, 0xf45d_e6e2_0805_ee45),
-        (8, 0, 0x142b_c64a_6d01_3a5a),
-        (8, 1, 0x668e_daaf_2fcd_cc1b),
+        (3, 0, 0x5eaa_4b6d_4965_e9af),
+        (3, 1, 0xf376_df77_9f3c_14ce),
+        (4, 0, 0xcdcb_8297_fb4c_3e0a),
+        (4, 1, 0x11e0_ccc0_daf2_0cce),
+        (5, 0, 0x5c99_0530_5591_1569),
+        (5, 1, 0x751d_610a_079b_b401),
+        (6, 0, 0x366e_5a6e_c11b_ee01),
+        (6, 1, 0xdb8b_eb78_4b5d_60e5),
+        (7, 0, 0xb9b2_a035_2012_3dc0),
+        (7, 1, 0xb5fd_6ad5_9499_346b),
+        (8, 0, 0x916d_fca8_61d2_e1b4),
+        (8, 1, 0xde84_d3e3_617f_edc3),
     ]
 }
 
@@ -408,9 +409,9 @@ fn fnv(bytes: &[u8]) -> u64 {
     h
 }
 
-/// FNV-1a 64 of what the Landmarks phase places for the volcano and the church with its graveyard on (seed, attempt),
-/// option on: their anchors (JSON) and, for every feature the phase leaves except the cave and the bog tree, the
-/// feature (JSON) and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
+/// FNV-1a 64 of what the Landmarks phase places for the volcano on (seed, attempt), option on: its anchor (JSON) and,
+/// for every feature the phase leaves except the cave, the bog tree, the church and its graveyard, the feature (JSON)
+/// and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
 fn others_digest(seed: i64, n: u64) -> u64 {
     let fixed = coliseum::fixed_layout();
     let context = attempt::AttemptContext::new(&fixed);
@@ -435,12 +436,17 @@ fn others_digest(seed: i64, n: u64) -> u64 {
     for a in placed
         .anchors
         .iter()
-        .filter(|a| a.zone != Zone::Frost && a.zone != Zone::Plague)
+        .filter(|a| a.zone != Zone::Frost && a.zone != Zone::Plague && a.zone != Zone::Sentenced)
     {
         bytes.extend(serde_json::to_vec(a).unwrap());
     }
+    // P-MAPGEN-SIG-SCALE-2: the church and its graveyard are left out too (the blueprint now; the volcano, the tree and
+    // the cave are pinned against that packet by `mapgen_signature_church.rs`).
     for (k, f) in st.state.features.iter().enumerate() {
-        if matches!(f.kind, FeatureKind::Cave | FeatureKind::BogTree) {
+        if matches!(
+            f.kind,
+            FeatureKind::Cave | FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard
+        ) {
             continue;
         }
         bytes.extend(serde_json::to_vec(f).unwrap());
@@ -787,15 +793,16 @@ fn option_off_is_todays_generator() {
     }
 }
 
-/// Guard. The volcano and the church with its graveyard the Landmarks phase places are today's (`pinned_others`): the
-/// cave is placed last and draws only from the Frost stream (the bog tree left out by P-MAPGEN-SIG-SCALE-3).
+/// Guard. The volcano the Landmarks phase places is today's (`pinned_others`): the cave is placed last and draws only
+/// from the Frost stream (the bog tree left out by P-MAPGEN-SIG-SCALE-3, the church and its graveyard by
+/// P-MAPGEN-SIG-SCALE-2).
 #[test]
 fn the_other_three_landmarks_are_unchanged() {
     for (seed, n, digest) in pinned_others() {
         assert_eq!(
             others_digest(seed, n),
             digest,
-            "seed {seed} attempt {n}: the volcano or church moved"
+            "seed {seed} attempt {n}: the volcano moved"
         );
     }
 }

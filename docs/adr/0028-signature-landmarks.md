@@ -5,7 +5,7 @@ generation order and the core rules G1-G8 below). Packets P-SIGNATURE-1, P-SIGNA
 P-MAPGEN-SIGNATURE-CORE-1 (the generator step), P-MAPGEN-SIG-FIRE-1 (the Fire volcano in the generator),
 P-MAPGEN-SIG-FIRE-2 (craters sized by band, streams two tiles wide), P-MAPGEN-SIG-FROST-1 (the Frost cave in the
 generator; the server post-pass deleted), P-MAPGEN-SIG-RESERVE-1 (each landmark's site reserved in the Prefix before
-the camps; decision 12), P-MAPGEN-SIG-SCALE-1 (the Frost cave is the approved blueprint; the site's territory relabel). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner signs. DEV-028
+the camps; decision 12), P-MAPGEN-SIG-SCALE-1 (the Frost cave is the approved blueprint; the site's territory relabel), P-MAPGEN-SIG-SCALE-2 (the Sentenced church, graveyard and churchyard are the approved blueprint; the Sentenced site relabelled). The `DEVIATIONS.md` row (DEV-020) is proposed in the hand-off; the owner signs. DEV-028
 (proposed, unsigned) is the elite rule under the option (decision 12).
 
 **Per-operation checklist.** D1: new terrain with no legacy counterpart, an intentional difference (DEV-020); with the
@@ -32,7 +32,7 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 | G6 | **Seeded, local randomness.** Every choice is drawn from a stream of (map seed, attempt, zone, step). |
 | G7 | **Clusters and edges, not scatter.** |
 | G8 | **Legacy stays reachable.** With the option off the generator's output is byte-identical to today's. |
-| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`) and the Plague bog tree (P-MAPGEN-SIG-SCALE-3, decision 4: `docs/landmarks/blueprints/bog.txt`). Not yet built: decisions 5 and 10 below describe today's variable shapes until P-MAPGEN-SIG-SCALE-2, -4 and P-MAPGEN-SIG-HOLY-1 land. |
+| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`), the Plague bog tree (P-MAPGEN-SIG-SCALE-3, decision 4: `docs/landmarks/blueprints/bog.txt`) and the Sentenced church (P-MAPGEN-SIG-SCALE-2, decision 5: `docs/landmarks/blueprints/church.txt`). Not yet built: decision 10 and the Holy hall describe today's variable shapes until P-MAPGEN-SIG-SCALE-4 and P-MAPGEN-SIG-HOLY-1 land. |
 | G10 | **Every thematic obstacle is placed by a rule that reads the landmark** (its anchor, bands and front). No styler lays its obstacles as if the landmark were not there. Built for Fire's craters and Frost's first lake; the rest is the land-generation task (`P-LAND-*`). |
 
 ## Decision
@@ -83,9 +83,25 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    earlier rule-drawn tree remains: a 13-tile trunk (squared distance <= 4) with dry ground to squared distance 10 and
    bog in the bands 13-21 and 36-56, at least 60 bog tiles in all four quadrants, its centre at least 2 tiles beyond the
    start of the outer third, a uniform draw over every legal centre.
-5. **Sentenced, the church and graveyard** (`Church`, job landmark; `Graveyard`, job cover). Around the far elite camp
-   (the zone's elite camp farthest from the map centre; with a reserved site, decision 12, the site's camp, the zone's
-   first elite, the church and graveyard wholly inside the site's inner rect). A rectangular wall ring: each wall line 4-7 tiles from the camp
+5. **Sentenced, the church and graveyard** (`Church`, job landmark; `Graveyard`, job cover; certifier rows: the church
+   wall, the graveyard wall and LOW with the fence terrain `R.fence_kind`). The owner-approved blueprint (G9;
+   P-MAPGEN-SIG-SCALE-2): `docs/landmarks/blueprints/church.txt`, 29 x 29 tiles, carried byte-equal in the crate as
+   `signature/church.txt` (`Definition::church_grid`, `include_str!`) and parsed once per context. `#` wall and `P`
+   pillar are the `Church` feature (wall, terrain 0): the building only, columns 3-25 and rows 3-16 of the drawing, its
+   anchor point the camp tile, its front wall line open only at the 3-tile door `D` (the Sentenced lanes read the door
+   there). `G` headstones (wall, terrain 0) and `+` fence (LOW, the fence terrain: the plots' fences and the churchyard
+   fence on the drawing's outer rows and columns) are one `Graveyard` feature, whose box is the whole drawing; `.`, `D`,
+   `E` and the lantern marks `*` stay unwritten floor. It stands round the Sentenced site's camp (decision 12), the
+   drawing's `E` on the camp tile, oriented as the cave (decision 11): the door and the 5-tile main gate (the open run
+   of the front row through `E`'s column) face the dominant axis of DIR16 from the camp toward the coliseum, mirrored
+   or not by the church's one draw on the Sentenced stream (the drawing is mirror-symmetric, so both mirror states land
+   the same tiles). Anchor: centre the camp tile, footprint the 29 x 29 box (kept as placed by `finish`, which re-reads
+   the other landmarks' footprints from their features), entrance the main gate. The attempt is refused
+   (`Refusal::Signature`) when a wall or fence tile is not free Sentenced floor off every halo inside the inner rect, any
+   other tile is not free Sentenced floor inside it, the 2 tiles beyond each main-gate tile are not open floor, a wall
+   piece is under `piece_min`, or the walls and fence split the zone's floor; the church is never served smaller.
+   Without a reserved site (a `begin_attempt` prefix, which only tests feed the step) the earlier rule-drawn church
+   remains: around the far elite camp (the zone's elite camp farthest from the map centre). A rectangular wall ring: each wall line 4-7 tiles from the camp
    tile (the certifier's camp halo reaches 3), or the side leans on the map border when the border is at most 9 away; a
    side whose own wall would leave under 2 tiles to the border must lean on it. So the church may be off-centre. The
    3-tile door is on the side of the dominant axis of the front (DIR16 toward the coliseum), its axis up to 5 tiles off
@@ -196,8 +212,9 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    spacing of the others, keeps its own territory label in every Lloyd step, never moves, and is the zone's first
    elite; the zone's other 9 camps follow the legacy process. The reservation keeps the other camps' halos out of a
    site, not their territories: on an option-on attempt, after the Landmarks phase and before the stylers and repair
-   read the territory grid, every tile of the Frost site takes its inside camp's territory label (the camp's index + 1;
-   P-MAPGEN-SIG-SCALE-1, coordinator decision 2026-11-13; the Sentenced site joins with its church, SCALE-2). Without
+   read the territory grid, every tile of the Sentenced and the Frost sites takes its inside camp's territory label
+   (the camp's index + 1; P-MAPGEN-SIG-SCALE-1, coordinator decision 2026-11-13; the Sentenced site with its blueprint
+   church, P-MAPGEN-SIG-SCALE-2). Without
    it the blueprint cave's walls cut neighbouring Frost territories and repair hands the pieces to camps beyond the
    30-tile territory radius (`Repair(RadiusPost)`: 247 refusals and 7 seeds without a map on seeds 1-64). No draw;
    option off has no sites, so nothing is relabelled. **The elite rule (coordinator decision put to the owner, not yet ruled on; DEV-028, proposed):**

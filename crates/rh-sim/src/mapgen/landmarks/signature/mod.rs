@@ -132,6 +132,12 @@ pub struct Definition {
     /// coliseum) at the bottom. Parsed once per context (`bog_tree::Drawing`); a grid that does not parse refuses every
     /// option-on attempt at the tree (`Refusal::Signature`).
     pub bog_grid: &'static str,
+    /// P-MAPGEN-SIG-SCALE-2: the Sentenced church's approved blueprint with its graveyard and churchyard (owner decision
+    /// 2026-11-13; ADR 0028 G9), the text of `church.txt` beside this file, a byte-equal copy of
+    /// `docs/landmarks/blueprints/church.txt` (as `cave_grid`). Lines starting `;` are its legend; the rest is the 29 x 29
+    /// grid, front (toward the coliseum) at the bottom. Parsed once per context (`church::Blueprint`); a grid that does
+    /// not parse refuses every option-on attempt at the church (`Refusal::Signature`).
+    pub church_grid: &'static str,
 }
 
 /// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
@@ -192,6 +198,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     site_depth: 9,
     cave_grid: include_str!("cave.txt"),
     bog_grid: include_str!("bog.txt"),
+    church_grid: include_str!("church.txt"),
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
@@ -215,9 +222,10 @@ pub fn reserved_zones() -> [Zone; 4] {
 }
 
 /// P-MAPGEN-SIG-SCALE-1: the zones whose reserved site is relabelled to its inside camp's territory (`relabel_sites`):
-/// the Frost site, round which the blueprint cave stands. P-MAPGEN-SIG-SCALE-2 adds the Sentenced site with its church.
-fn relabelled_zones() -> [Zone; 1] {
-    [Zone::Frost]
+/// the Sentenced site, round which the blueprint church stands (P-MAPGEN-SIG-SCALE-2), and the Frost site, round which
+/// the blueprint cave stands (public so that the church's oracle, `tests/mapgen_signature_church.rs`, can read the list).
+pub fn relabelled_zones() -> [Zone; 2] {
+    [Zone::Sentenced, Zone::Frost]
 }
 
 /// P-MAPGEN-SIG-SCALE-1 (coordinator decision 2026-11-13): before repair runs, no tile of a reserved site with an inside
@@ -226,8 +234,8 @@ fn relabelled_zones() -> [Zone; 1] {
 /// the other camps' halos out of the site, not their territories: without this the blueprint's walls cut those
 /// territories and repair hands the pieces to camps beyond the territory radius (`Repair(RadiusPost)`). Called by the
 /// pipeline on repair's copy of the territory grid on option-on attempts only (no sites otherwise: nothing changes). A
-/// pure write: no draw.
-pub(crate) fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], territory: &mut [u8]) {
+/// pure write: no draw. Public so that P-MAPGEN-SIG-SCALE-2's oracle (`tests/mapgen_signature_church.rs`) can call it.
+pub fn relabel_sites(reserved: &[ReservedSite], camps: &[CampSite], territory: &mut [u8]) {
     for r in reserved
         .iter()
         .filter(|r| relabelled_zones().contains(&r.zone))
@@ -337,6 +345,8 @@ pub struct SignatureContext<'f> {
     cave: Option<cave::Blueprint>,
     /// The bog tree's drawing (`Definition::bog_grid`), parsed once; `None` when it does not parse.
     bog: Option<bog_tree::Drawing>,
+    /// The church's drawing (`Definition::church_grid`), parsed once; `None` when it does not parse.
+    church: Option<church::Blueprint>,
 }
 
 impl<'f> SignatureContext<'f> {
@@ -374,6 +384,7 @@ impl<'f> SignatureContext<'f> {
             hard,
             cave: cave::Blueprint::parse(d.cave_grid, d.mouth),
             bog: bog_tree::Drawing::parse(d.bog_grid),
+            church: church::Blueprint::parse(d.church_grid),
         }
     }
 
@@ -675,13 +686,18 @@ impl<'f> SignatureContext<'f> {
         });
     }
 
-    /// Writes the finished map's anchors (G3) from the step's anchors and the finished features: the bog tree's and
-    /// the church's, re-read from their features after records renumbered them, plus the Holy hall's (the largest
-    /// `Hall` feature, placed by the Holy styler), in zone-code order.
+    /// Writes the finished map's anchors (G3) from the step's anchors and the finished features: the footprints of the
+    /// volcano, the bog tree and the cave re-read from their features after records renumbered them (the church's is
+    /// kept as placed: the blueprint's spans its graveyard and churchyard, the `Church` feature only the building; the
+    /// rule-drawn church's is its feature's box either way), plus the Holy hall's (the largest `Hall` feature, placed by
+    /// the Holy styler), in zone-code order.
     pub fn finish(&self, map: &mut GameMapData, anchors: Vec<ZoneAnchor>) {
         let mut out: Vec<ZoneAnchor> = anchors
             .into_iter()
             .map(|mut a| {
+                if a.kind == FeatureKind::Church {
+                    return a;
+                }
                 if let Some(f) = map
                     .features
                     .iter()
@@ -713,8 +729,9 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
-    /// of it): a tree of trunk walls and bog floor, a church and graveyard of walls, an open door, all in their zone; no
-    /// styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
+    /// of it): a tree of trunk walls and bog floor, a church of walls, a graveyard of walls and LOW fence (the fence
+    /// terrain), an open door, all in their zone; no styler feature in an apron; no landmark's tiles in another
+    /// landmark's apron, either way round
     /// (`aprons_apart`); and the Frost zone's largest ice body outside the cave at the cave's mouth
     /// (`cave::lake_at_mouth`). A pure predicate: it draws nothing and changes nothing.
     pub fn intact(&self, map: &GameMapData) -> bool {
@@ -730,7 +747,10 @@ impl<'f> SignatureContext<'f> {
                     zone_ok
                         && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.bog))
                 }
-                FeatureKind::Church | FeatureKind::Graveyard => zone_ok && t == TILE_WALL,
+                FeatureKind::Church => zone_ok && t == TILE_WALL,
+                FeatureKind::Graveyard => {
+                    zone_ok && ((t == TILE_WALL && k == 0) || (t == TILE_LOW && k == R.fence_kind))
+                }
                 FeatureKind::Volcano => {
                     zone_ok
                         && ((t == TILE_WALL && k == 0) || (t == TILE_LOW && k == self.rules.lava))
@@ -1053,33 +1073,12 @@ mod tests {
         }
     }
 
-    /// P-MAPGEN-SIG-SCALE-1: the Frost site (whole rect) takes its camp's label (index + 1); a Sentenced site, a site
-    /// without a camp and no sites at all leave the grid as it was.
+    /// `relabel_sites`'s precondition predicate: a second camp in the rect is found; one just outside it is not. (Which
+    /// sites take which label is P-MAPGEN-SIG-SCALE-2's oracle, `tests/mapgen_signature_church.rs`
+    /// `relabel_sites_labels_the_frost_and_the_sentenced_sites`, moved there from this test.)
     #[test]
-    fn only_the_frost_sites_tiles_take_its_camps_label() {
-        let camps = vec![camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
-        let before = vec![7u8; W * H];
-        let mut grid = before.clone();
-        relabel_sites(&[], &camps, &mut grid);
-        assert_eq!(grid, before, "no sites");
-        let others = [
-            site(Zone::Sentenced, 29, 30, Some(camps[1].site)),
-            site(Zone::Plague, 10, 10, None),
-            site(Zone::Frost, 40, 40, None),
-        ];
-        relabel_sites(&others, &camps, &mut grid);
-        assert_eq!(grid, before, "no Frost site with a camp");
-        relabel_sites(
-            &[site(Zone::Frost, 60, 60, Some(camps[2].site))],
-            &camps,
-            &mut grid,
-        );
-        for (i, &label) in grid.iter().enumerate() {
-            let (x, y) = ((i % W) as i32, (i / W) as i32);
-            let inside = (60..64).contains(&x) && (60..63).contains(&y);
-            assert_eq!(label, if inside { 3 } else { 7 }, "({x}, {y})");
-        }
-        // The precondition's predicate: a second camp in the rect is found; one just outside it is not.
+    fn stray_camp_finds_a_second_camp_in_the_site() {
+        let camps = [camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
         let frost = site(Zone::Frost, 60, 60, Some(camps[2].site));
         let crowded = [camp(4, 61, 61), camp(4, 63, 62), camp(4, 64, 62)];
         assert_eq!(stray_camp(&frost, &crowded, 0), Some(1));

@@ -18,6 +18,7 @@
 //! * styler feature: any feature that is not `Landmark` (legacy landmark stage), a signature kind, `Infill` (repair) or
 //!   `Bush` (elite bushes).
 //! * walkable: tile value 0 (floor), 4-connected.
+use rh_sim::map::TILE_LOW;
 use rh_sim::mapdata::{
     FeatureKind, GameMapData, MapExport, MapFeature, TilePt, TileRect, Zone, ZoneAnchor,
 };
@@ -244,25 +245,29 @@ fn far_elite(seed: i64, m: &GameMapData) -> (Cell, (f64, f64, f64)) {
     (world_cell(c.x, c.y), (c.x / TILE, c.y / TILE, c.r / TILE))
 }
 
-/// (along, across) of a tile relative to the church's door line: `along` is the signed distance out of the church
-/// through the door side, `across` the coordinate along the wall.
-fn door_frame(a: &ZoneAnchor) -> (Cell, i32, (i32, i32)) {
+/// Amended by P-MAPGEN-SIG-SCALE-2 (the anchor's entrance is now the churchyard's main gate, 12 tiles beyond the door):
+/// the church's door is read as the lanes read it (`style_gallows/lanes.rs` `frame`): the tiles of the `Church` box's
+/// edge on the door side (the dominant axis of the anchor's front) that are floor owned by no feature, in edge order.
+/// Returns (door side, door line, the door tiles); `along_across(side, line, ..)` then gives `along`, the signed distance
+/// out of the church through the door side, and `across`, the coordinate along the wall. (Replaces `door_frame`, which
+/// read the anchor's entrance.)
+fn church_door(m: &GameMapData, k: usize, a: &ZoneAnchor) -> (Cell, i32, Vec<Cell>) {
     let side = door_side(a.front);
-    let line = if side.0 != 0 {
-        a.entrance[0].x
-    } else {
-        a.entrance[0].y
+    let (x0, y0, x1, y1) = grow(m.features[k].bbox, 0);
+    let (line, edge): (i32, Vec<Cell>) = match side {
+        (1, 0) => (x1, (y0..=y1).map(|y| (x1, y)).collect()),
+        (-1, 0) => (x0, (y0..=y1).map(|y| (x0, y)).collect()),
+        (0, 1) => (y1, (x0..=x1).map(|x| (x, y1)).collect()),
+        _ => (y0, (x0..=x1).map(|x| (x, y0)).collect()),
     };
-    let across: Vec<i32> = a
-        .entrance
-        .iter()
-        .map(|t| if side.0 != 0 { t.y } else { t.x })
+    let door = edge
+        .into_iter()
+        .filter(|&c| {
+            let i = at(m, c).unwrap();
+            m.tiles[i] == T_FLOOR && m.feature_grid[i] == 0
+        })
         .collect();
-    (
-        side,
-        line,
-        (*across.iter().min().unwrap(), *across.iter().max().unwrap()),
-    )
+    (side, line, door)
 }
 
 fn along_across(side: Cell, line: i32, c: Cell) -> (i32, i32) {
@@ -476,9 +481,12 @@ fn shape_bog_tree_stands_in_the_outer_third_ringed_by_bog() {
     }
 }
 
-/// Sentenced: the church is a wall ring whose footprint holds the far elite camp's whole clearing; its door (the
-/// anchor's entrance, 2-3 floor tiles in a row) lies on the footprint edge facing the front and joins the walkable region
-/// of the first spawn; with the door shut the camp is sealed off from that spawn.
+/// Sentenced: the church is a wall ring whose box holds the far elite camp's whole clearing; its door (3 floor tiles in
+/// a row, owned by no feature) lies on the church box's edge facing the front and joins the walkable region of the first
+/// spawn; with the door shut the camp is sealed off from that spawn. Amended by P-MAPGEN-SIG-SCALE-2 (approved by the
+/// landmark lane, 2026-11-13): the box is the `Church` feature's (the anchor's footprint is now the whole churchyard,
+/// pinned by `mapgen_signature_church.rs`), and the door is read from that box (`church_door`), not from the anchor's
+/// entrance (now the churchyard's main gate). Was: footprint == the church's box, door = entrance of 2-3 tiles.
 #[test]
 fn shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front() {
     for (seed, m) in maps() {
@@ -486,10 +494,6 @@ fn shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front() {
         let a = anchor(seed, m, Zone::Sentenced);
         let f = &m.features[k];
         assert_eq!(a.kind, FeatureKind::Church, "seed {seed}");
-        assert_eq!(
-            a.footprint, f.bbox,
-            "seed {seed}: footprint is not the church's box"
-        );
         for c in owned(m, k) {
             assert_eq!(
                 m.tiles[at(m, c).unwrap()],
@@ -521,22 +525,11 @@ fn shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front() {
             }
         }
         assert_eq!(a.front, expected_front(m, camp), "seed {seed}: front");
-        let side = door_side(a.front);
-        let door: Vec<Cell> = a.entrance.iter().map(|t| (t.x, t.y)).collect();
-        assert!(
-            (2..=3).contains(&door.len()),
-            "seed {seed}: door of {} tiles",
-            door.len()
-        );
-        let line_ok = |c: &Cell| match side {
-            (1, 0) => c.0 == fp.2,
-            (-1, 0) => c.0 == fp.0,
-            (0, 1) => c.1 == fp.3,
-            _ => c.1 == fp.1,
-        };
-        assert!(
-            door.iter().all(line_ok),
-            "seed {seed}: door {door:?} is not on the {side:?} edge of {:?}",
+        let (side, _, door) = church_door(m, k, a);
+        assert_eq!(
+            door.len(),
+            3,
+            "seed {seed}: door {door:?} on the {side:?} edge of {:?}",
             f.bbox
         );
         let mut across: Vec<i32> = door
@@ -585,23 +578,31 @@ fn shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front() {
 /// Sentenced: the graveyard is at least 4 headstones beyond the door; each stone a solid block of at most 3x3 tiles, no
 /// two touching (not even at a corner); the stones mirror each other about the door axis; every floor tile round them is
 /// walkable from the first spawn; and the gap between the door line and the nearest stone is one value of at least 2 tiles
-/// over every church of every door side.
+/// over every church of every door side. Amended by P-MAPGEN-SIG-SCALE-2 (approved by the landmark lane, 2026-11-13):
+/// the graveyard also owns its LOW fence (the plots and the churchyard), so the headstones are its WALL tiles and every
+/// other tile it owns is LOW; the door line and axis are the church's door (`church_door`), not the anchor's entrance
+/// (now the main gate). Was: every graveyard tile wall, the frame from the entrance.
 #[test]
 fn shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap() {
     let mut gaps = BTreeSet::new();
     let mut sides = BTreeSet::new();
     for (seed, m) in maps() {
         let k = single(seed, m, FeatureKind::Graveyard, Zone::Sentenced);
+        let church = single(seed, m, FeatureKind::Church, Zone::Sentenced);
         let a = anchor(seed, m, Zone::Sentenced);
         assert!(!a.entrance.is_empty(), "seed {seed}: church without a door");
-        let tiles = owned(m, k);
-        for &c in &tiles {
-            assert_eq!(
-                m.tiles[at(m, c).unwrap()],
-                T_WALL,
-                "seed {seed}: stone tile {c:?} is not wall"
+        let all = owned(m, k);
+        for &c in &all {
+            let t = m.tiles[at(m, c).unwrap()];
+            assert!(
+                t == T_WALL || t == TILE_LOW,
+                "seed {seed}: graveyard tile {c:?} is neither a stone (wall) nor a fence (LOW): {t}"
             );
         }
+        let tiles: Vec<Cell> = all
+            .into_iter()
+            .filter(|&c| m.tiles[at(m, c).unwrap()] == T_WALL)
+            .collect();
         let stones = components(&tiles, false);
         assert!(
             stones.len() >= 4,
@@ -628,7 +629,15 @@ fn shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap() {
                 "seed {seed}: headstone {s:?} is not a solid block of at most 3x3"
             );
         }
-        let (side, line, (lo, hi)) = door_frame(a);
+        let (side, line, door) = church_door(m, church, a);
+        let across_door: Vec<i32> = door
+            .iter()
+            .map(|&c| along_across(side, line, c).1)
+            .collect();
+        let (lo, hi) = (
+            *across_door.iter().min().expect("the church has a door"),
+            *across_door.iter().max().unwrap(),
+        );
         sides.insert(side);
         let frame: BTreeSet<(i32, i32)> =
             tiles.iter().map(|&c| along_across(side, line, c)).collect();
@@ -715,7 +724,19 @@ fn g3_the_finished_map_carries_the_zone_anchors() {
             let a = anchor(seed, m, zone);
             let f = &m.features[k];
             assert_eq!(a.kind, kind, "seed {seed}: {zone:?} anchor kind");
-            assert_eq!(a.footprint, f.bbox, "seed {seed}: {zone:?} footprint");
+            // P-MAPGEN-SIG-SCALE-2 (approved by the landmark lane, 2026-11-13): the church's footprint is the whole
+            // churchyard and holds the `Church` box (the exact box: `mapgen_signature_church.rs`). Was: equal to it.
+            if kind == FeatureKind::Church {
+                let (fp, b) = (grow(a.footprint, 0), grow(f.bbox, 0));
+                assert!(
+                    inside(fp, (b.0, b.1)) && inside(fp, (b.2, b.3)),
+                    "seed {seed}: {zone:?} footprint {:?} does not hold the church {:?}",
+                    a.footprint,
+                    f.bbox
+                );
+            } else {
+                assert_eq!(a.footprint, f.bbox, "seed {seed}: {zone:?} footprint");
+            }
             let c = (a.centre.x, a.centre.y);
             assert!(
                 inside(grow(f.bbox, 0), c),
