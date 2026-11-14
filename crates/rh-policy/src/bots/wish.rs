@@ -66,6 +66,12 @@ pub const ENGAGE_RANGE_MARGIN: f64 = 16.;
 pub const PEEL_DISTANCE: f64 = 150.;
 pub const ENGAGE_BLINK_MIN_DISTANCE: f64 = 120.;
 pub const ENGAGE_BLINK_STOP_SHORT: f64 = 40.;
+/// A wall goes up against an enemy chasing us this close (legacy 78dd8bd4 `abilityPolicy.ts` `WALL_PEEL_DISTANCE`).
+pub const WALL_PEEL_DISTANCE: f64 = 260.;
+/// ... and not closer than this, where it would land on us too (`WALL_PEEL_MIN`). Both bounds are inclusive.
+pub const WALL_PEEL_MIN: f64 = 56.;
+/// A wall dropped between us and an enemy lands this share of the way to it (`WALL_PEEL_SHARE`).
+pub const WALL_PEEL_SHARE: f64 = 0.7;
 /// Headings tried for an escaping blink, as angles off straight away from the threat.
 pub const ESCAPE_HEADINGS: [f64; 7] = [
     0.,
@@ -126,7 +132,15 @@ pub enum TargetRule {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PolicyEffect {
     HidesCaster,
-    Blink { max_dist: f64, min_dist: f64 },
+    Blink {
+        max_dist: f64,
+        min_dist: f64,
+    },
+    /// Legacy `do: "wall"` (78dd8bd4 shared/abilities.ts): a barrier `length` long standing `ms` at the aim point.
+    Wall {
+        ms: f64,
+        length: f64,
+    },
 }
 /// One rank of a Wish (Wishes have one).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -229,6 +243,40 @@ pub const WISHES: [WishDef; 5] = [
 pub fn wish_by_id(id: AbilityId) -> Option<&'static WishDef> {
     WISHES.iter().find(|d| d.id == id)
 }
+/// The policy row a room plays for a Wish id: the catalog's, except that in a room whose Frost Wish is Frost Wall
+/// (`SimConfig::frost_wish`, staged under Freeze's id as `rh_sim::abilities::definition_for` does) Frost's Wish is the
+/// Frost Wall row.
+///
+/// `WISHES` keeps its five catalog rows (the captured corpora iterate them); the wall row is [`FROST_WALL`].
+pub fn wish_for(id: AbilityId, frost_wish: rh_sim::FrostWish) -> Option<&'static WishDef> {
+    if id == AbilityId::Freeze && frost_wish == rh_sim::FrostWish::Wall {
+        return Some(&FROST_WALL);
+    }
+    wish_by_id(id)
+}
+/// Legacy 78dd8bd4 `shared/abilities.ts` `frostWall`: `ai ["peel", "escape"]`, the Wish block set, a point cast
+/// (range 450, minimum 64), cast 250 ms, one effect `{ do: "wall", ms: 4000, length: 224 }`. Staged under Freeze's
+/// id, as the sim stages it (`rh_sim::abilities::definition_for`).
+pub static FROST_WALL: WishDef = WishDef {
+    id: AbilityId::Freeze,
+    name: "Frost Wall",
+    ai: &[AiIntent::Peel, AiIntent::Escape],
+    blocked_by: WISH_AI,
+    drops_lock: false,
+    rank: WishRank {
+        cast_ms: 250.,
+        targeting: TargetRule::Point {
+            range: 450.,
+            min_range: 64.,
+        },
+        effects: &[PolicyEffect::Wall {
+            ms: 4000.,
+            length: 224.,
+        }],
+    },
+};
+/// The Easy tier's tags for the Frost Wall row (`playedDef` keeps escape/sustain: the wall's `escape`).
+const FROST_WALL_EASY_AI: &[AiIntent] = &[AiIntent::Escape];
 /// The rank numbers, clamped to 1..ranks.length (rankOf): a Wish has one rank, so any rank is rank 1.
 pub fn wish_rank(def: &WishDef, rank: u8) -> &WishRank {
     let _ = rank;
@@ -246,6 +294,10 @@ const EASY_AI: [&[AiIntent]; 5] = [
 pub(crate) fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiIntent]> {
     if tier != TierId::Easy {
         return Some(def.ai);
+    }
+    // The wall row is outside `WISHES` (whose positions index `EASY_AI`), so it is matched first.
+    if *def == FROST_WALL {
+        return Some(FROST_WALL_EASY_AI);
     }
     let index = WISHES.iter().position(|d| d.id == def.id)?;
     let ai = EASY_AI[index];
@@ -266,6 +318,11 @@ fn static_rank(def: &WishDef) -> SourceRank {
             .iter()
             .any(|e| matches!(e, PolicyEffect::HidesCaster)),
         blink: blink_of(def.rank.effects),
+        wall: def
+            .rank
+            .effects
+            .iter()
+            .any(|e| matches!(e, PolicyEffect::Wall { .. })),
     }
 }
 /// The static `WISHES` row as the source-shaped borrowed ability the shared core consumes.
@@ -314,7 +371,7 @@ pub fn hides_caster(def: &WishDef, rank: u8) -> bool {
 fn blink_of(effects: &[PolicyEffect]) -> Option<(f64, f64)> {
     effects.iter().find_map(|e| match e {
         PolicyEffect::Blink { max_dist, min_dist } => Some((*max_dist, *min_dist)),
-        PolicyEffect::HidesCaster => None,
+        PolicyEffect::HidesCaster | PolicyEffect::Wall { .. } => None,
     })
 }
 
@@ -445,6 +502,9 @@ pub struct WishModule {
     fighter_hits: Vec<(String, f64)>,
     map: Option<TileMap>,
     ring: Option<blink::Ring>,
+    /// The room's Frost Wish (`MatchStart::frost_wish`, the Welcome's public HUD term 23): with `Wall`, Frost's Wish
+    /// plays the [`FROST_WALL`] row. A module starts at `Freeze`.
+    frost_wish: rh_sim::FrostWish,
 }
 impl Default for WishModule {
     fn default() -> Self {
@@ -459,13 +519,19 @@ impl WishModule {
             fighter_hits: Vec::new(),
             map: None,
             ring: None,
+            frost_wish: rh_sim::FrostWish::Freeze,
         }
     }
-    /// Match start: independent state, and the public static map the landing search reads.
+    /// Match start: independent state, and the public static map the landing search reads (a Freeze room).
     pub fn reset(&mut self, map: &TileMap) {
+        self.reset_in(map, rh_sim::FrostWish::Freeze);
+    }
+    /// Match start in a room whose Frost Wish is `frost_wish` (`MatchStart::frost_wish`).
+    pub fn reset_in(&mut self, map: &TileMap, frost_wish: rh_sim::FrostWish) {
         *self = Self::new();
         self.map = Some(map.clone());
         self.ring = Some(blink::Ring::new(map));
+        self.frost_wish = frost_wish;
     }
     /// One observation's own-hit facts (the perception frame passes the player hits it saw).
     pub fn absorb_hits(&mut self, hit_at: Option<f64>, fighter_hits: &[(String, f64)]) {
@@ -536,7 +602,7 @@ impl WishModule {
         tier: TierId,
     ) -> Option<Intent> {
         let view = p.extras.wish.as_ref()?;
-        let def = wish_by_id(view.ability)?;
+        let def = wish_for(view.ability, self.frost_wish)?;
         if !self.state.remembers()
             || !usable(p, view)
             || view.casting

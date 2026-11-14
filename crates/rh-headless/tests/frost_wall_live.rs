@@ -223,16 +223,20 @@ fn assert_no_stall(kind: &str, s: &Smoke) {
     );
 }
 
-/// HumanBot (the live fill bot), seed 6: Frost seats 2 and 7. Measured 2026-11-14 with the wall selected: the match
-/// ends by its own rules at tick 3,738 (a Holy winner) after 3 walls; under Freeze the same seed is cut off at 9,000
-/// ticks.
+/// HumanBot (the live fill bot), seed 16: Frost seats 2 and 7. This smoke's purpose is "no stall under the wall", not
+/// the bots' aim. It was seed 6 (3 walls, ended at 3,738, with the bots aiming the wall as a unit-targeted Freeze);
+/// with legacy's wall rule (P-FROST-WALL-BOTS-1) a HumanBot walls rarely, and seed 6 raises none and runs to 9,000
+/// ticks. Seed 16 raises walls under both aims, so the smoke checks the same thing before and after that packet
+/// (measured 2026-11-14: Freeze aim, ends at 2,670 after 2 walls; legacy's rule, ends at 2,044 after 1 wall).
+/// Coordinator-approved amendment. The peel itself (the wall dropped 70% of the way to a chaser) is proved by the
+/// staged-frame and seat tests in `crates/rh-policy/src/bots/frost_wall_bots_tests.rs`, not by this smoke.
 #[test]
 #[cfg_attr(
     debug_assertions,
     ignore = "a full-map 8-bot match: run with `cargo test --release -p rh-headless --test frost_wall_live`"
 )]
 fn a_live_humanbot_match_with_frost_seats_finishes_under_the_wall() {
-    let s = smoke(BotKind::Human, 6, 9000);
+    let s = smoke(BotKind::Human, 16, 9000);
     assert!(
         s.terminated,
         "HumanBot: the match ends by its own rules within 9,000 ticks ({s:?})"
