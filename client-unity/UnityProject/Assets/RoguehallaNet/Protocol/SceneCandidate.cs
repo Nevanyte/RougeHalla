@@ -14,7 +14,7 @@ namespace Roguehalla.Net.Protocol
             public readonly int BodyBytes, PartBytes, Parts, Frames, FrameBytes, RetainedBodyBytes;
             public Limits(int bodyBytes,int partBytes,int parts,int frames,int frameBytes,int retainedBodyBytes)
             {
-                if((Wire.ProtocolVersion!=14&&Wire.ProtocolVersion!=17)||bodyBytes<=0||partBytes<=0||partBytes>bodyBytes||parts<=0||parts>ushort.MaxValue||frames<2||frames>ushort.MaxValue||frameBytes<=0||frameBytes>Wire.MaxServerFrame||retainedBodyBytes<bodyBytes||frameBytes<69||(long)partBytes+32>frameBytes) throw Bad("limits");
+                if((Wire.ProtocolVersion!=14&&Wire.ProtocolVersion!=18)||bodyBytes<=0||partBytes<=0||partBytes>bodyBytes||parts<=0||parts>ushort.MaxValue||frames<2||frames>ushort.MaxValue||frameBytes<=0||frameBytes>Wire.MaxServerFrame||retainedBodyBytes<bodyBytes||frameBytes<69||(long)partBytes+32>frameBytes) throw Bad("limits");
                 BodyBytes=bodyBytes;PartBytes=partBytes;Parts=parts;Frames=frames;FrameBytes=frameBytes;RetainedBodyBytes=retainedBodyBytes;
             }
             internal void Check(){if(BodyBytes<=0||PartBytes<=0||Parts<=0||Frames<2||FrameBytes<=0)throw Bad("limits");}

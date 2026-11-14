@@ -1,5 +1,5 @@
 /*
- * Credential-blind v17 wire metadata parser. It is intentionally inert: importing or pasting
+ * Credential-blind v18 wire metadata parser. It is intentionally inert: importing or pasting
  * this file does not patch WebSocket, inspect application globals, read storage, or install hooks.
  * A caller may provide an already-observed frame to parseClientHello / parseServerWelcome.
  * The Welcome result is a recognized public-prefix observation, not proof the whole frame or
@@ -12,7 +12,7 @@ const SERVER_MAX = 256 * 1024;
 const MAX_TICKET = 448;
 const MAX_MAP_TILES = 1024 * 1024;
 const MAX_MAP_RUNS = 5 * MAX_MAP_TILES;
-const PROTOCOL = 17;
+const PROTOCOL = 18;
 const MAX_ARCHETYPES = 32, MAX_ARCHETYPE_KEY = 24, MAX_WEAPONS = 32, WEAPON_ROW_LEN = 34;
 // P-WIRE17-HUD-2b HUD content block (crates/rh-protocol/src/hud_content.rs).
 const MAX_SCALING_ROWS = 32, SCALING_ROW_LEN = 34, MAX_HUD_TERMS = 30, HUD_TERM_ROW_LEN = 9;
@@ -64,7 +64,7 @@ function checkReader(r, maxBytes) {
   if (r.length > maxBytes) throw new RangeError('frame bound');
 }
 
-/** Parse only the v17 Hello's public protocol and the presence bit for the private resume capability. */
+/** Parse only the v18 Hello's public protocol and the presence bit for the private resume capability. */
 export function parseClientHello(reader) {
   let protocol = null;
   try {
@@ -95,7 +95,7 @@ export function parseClientHello(reader) {
   }
 }
 
-/** Parse only the v17 Welcome's public identity prefix; session and all later bytes are skipped. */
+/** Parse only the v18 Welcome's public identity prefix; session and all later bytes are skipped. */
 export function parseServerWelcome(reader) {
   let protocol = null;
   try {
