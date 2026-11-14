@@ -32,7 +32,7 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
 | G6 | **Seeded, local randomness.** Every choice is drawn from a stream of (map seed, attempt, zone, step). |
 | G7 | **Clusters and edges, not scatter.** |
 | G8 | **Legacy stays reachable.** With the option off the generator's output is byte-identical to today's. |
-| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`). Not yet built: decisions 4, 5 and 10 below describe today's variable shapes until P-MAPGEN-SIG-SCALE-2 to -4 and P-MAPGEN-SIG-HOLY-1 land. |
+| G9 | **A landmark is a fixed blueprint** (owner decision 2026-11-12, requirements L1-L6 in `docs/coordination/LAND_GENERATION_REQUIREMENTS.md`): one size and one layout per landmark, all five. Between maps only its place within its site rule, its rotation and its mirror vary. A site that cannot hold the blueprint discards the attempt; a landmark is never served smaller or with fewer parts (the volcano always has three streams). Built for the Frost cave (P-MAPGEN-SIG-SCALE-1, decision 11: `docs/landmarks/blueprints/cave.txt`) and the Plague bog tree (P-MAPGEN-SIG-SCALE-3, decision 4: `docs/landmarks/blueprints/bog.txt`). Not yet built: decisions 5 and 10 below describe today's variable shapes until P-MAPGEN-SIG-SCALE-2, -4 and P-MAPGEN-SIG-HOLY-1 land. |
 | G10 | **Every thematic obstacle is placed by a rule that reads the landmark** (its anchor, bands and front). No styler lays its obstacles as if the landmark were not there. Built for Fire's craters and Frost's first lake; the rest is the land-generation task (`P-LAND-*`). |
 
 ## Decision
@@ -57,15 +57,31 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    draws are the Prefix's site choices (decision 12, one per prefix round that reaches the zone); the Landmarks phase
    continues the stream after them (`ReservedSite::stream`), never re-using a draw. With the option on the main stream
    draws what the Prefix's own steps draw (its camps are placed round the sites, so later draws move with them).
-4. **Plague, the bog tree** (`FeatureKind::BogTree`, job landmark): a 13-tile trunk (wall, squared distance <= 4 from
-   the centre tile) with dry ground to squared distance 10, and bog floor in the bands 13-21 and 36-56; the centre stands
-   at least 2 tiles beyond the start of the outer third of the Plague zone's radial extent from the map centre, at least
-   60 bog tiles survive, with bog in all four quadrants. Trunk and bog stay out of every apron marked before the step
-   (`masks.near1`: the legacy buildings grown by one tile, and the volcano's). The site is a uniform draw over every
-   legal centre. With a reserved site (decision 12) the tree stands wholly in the site's inner rect and the site
+4. **Plague, the bog tree** (`FeatureKind::BogTree`, job landmark; certifier row: wall, no LOW). The owner-approved
+   blueprint (G9; P-MAPGEN-SIG-SCALE-3): `docs/landmarks/blueprints/bog.txt`, 29 x 29 tiles, carried byte-equal in the
+   crate as `signature/bog.txt` (`Definition::bog_grid`, `include_str!`) and parsed once per context. `T` trunk (a
+   disc 11 tiles across round the drawing's centre (14, 14), 93 tiles) and `r` root (62) are wall tiles owned by the tree
+   (terrain 0): the trunk with its three roots is one 8-connected wall group of 137, and three free stumps of 6 tiles
+   (= `piece_min`) touch neither it nor each other, not even diagonally. `%` is the tree's marsh (213 tiles, floor with
+   the `bog` terrain, owned by the tree); `.` dry floor and the three 2-wide causeways `:` stay unwritten floor. The
+   drawing's centre stands on the Plague site's centre tile (the site has no camp), so the box lies at offset (3, 3) from
+   the site's corner in every orientation, inside the inner rect. Orientation as the cave's (decision 11): the front row
+   faces the dominant axis of DIR16 from the centre tile toward the coliseum, mirrored or not by the tree's one draw on
+   the Plague stream (after the reservation's draw; the drawing has no symmetry, so the eight orientations are eight
+   layouts). Anchor: centre the centre tile (a trunk tile, the feature's anchor point), footprint the 29 x 29 box (walls
+   or marsh reach every edge row and column, so the feature's `bbox` that `finish` re-reads is the box), entrance the
+   six causeway tiles on the box's edge (grid (12, 0), (13, 0), (0, 11), (0, 12), (13, 28), (14, 28), turned and
+   mirrored with the box). The attempt is refused (`Refusal::Signature`) when a wall or marsh tile is not free Plague
+   floor off every halo and every apron marked before the step (`masks.near1`: the legacy buildings grown by one tile,
+   and the volcano's) inside the inner rect, a dry or causeway tile is not free Plague floor inside it, a wall piece is
+   under `piece_min`, or the walls split the zone's floor; the tree is never served smaller. The site (decision 12)
    carries the outer-third rule: a Plague site lies beyond the outer-third line + 2 where one fits (20 of seeds 1-64 at
    34 tiles, on each seed's accepted attempt), else it is the zone's deepest free square (the other 44), its centre still beyond the zone's centroid (coordinator
-   decision 2026-11-12: keep the 34-tile site rather than a smaller one or the outer half).
+   decision 2026-11-12: keep the 34-tile site rather than a smaller one or the outer half). No territory relabel: the
+   site has no inside camp. Without a reserved site (a `begin_attempt` prefix, which only tests feed the step) the
+   earlier rule-drawn tree remains: a 13-tile trunk (squared distance <= 4) with dry ground to squared distance 10 and
+   bog in the bands 13-21 and 36-56, at least 60 bog tiles in all four quadrants, its centre at least 2 tiles beyond the
+   start of the outer third, a uniform draw over every legal centre.
 5. **Sentenced, the church and graveyard** (`Church`, job landmark; `Graveyard`, job cover). Around the far elite camp
    (the zone's elite camp farthest from the map centre; with a reserved site, decision 12, the site's camp, the zone's
    first elite, the church and graveyard wholly inside the site's inner rect). A rectangular wall ring: each wall line 4-7 tiles from the camp
@@ -97,7 +113,8 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
    decoration bake reads them from the generator's map at pool-build time. Fire the volcano (centre the cone's centre,
-   footprint the cone's box), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree, Holy
+   footprint the cone's box), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree (centre the site's centre tile, footprint the blueprint's 29 x 29 box, the six
+   causeway openings as entrance), Holy
    the largest `Hall` (written when the map is finished: the hall is placed by the Holy styler in step 3), Frost the
    cave (centre the camp tile, footprint the blueprint's 29 x 29 box, the mouth as entrance). Not in the
    map hash (they restate hashed features). `rh-map/2` does not move: older readers refuse a document with anchors, which exists only inside an
@@ -228,6 +245,13 @@ styler does not yet build at the mouth, 21 for the landmark-intact / styler-apro
 attempt 1, the Frost styler's mere owning a wall tile), 0 `Signature`: the cave refused no attempt. The largest
 unowned ice body is 3-9 walked floor steps from the mouth on the accepted maps. The blueprint without the relabel
 cost 396 attempts on seeds 1-64 and lost 7 seeds (247 `Repair(RadiusPost)`).
+
+With the blueprint tree as well (P-MAPGEN-SIG-SCALE-3, decision 4; `mapgen_signature_bog_tree`'s `report_seeds_1_to_64`,
+debug test build): every seed of 1-64 gives a map; the tree is the 29 x 29 drawing at box offset (3, 3) on 64 of 64,
+both mirror states and all four front directions occur. Attempts used: 46 on seeds 1-32 (59 with the rule-drawn tree),
+worst index 2 (seed 12; 4 before); 109 on seeds 1-64 (132 before), worst index 6 (seeds 46 and 52; 9 before). Refusals
+on seeds 1-64: 10 `Prefix`, 6 `Repair(RadiusPost)`, 26 `SignatureDiscarded`, 3 `SpawnRatio` (new: every later step
+sees a different map; not traced), 0 `Signature`: the tree refused no attempt.
 
 ## Consequences
 
