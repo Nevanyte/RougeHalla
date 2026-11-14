@@ -8,7 +8,7 @@
 //      `#[global_allocator] static ALLOC: alloc_count::CountingAlloc = alloc_count::CountingAlloc;`
 //   2. Warm up outside the measured section, then
 //      `let (_, blocks) = alloc_count::blocks_on_this_thread(|| steady_section()); assert_eq!(blocks, 0);`
-#![allow(dead_code)]
+#![allow(dead_code, unsafe_code)]
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicU64, Ordering};
 
