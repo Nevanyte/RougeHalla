@@ -5,8 +5,8 @@
 //! right), heading its run's `Definition::outlet_heading` turned with the drawing, each ending in a lava pool
 //! (`LavaPool`), edged with ember floor owned by the stream or pool.
 //!
-//! A stream is laid as a line through free ground (the zone's floor outside the legacy landmark protection, camp halos
-//! and every apron marked so far, off the cone); where the line is blocked it bends by one direction step at a time,
+//! A stream is laid as a line through free ground (`free`: the zone's floor outside the camp halos and every apron
+//! marked so far, off the cone); where the line is blocked it bends by one direction step at a time,
 //! within `stream_bend` of its own heading and `front_max` of the drawing's front, or ends sooner. Its length, measured
 //! as the oracle measures it (`length`), lies in its run's `outlet_len` range, and the middle stream is strictly the
 //! longest: it is laid first, and the side streams are held below it. An attempt whose three streams cannot all be laid
@@ -236,10 +236,17 @@ pub(super) fn owned(codes: &TerrainCodes) -> Vec<(FeatureKind, Owned)> {
     ]
 }
 
-/// Ground a lava or ember tile may take: this zone's free floor outside the legacy protection, the camp halos and every
-/// apron marked so far.
+/// Ground a lava or ember tile may take: this zone's free floor (`Site::floor`, unconfined) outside the camp halos and
+/// every apron marked so far. Not the legacy landmark protection (`Site::ground` also asks for it: the camp clearings
+/// grown by `landmark_clearing_margin`): the camps keep only their halos out of the reserved site, so that protection
+/// reaches into the site's apron ring and covers the ground in front of the outlets, where the streams must start
+/// (P-MAPGEN-SIG-SCALE-4, measured on seeds 1-64: with it, the middle stream is refused on nearly every attempt). The
+/// halo, which the certifier asks for, still holds everywhere.
 fn free(s: &Site<'_>, x: i32, y: i32) -> bool {
-    s.ground(x, y) && s.halo[at(x, y).unwrap()] == 0
+    s.floor(x, y) && {
+        let i = at(x, y).unwrap();
+        s.halo[i] == 0 && s.apron[i] == 0
+    }
 }
 
 /// The side cell that makes a stream of heading `h` two tiles wide: the 4-neighbour across its dominant axis.
