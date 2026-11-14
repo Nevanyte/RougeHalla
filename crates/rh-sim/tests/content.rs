@@ -28,6 +28,12 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("barriers_public_tests.rs", "W", "cfg(test)-only room width of the public-wall observation tests; never read by gameplay"),
+    ("barriers_public_tests.rs", "H", "cfg(test)-only room height of the public-wall observation tests; never read by gameplay"),
+    ("barriers_public_tests.rs", "CASTER", "cfg(test)-only seat index of the public-wall observation tests; never read by gameplay"),
+    ("barriers_public_tests.rs", "NEAR", "cfg(test)-only seat index of the public-wall observation tests; never read by gameplay"),
+    ("barriers_public_tests.rs", "FAR", "cfg(test)-only seat index of the public-wall observation tests; never read by gameplay"),
+    ("barriers_public_tests.rs", "DEAD", "cfg(test)-only seat index of the public-wall observation tests; never read by gameplay"),
     ("systems/holy_demon_blood_tests.rs", "TOL", "cfg(test)-only comparison tolerance of the captured Holy camp-lifesteal corpus; never read by gameplay"),
     ("systems/sentenced/mark_tax/source_tests.rs", "PHASES", "cfg(test)-only observational phase and RNG transcript storage; never read by production gameplay or content decisions"),
     ("systems/sentenced/mark_tax/source_tests.rs", "PUBLIC_MARKS", "cfg(test)-only captured public Mark projection bookkeeping; never read by production gameplay or content decisions"),

@@ -110,11 +110,6 @@ pub(crate) fn project(
     let map = sim.collision_view();
     let wards = crate::vision::WardSight::of_sim(sim);
     let visible = |p: Vec2| crate::vision::point_visible(map, me, p, sim.w.tick, wards);
-    let w = sim.k.arena.map.w;
-    let tile_centre = |i: u32| {
-        let c = |t: u32| f64::from(t) * crate::constants::TILE + crate::constants::TILE / 2.;
-        Vec2::new(c(i % w), c(i / w))
-    };
     for f in &a.fields {
         let cells: &[u32] = if f.kind == FieldKind::Wall {
             a.barriers
@@ -126,14 +121,11 @@ pub(crate) fn project(
             &[]
         };
         let shown = match f.kind {
-            // P-FROST-WALL-NOWALL-1 (proposed DEV-036): a standing wall reaches its owner always, and any other viewer
-            // who sees its first end `(x, y)` (the P-FROST-WALL-2 rule, legacy 78dd8bd4 FieldView.ts `update`) or any
-            // one of its tiles; that viewer gets the whole wall. A viewer who sees neither gets nothing (C-OBS).
-            FieldKind::Wall => {
-                f.owner.id == Some(viewer)
-                    || visible(Vec2::new(f.x, f.y))
-                    || cells.iter().any(|&i| visible(tile_centre(i)))
-            }
+            // P-FROST-WALL-PUBLIC-1 (DEV-036, owner decision 2026-11-14): a standing wall is temporary terrain, public
+            // like the map. Every seated viewer, alive or dead, gets every standing wall whole, whatever it sees (legacy
+            // 78dd8bd4 `schema.ts:374` synced every field to every client). The owner and subject stay redacted below:
+            // named only to the owner and to a viewer whose observation carries them (C-OBS).
+            FieldKind::Wall => true,
             FieldKind::Trail => visible(Vec2::new(f.x, f.y)) && visible(Vec2::new(f.x2, f.y2)),
             FieldKind::Zone | FieldKind::Cloud => visible(Vec2::new(f.x, f.y)),
         };
