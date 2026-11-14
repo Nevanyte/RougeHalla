@@ -694,6 +694,7 @@ impl<'f> SignatureContext<'f> {
                 anchors: vec![anchor],
                 terrain,
                 landed: landed.into_iter().collect(),
+                frames: Vec::new(),
             }))
     }
 
