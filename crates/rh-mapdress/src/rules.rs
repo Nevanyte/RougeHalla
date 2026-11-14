@@ -99,7 +99,22 @@ pub struct BandRing {
 pub struct LandmarkRules {
     /// The landmark's feature kind: `Volcano`, `Church`, `BogTree`, `Cave` or `Hall`. Must equal the anchor's `kind`.
     pub feature: FeatureKind,
+    /// P-DRESS-SENTENCED-RINGS-1: where the bands are measured from, when not the anchor's footprint. `None`: the
+    /// anchor's footprint, exactly as before. Validated at build; used by `band_plane`.
+    pub origin: Option<RingOrigin>,
     pub rings: Vec<BandRing>,
+}
+
+/// P-DRESS-SENTENCED-RINGS-1: a landmark's ring origin. `feature`: bands are measured from the bounding box of the
+/// zone's largest map feature of this kind (the church BUILDING, not the whole churchyard anchor). `inside`: a tile
+/// strictly inside the anchor's footprint (inset by one tile) and beyond the origin's core band takes this band
+/// instead of its own. `outside`: every other tile (the footprint's edge ring included) takes at least this band.
+/// When the map has no such feature the zone is dressed from the anchor's footprint, as without an origin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RingOrigin {
+    pub feature: FeatureKind,
+    pub inside: Option<Band>,
+    pub outside: Option<Band>,
 }
 
 /// P-DRESS-MARSH-1: a ground ring round a terrain class. A tile of the zone's plain floor (class `Floor`) whose Chebyshev
@@ -306,7 +321,31 @@ struct RawSignature {
 #[serde(deny_unknown_fields)]
 struct RawLandmark {
     feature: FeatureKind,
+    #[serde(default)]
+    origin: Option<RawOrigin>,
     rings: Vec<RawBandRing>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawOrigin {
+    feature: FeatureKind,
+    #[serde(default)]
+    inside: Option<String>,
+    #[serde(default)]
+    outside: Option<String>,
+}
+fn origin_band(zone: Zone, which: &str, name: &Option<String>) -> Result<Option<Band>, String> {
+    match name.as_deref() {
+        None => Ok(None),
+        Some("core") => Ok(Some(Band::Core)),
+        Some("near") => Ok(Some(Band::Near)),
+        Some("mid") => Ok(Some(Band::Mid)),
+        Some("far") => Ok(Some(Band::Far)),
+        Some(other) => Err(format!(
+            "zone \"{}\": origin {which} \"{other}\" is not one of core, near, mid, far",
+            zone.as_str()
+        )),
+    }
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -626,8 +665,17 @@ impl Raw {
                             on: r.on.clone(),
                         });
                     }
+                    let origin = match &l.origin {
+                        None => None,
+                        Some(o) => Some(RingOrigin {
+                            feature: o.feature,
+                            inside: origin_band(z, "inside", &o.inside)?,
+                            outside: origin_band(z, "outside", &o.outside)?,
+                        }),
+                    };
                     Some(LandmarkRules {
                         feature: l.feature,
+                        origin,
                         rings: band_rings,
                     })
                 }

@@ -47,8 +47,53 @@ fn landmark(zone: Zone) -> &'static rh_mapdress::rules::LandmarkRules {
         .unwrap_or_else(|| panic!("{zone:?}: rules/zones.json has no signature.landmark block"))
 }
 
-fn tile_band(a: &ZoneAnchor, tx: usize, ty: usize) -> rh_mapdress::rules::Band {
-    band(a, tx as i32, ty as i32)
+/// The origin box of `zone` when its landmark names an `origin` whose feature is on the map (P-DRESS-SENTENCED-RINGS-1;
+/// the largest feature of that kind, first on a tie), with the origin's remap.
+fn origin_of(
+    map: &GameMapData,
+    zone: Zone,
+) -> Option<(rh_mapdress::rules::RingOrigin, rh_sim::mapdata::TileRect)> {
+    let o = landmark(zone).origin?;
+    let mut best: Option<&rh_sim::mapdata::MapFeature> = None;
+    for f in &map.features {
+        if f.kind == o.feature && f.zone == zone && best.is_none_or(|b| f.tiles > b.tiles) {
+            best = Some(f);
+        }
+    }
+    best.map(|f| (o, f.bbox))
+}
+
+/// Strictly inside the anchor's footprint (inset by one tile) of a zone whose ring origin applies: the churchyard.
+fn in_yard(map: &GameMapData, zone: Zone, tx: usize, ty: usize) -> bool {
+    let f = anchor_of(map, zone).footprint;
+    let (x, y) = (tx as i32, ty as i32);
+    origin_of(map, zone).is_some()
+        && x > f.x
+        && y > f.y
+        && x < f.x + f.w as i32 - 1
+        && y < f.y + f.h as i32 - 1
+}
+
+/// The band of tile (tx, ty) of `zone` as the rules define it: from the anchor's footprint, or, when the zone's landmark
+/// names an origin present on the map, from the origin's box with the inside/outside remap (`sentenced_rings.rs` header).
+/// For a zone without an origin this is exactly `signature::band` from the anchor.
+fn tile_band(map: &GameMapData, zone: Zone, tx: usize, ty: usize) -> rh_mapdress::rules::Band {
+    use rh_mapdress::rules::Band;
+    let a = anchor_of(map, zone);
+    let Some((o, rect)) = origin_of(map, zone) else {
+        return band(a, tx as i32, ty as i32);
+    };
+    let mut moved = a.clone();
+    moved.footprint = rect;
+    let b = band(&moved, tx as i32, ty as i32);
+    if in_yard(map, zone, tx, ty) {
+        match o.inside {
+            Some(inside) if b != Band::Core => inside,
+            _ => b,
+        }
+    } else {
+        o.outside.map_or(b, |out| b.max(out))
+    }
 }
 
 #[test]
@@ -72,7 +117,6 @@ fn every_ring_prop_stands_in_the_band_its_ring_declares_inside_its_own_zone() {
         let d = dress(&c.map, c.hash, rules());
         let props = placed(&d);
         for zone in ZONES {
-            let a = anchor_of(&c.map, zone);
             for ring in &landmark(zone).rings {
                 let kinds: Vec<u8> = ring.props.iter().map(|p| p.kind).collect();
                 for p in props.iter().filter(|p| kinds.contains(&p.kind)) {
@@ -85,7 +129,7 @@ fn every_ring_prop_stands_in_the_band_its_ring_declares_inside_its_own_zone() {
                         ring.name
                     );
                     assert_eq!(
-                        tile_band(a, tx, ty),
+                        tile_band(&c.map, zone, tx, ty),
                         ring.band,
                         "seed {}: ring {} prop {p:?} at tile ({tx},{ty})",
                         c.seed,
@@ -113,7 +157,7 @@ fn the_ground_plane_follows_the_band_of_each_floor_tile() {
                 }
                 let expect = match zone_at(&c.map, i) {
                     Some(zone) if c.map.tiles[i] == 0 => {
-                        let b = tile_band(anchor_of(&c.map, zone), tx, ty);
+                        let b = tile_band(&c.map, zone, tx, ty);
                         landmark(zone)
                             .rings
                             .iter()
@@ -139,7 +183,6 @@ fn each_zone_has_ring_props_in_its_near_and_mid_bands_on_every_seed() {
         let d = dress(&c.map, c.hash, rules());
         let props = placed(&d);
         for zone in ZONES {
-            let a = anchor_of(&c.map, zone);
             let lm = landmark(zone);
             let kinds: Vec<u8> = lm
                 .rings
@@ -152,7 +195,7 @@ fn each_zone_has_ring_props_in_its_near_and_mid_bands_on_every_seed() {
                     .filter(|p| kinds.contains(&p.kind))
                     .filter(|p| {
                         let (tx, ty) = tile_of(p.x, p.y);
-                        tile_band(a, tx, ty) == wanted
+                        tile_band(&c.map, zone, tx, ty) == wanted
                     })
                     .count();
                 assert!(
@@ -165,7 +208,11 @@ fn each_zone_has_ring_props_in_its_near_and_mid_bands_on_every_seed() {
     }
 }
 
-/// Every stage, not only the rings: the core band (the landmark and its apron) is kept free of tall props.
+/// Every stage, not only the rings: tall props keep out of the core band (the landmark and its apron, from the zone's
+/// ring origin when it names one: the church building's apron) and, for a zone whose origin applies, out of the whole
+/// churchyard (strictly inside the anchor's footprint; the churchyard used to be the core band, which barred them).
+/// A tall prop on the fence line itself (the footprint's edge ring) is allowed: it is outside the yard and beyond the
+/// building's core band.
 #[test]
 fn no_tall_prop_of_any_stage_stands_in_the_core_band() {
     use rh_mapdress::rules::Band;
@@ -181,9 +228,14 @@ fn no_tall_prop_of_any_stage_stands_in_the_core_band() {
                 continue;
             };
             assert_ne!(
-                tile_band(anchor_of(&c.map, zone), tx, ty),
+                tile_band(&c.map, zone, tx, ty),
                 Band::Core,
                 "seed {}: tall prop {p:?} in the core band of {zone:?}",
+                c.seed
+            );
+            assert!(
+                !in_yard(&c.map, zone, tx, ty),
+                "seed {}: tall prop {p:?} inside the churchyard of {zone:?}",
                 c.seed
             );
         }
