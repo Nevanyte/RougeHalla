@@ -160,7 +160,8 @@ Out of scope here.
   Wish start under `Wall` (F7)
 - `Assets/Scripts/Presentation/WishFxPresenter.cs`: only the Wish-kind setter and the Freeze windup beam skip (F7)
 - `docs/unity/DIALS.md`: rows for the looks-only numbers (colours, lift, alphas, crack time, preview alphas)
-- not `Protocol/**`, not shaders, not any existing test, not `crates/**`, not `protocol/fixtures/**`
+- not `Protocol/**`, not shaders, not any existing test, not `crates/**` (the generator is an oracle file), not
+  `protocol/fixtures/**` (the vector file is an oracle file)
 
 ## 6. Contracts and references
 C-OBS (draw only what the server delivered), R-AUTH/D9 (the mirror decides nothing), ADR 0008 (mirrored rules are checked
@@ -176,8 +177,9 @@ with Rust vectors), C-NET.
 - Engine-free (`dotnet test client-unity/RoguehallaNet.Tests --filter "FullyQualifiedName~FrostWallAim|FullyQualifiedName~WishAim"`):
   `FrostWallAimTests` (the Rust-asserted cases of `barriers_tests.rs` ported, plus a map edge, LOW and WALL skips, and
   the plan map) and `WishAimTests` (F5's table) green.
-- Rust vectors: **not delivered** (section "Vectors: blocked"). When the coordinator places them, a C# test on them joins
-  this list.
+- Rust vectors: `cargo run -p rh-parity --bin frost-wall-aim-fixtures -- --check` and
+  `cargo test -p rh-parity --test frost_wall_aim_golden` green (they are green now and stay so); `FrostWallAimVectorTests`
+  green.
 - EditMode (`bash client-unity/UnityProject/Tools/editmode.sh`): `FrostWallPresenterEditModeTests`,
   `QuickCastSettingEditModeTests` green.
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-FROST-WALL-1` passes.
@@ -187,10 +189,11 @@ with Rust vectors), C-NET.
 ## 9. Validation commands
 - `export PATH="$HOME/.dotnet:$PATH"; dotnet test client-unity/RoguehallaNet.Tests`; `bash client-unity/sync-net.sh --check`
 - `bash client-unity/UnityProject/Tools/editmode.sh`
+- `export PATH="$HOME/.cargo/bin:$PATH"; cargo run -p rh-parity --bin frost-wall-aim-fixtures -- --check;
+  cargo test -p rh-parity --test frost_wall_aim_golden`
 
 ## 10. Risk and suggested model tier
-Sonnet. The risk is the mirror drifting from Rust (the Rust vectors are the eventual guard; the ported Rust cases are the
-guard now) and the click being both a cast and an attack (pinned: consumed).
+Sonnet. The risk is the mirror drifting from Rust (the Rust vectors guard it, including the end-slack knife edge) and the click being both a cast and an attack (pinned: consumed).
 
 ## 11. Known traps
 - Draw the wall from delivered tiles. A wall drawn from the client's own geometry would show ice where the server
@@ -204,39 +207,50 @@ guard now) and the click being both a cast and an attack (pinned: consumed).
 
 ## Oracle files (read-only for implementers)
 - `client-unity/RoguehallaNet.Tests/FrostWallAimTests.cs`
+- `client-unity/RoguehallaNet.Tests/FrostWallAimVectorTests.cs`
 - `client-unity/RoguehallaNet.Tests/WishAimTests.cs`
 - `client-unity/UnityProject/Assets/Tests/Editor/FrostWallPresenterEditModeTests.cs` (+ `.meta`)
 - `client-unity/UnityProject/Assets/Tests/Editor/QuickCastSettingEditModeTests.cs` (+ `.meta`)
+- `crates/rh-parity/src/frost_wall_goldens.rs`, `crates/rh-parity/src/bin/frost_wall_aim_fixtures.rs`,
+  `crates/rh-parity/tests/frost_wall_aim_golden.rs`, and their registration lines in `crates/rh-parity/src/lib.rs`
+  (`pub mod frost_wall_goldens;`) and `crates/rh-parity/Cargo.toml` (the `[[bin]]` entry)
+- `protocol/fixtures/frost_wall_aim_v1.json` (generated; **the implementer never edits or regenerates it**)
 
 Stub files (the implementer replaces them): `FrostWallAim.cs`, `WishAim.cs` (+ synced copies and `.meta`),
 `FrostWallPresenter.cs` (+ `.meta`), `UiDisplayPreferences.cs` (`QuickCast` stub members).
 
-## Vectors: blocked (coordinator decision)
-ADR 0008's precedent for mirrored rules puts Rust-produced vectors in `protocol/fixtures/` (`server_walk_v2.json`,
-`pathfinding_v2.json`, `archetypes_v1.json`), written by `cargo run -p rh-parity --bin hitbox-fixtures`
-(`crates/rh-parity/src/bin/hitbox_fixtures.rs`, module `crates/rh-parity/src/hitbox_goldens.rs` `write_or_check`),
-checked by `crates/rh-parity/tests/pnet2_goldens.rs` (`committed_hitbox_goldens_are_the_current_core`) and read by C#
-tests (`LocalMotionTests`, `PathfindingTests`). `protocol/fixtures/**` is a protected path and the oracle author was told
-to stop rather than write there. Proposed, for the coordinator to approve or relocate:
-- `crates/rh-parity/src/frost_wall_goldens.rs` (`all()`, `write_or_check(check)`), bin `frost-wall-aim-fixtures`
-  (`cargo run -p rh-parity --bin frost-wall-aim-fixtures [--check]`), test `crates/rh-parity/tests/frost_wall_aim_golden.rs`
-  (committed file == current core), output `protocol/fixtures/frost_wall_aim_v1.json`:
-  `{ "tile": 32, "numbers": {range, minRange, length, cellReach, endSlack}, "maps": [{ "name", "w", "h", "tiles" }],
-  "cases": [{ "name", "map", "from": [x,y], "cursor": [x,y], "facing", "segment": {cx,cy,x1,y1,x2,y2}, "cells": [..] }] }`
-  from `rh_sim::barriers::{wall_segment_for, wall_cells}` with the `abilities` constants. Cases: inside min range,
-  beyond range, into rock (no tile), diagonal, map edge, partly over LOW, a closed gate (map with gates as WALL), cursor
-  on the caster (facing fallback).
-- C# `client-unity/RoguehallaNet.Tests/FrostWallAimVectorTests.cs`: segment to 1e-3, cells exactly. `wall_segment_for`
-  and `wall_cells` are `pub` in `rh-sim` (no sim change needed).
+## The Rust vectors (coordinator decision: within the protected-path rule; this packet says so)
+ADR 0008's precedent for mirrored rules: Rust-produced vectors in `protocol/fixtures/`, written by a documented fixture
+command (`hitbox-fixtures`, `crates/rh-parity/src/hitbox_goldens.rs`), checked by a Rust test that the committed file is
+what the current core produces (`crates/rh-parity/tests/pnet2_goldens.rs`), read by C# tests. Followed exactly:
+- **Generator:** `crates/rh-parity/src/frost_wall_goldens.rs` (`all()`, `write_or_check(check)`) calls
+  `rh_sim::barriers::{wall_segment_for, wall_cells}` with `rh_sim::abilities::FROST_WALL_{RANGE, MIN_RANGE, LENGTH}` and
+  `WALL_CELL_REACH`/`WALL_END_SLACK` (all already `pub`; no `rh-sim` change).
+- **Regenerate / check:** `cargo run -p rh-parity --bin frost-wall-aim-fixtures` / `... -- --check`.
+- **Rust test:** `cargo test -p rh-parity --test frost_wall_aim_golden`
+  (`committed_frost_wall_aim_golden_is_the_current_core`).
+- **Fixture:** `protocol/fixtures/frost_wall_aim_v1.json` (`format` `rh-frost-wall-aim/1`): `numbers`, `maps` (row-major
+  classes; `gate_closed` also carries `openTiles` and `gateTiles`), and 13 `cases` (`from`, `cursor`, `facing`, Rust's
+  `segment` and `cells`): `axis`, `inside_min_range`, `beyond_range` (an off-axis aim clamped to 450), `diagonal`,
+  `cursor_on_caster` (facing 2 rad: the fallback), `into_rock` (no tile), `partly_low` (two LOW and one WALL tile under
+  the line), `closed_gate` (gate tiles WALL in the line), `top_edge`, `right_edge` (the scan clamped to the map, no row
+  wrap), `end_slack_inclusive` (a tile centre exactly 8 u past the end: taken) and `end_slack_just_out` (9 u: not taken).
+- **C# test:** `FrostWallAimVectorTests`: per case, the mirror's segment to 1e-3 and exactly Rust's tiles (both from
+  Rust's segment and from the mirror's); and `PlanMap` of the open gate map with the gates locked equals Rust's closed map.
+- **Gate:** the coordinator runs this packet's gate with `--regen-fixtures` (a new file under `protocol/fixtures/`).
+- A throw-away reference `FrostWallAim` (not committed) passed every vector case, the plan-map case and every hand-ported
+  case in `FrostWallAimTests`: no hand-ported test needed changing.
 
 ## Baseline on `b40c72330` plus this packet's stub
 Known red below this packet (not this packet's): `FrostWallProtocolTests` (7), `FrostWallStateTests` (17), and the Rust
 `frost_wall_observe`, `frost_wall_wire`, `frost_wall_delivery`, `frost_wall_welcome`.
 
 This packet's red tests, on the stub:
-- C# (`dotnet test`, 2075 tests, 40 red = the 24 above + 16): `FrostWallAimTests` 9 of 10 (`AWallAimedIntoRockTakesNoTile`
+- C# (`dotnet test`, before the vector test: 2075 tests, 40 red = the 24 above + 16): `FrostWallAimTests` 9 of 10 (`AWallAimedIntoRockTakesNoTile`
   passes on the empty stub by construction) and `WishAimTests` 7 of 8 (`UnderFreezeTheKeyCastsAtOnceAsToday...` is today's
-  behaviour and passes on the stub).
+  behaviour and passes on the stub). `FrostWallAimVectorTests` adds 15 tests, 14 red (13 cases and the plan map; the
+  file-format test passes).
+- Rust: `frost_wall_aim_golden` is green (the fixture is what rh-sim produces).
 - EditMode (1533 tests, 10 red): `FrostWallPresenterEditModeTests` 9 of 10 (`NothingIsDrawnThatTheStateDoesNotList...`
   passes on the stub by construction; the allocation guard's GC half passes, its block count fails) and
   `QuickCastSettingEditModeTests` 1 of 1.
