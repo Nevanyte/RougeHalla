@@ -19,9 +19,9 @@
 //! parent/direction pairs), in laying order; candidate order and rough rims are stateless noise.
 use super::walk::Walk;
 use super::*;
-use crate::mapdata::{TilePt, ZoneAnchor};
+use crate::mapdata::ZoneAnchor;
 use crate::mapgen::certify::rules::R;
-use crate::mapgen::landmarks::signature::{self, band, Band};
+use crate::mapgen::landmarks::signature::{band, Band};
 use crate::mapgen::style_features::noise_q;
 use crate::mapgen::style_runtime::BaseContext;
 
@@ -109,18 +109,11 @@ pub const POOLS: Pools = Pools {
     walk_detour: 2,
 };
 
-/// Plague's anchor as the styler sees it: the zone's `BogTree` feature (present only with the option on). Only its
-/// footprint is read (`signature::band`), the feature's box, as on the finished map's anchor.
+/// Plague's anchor as the styler sees it: the bog tree's frame's anchor (`BaseContext::landmark`,
+/// P-MAPGEN-LANDMARK-FRAME-1; present only with the option on), the finished map's anchor. Only its footprint is read
+/// (`signature::band`): the drawing's box, which is the `BogTree` feature's.
 pub(super) fn tree(b: BaseContext<'_>) -> Option<ZoneAnchor> {
-    let f = b.zone_features().find(|f| f.kind == FeatureKind::BogTree)?;
-    Some(ZoneAnchor {
-        zone: f.zone,
-        kind: FeatureKind::BogTree,
-        centre: TilePt { x: f.ax, y: f.ay },
-        footprint: f.bbox,
-        front: signature::front(f.ax, f.ay),
-        entrance: Vec::new(),
-    })
+    b.landmark.map(|f| f.anchor.clone())
 }
 
 /// The ground the pools read, fixed before the first pool is laid.

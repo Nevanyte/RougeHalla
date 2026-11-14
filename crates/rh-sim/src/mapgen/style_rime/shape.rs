@@ -124,8 +124,8 @@ pub(super) fn run(cb: &Callbacks<'_>, c: &mut ShapeContext<'_, '_>) -> Result<Pl
         |i| b.is_owned(i),
     );
     let mut allow = rime::allow_field(&input, &clr, &cb.shared, |i| b.is_owned(i));
-    // Signature mode (P-MAPGEN-SIG-FROST-1): `signature_anchor` is `Some` only when the Landmarks phase placed the cave
-    // in this zone. No lake tile in the cave's core band (its apron), and the mere is seeded at the mouth. Option off
+    // Signature mode (P-MAPGEN-SIG-FROST-1): `signature_anchor` is `Some` only when the Landmarks phase handed this zone
+    // the cave's frame (P-MAPGEN-LANDMARK-FRAME-1). No lake tile in the cave's core band (its apron), and the mere is seeded at the mouth. Option off
     // this is `None` and the styler draws and places exactly what it did before (G8). The mere also keeps off the
     // route guard's corridor and, once the spawn routes are drawn, off them (`lakes::keep_off_routes`), so the ice at
     // the mouth stays one body.

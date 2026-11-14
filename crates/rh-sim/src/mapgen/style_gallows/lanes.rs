@@ -1,11 +1,12 @@
-//! Sentenced lanes (P-LAND-SENTENCED-1, signature mode only). When the zone holds a signature `Church` (placed by the
-//! Landmarks phase only with `pipeline::Options::signature`), the fence rows run parallel to the church's door axis on
-//! the lines `|d| mod spacing == offset` from it, every row is cut by one gate grid counted from the door line, and no
-//! row comes within `apron` of the yard box (the church and its graveyards). Option off there is no `Church` feature,
-//! `frame` is `Ok(None)` and nothing here is read. Nothing here draws from any stream.
+//! Sentenced lanes (P-LAND-SENTENCED-1, signature mode only). When the zone is handed its church's frame (placed by the
+//! Landmarks phase only with `pipeline::Options::signature`; P-MAPGEN-LANDMARK-FRAME-1), the fence rows run parallel to
+//! the church's door axis on the lines `|d| mod spacing == offset` from it, every row is cut by one gate grid counted
+//! from the door line, and no row comes within `apron` of the yard box (the church and its graveyards). Option off there
+//! is no frame, `frame` is `Ok(None)` and nothing here is read. Nothing here draws from any stream.
 use super::rows::{flush, Grid, RowPlan};
 use super::*;
-use crate::mapgen::landmarks::{recipe_support::DIR16, signature::front};
+use crate::mapdata::TilePt;
+use crate::mapgen::landmarks::recipe_support::DIR16;
 use crate::mapgen::style_runtime::BaseContext;
 use std::collections::BTreeSet;
 
@@ -59,24 +60,27 @@ impl Frame {
         (x0 - x).max(x - x1).max(y0 - y).max(y - y1) <= LANES.apron
     }
 }
-/// The door as the church's ring leaves it (`church.rs`): exactly three open tiles in one run on the door-side wall
-/// line, the middle entrance tile and one either side. Anything else is not a door the lanes can centre on.
+/// The door as the church's drawing lands it: exactly three tiles in one run (`open`, ascending along the door's wall
+/// line), the middle entrance tile and one either side. Anything else is not a door the lanes can centre on.
 fn door_span(open: &[i32]) -> Option<(i32, i32)> {
     match open {
         [a, b, c] if *b == *a + 1 && *c == *b + 1 => Some((*a, *c)),
         _ => None,
     }
 }
-/// The zone's church as the lanes read it. `Ok(None)` when the zone holds no signature `Church` (option off).
-/// `Err(Error::Landmark)` when it holds one whose door cannot be read (the pipeline refuses the attempt): a signature
-/// zone is never given today's rows instead of lanes, and the spine is never centred on something that is not the door.
+/// The church as the lanes read it, from the zone's frame (`BaseContext::landmark`, P-MAPGEN-LANDMARK-FRAME-1) and
+/// nothing else. `Ok(None)` without a frame (option off). The rows' axis and side are the dominant axis of the anchor's
+/// front (`DIR16[anchor.front]`, the camp tile's direction to the coliseum); the door is the frame's mark `D`, which must
+/// be three tiles in one run on one wall line across that axis (the line is the `D` tiles' common x when `horizontal`,
+/// else their common y); the spine is the middle tile; the yard is the union of the boxes of the features the landmark
+/// wrote (the church and its graveyard). `Err(Error::Landmark)` when the door does not read so (the pipeline refuses the
+/// attempt), decided from the frame before any tile is read: a signature zone is never given today's rows instead of
+/// lanes, and the spine is never centred on something that is not the door.
 pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
-    let Some(f) = b.zone_features().find(|f| f.kind == FeatureKind::Church) else {
+    let Some(f) = b.landmark else {
         return Ok(None);
     };
-    let r = f.bbox;
-    let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1);
-    let v = DIR16[usize::from(front(f.ax, f.ay))];
+    let v = DIR16[usize::from(f.anchor.front)];
     let horizontal = v[0].abs() >= v[1].abs();
     let sign = if horizontal {
         v[0].signum()
@@ -86,35 +90,24 @@ pub(super) fn frame(b: &BaseContext<'_>) -> Result<Option<Frame>, Error> {
     if sign == 0 {
         return Err(Error::Landmark);
     }
-    let (line, lo, hi) = match (horizontal, sign > 0) {
-        (true, true) => (x1, y0, y1),
-        (true, false) => (x0, y0, y1),
-        (false, true) => (y1, x0, x1),
-        (false, false) => (y0, x0, x1),
-    };
-    // The entrance: the tiles of the door-side wall line the church's ring leaves open (`church.rs`: 3 of them).
-    let door: Vec<i32> = (lo..=hi)
-        .filter(|&t| {
-            let i = if horizontal {
-                b.at(line, t)
-            } else {
-                b.at(t, line)
-            };
-            i >= 0 && !b.is_owned(i) && b.tiles[i as usize] == TILE_FLOOR
-        })
-        .collect();
-    let (first, last) = door_span(&door).ok_or(Error::Landmark)?;
-    let mut yard = (x0, y0, x1, y1);
-    for g in b
-        .zone_features()
-        .filter(|g| g.kind == FeatureKind::Graveyard)
-    {
-        let r = g.bbox;
-        yard.0 = yard.0.min(r.x);
-        yard.1 = yard.1.min(r.y);
-        yard.2 = yard.2.max(r.x + r.w as i32 - 1);
-        yard.3 = yard.3.max(r.y + r.h as i32 - 1);
+    // The door, row-major on the map: on one line across the axis, its tiles ascend along the line.
+    let mut door: Vec<TilePt> = f.mark(b'D').collect();
+    door.sort_unstable_by_key(|p| (p.y, p.x));
+    let (across, along): (Vec<i32>, Vec<i32>) = door
+        .iter()
+        .map(|p| if horizontal { (p.x, p.y) } else { (p.y, p.x) })
+        .unzip();
+    let line = *across.first().ok_or(Error::Landmark)?;
+    if across.iter().any(|&s| s != line) {
+        return Err(Error::Landmark);
     }
+    let (first, last) = door_span(&along).ok_or(Error::Landmark)?;
+    let yard = f
+        .features
+        .iter()
+        .map(|&(_, r)| (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1))
+        .reduce(|a, r| (a.0.min(r.0), a.1.min(r.1), a.2.max(r.2), a.3.max(r.3)))
+        .ok_or(Error::Landmark)?;
     Ok(Some(Frame {
         horizontal,
         sign,

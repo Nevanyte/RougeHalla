@@ -310,40 +310,22 @@ impl<'a> Callbacks<'a> {
         Ok(())
     }
 }
-/// Frost's anchor (G3) as the styler sees it: the zone's `Cave` feature, placed by the signature step in the Landmarks
-/// phase (`landmarks::signature`), so present only with `pipeline::Options::signature`. Centre: the feature's anchor
-/// point; footprint: its box; front: toward the coliseum (`signature::front`); entrance: the mouth, the floor tiles on
-/// the box's edge with floor just outside the box (a side leaning on the map border has the border wall outside), in
-/// row order: the same tiles as the finished map's anchor. Option off there is no such feature and this is `None`: no
-/// new styler input, and nothing for legacy mode to read (G8). The pattern is `style_scorch::signature_anchor`.
+/// Frost's anchor (G3) as the styler sees it: the cave the signature step placed in the Landmarks phase, handed to the
+/// styler as its frame (`BaseContext::landmark`, P-MAPGEN-LANDMARK-FRAME-1), so present only with
+/// `pipeline::Options::signature`. Centre, footprint (the drawing's box) and front: the frame's anchor; entrance: the
+/// mouth, the cave's mark `D`, sorted row-major (by y, then x) on the map. The order is behaviour: `grow_lakes_at` seeds
+/// its search in it. Without a frame (the option off) this is `None`: no new styler input, and nothing for legacy mode
+/// to read (G8).
 pub(crate) fn signature_anchor(b: BaseContext<'_>) -> Option<ZoneAnchor> {
-    let f = b.zone_features().find(|f| f.kind == FeatureKind::Cave)?;
-    let r = f.bbox;
-    let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1);
-    let floor = |x: i32, y: i32| {
-        let i = b.at(x, y);
-        i >= 0 && b.tiles[i as usize] == TILE_FLOOR
-    };
-    let mut entrance = Vec::new();
-    for y in y0..=y1 {
-        for x in x0..=x1 {
-            let out = [
-                (x == x0, -1, 0),
-                (x == x1, 1, 0),
-                (y == y0, 0, -1),
-                (y == y1, 0, 1),
-            ];
-            if floor(x, y) && out.iter().any(|&(e, dx, dy)| e && floor(x + dx, y + dy)) {
-                entrance.push(crate::mapdata::TilePt { x, y });
-            }
-        }
-    }
+    let f = b.landmark?;
+    let mut entrance: Vec<crate::mapdata::TilePt> = f.mark(b'D').collect();
+    entrance.sort_unstable_by_key(|p| (p.y, p.x));
     Some(ZoneAnchor {
-        zone: f.zone,
-        kind: FeatureKind::Cave,
-        centre: crate::mapdata::TilePt { x: f.ax, y: f.ay },
-        footprint: f.bbox,
-        front: crate::mapgen::landmarks::signature::front(f.ax, f.ay),
+        zone: f.zone(),
+        kind: f.anchor.kind,
+        centre: f.anchor.centre,
+        footprint: f.anchor.footprint,
+        front: f.anchor.front,
         entrance,
     })
 }

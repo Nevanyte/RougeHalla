@@ -144,9 +144,9 @@ impl Callbacks<'_> {
         let b = c.base();
         let w = b.w;
         let bb = b.zone.bbox;
-        // Signature mode (P-LAND-SENTENCED-1): `Some` only when the zone holds a signature `Church`; option off this is
-        // `None` and every line below runs as today. `Err` when a `Church` is there but its door does not read as three
-        // open tiles in one run: `Error::Landmark`, and the pipeline refuses the attempt.
+        // Signature mode (P-LAND-SENTENCED-1): `Some` only when the zone is handed its church's frame (P-MAPGEN-LANDMARK-
+        // FRAME-1); option off this is `None` and every line below runs as today. `Err` when the frame's door (mark `D`)
+        // is not three tiles in one run on one wall line: `Error::Landmark`, and the pipeline refuses the attempt.
         let lanes = lanes::frame(&b)?;
         let horizontal = legacy_horizontal(&b);
         let (t_lo, n_t, s_lo, n_s) = if horizontal {
