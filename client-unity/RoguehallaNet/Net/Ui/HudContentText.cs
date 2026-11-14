@@ -103,6 +103,19 @@ namespace Roguehalla.Net.Ui
             return new ChampionRow(name, value, scaling, "");
         }
 
+        /// <summary>P-UNITY-WISH-TEXT-1 (stub): the name a Wish is shown under in the match HUD (the card's "R · Name", "Casting Name"): the
+        /// ability's enum name, except Frost's Wish (<see cref="AbilityId.Freeze"/>) under a block that says <see cref="FrostWishKind.Wall"/>.</summary>
+        public static string WishName(WireHudContent hud, AbilityId ability)
+        {
+            return ability.ToString();
+        }
+
+        /// <summary>P-UNITY-WISH-TEXT-1 (stub): the Wish slot tooltip's extra lines for a faction's Wish, joined by a newline; "" when it has none.</summary>
+        public static string WishTip(WireHudContent hud, FactionId faction)
+        {
+            return "";
+        }
+
         /// <summary>The Fire roam sentence (championCombatModel.ts:114-116 <c>fireRoamText</c>, without its leading space) for Fire; "" for other
         /// factions or when panel codes 8, 9, 23, 24 or terms 19-22 are missing.</summary>
         public static string FireRoam(WireBuildSummary summary, WireHudContent hud, FactionId faction)
