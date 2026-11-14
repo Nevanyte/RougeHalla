@@ -19,15 +19,27 @@ cave is drawn after the player leaves as something that is not a live, currently
 mob last seen there, ADR 0025; a corpse; a mob still delivered through the mouth), and each of those is noted. The
 oracle author establishes which, by reading and by a test that reproduces it.
 
-When this lands: the roof is faded exactly while at least one LIVE actor that the server is delivering to this viewer
-in the current snapshot stands on a tile that fades it (the local player included); lingering tracks, corpses, and
-anything drawn from memory do not hold the roof open; once the last such actor leaves or stops being delivered, the
-roof returns at the usual fade rate. If the established cause is that live camp mobs remain delivered to a viewer
-standing outside (so the roof is open whenever the player is near), say so in the brief with the vision facts and
-stop for a ruling: that is a design question (the roof would rarely be seen from close by), not a bug to patch.
+**Owner ruling (chat, 2026-11-13).** Offered three options (partial fade; the local player only; leave as is), the owner
+answered: "1, fade to about 10% (mostly see through) still should roughly see the fact that you are in the cave". Option 1
+(leave the rule that other delivered actors count, but make it partial) was chosen. The rule, for every landmark roof and
+canopy (the framework, not only the cave):
+- The LOCAL PLAYER stands on a tile that fades the roof (`Landmark.Fades`): the roof goes to `RoofFadedAlpha` (0.1, kept; pinned
+  greater than 0 and at most 0.15, so the player can still tell they are under a roof).
+- The local player is NOT on such a tile and at least one other live actor the server delivers in the current snapshot is: the
+  roof goes to the new `RoofPeekAlpha` (0.5; pinned between 0.4 and 0.6), so the actor can be seen and the building still reads
+  as roofed.
+- Nobody delivered is on such a tile: opaque (1), reached at the usual fade rate (`PropFade.FadeRate`).
+- Both hold: the local player's rule wins (faded).
+This does not remove the long hold seen in shots 94 and 95 (the server delivers those mobs, see the facts); it makes it a
+half-transparent roof instead of a nearly absent one. Lingering tracks, corpses and memory-drawn art still never count.
 
-## Established facts (oracle author, 2026-11-13): the cause is (d), a design ruling, NOT a bug to patch
-**Status: BLOCKED for a ruling. No oracle test is written, on purpose.** Established by reading (no EditMode reproduction was
+API chosen: `LandmarkView.NoteActor(Vector3)` keeps its signature and now means the LOCAL PLAYER's note (full fade, behaviour
+unchanged, so every existing test that notes "an actor" stays valid); new `LandmarkView.NoteOtherActor(Vector3)` is any other
+delivered actor (peek). `ArenaView` keeps `NoteActor` at the local-player site (about `:322`) and uses `NoteOtherActor` at the two
+others (`:303`, `:492`).
+
+## Established facts (oracle author, 2026-11-13): the cause is (d), live delivered mobs; ruled by the owner (above)
+Established by reading (no EditMode reproduction was
 needed: three of the four candidates cannot reach the call sites at all).
 
 What the three call sites iterate (`ArenaView.cs`):
@@ -71,18 +83,8 @@ Candidates:
 `RegionProps.NoteActor` (tall-prop fade): called at the same three sites (`ArenaView.cs:302, :321, :491`) with the same
 sets, so it reacts to the same delivered mobs. It has no separate fault; it would behave identically under any ruling.
 
-Consequence for this packet: with the brief's rule ("faded exactly while a live actor the server is delivering stands inside")
-the roof is faded today by definition, so the client already implements it; there is no failing assertion to write. A fix is
-a design change: pick one (owner and coordinator):
-  1. Leave as is (the roof means "someone you can see is inside"; it is open near the mouth axis and for 30 s after leaving).
-  2. Fade only for the local player (and allies), ignoring other actors; trivial: drop the NPC and remote notes at `:303` and
-     `:492`, keep `:322`. The cave then never shows what is inside to an outside viewer.
-  3. Fade for the local player, and for other actors only while the viewer is also inside the cover (the roof hides the
-     interior from outside viewers although the server shows them). A view rule only, no wire change; tell the owner it
-     draws mobs the viewer sees as a roof-hidden shape, which is a visible-information question for C-OBS.
-  4. Trim the memory part only: no client change can do this (the client cannot see the trail); Rust-side, out of scope.
-Whichever is chosen, the oracle then is: fixed-map EditMode test through the real `ArenaView` path (rig:
-`TrainingHudRig.cs`; map as `LandmarkViewEditModeTests`): live mob inside + local player outside; local player in, then out.
+Consequence: the old rule (any delivered actor fades the roof fully, P-UNITY-LANDMARK-1 fact 3) is replaced by the owner ruling
+above. The four options listed before the ruling are dropped; the chosen one is the partial fade.
 
 ## 2. Dependencies
 P-UNITY-LANDMARK-1 and P-UNITY-LANDMARK-SEAMS-1 (merged).
@@ -91,31 +93,42 @@ P-UNITY-LANDMARK-1 and P-UNITY-LANDMARK-SEAMS-1 (merged).
 none (DEV-020)
 
 ## 5. Exclusive write scope
-- `client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs`: only the three `_landmarks.NoteActor` call sites
-- `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/LandmarkView.cs` (if the rule moves there)
+- `client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs`: only the three `_landmarks.Note*` call sites (`:303` and `:492`
+  become `NoteOtherActor`; `:322` stays `NoteActor`)
+- `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/LandmarkView.cs` (the peek state, `NoteOtherActor`)
+- `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/Landmark.cs` (a second per-frame flag) if needed
 - not the tall-prop fade (`RegionProps.NoteActor`): if it has the same fault, report it; it is its own packet
 - not any existing test
 
 ## 7. Behaviour to preserve
-- The roof fades for the local player and for any live visible actor inside, at once; nothing per frame allocates;
+- The local player inside fades the roof at once; nothing per frame allocates;
   every existing landmark test stays green.
 
 ## 8. Acceptance checks
-- EditMode, through the real `ArenaView` path the three call sites sit on (a test that calls `LandmarkView.NoteActor`
-  directly proves nothing here): with a cave on the map, a live visible mob inside fades the roof; when that mob
-  becomes whatever the established cause is (a lingering track, a corpse), the roof returns to opaque within the fade
-  time; the local player walking in and out fades and restores it. Red today for the cause found.
+- `LandmarkRoofPeekEditModeTests` green, and every existing landmark test green (three were amended to the ruling, see Oracle
+  files). Red today: the peek and call-site tests.
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-LANDMARK-ROOF-RETURN-1` passes.
 
 ## Oracle files (read-only for implementers)
-none yet: blocked for a design ruling (see Established facts); no test file was added.
+- `client-unity/UnityProject/Assets/Tests/Editor/LandmarkRoofPeekEditModeTests.cs` (+ `.meta`): constants bounds; local inside is
+  faded; only another inside is peek (drawn pieces carry it); nobody opaque; both is faded (either note order); leaving restores
+  opaque from either state at the fade rate; peek to faded and back; on the real cave drawing and on a `SetCover` cover; a source
+  check that `ArenaView` has three note call sites, the local one `NoteActor`, the two others `NoteOtherActor`.
+- Existing tests amended in the `stub:` commit (the owner ruling changes what they pin; flagged to the owner):
+  `LandmarkViewEditModeTests.AnyActorTheViewerMaySeeInsideFadesTheRoofSoItsNameAndBarsShow` (the mob note `NoteActor` to
+  `NoteOtherActor`, expectation `RoofFadedAlpha` to `RoofPeekAlpha`, comment), `ChurchLandmarkEditModeTests`
+  `TheRoofFadesForAnActorInsideTheBuildingAnd...` (last block: Camp note to `NoteOtherActor`, expectation peek) and
+  `BogTreeLandmarkEditModeTests.TheCanopyFadesForAnActorOnTheDryGroundRoundTheTrunk...` (last block, same change). Every other
+  existing test notes with `NoteActor` and keeps meaning "an actor that fades it fully", unchanged.
+- Not pinned: a real `ArenaView` driven on a fake transport (too heavy for this); the call sites are pinned by the source check.
+  Church art and the bog canopy are covered through the framework cover path and their own amended blocks, not a new stamp.
 
 ## 9. Validation commands
 - `bash client-unity/UnityProject/Tools/editmode.sh`; then `git checkout --` any modified font asset under
   `client-unity/UnityProject/Assets/Resources/Showcase/`.
 
 ## 10. Risk and suggested model tier
-Sonnet. The cause is not established; the oracle author reproduces it first.
+Sonnet. The cause is established; the rule is the owner ruling above.
 
 ## 11. Known traps
 - The same three call sites feed `RegionProps.NoteActor`: do not change what tall props do in this packet.
