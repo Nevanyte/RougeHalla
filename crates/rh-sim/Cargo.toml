@@ -18,6 +18,8 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 # Counting allocator for tests/no_alloc.rs: the allocation-free tick is a permanent gate, not a one-off measurement.
 dhat = "0.3"
+# Thread-local counting allocator for the allocation tests (dev only; see that crate).
+rh-alloc-count = { path = "../rh-alloc-count" }
 
 [features]
 # Trusted parity harness only; never a gameplay command or a production default.

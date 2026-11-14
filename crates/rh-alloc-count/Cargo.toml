@@ -1,0 +1,16 @@
+[package]
+name = "rh-alloc-count"
+description = "Test-only counting allocator: blocks requested by the measuring thread. A dev-dependency, never a normal one."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+# No dependencies.
+
+# This is the one crate in the workspace that may hold `unsafe`: a `GlobalAlloc` implementation is `unsafe impl` by
+# definition, and the workspace `forbid` cannot be lifted by an `allow`, so the crate sets its own lint instead of
+# `workspace = true`. It only forwards to `System`. Deterministic crates (rh-sim, rh-policy) keep `forbid`.
+[lints.rust]
+unsafe_code = "allow"
