@@ -449,21 +449,12 @@ namespace Roguehalla.Client
         {
             if (!ReferenceEquals(session, _visionSession))
             {
-                if (_visionSession != null) { _visionSession.EventsReceived -= OnVisionEvents; _visionSession.FxReceived -= OnCampAttackFx; }
+                if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
                 _visionSession = session; _campAttack.Clear();
-                if (_visionSession != null) { _visionSession.EventsReceived += OnVisionEvents; _visionSession.FxReceived += OnCampAttackFx; }
+                if (_visionSession != null) _visionSession.EventsReceived += OnVisionEvents;
             }
             // A departing actor fades only while a raid is running; elsewhere (lobby, planning, results) it just goes.
             _actors.ExitFadesAllowed = session != null && session.State == SessionState.InMatch && session.Phase == MatchPhase.Active;
-        }
-        void OnCampAttackFx(ServerMsg.Fx fx)
-        {
-            if (fx == null) return;
-            for (int i = 0; i < fx.List.Count; i++)
-            {
-                var e = fx.List[i];
-                if (e.Kind == FxKind.Hit || e.Kind == FxKind.SigHit) _campAttack.NoteHit(e.By, e.Victim);
-            }
         }
         void OnVisionEvents(ServerMsg.Events message)
         {
@@ -665,6 +656,7 @@ namespace Roguehalla.Client
             if (fx == null) return;
             foreach (var f in fx.List)
             {
+                if (f.Kind == FxKind.Hit || f.Kind == FxKind.SigHit) _campAttack.NoteHit(f.By, f.Victim);   // camp patience outlines: damage the local player trades with a camp's mobs
                 if (f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded)
                 {
                     _wishes.Accept(f);
@@ -894,7 +886,7 @@ namespace Roguehalla.Client
         void OnDestroy()
         {
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
-            if (_visionSession != null) { _visionSession.EventsReceived -= OnVisionEvents; _visionSession.FxReceived -= OnCampAttackFx; }
+            if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
             if (_frostWall != null) _frostWall.Dispose();
             if (_vignette != null) _vignette.Dispose();
             if (_visionFog != null) _visionFog.Dispose();
