@@ -20,6 +20,17 @@ namespace Roguehalla.Net.Protocol
         FrostWallCellReach = 28, FrostWallEndSlack = 29,
     }
 
+    /// <summary>P-FROST-WALL-2b: which Wish Frost has in the room (HUD term 23).</summary>
+    public enum FrostWishKind : byte { Freeze = 0, Wall = 1 }
+
+    /// <summary>P-FROST-WALL-2b: the wall's public numbers (HUD terms 24-29), as the server sent them.</summary>
+    public readonly struct FrostWallNumbers
+    {
+        public readonly double Range, MinRange, Length, Ms, CellReach, EndSlack;
+        public FrostWallNumbers(double range, double minRange, double length, double ms, double cellReach, double endSlack)
+        { Range = range; MinRange = minRange; Length = length; Ms = ms; CellReach = cellReach; EndSlack = endSlack; }
+    }
+
     /// <summary>One weapon's damage scaling (legacy <c>WeaponSpec.scaling</c> and <c>dominant</c>).</summary>
     public sealed class WireWeaponScaling
     {
@@ -64,6 +75,13 @@ namespace Roguehalla.Net.Protocol
             foreach (var t in Terms) if (t != null && t.Code == (byte)code) return t.Value;
             return null;
         }
+
+        /// <summary>P-FROST-WALL-2b: Frost's Wish in this room; Freeze when the block lacks term 23 (an older server). STUB.</summary>
+        public FrostWishKind FrostWish { get { return FrostWishKind.Freeze; } }
+        /// <summary>P-FROST-WALL-2b: the block carries term 23. STUB.</summary>
+        public bool CarriesFrostWish { get { return false; } }
+        /// <summary>P-FROST-WALL-2b: the wall's six numbers, or null unless the block carries all of terms 24-29. STUB.</summary>
+        public FrostWallNumbers? FrostWall { get { return null; } }
 
         /// <summary>The scaling row of a weapon id, or null.</summary>
         public WireWeaponScaling ScalingOf(byte id)
