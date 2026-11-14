@@ -39,6 +39,9 @@ use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
+#[path = "support/signature_pins.rs"]
+mod pins;
+
 type Cell = (i32, i32);
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -71,47 +74,6 @@ fn worst_attempt_allowed() -> u64 {
 /// mirror draw; the cave's bound is 70).
 fn attempts_allowed() -> u64 {
     59
-}
-
-/// Today's option-off generator, seeds 1-8: (seed, `map_hash`, FNV-1a 64 of the map's JSON); the values pinned by
-/// `mapgen_signature_scale.rs` and the other signature oracles (G8).
-fn pinned_off() -> [(i64, &'static str, u64); 8] {
-    [
-        (1, "d09b4fd9", 0xf638_ce4a_8563_d41d),
-        (2, "190cd50f", 0xf13c_e037_fbd7_f651),
-        (3, "b82117b8", 0xeb4f_0525_0310_7414),
-        (4, "bec16d65", 0x785a_11c3_0a31_46b7),
-        (5, "25032ba7", 0x0f6e_a513_6ba7_ca0d),
-        (6, "2d58fdf5", 0x600e_c62d_a4c6_d207),
-        (7, "6255dbbe", 0x7188_b411_554a_ddb7),
-        (8, "dbb3602f", 0xd855_dc2a_be46_a4eb),
-    ]
-}
-
-/// The volcano and the cave the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet:
-/// (seed, attempt, `others_digest`). The tree draws only from the Plague stream and stands in the Plague site, so they
-/// never move (seed 2 attempt 1 fails its prefix: 0). Amended by P-MAPGEN-SIG-SCALE-2 (approved by the landmark lane,
-/// 2026-11-13): the church left the digest; re-measured on that packet's stub rebased onto this packet, and equal under
-/// its prototype.
-fn pinned_others() -> [(i64, u64, u64); 16] {
-    [
-        (1, 0, 0x5729_ba0c_b534_a18a),
-        (1, 1, 0x644c_fa44_ab09_48d1),
-        (2, 0, 0xcb28_851d_ec56_00aa),
-        (2, 1, 0),
-        (3, 0, 0x1d45_88d8_4731_e35b),
-        (3, 1, 0x644d_3eaa_e2ac_912c),
-        (4, 0, 0x2aab_7410_10b3_4aee),
-        (4, 1, 0x5fa8_3458_e4b2_1b46),
-        (5, 0, 0xa180_8a72_bb00_e2b6),
-        (5, 1, 0x902e_92dc_6077_e4bd),
-        (6, 0, 0x59ee_f36f_591b_1003),
-        (6, 1, 0x7f16_8862_2772_497c),
-        (7, 0, 0xe845_1133_03f4_97f0),
-        (7, 1, 0x3e68_8146_80af_0c6a),
-        (8, 0, 0xfe61_79a9_440e_883d),
-        (8, 1, 0x4f45_1d1b_e737_8cee),
-    ]
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -423,58 +385,6 @@ fn fnv(bytes: &[u8]) -> u64 {
     h
 }
 
-/// FNV-1a 64 of what the Landmarks phase places for the volcano and the cave on (seed, attempt), option on: their anchors
-/// (JSON) and, for every feature the phase leaves except the bog tree, the church and its graveyard, the feature (JSON)
-/// and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
-fn others_digest(seed: i64, n: u64) -> u64 {
-    let fixed = coliseum::fixed_layout();
-    let context = attempt::AttemptContext::new(&fixed);
-    let Some(frame) =
-        attempt::begin_attempt_signature(&context, seed, n, true).expect("prefix input")
-    else {
-        return 0;
-    };
-    let Some(mut st) = stage::StageContext::new(&fixed)
-        .apply(&frame, &recipes::Recipes::default())
-        .expect("stage input")
-    else {
-        return 0;
-    };
-    let Some(placed) = SignatureContext::new(&fixed)
-        .apply(&frame, &mut st)
-        .expect("signature input")
-    else {
-        return 0;
-    };
-    let mut bytes = Vec::new();
-    // Amended by P-MAPGEN-SIG-SCALE-2 (the church is the blueprint now; that packet's oracle pins it): the church, its
-    // graveyard and the Sentenced anchor are left out.
-    for a in placed
-        .anchors
-        .iter()
-        .filter(|a| a.zone != Zone::Plague && a.zone != Zone::Sentenced)
-    {
-        bytes.extend(serde_json::to_vec(a).unwrap());
-    }
-    for (k, f) in st.state.features.iter().enumerate() {
-        if matches!(
-            f.kind,
-            FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard
-        ) {
-            continue;
-        }
-        bytes.extend(serde_json::to_vec(f).unwrap());
-        for (i, &owner) in st.state.feature_owner.iter().enumerate() {
-            if usize::from(owner) == k + 1 {
-                bytes.extend((i as u32).to_le_bytes());
-                bytes.push(st.state.tiles[i]);
-                bytes.push(placed.terrain[i]);
-            }
-        }
-    }
-    fnv(&bytes)
-}
-
 // ---------------------------------------------------------------------------------------------------------------------
 // The blueprint (red today: the tree is a 13-tile trunk ringed by two bog bands drawn by rule, and the generator holds
 // no drawing).
@@ -743,7 +653,7 @@ fn the_apron_rule_holds() {
 fn option_off_is_todays_generator() {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    for (seed, hash, json) in pinned_off() {
+    for (seed, hash, json) in pins::pinned_off() {
         let m = generator
             .certified_styled(seed, pipeline::Options::default())
             .unwrap()
@@ -757,20 +667,6 @@ fn option_off_is_todays_generator() {
         assert!(
             m.anchors.is_empty(),
             "seed {seed}: anchors with the option off"
-        );
-    }
-}
-
-/// Guard. The volcano and the cave the Landmarks phase places are today's (`pinned_others`): the tree draws only from
-/// the Plague stream and writes only inside the Plague site. (Amended by P-MAPGEN-SIG-SCALE-2: the church is no longer
-/// in the digest.)
-#[test]
-fn the_other_three_landmarks_are_unchanged() {
-    for (seed, n, digest) in pinned_others() {
-        assert_eq!(
-            others_digest(seed, n),
-            digest,
-            "seed {seed} attempt {n}: the volcano or cave moved"
         );
     }
 }

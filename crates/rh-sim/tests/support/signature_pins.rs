@@ -6,8 +6,8 @@
 //
 // Anchors are not in `map_hash`; the JSON digests below sort each anchor's `entrance` row-major first, so that
 // P-MAPGEN-SIG-BLUEPRINT-2, which sorts the entrances in the generator (nothing in the generator, the server or the
-// client reads their order), needs no re-pin. The order itself is pinned elsewhere: exactly by
-// `mapgen_signature_blueprint.rs` `placed_landed_rederives_every_written_cell` and the `pinned_others` digests.
+// client reads their order), needs no re-pin. The order itself is pinned by `mapgen_signature_table.rs`
+// `every_anchors_entrance_is_row_major` (P-MAPGEN-SIG-BLUEPRINT-2).
 #![allow(dead_code)]
 use rh_sim::mapdata::GameMapData;
 use rh_sim::mapgen::landmarks::signature::SignatureContext;
@@ -81,6 +81,23 @@ pub fn landmarks_digest(seed: i64, n: u64) -> u64 {
     bytes.extend(&st.masks.near1);
     bytes.extend(&placed.terrain);
     fnv(&bytes)
+}
+
+/// Today's option-off generator, seeds 1-8: (seed, `map_hash`, FNV-1a 64 of the map's JSON) (G8). Moved here
+/// unchanged by P-MAPGEN-SIG-BLUEPRINT-2 from the seven `mapgen_signature_*` oracles that each carried a copy (`_fire`,
+/// `_frost`, `_frost_lake`, `_reserve`, `_scale`, `_church`, `_bog_tree`); option off has no anchors, so the plain JSON
+/// digest (`fnv` of `serde_json::to_vec(&map)`) is meant.
+pub fn pinned_off() -> [(i64, &'static str, u64); 8] {
+    [
+        (1, "d09b4fd9", 0xf638_ce4a_8563_d41d),
+        (2, "190cd50f", 0xf13c_e037_fbd7_f651),
+        (3, "b82117b8", 0xeb4f_0525_0310_7414),
+        (4, "bec16d65", 0x785a_11c3_0a31_46b7),
+        (5, "25032ba7", 0x0f6e_a513_6ba7_ca0d),
+        (6, "2d58fdf5", 0x600e_c62d_a4c6_d207),
+        (7, "6255dbbe", 0x7188_b411_554a_ddb7),
+        (8, "dbb3602f", 0xd855_dc2a_be46_a4eb),
+    ]
 }
 
 /// Seeds 1-32, option on (`pipeline::Options { signature: true, ..Default::default() }`, `certified_styled`): (seed,
