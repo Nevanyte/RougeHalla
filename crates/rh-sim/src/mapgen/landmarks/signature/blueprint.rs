@@ -34,12 +34,13 @@ pub enum Write {
 /// The `Site` predicate a character's map tile must pass for the drawing to land.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Legality {
-    /// `Site::wall`: free floor of the zone inside the site's inner rect, off every camp halo.
+    /// `Site::wall`: free floor of the zone, inside the site's inner rect where the `Site` has one (a drawing's always
+    /// does; the volcano's has none), off every camp halo.
     Wall,
     /// `Site::wall` and `Site::ground` (also off the legacy landmark protection and every apron marked before): the
     /// bog tree's walls and marsh.
     WallGround,
-    /// `Site::floor`: free floor of the zone inside the site's inner rect.
+    /// `Site::floor`: free floor of the zone, inside the site's inner rect where the `Site` has one.
     Floor,
 }
 

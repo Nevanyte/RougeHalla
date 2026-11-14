@@ -38,6 +38,9 @@ use rh_sim::mapgen::{certify, coliseum, map_hash, pipeline};
 use std::collections::{BTreeSet, VecDeque};
 use std::sync::OnceLock;
 
+#[path = "support/signature_pins.rs"]
+mod pins;
+
 const TILE: f64 = 32.0;
 const T_FLOOR: u8 = 0;
 const T_WALL: u8 = 1;
@@ -58,19 +61,6 @@ const SIGNATURE: [FeatureKind; 7] = [
     FeatureKind::LavaPool,
     FeatureKind::Cave,
 ];
-/// Today's option-off generator (`Options::default()`, `certified_styled`), seeds 1-8: (seed, `map_hash`, FNV-1a 64 of
-/// the map's JSON). The values pinned by `mapgen_signature_fire.rs` (2026-11-12); G8 says they never move.
-const PINNED_OFF: [(i64, &str, u64); 8] = [
-    (1, "d09b4fd9", 0xf638_ce4a_8563_d41d),
-    (2, "190cd50f", 0xf13c_e037_fbd7_f651),
-    (3, "b82117b8", 0xeb4f_0525_0310_7414),
-    (4, "bec16d65", 0x785a_11c3_0a31_46b7),
-    (5, "25032ba7", 0x0f6e_a513_6ba7_ca0d),
-    (6, "2d58fdf5", 0x600e_c62d_a4c6_d207),
-    (7, "6255dbbe", 0x7188_b411_554a_ddb7),
-    (8, "dbb3602f", 0xd855_dc2a_be46_a4eb),
-];
-
 type Cell = (i32, i32);
 
 fn on_options() -> pipeline::Options {
@@ -380,7 +370,7 @@ fn fnv(bytes: &[u8]) -> u64 {
 fn g8_option_off_maps_are_todays() {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    for (seed, hash, json) in PINNED_OFF {
+    for (seed, hash, json) in pins::pinned_off() {
         let m = generator
             .certified_styled(seed, pipeline::Options::default())
             .unwrap()

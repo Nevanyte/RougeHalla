@@ -453,7 +453,9 @@ fn streams_are_two_tiles_wide_at_the_landmarks_phase() {
     let mut bad = Vec::new();
     for seed in 1..=100 {
         for n in 0..2 {
-            let Some(frame) = attempt::begin_attempt(&prefix, seed, n).unwrap() else {
+            // On the reserving prefix (P-MAPGEN-SIG-BLUEPRINT-2: without a reserved site the step refuses).
+            let Some(frame) = attempt::begin_attempt_signature(&prefix, seed, n, true).unwrap()
+            else {
                 continue;
             };
             let Some(mut st) = landmarks.apply(&frame, &recipes).unwrap() else {

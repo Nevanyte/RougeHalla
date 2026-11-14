@@ -9,7 +9,7 @@
 //! tree's tiles keep out of earlier aprons, the cave's ice is floor, the church's fence is LOW), the difference is a
 //! glyph here, not code.
 use super::blueprint::{EntranceRule, Glyph, Legality, Legend, Placement, Write};
-use super::Definition;
+use super::{catalog_codes, Definition};
 use crate::mapdata::{FeatureJob, FeatureKind, Zone};
 use crate::mapgen::certify::rules::R;
 
@@ -48,6 +48,17 @@ pub struct Spec {
     pub entrance: EntranceRule,
     /// Whether the `Definition::doorway` tiles beyond each entrance tile, along the front, must be `Site::open`.
     pub doorway: bool,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: every feature kind that belongs to this landmark (its own features and, for the volcano,
+    /// its streams and pools): what `SignatureContext::is_signature`, `aprons_apart` and the owned-tile part of `intact`
+    /// read. A kind belongs to one entry only.
+    pub members: Vec<FeatureKind>,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: the member kinds whose apron and keep mask follow their own tiles rather than their box
+    /// (the volcano's lava streams and pools): what `SignatureContext::by_tile` reads.
+    pub by_tile: Vec<FeatureKind>,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: the member kinds whose owned tiles `intact` checks by tile only, any terrain: the church
+    /// building, whose end-of-attempt check has always read its wall tiles only (the legend writes terrain 0). Kept
+    /// exactly: a stricter check would discard more maps and move attempts; tightening it is a behaviour change.
+    pub any_terrain: Vec<FeatureKind>,
 }
 
 /// A glyph that writes `write`, owned by `feature`, on a tile passing `legality`.
@@ -91,19 +102,25 @@ fn landmark(kind: FeatureKind) -> FeatureSpec {
 }
 
 /// The table for definition `d`, one entry per landmark in `reserved_zones` order (Fire, Sentenced, Plague, Frost).
+/// The terrain codes the legends write are the terrain catalog's (`super::catalog_codes`), not `d`'s mirrors.
 pub fn specs(d: &Definition) -> Vec<Spec> {
-    use FeatureKind::{BogTree, Cave, Church, Graveyard};
+    use FeatureKind::{BogTree, Cave, Church, Graveyard, LavaPool, LavaStream, Volcano};
+    let codes = catalog_codes();
     vec![
-        // The volcano: still `volcano::place` (P-MAPGEN-SIG-SCALE-4 makes it an entry with a drawing).
+        // The volcano: still `volcano::place`, its owned tiles checked by `volcano::owned` (P-MAPGEN-SIG-SCALE-4 makes it
+        // an entry with a drawing).
         Spec {
             zone: Zone::Fire,
-            kind: FeatureKind::Volcano,
+            kind: Volcano,
             drawing: None,
             legend: Legend::default(),
             features: Vec::new(),
             placement: Placement::Centre,
             entrance: EntranceRule::None,
             doorway: false,
+            members: vec![Volcano, LavaStream, LavaPool],
+            by_tile: vec![LavaStream, LavaPool],
+            any_terrain: Vec::new(),
         },
         // The church (`#` walls, `P` pillars) and its graveyard (`G` headstones, `+` the LOW fence), `E` on the camp;
         // the entrance is the main gate, the open front row through `E`'s column.
@@ -132,6 +149,9 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Pin(b'E'),
             entrance: EntranceRule::FrontRun(b'E'),
             doorway: true,
+            members: vec![Church, Graveyard],
+            by_tile: Vec::new(),
+            any_terrain: vec![Church],
         },
         // The bog tree (`T` trunk, `r` roots, `%` marsh), off every apron marked before it, centred in its site; the
         // entrance is the causeways `:` on the box's edge.
@@ -142,7 +162,7 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             legend: Legend(vec![
                 solid(b'T', Write::Wall, BogTree, Legality::WallGround),
                 solid(b'r', Write::Wall, BogTree, Legality::WallGround),
-                solid(b'%', Write::Floor(d.bog), BogTree, Legality::WallGround),
+                solid(b'%', Write::Floor(codes.bog), BogTree, Legality::WallGround),
                 plain(b'.'),
                 plain(b':'),
             ]),
@@ -150,6 +170,9 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Centre,
             entrance: EntranceRule::Edge(b':'),
             doorway: false,
+            members: vec![BogTree],
+            by_tile: Vec::new(),
+            any_terrain: Vec::new(),
         },
         // The cave (`#` walls, `R` rock, `=` ice floor), `E` on the camp; the entrance is the mouth `D`.
         Spec {
@@ -159,7 +182,7 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             legend: Legend(vec![
                 solid(b'#', Write::Wall, Cave, Legality::Wall),
                 solid(b'R', Write::Wall, Cave, Legality::Wall),
-                solid(b'=', Write::Floor(d.ice), Cave, Legality::Floor),
+                solid(b'=', Write::Floor(codes.ice), Cave, Legality::Floor),
                 plain(b'.'),
                 mark(b'E'),
                 mark(b'D'),
@@ -168,6 +191,9 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Pin(b'E'),
             entrance: EntranceRule::Mark(b'D'),
             doorway: true,
+            members: vec![Cave],
+            by_tile: Vec::new(),
+            any_terrain: Vec::new(),
         },
     ]
 }

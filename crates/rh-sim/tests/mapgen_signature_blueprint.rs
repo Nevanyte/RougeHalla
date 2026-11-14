@@ -868,7 +868,7 @@ fn pt(c: Cell) -> TilePt {
 /// per drawing landmark (Sentenced, Plague, Frost, in placement order); each landing is its table rule's landing in the
 /// zone's site under its own orientation, whose front is the dominant axis of the anchor's `front` and is read at the
 /// pinned camp tile (cave, church) or the site's centre tile (tree); the anchor's centre is that tile, its footprint the
-/// landing's box, its entrance the table's entrance rule landed in the drawing's grid order (today's order); the landed
+/// landing's box, its entrance the table's entrance rule landed (as a set: P-MAPGEN-SIG-BLUEPRINT-2 sorts it); the landed
 /// marks are the drawing's marks
 /// landed, row-major, and the cave's and the church's `E` is the camp tile; the zone's features are the table's, in its
 /// order, with their jobs and anchor points; and every tile a glyph writes carries the glyph's tile and terrain and is
@@ -921,16 +921,18 @@ fn placed_landed_rederives_every_written_cell() {
                     a.footprint, l.footprint,
                     "seed {seed} {z:?}: the footprint is not the landing's box"
                 );
-                // Today's order, exactly: the entrance rule's tiles in the drawing's grid order (row-major in the
-                // grid), landed. Sorting it row-major on the map is Part 2's (P-MAPGEN-SIG-BLUEPRINT-2): two existing
-                // oracles digest the anchors' JSON with this order (`pinned_others` in `mapgen_signature_church.rs` and
-                // `mapgen_signature_bog_tree.rs`).
-                let entrance: Vec<TilePt> = bp
+                // The entrance rule's tiles, landed, as a set (amended by P-MAPGEN-SIG-BLUEPRINT-2, which sorts the
+                // anchor's entrance row-major on the map; its order is pinned by `mapgen_signature_table.rs`
+                // `every_anchors_entrance_is_row_major`).
+                let mut entrance: Vec<TilePt> = bp
                     .entrance(s.entrance)
                     .into_iter()
                     .map(|g| pt(l.tile(g)))
                     .collect();
-                assert_eq!(a.entrance, entrance, "seed {seed} {z:?}: the entrance");
+                entrance.sort_by_key(|p| (p.y, p.x));
+                let mut got = a.entrance.clone();
+                got.sort_by_key(|p| (p.y, p.x));
+                assert_eq!(got, entrance, "seed {seed} {z:?}: the entrance");
                 let marks: Vec<(u8, Vec<TilePt>)> = bp
                     .marks()
                     .into_iter()

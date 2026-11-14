@@ -27,6 +27,9 @@ use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline};
 use std::collections::{BTreeSet, VecDeque};
 use std::sync::OnceLock;
 
+#[path = "support/signature_pins.rs"]
+mod pins;
+
 type Cell = (i32, i32);
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -80,21 +83,6 @@ fn attempts_allowed() -> u64 {
 /// The longest floor path from the cave's mouth to the zone's largest unowned ice body (`mapgen_signature_frost_lake.rs`).
 fn mouth_to_lake() -> usize {
     DEFAULT_DEFINITION.lake_reach + 2
-}
-
-/// Today's option-off generator, seeds 1-8: (seed, `map_hash`, FNV-1a 64 of the map's JSON); the values pinned by
-/// `mapgen_signature_fire.rs`, `mapgen_signature_frost.rs` and `mapgen_signature_frost_lake.rs` (G8).
-fn pinned_off() -> [(i64, &'static str, u64); 8] {
-    [
-        (1, "d09b4fd9", 0xf638_ce4a_8563_d41d),
-        (2, "190cd50f", 0xf13c_e037_fbd7_f651),
-        (3, "b82117b8", 0xeb4f_0525_0310_7414),
-        (4, "bec16d65", 0x785a_11c3_0a31_46b7),
-        (5, "25032ba7", 0x0f6e_a513_6ba7_ca0d),
-        (6, "2d58fdf5", 0x600e_c62d_a4c6_d207),
-        (7, "6255dbbe", 0x7188_b411_554a_ddb7),
-        (8, "dbb3602f", 0xd855_dc2a_be46_a4eb),
-    ]
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -706,7 +694,7 @@ fn floor_steps(m: &GameMapData, from: &[Cell], to: &BTreeSet<Cell>) -> Option<us
 fn option_off_is_todays_generator() {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    for (seed, hash, json) in pinned_off() {
+    for (seed, hash, json) in pins::pinned_off() {
         let m = generator
             .certified_styled(seed, pipeline::Options::default())
             .unwrap()

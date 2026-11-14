@@ -35,14 +35,16 @@ use rh_sim::mapgen::certify::rules::R;
 use rh_sim::mapgen::coliseum::{CX, CY};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{
-    relabel_sites, relabelled_zones, ReservedSite, SignatureContext, DEFAULT_DEFINITION,
+    relabel_sites, relabelled_zones, ReservedSite, DEFAULT_DEFINITION,
 };
-use rh_sim::mapgen::landmarks::{recipes, stage};
 use rh_sim::mapgen::zones::camps::CampSite;
 use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline, style_gallows};
 use rh_sim::rng::Mulberry32;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
+
+#[path = "support/signature_pins.rs"]
+mod pins;
 
 type Cell = (i32, i32);
 
@@ -86,46 +88,6 @@ fn worst_attempt_allowed() -> u64 {
 /// bound is the stub's figure plus the earlier headroom (70 over 59: +11). Brief, "Measurements".
 fn attempts_allowed() -> u64 {
     57
-}
-
-/// Today's option-off generator, seeds 1-8: (seed, `map_hash`, FNV-1a 64 of the map's JSON); the values
-/// `mapgen_signature_scale.rs` pins (G8).
-fn pinned_off() -> [(i64, &'static str, u64); 8] {
-    [
-        (1, "d09b4fd9", 0xf638_ce4a_8563_d41d),
-        (2, "190cd50f", 0xf13c_e037_fbd7_f651),
-        (3, "b82117b8", 0xeb4f_0525_0310_7414),
-        (4, "bec16d65", 0x785a_11c3_0a31_46b7),
-        (5, "25032ba7", 0x0f6e_a513_6ba7_ca0d),
-        (6, "2d58fdf5", 0x600e_c62d_a4c6_d207),
-        (7, "6255dbbe", 0x7188_b411_554a_ddb7),
-        (8, "dbb3602f", 0xd855_dc2a_be46_a4eb),
-    ]
-}
-
-/// The volcano, bog tree and cave the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this
-/// packet: (seed, attempt, `others_digest`). Measured on the stub rebased onto the bog tree (P-MAPGEN-SIG-SCALE-3, whose
-/// blueprint tree is now in these digests; seed 2 attempt 1 fails its prefix: 0) and equal under the oracle author's
-/// prototype of the blueprint church.
-fn pinned_others() -> [(i64, u64, u64); 16] {
-    [
-        (1, 0, 0xfa2b_069d_9f27_b95a),
-        (1, 1, 0xdae2_c7c9_f13f_0db4),
-        (2, 0, 0x4ec3_63f5_dbdd_fd16),
-        (2, 1, 0),
-        (3, 0, 0x1f21_9df2_3ad8_d534),
-        (3, 1, 0x556a_eaa6_c255_ad29),
-        (4, 0, 0x33c2_a66f_f264_3297),
-        (4, 1, 0x19bc_5afe_f745_c8ef),
-        (5, 0, 0x82eb_fb81_9b5e_dbd5),
-        (5, 1, 0xa0b2_18dd_f3b3_43ff),
-        (6, 0, 0xa413_c186_6fa5_fbca),
-        (6, 1, 0x7d4a_65e8_261f_b951),
-        (7, 0, 0x32d1_1f8e_0821_9197),
-        (7, 1, 0xe175_af3f_8601_f64a),
-        (8, 0, 0xe7a7_be64_4cdd_9038),
-        (8, 1, 0x12cd_955b_88ad_a971),
-    ]
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -460,49 +422,6 @@ fn fnv(bytes: &[u8]) -> u64 {
         h = h.wrapping_mul(0x0100_0000_01b3);
     }
     h
-}
-
-/// FNV-1a 64 of what the Landmarks phase places for the volcano, the bog tree and the cave on (seed, attempt), option
-/// on: their anchors (JSON) and, for every feature the phase leaves except the church and its graveyard, the feature
-/// (JSON) and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
-fn others_digest(seed: i64, n: u64) -> u64 {
-    let fixed = coliseum::fixed_layout();
-    let context = attempt::AttemptContext::new(&fixed);
-    let Some(frame) =
-        attempt::begin_attempt_signature(&context, seed, n, true).expect("prefix input")
-    else {
-        return 0;
-    };
-    let Some(mut st) = stage::StageContext::new(&fixed)
-        .apply(&frame, &recipes::Recipes::default())
-        .expect("stage input")
-    else {
-        return 0;
-    };
-    let Some(placed) = SignatureContext::new(&fixed)
-        .apply(&frame, &mut st)
-        .expect("signature input")
-    else {
-        return 0;
-    };
-    let mut bytes = Vec::new();
-    for a in placed.anchors.iter().filter(|a| a.zone != Zone::Sentenced) {
-        bytes.extend(serde_json::to_vec(a).unwrap());
-    }
-    for (k, f) in st.state.features.iter().enumerate() {
-        if matches!(f.kind, FeatureKind::Church | FeatureKind::Graveyard) {
-            continue;
-        }
-        bytes.extend(serde_json::to_vec(f).unwrap());
-        for (i, &owner) in st.state.feature_owner.iter().enumerate() {
-            if usize::from(owner) == k + 1 {
-                bytes.extend((i as u32).to_le_bytes());
-                bytes.push(st.state.tiles[i]);
-                bytes.push(placed.terrain[i]);
-            }
-        }
-    }
-    fnv(&bytes)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -978,7 +897,7 @@ fn no_landmark_stands_in_another_landmarks_apron() {
 fn option_off_is_todays_generator() {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    for (seed, hash, json) in pinned_off() {
+    for (seed, hash, json) in pins::pinned_off() {
         let m = generator
             .certified_styled(seed, pipeline::Options::default())
             .unwrap()
@@ -988,20 +907,6 @@ fn option_off_is_todays_generator() {
             fnv(&serde_json::to_vec(&m).unwrap()),
             json,
             "seed {seed}: map JSON digest"
-        );
-    }
-}
-
-/// Guard. The volcano, the bog tree and the cave the Landmarks phase places are today's (`pinned_others`): each draws
-/// only from its own zone's stream, the volcano is placed before the church, and the tree and the cave read nothing of
-/// the Sentenced site (it is wholly Sentenced, and the church's apron stays inside it).
-#[test]
-fn the_other_three_landmarks_are_unchanged() {
-    for (seed, n, digest) in pinned_others() {
-        assert_eq!(
-            others_digest(seed, n),
-            digest,
-            "seed {seed} attempt {n}: the volcano, bog tree or cave moved"
         );
     }
 }

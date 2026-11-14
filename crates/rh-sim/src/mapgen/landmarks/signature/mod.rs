@@ -10,7 +10,9 @@
 //! draws only from its own per-zone stream, `hash_seed(seed, attempt, zone index, Definition::stream)`; the attempt's
 //! main stream and the stylers' streams are untouched (G6).
 //!
-//! Integer geometry only: offsets and squared distances in tiles (the tree) and rectangles (the church, the cave).
+//! Every landmark stands in the site its zone reserved in the Prefix (P-MAPGEN-SIG-RESERVE-1): the church, the bog tree
+//! and the cave are their approved drawings, read and landed from the per-landmark table (`spec`, `blueprint`, `stamp`);
+//! the volcano is still drawn by its own rules (`volcano`, until P-MAPGEN-SIG-SCALE-4). Integer geometry only.
 pub mod blueprint;
 mod bog_tree;
 mod cave;
@@ -27,6 +29,7 @@ use crate::mapgen::attempt::{AttemptFrame, AttemptInputError};
 use crate::mapgen::certify::rules::R;
 use crate::mapgen::coliseum::{FixedLayout, CX, CY, H, W};
 use crate::mapgen::spawns;
+use crate::mapgen::terrain_gate;
 use crate::mapgen::zones::camps::CampSite;
 use crate::rng::{hash_seed, Mulberry32};
 
@@ -43,32 +46,18 @@ pub struct Definition {
     /// G4: the outer edge, in tiles of Chebyshev distance from the anchor's footprint rectangle, of the core, near and
     /// mid bands (inclusive); beyond the last is far. The core band is also the apron kept clear round the landmark.
     pub bands: [i32; 3],
-    /// Bog tree: squared tile distance from the trunk's centre tile of the trunk (wall), of the dry ground kept round
-    /// it, and the inclusive squared-distance ranges of the two bog bands.
-    pub trunk_d2: i32,
-    /// The terrain code of the bog bands (`terrain_gate` kind `bog`, home Plague).
+    /// The terrain codes of the bog (the tree's marsh), the lava (LOW), the ember (floor) and the ice (floor):
+    /// documented mirrors of the terrain catalog's codes of the kinds keyed `bog`, `lava`, `ember` and `ice`
+    /// (`terrain_gate::DEFAULT_DEFINITION.kinds`; homes Plague, Fire, Fire, Frost), for the readers outside the step (the
+    /// stylers, the Plague pools, the tests). The step itself writes and checks the catalog's codes
+    /// (`SignatureContext::terrain_codes`, resolved by key when the context is built; a debug build asserts they agree).
     pub bog: u8,
-    pub dry_d2: i32,
-    pub bog_d2: [(i32, i32); 2],
-    /// Bog tree: the fewest bog tiles a site may keep (of about 90 a whole tree has), and the tiles its centre must stand
-    /// beyond the start of the Plague zone's outer third (slack for later rezoning).
-    pub bog_min: usize,
-    pub outer_slack: f64,
-    /// Church: the distance from the camp tile of each wall line (inclusive range); a side may instead lean on the map
-    /// border when the border is at most `border_max` away, and must when an own wall would leave a gap under
-    /// `border_gap` tiles to it.
-    pub church_side: (i32, i32),
-    pub border_max: i32,
-    pub border_gap: i32,
-    /// Graveyard layouts, most preferred first: each stone of one half as (across from the door axis, along from the
-    /// door line), first..=last inclusive; the other half is its mirror. Every stone starts `grave_gap` past the door line.
-    pub graveyards: [&'static [Stone]; 3],
-    pub grave_gap: i32,
-    /// Church: how far (tiles) the door axis may move off the camp's axis, nearest first.
-    pub door_shift: i32,
-    /// Volcano: the terrain codes of its lava (LOW) and ember (floor) (`terrain_gate` kinds `lava`, `ember`, home Fire).
     pub lava: u8,
     pub ember: u8,
+    pub ice: u8,
+    /// Plague site: the tiles its centre must stand beyond the start of the Plague zone's outer third (slack for later
+    /// rezoning; `SignatureContext::reserve`).
+    pub outer_slack: f64,
     /// Volcano: squared tile distance from the centre tile of the cone (wall) and of its crater (lava inside the cone).
     pub cone_d2: i32,
     pub crater_d2: i32,
@@ -97,16 +86,9 @@ pub struct Definition {
     pub pool_d2: &'static [i32],
     /// Volcano: the zone's total lava (crater, streams and pools; inclusive), inside the legacy river's 107-158.
     pub lava_budget: (usize, usize),
-    /// Cave: the distance from the camp tile of each wall line (inclusive range; a side may lean on the border as the
-    /// church's), the mouth's half-width (tiles each side of its axis), the free Frost floor beyond the mouth (tiles),
-    /// the fewest ice tiles inside, and the terrain code of that ice (`terrain_gate` kind `ice`, home Frost). A mouth is
-    /// first sought with a forecourt: the square of Frost `2 * forecourt + 1` tiles wide just beyond it.
-    pub cave_side: (i32, i32),
-    pub mouth: i32,
+    /// The tiles beyond each entrance tile, along the front, that must be `Site::open` for an entry whose table row says
+    /// `doorway` (the church's main gate, the cave's mouth; `stamp`).
     pub doorway: i32,
-    pub forecourt: i32,
-    pub cave_ice_min: usize,
-    pub ice: u8,
     /// Frost styler in signature mode: the mere's seed is an allowed tile at most `lake_reach` floor steps from the
     /// cave's mouth; the first of `lake_tries` candidates that grows a lake is kept. It is regrown off the spawn routes
     /// at most `lake_rounds` times. The second lake grows to at most `second_share` percent of the mere's area.
@@ -126,47 +108,32 @@ pub struct Definition {
     /// P-MAPGEN-SIG-SCALE-1: the Frost cave's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text of
     /// `cave.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/cave.txt` (the docs are not in the
     /// server image's build context, so the crate carries its own copy). Lines starting `;` are its legend; the rest is
-    /// the 29 x 29 grid, front (toward the coliseum) at the bottom. Parsed once per context (`cave::Blueprint`); a grid
-    /// that does not parse refuses every option-on attempt at the cave (`Refusal::Signature`).
+    /// the 29 x 29 grid, front (toward the coliseum) at the bottom. Parsed once per context by `blueprint::Blueprint::parse`
+    /// with the table's legend (`spec::specs`); a grid that does not parse refuses every option-on attempt at the cave
+    /// (`Refusal::Signature`).
     pub cave_grid: &'static str,
     /// P-MAPGEN-SIG-SCALE-3: the Plague bog tree's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text
     /// of `bog.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/bog.txt` (the docs are not in the
     /// server image's build context). Lines starting `;` are its legend; the rest is the 29 x 29 grid, front (toward the
-    /// coliseum) at the bottom. Parsed once per context (`bog_tree::Drawing`); a grid that does not parse refuses every
-    /// option-on attempt at the tree (`Refusal::Signature`).
+    /// coliseum) at the bottom. Parsed as `cave_grid`; a grid that does not parse refuses every option-on attempt at the
+    /// tree (`Refusal::Signature`).
     pub bog_grid: &'static str,
     /// P-MAPGEN-SIG-SCALE-2: the Sentenced church's approved blueprint with its graveyard and churchyard (owner decision
     /// 2026-11-13; ADR 0028 G9), the text of `church.txt` beside this file, a byte-equal copy of
     /// `docs/landmarks/blueprints/church.txt` (as `cave_grid`). Lines starting `;` are its legend; the rest is the 29 x 29
-    /// grid, front (toward the coliseum) at the bottom. Parsed once per context (`church::Blueprint`); a grid that does
-    /// not parse refuses every option-on attempt at the church (`Refusal::Signature`).
+    /// grid, front (toward the coliseum) at the bottom. Parsed as `cave_grid`; a grid that does not parse refuses every
+    /// option-on attempt at the church (`Refusal::Signature`).
     pub church_grid: &'static str,
 }
-
-/// One headstone of a graveyard half: (across from the door axis, along from the door line), each first..=last.
-pub type Stone = ((i32, i32), (i32, i32));
 
 pub const DEFAULT_DEFINITION: Definition = Definition {
     stream: 5,
     bands: [2, 6, 14],
-    trunk_d2: 4,
     bog: 5,
-    dry_d2: 10,
-    bog_d2: [(13, 21), (36, 56)],
-    bog_min: 60,
-    outer_slack: 2.0,
-    church_side: (4, 7),
-    border_max: 9,
-    border_gap: 3,
-    graveyards: [
-        &[((4, 5), (3, 5)), ((4, 5), (7, 9))],
-        &[((2, 3), (3, 5)), ((2, 3), (7, 9))],
-        &[((2, 3), (3, 5)), ((5, 6), (3, 5))],
-    ],
-    grave_gap: 3,
-    door_shift: 5,
     lava: 1,
     ember: 4,
+    ice: 6,
+    outer_slack: 2.0,
     cone_d2: 6,
     crater_d2: 1,
     back_slack: 2.0,
@@ -186,12 +153,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     start_d2: 20,
     pool_d2: &[4, 2],
     lava_budget: (80, 150),
-    cave_side: (4, 7),
-    mouth: 1,
     doorway: 2,
-    forecourt: 4,
-    cave_ice_min: 8,
-    ice: 6,
     lake_reach: 8,
     lake_tries: 8,
     lake_rounds: 3,
@@ -288,7 +250,8 @@ fn slot_of(order: &[FactionId], zone: Zone) -> Option<u8> {
         .map(|s| (s + 1) as u8)
 }
 
-/// The church's and the cave's door/mouth axis rule: the dominant axis of DIR16 `f` (x on a tie), as a unit vector.
+/// The front axis of a landmark drawn from the table (`stamp`) and of a reserved site's camp (`inside_camp`): the
+/// dominant axis of DIR16 `f` (x on a tie), as a unit vector.
 fn axis(f: u8) -> (i32, i32) {
     let v = DIR16[usize::from(f)];
     if v[0].abs() >= v[1].abs() {
@@ -350,16 +313,54 @@ pub struct Landed {
     pub marks: Vec<(u8, Vec<TilePt>)>,
 }
 
+/// P-MAPGEN-SIG-BLUEPRINT-2: the terrain codes (indices into the terrain catalog, `terrain_gate::DEFAULT_DEFINITION.kinds`)
+/// of the catalog kinds `bog`, `lava`, `ember` and `ice`, as the context uses them (`SignatureContext::terrain_codes`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TerrainCodes {
+    pub bog: u8,
+    pub lava: u8,
+    pub ember: u8,
+    pub ice: u8,
+}
+
+/// The terrain catalog's codes of the kinds keyed `bog`, `lava`, `ember` and `ice` (each its index in
+/// `terrain_gate::DEFAULT_DEFINITION.kinds`). Panics when the catalog lacks one: the step cannot run without them.
+pub(crate) fn catalog_codes() -> TerrainCodes {
+    let code = |key: &str| {
+        let k = terrain_gate::DEFAULT_DEFINITION
+            .kinds
+            .iter()
+            .position(|k| k.key == key)
+            .unwrap_or_else(|| panic!("signature: no terrain kind {key:?} in the catalog"));
+        u8::try_from(k).expect("signature: terrain code")
+    };
+    TerrainCodes {
+        bog: code("bog"),
+        lava: code("lava"),
+        ember: code("ember"),
+        ice: code("ice"),
+    }
+}
+
+/// What `intact` accepts on a tile owned by a feature of one member kind: (tile, terrain), `None` terrain for any.
+type Owned = Vec<(u8, Option<u8>)>;
+
 /// Immutable per-pipeline context, reused by every attempt.
 pub struct SignatureContext<'f> {
     _fixed: core::marker::PhantomData<&'f FixedLayout>,
     rules: Definition,
+    /// The catalog's terrain codes (`catalog_codes`), resolved once.
+    codes: TerrainCodes,
     /// Tiles no landmark wall may take: the border, the coliseum, its road (with the legacy landmark margin) and lanes.
     hard: Vec<u8>,
     /// P-MAPGEN-SIG-BLUEPRINT-1: the per-landmark table (`spec::specs`), each entry with its drawing parsed once; `None`
     /// for an entry without a drawing (the volcano) or with one that does not parse (which refuses every option-on
     /// attempt at that landmark, after its mirror draw: `Refusal::Signature`).
     landmarks: Vec<(spec::Spec, Option<Blueprint>)>,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: per member kind of the table, what `intact` accepts on the tiles its features own: for a
+    /// drawing, the (tile, terrain) its legend's glyphs of that kind write (any terrain for the entry's `any_terrain`
+    /// kinds); for the volcano, `volcano::owned`.
+    owned: Vec<(FeatureKind, Owned)>,
 }
 
 impl<'f> SignatureContext<'f> {
@@ -391,22 +392,83 @@ impl<'f> SignatureContext<'f> {
                 }
             }
         }
+        let codes = catalog_codes();
+        debug_assert_eq!(
+            codes,
+            TerrainCodes {
+                bog: d.bog,
+                lava: d.lava,
+                ember: d.ember,
+                ice: d.ice,
+            },
+            "signature: the definition's terrain codes are not the catalog's"
+        );
+        let table = spec::specs(d);
+        let mut owned: Vec<(FeatureKind, Owned)> = volcano::owned(&codes);
+        for s in table.iter().filter(|s| s.drawing.is_some()) {
+            for g in &s.legend.0 {
+                let (Some(kind), Some((tile, terrain))) = (g.feature, written(g.write)) else {
+                    continue;
+                };
+                let pair = (tile, (!s.any_terrain.contains(&kind)).then_some(terrain));
+                match owned.iter_mut().find(|(k, _)| *k == kind) {
+                    Some((_, pairs)) if !pairs.contains(&pair) => pairs.push(pair),
+                    Some(_) => {}
+                    None => owned.push((kind, vec![pair])),
+                }
+            }
+        }
+        // A member kind without a rule would pass `intact`'s owned-tile check whatever its tiles hold.
+        debug_assert!(
+            table
+                .iter()
+                .flat_map(|s| &s.members)
+                .all(|m| owned.iter().any(|(k, _)| k == m)),
+            "signature: a member kind with no owned-tile rule"
+        );
         Self {
             _fixed: core::marker::PhantomData,
             rules: *d,
+            codes,
             hard,
-            landmarks: spec::specs(d)
+            landmarks: table
                 .into_iter()
                 .map(|s| {
                     let drawing = s.drawing.and_then(|t| Blueprint::parse(t, &s.legend).ok());
                     (s, drawing)
                 })
                 .collect(),
+            owned,
         }
     }
 
     pub fn definition(&self) -> &Definition {
         &self.rules
+    }
+
+    /// P-MAPGEN-SIG-BLUEPRINT-2 (review finding 6): the terrain codes this context writes and checks for the bog, the
+    /// lava, the ember and the ice: the terrain catalog's (`catalog_codes`), looked up by key when the context is built.
+    pub fn terrain_codes(&self) -> TerrainCodes {
+        self.codes
+    }
+
+    /// The index of the table entry whose member kinds hold `k` (`spec::Spec::members`), `None` for a kind that is no
+    /// signature landmark's.
+    fn entry_of(&self, k: FeatureKind) -> Option<usize> {
+        self.landmarks
+            .iter()
+            .position(|(s, _)| s.members.contains(&k))
+    }
+
+    /// Whether `k` is a member kind of a signature landmark.
+    fn is_signature(&self, k: FeatureKind) -> bool {
+        self.entry_of(k).is_some()
+    }
+
+    /// Whether `k`'s apron and keep mask follow its own tiles rather than its box (`spec::Spec::by_tile`: the lava
+    /// streams and pools).
+    fn by_tile(&self, k: FeatureKind) -> bool {
+        self.landmarks.iter().any(|(s, _)| s.by_tile.contains(&k))
     }
 
     /// P-MAPGEN-SIG-RESERVE-1: each reserving zone's signature stream, `hash_seed(seed, attempt, zone slot, stream)`, in
@@ -574,100 +636,125 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// Places each zone's signature landmark (Fire: the volcano with its streams and pools; Sentenced: the church and its
-    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order. A zone whose
-    /// table entry (`spec::specs`) has a drawing and which reserved a site is drawn by the generic `stamp`, and its
-    /// landing is recorded in `Placed::landed`; the volcano, and a zone without a reserved site (a `begin_attempt`
-    /// prefix, tests only), keep their own code. Only the volcano and the bog tree keep their tiles out of the aprons
-    /// marked before them (`Site::ground`; the tree by its legend's `Legality::WallGround`); the church and the cave
-    /// place their walls on any free wall tile (`Site::wall`). The rule that no landmark lies in another's apron is the
-    /// end-of-attempt discard (`intact`). `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
-    /// never built without it; the pipeline tries the next attempt).
+    /// graveyard; Plague: the bog tree; Frost: the cave) into the stage's layers and masks, in that order (`place`). A
+    /// zone whose table entry (`spec::specs`) has a drawing is drawn by the generic `stamp`, and its landing is recorded
+    /// in `Placed::landed`; the volcano keeps its own code. Only the volcano and the bog tree keep their tiles out of the
+    /// aprons marked before them (`Site::ground`; the tree by its legend's `Legality::WallGround`); the church and the
+    /// cave place their walls on any free wall tile (`Site::wall`). The rule that no landmark lies in another's apron is
+    /// the end-of-attempt discard (`intact`). `Ok(None)` refuses the attempt (G5: a zone that cannot hold its landmark is
+    /// never built without it; the pipeline tries the next attempt), and so does a prefix without a zone's reserved site
+    /// (`begin_attempt`'s, the option-off prefix): every landmark is built inside its site.
     pub fn apply(
         &self,
         frame: &AttemptFrame,
         stage: &mut LandmarkStage,
     ) -> Result<Option<Placed>, AttemptInputError> {
-        let prefix = &frame.state;
-        let mut halo = vec![0u8; W * H];
-        for c in &prefix.layout.camps {
-            mark_halo(&mut halo, c.site);
-        }
+        let halo = camp_halo(frame);
         let mut terrain = vec![0u8; W * H];
         let mut anchors = Vec::new();
         let mut landed = Vec::new();
         for zone in reserved_zones() {
-            let Some(slot) = slot_of(&prefix.order, zone) else {
+            let Some((anchor, l)) = self.place(frame, stage, &halo, &mut terrain, zone) else {
                 return Ok(None);
             };
-            // P-MAPGEN-SIG-RESERVE-1: a zone with a reserved site builds inside it, continuing the stream the Prefix
-            // began; without one (the prefix of `begin_attempt`), today's rules on a fresh stream.
-            let reserved = prefix.reserved.iter().find(|r| r.zone == zone);
-            let mut rng = match reserved {
-                Some(r) => r.stream.clone(),
-                None => Mulberry32::new(hash_seed(
-                    prefix.seed as u32,
-                    prefix.attempt as u32,
-                    u32::from(slot),
-                    self.rules.stream,
-                )),
-            };
-            // The reserved site less its apron.
-            let b = self.rules.bands[0];
-            let inner_rect = reserved.map(|r| TileRect {
-                x: r.rect.x + b,
-                y: r.rect.y + b,
-                w: r.rect.w.saturating_sub(2 * b as u32),
-                h: r.rect.h.saturating_sub(2 * b as u32),
-            });
-            let inner = inner_rect.map(|r| (r.x, r.y, r.x + r.w as i32 - 1, r.y + r.h as i32 - 1));
-            let site = Site {
-                ctx: self,
-                zone: &prefix.partition.zone,
-                slot,
-                tiles: &stage.state.tiles,
-                owner: &stage.state.feature_owner,
-                protect: &stage.protect,
-                apron: &stage.masks.near1,
-                halo: &halo,
-                // The volcano's streams and pools leave its site: only its cone is confined (`volcano::place`).
-                inner: inner.filter(|_| zone != Zone::Fire),
-            };
-            let drawn = self
-                .landmarks
-                .iter()
-                .find(|(s, _)| s.zone == zone && s.drawing.is_some());
-            let camps = &prefix.layout.camps;
-            let built = match (drawn, reserved.zip(inner_rect)) {
-                (Some((spec, drawing)), Some((r, inner))) => {
-                    let target = Target {
-                        inner,
-                        camp: r.camp.map(|t| ((t % W) as i32, (t / W) as i32)),
-                    };
-                    stamp(&site, &mut rng, spec, drawing.as_ref(), &target).map(|(built, l)| {
-                        landed.push(l);
-                        built
-                    })
-                }
-                _ => match zone {
-                    Zone::Fire => volcano::place(&site, camps, &mut rng, inner),
-                    Zone::Sentenced => church::place(&site, camps, &mut rng),
-                    Zone::Plague => bog_tree::place(&site, &mut rng),
-                    _ => cave::place(&site, camps, &mut rng),
-                },
-            };
-            let Some(built) = built else {
-                return Ok(None);
-            };
-            for piece in &built.pieces {
-                self.write(stage, &mut terrain, zone, piece);
-            }
-            anchors.push(built.anchor);
+            anchors.push(anchor);
+            landed.extend(l);
         }
         Ok(Some(Placed {
             anchors,
             terrain,
             landed,
         }))
+    }
+
+    /// P-MAPGEN-SIG-BLUEPRINT-2 (review finding 5): `apply` for the one landmark of `zone` alone, as if the zones placed
+    /// before it in `apply` had placed nothing: the same site, stream, draws and checks (`place`), its features written
+    /// into `stage`, and a `Placed` holding only its anchor, its terrain and (for a drawing) its landing. A test seam: what
+    /// each landmark's own oracle pins without depending on the others. `Ok(None)` where `apply` would refuse at this
+    /// zone, and for a zone that reserves no site (Holy).
+    pub fn apply_only(
+        &self,
+        frame: &AttemptFrame,
+        stage: &mut LandmarkStage,
+        zone: Zone,
+    ) -> Result<Option<Placed>, AttemptInputError> {
+        if !reserved_zones().contains(&zone) {
+            return Ok(None);
+        }
+        let halo = camp_halo(frame);
+        let mut terrain = vec![0u8; W * H];
+        Ok(self
+            .place(frame, stage, &halo, &mut terrain, zone)
+            .map(|(anchor, landed)| Placed {
+                anchors: vec![anchor],
+                terrain,
+                landed: landed.into_iter().collect(),
+            }))
+    }
+
+    /// One zone's landmark in its reserved site, continuing the zone's signature stream the Prefix began there
+    /// (P-MAPGEN-SIG-RESERVE-1): drawn from its table entry by `stamp`, or (the volcano, the one entry without a drawing)
+    /// by `volcano::place`; its features written into `stage` and their terrain into `terrain`. The anchor and, for a
+    /// drawing, the landing; `None` refuses (no slot, no reserved site, or the site cannot hold the landmark). `halo` is
+    /// every prefix camp's certifier halo (`camp_halo`).
+    fn place(
+        &self,
+        frame: &AttemptFrame,
+        stage: &mut LandmarkStage,
+        halo: &[u8],
+        terrain: &mut [u8],
+        zone: Zone,
+    ) -> Option<(ZoneAnchor, Option<Landed>)> {
+        let prefix = &frame.state;
+        let slot = slot_of(&prefix.order, zone)?;
+        let r = prefix.reserved.iter().find(|r| r.zone == zone)?;
+        let (spec, drawing) = self.landmarks.iter().find(|(s, _)| s.zone == zone)?;
+        let mut rng = r.stream.clone();
+        // The reserved site less its apron.
+        let b = self.rules.bands[0];
+        let inner = TileRect {
+            x: r.rect.x + b,
+            y: r.rect.y + b,
+            w: r.rect.w.saturating_sub(2 * b as u32),
+            h: r.rect.h.saturating_sub(2 * b as u32),
+        };
+        let corners = (
+            inner.x,
+            inner.y,
+            inner.x + inner.w as i32 - 1,
+            inner.y + inner.h as i32 - 1,
+        );
+        let site = Site {
+            ctx: self,
+            zone: &prefix.partition.zone,
+            slot,
+            tiles: &stage.state.tiles,
+            owner: &stage.state.feature_owner,
+            protect: &stage.protect,
+            apron: &stage.masks.near1,
+            halo,
+            // The volcano's streams and pools leave its site: only its cone is confined (`volcano::place`).
+            inner: (zone != Zone::Fire).then_some(corners),
+        };
+        let (built, landed) = match spec.drawing {
+            Some(_) => {
+                let target = Target {
+                    inner,
+                    camp: r.camp.map(|t| ((t % W) as i32, (t / W) as i32)),
+                };
+                let (built, l) = stamp(&site, &mut rng, spec, drawing.as_ref(), &target)?;
+                (built, Some(l))
+            }
+            None if zone == Zone::Fire => (
+                volcano::place(&site, &prefix.layout.camps, &mut rng, corners)?,
+                None,
+            ),
+            None => return None,
+        };
+        for piece in &built.pieces {
+            self.write(stage, terrain, zone, piece);
+        }
+        Some((built.anchor, landed))
     }
 
     fn write(&self, stage: &mut LandmarkStage, terrain: &mut [u8], zone: Zone, p: &Piece) {
@@ -679,7 +766,7 @@ impl<'f> SignatureContext<'f> {
             stage.state.feature_owner[i] = id;
         }
         let b = self.rules.bands[0];
-        if by_tile(p.kind) {
+        if self.by_tile(p.kind) {
             // A stream's or pool's box is a long diagonal: its apron and keep mask follow its own tiles.
             for &(i, _, _) in &p.cells {
                 stage.masks.boxes[i] = 1;
@@ -761,43 +848,35 @@ impl<'f> SignatureContext<'f> {
     }
 
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
-    /// of it): a tree of trunk walls and bog floor, a church of walls, a graveyard of walls and LOW fence (the fence
-    /// terrain), an open door, all in their zone; no styler feature in an apron; no landmark's tiles in another
-    /// landmark's apron, either way round
+    /// of it): every tile a member feature owns lies in the feature's zone and holds what the table writes there
+    /// (`owned`: the legend's walls, LOW and floor with their terrain; the volcano's hand list), every entrance tile is
+    /// floor; no styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
     /// (`aprons_apart`); and the Frost zone's largest ice body outside the cave at the cave's mouth
     /// (`cave::lake_at_mouth`). A pure predicate: it draws nothing and changes nothing.
     pub fn intact(&self, map: &GameMapData) -> bool {
+        let rules: Vec<Option<&Owned>> = map
+            .features
+            .iter()
+            .map(|f| {
+                self.owned
+                    .iter()
+                    .find(|(kind, _)| *kind == f.kind)
+                    .map(|(_, pairs)| pairs)
+            })
+            .collect();
         let owned_ok = (0..map.feature_grid.len()).all(|i| {
             let id = usize::from(map.feature_grid[i]);
-            let Some(f) = id.checked_sub(1).and_then(|k| map.features.get(k)) else {
+            let Some(k) = id.checked_sub(1).filter(|&k| k < map.features.len()) else {
                 return true;
             };
-            let (t, k) = (map.tiles[i], map.terrain[i]);
-            let zone_ok = map.region_grid[i] == f.zone.code();
-            match f.kind {
-                FeatureKind::BogTree => {
-                    zone_ok
-                        && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.bog))
-                }
-                FeatureKind::Church => zone_ok && t == TILE_WALL,
-                FeatureKind::Graveyard => {
-                    zone_ok && ((t == TILE_WALL && k == 0) || (t == TILE_LOW && k == R.fence_kind))
-                }
-                FeatureKind::Volcano => {
-                    zone_ok
-                        && ((t == TILE_WALL && k == 0) || (t == TILE_LOW && k == self.rules.lava))
-                }
-                FeatureKind::LavaStream | FeatureKind::LavaPool => {
-                    zone_ok
-                        && ((t == TILE_LOW && k == self.rules.lava)
-                            || (t == TILE_FLOOR && k == self.rules.ember))
-                }
-                FeatureKind::Cave => {
-                    zone_ok
-                        && ((t == TILE_WALL && k == 0) || (t == TILE_FLOOR && k == self.rules.ice))
-                }
-                _ => true,
-            }
+            let Some(pairs) = rules[k] else {
+                return true;
+            };
+            let (t, terrain) = (map.tiles[i], map.terrain[i]);
+            map.region_grid[i] == map.features[k].zone.code()
+                && pairs
+                    .iter()
+                    .any(|&(tile, want)| tile == t && want.is_none_or(|w| w == terrain))
         });
         let door_ok = map.anchors.iter().all(|a| {
             a.entrance
@@ -817,11 +896,16 @@ impl<'f> SignatureContext<'f> {
                 }
             }
         };
+        let signature: Vec<bool> = map
+            .features
+            .iter()
+            .map(|f| self.is_signature(f.kind))
+            .collect();
         for (k, f) in map.features.iter().enumerate() {
-            if !is_signature(f.kind) {
+            if !signature[k] {
                 continue;
             }
-            if by_tile(f.kind) {
+            if self.by_tile(f.kind) {
                 for i in (0..map.feature_grid.len())
                     .filter(|&i| usize::from(map.feature_grid[i]) == k + 1)
                 {
@@ -839,9 +923,9 @@ impl<'f> SignatureContext<'f> {
         let apron_ok = (0..apron.len()).filter(|&i| apron[i]).all(|i| {
             usize::from(map.feature_grid[i])
                 .checked_sub(1)
-                .and_then(|k| map.features.get(k))
-                .is_none_or(|g| {
-                    is_signature(g.kind)
+                .and_then(|k| map.features.get(k).map(|g| (k, g)))
+                .is_none_or(|(k, g)| {
+                    signature[k]
                         || matches!(
                             g.kind,
                             FeatureKind::Landmark | FeatureKind::Infill | FeatureKind::Bush
@@ -859,10 +943,10 @@ impl<'f> SignatureContext<'f> {
     /// of the five. At placement only the volcano and the bog tree keep out of the aprons marked before them
     /// (`Site::ground`); the church and the cave read no apron (`Site::wall` only), and no landmark keeps the earlier
     /// ones out of its own apron. This check is the rule for all five, and symmetric, so the placement order decides
-    /// nothing. The
-    /// landmarks: the volcano (its streams and pools count as its tiles; its apron is the cone's box), the church with
-    /// its graveyard, the bog tree, the cave, and the Holy hall (the Holy `Hall` on the Holy anchor's footprint). An
-    /// apron is each of the landmark's boxes grown by the core band.
+    /// nothing. The landmarks: each table entry's member features (`spec::Spec::members`: the volcano with its streams
+    /// and pools, whose by-tile aprons this check skips, so its apron is the cone's box; the church with its graveyard;
+    /// the bog tree; the cave), and the Holy hall (the Holy `Hall` on the Holy anchor's footprint). An apron is each of
+    /// the landmark's boxes grown by the core band.
     fn aprons_apart(&self, map: &GameMapData) -> bool {
         let holy = map
             .anchors
@@ -874,17 +958,14 @@ impl<'f> SignatureContext<'f> {
                 .iter()
                 .position(|f| f.kind == FeatureKind::Hall && f.zone == Zone::Holy && f.bbox == fp)
         });
-        let landmark: Vec<Option<u8>> = map
+        // Each feature's landmark: its table entry (`spec::Spec::members`), the hall one past the table's last.
+        let landmark: Vec<Option<usize>> = map
             .features
             .iter()
             .enumerate()
-            .map(|(k, f)| match f.kind {
-                FeatureKind::Volcano | FeatureKind::LavaStream | FeatureKind::LavaPool => Some(0),
-                FeatureKind::Church | FeatureKind::Graveyard => Some(1),
-                FeatureKind::BogTree => Some(2),
-                FeatureKind::Cave => Some(3),
-                _ if hall == Some(k) => Some(4),
-                _ => None,
+            .map(|(k, f)| {
+                self.entry_of(f.kind)
+                    .or_else(|| (hall == Some(k)).then_some(self.landmarks.len()))
             })
             .collect();
         let b = self.rules.bands[0];
@@ -892,7 +973,7 @@ impl<'f> SignatureContext<'f> {
             let Some(host) = landmark[k] else {
                 return true;
             };
-            if by_tile(f.kind) {
+            if self.by_tile(f.kind) {
                 return true;
             }
             let (x1, y1) = (
@@ -911,22 +992,23 @@ impl<'f> SignatureContext<'f> {
     }
 }
 
-fn is_signature(k: FeatureKind) -> bool {
-    matches!(
-        k,
-        FeatureKind::BogTree
-            | FeatureKind::Church
-            | FeatureKind::Graveyard
-            | FeatureKind::Volcano
-            | FeatureKind::LavaStream
-            | FeatureKind::LavaPool
-            | FeatureKind::Cave
-    )
+/// The (tile, terrain) a glyph's write leaves on its map tile; `None` for `Write::Nothing`.
+fn written(w: Write) -> Option<(u8, u8)> {
+    match w {
+        Write::Nothing => None,
+        Write::Wall => Some((TILE_WALL, 0)),
+        Write::Low(k) => Some((TILE_LOW, k)),
+        Write::Floor(k) => Some((TILE_FLOOR, k)),
+    }
 }
 
-/// Kinds whose apron and keep mask follow their own tiles rather than their box (the lava streams and pools).
-fn by_tile(k: FeatureKind) -> bool {
-    matches!(k, FeatureKind::LavaStream | FeatureKind::LavaPool)
+/// Every prefix camp's certifier halo (`mark_halo`): the tiles no landmark wall may take.
+fn camp_halo(frame: &AttemptFrame) -> Vec<u8> {
+    let mut halo = vec![0u8; W * H];
+    for c in &frame.state.layout.camps {
+        mark_halo(&mut halo, c.site);
+    }
+    halo
 }
 
 /// P-MAPGEN-SIG-BLUEPRINT-1: one landmark drawn from its table entry `spec` and its parsed drawing in the zone's
@@ -943,8 +1025,9 @@ fn by_tile(k: FeatureKind) -> bool {
 ///    zone's floor;
 /// 7. each feature of the entry, in its order, owns the tiles its glyphs write, sorted by tile index.
 ///
-/// The anchor: centre `t`, footprint the landing's box, front `front(t)`, entrance the entry's entrance rule landed in
-/// the drawing's grid order. Pure but for the one draw.
+/// The anchor: centre `t`, footprint the landing's box, front `front(t)`, entrance the entry's entrance rule landed,
+/// row-major (by y, then x) without repeats; `FeatureAnchor::EntranceMiddle` reads the landed entrance in the drawing's
+/// grid order (index `len / 2`), as before the sort. Pure but for the one draw.
 fn stamp(
     s: &Site<'_>,
     rng: &mut Mulberry32,
@@ -977,11 +1060,8 @@ fn stamp(
             return None;
         }
         let i = at(p.0, p.1)?;
-        let (tile, terrain) = match glyph.write {
-            Write::Nothing => continue,
-            Write::Wall => (TILE_WALL, 0),
-            Write::Low(k) => (TILE_LOW, k),
-            Write::Floor(k) => (TILE_FLOOR, k),
+        let Some((tile, terrain)) = written(glyph.write) else {
+            continue;
         };
         let owner = spec
             .features
@@ -1046,6 +1126,10 @@ fn stamp(
             (ch, ts)
         })
         .collect();
+    // The anchor's entrance is row-major (P-MAPGEN-SIG-BLUEPRINT-2); the grid order above stays the feature anchors'.
+    let mut entrance = entrance;
+    entrance.sort_unstable_by_key(|p| (p.y, p.x));
+    entrance.dedup();
     let anchor = ZoneAnchor {
         zone: spec.zone,
         kind: spec.kind,
@@ -1091,7 +1175,8 @@ pub(crate) struct Site<'a> {
     /// The certifier's camp halo of every camp (no wall may stand there).
     halo: &'a [u8],
     /// P-MAPGEN-SIG-RESERVE-1: the zone's reserved site less its apron (x0, y0, x1, y1 inclusive), which confines
-    /// `floor` (and with it `wall` and `ground`) for the church, the tree and the cave; `None` without a reservation.
+    /// `floor` (and with it `wall` and `ground`) for every landmark drawn from the table; `None` for the volcano, whose
+    /// streams and pools leave the site (`volcano::place` confines its cone itself).
     inner: Option<(i32, i32, i32, i32)>,
 }
 

@@ -5,14 +5,15 @@
 //! (`crates/rh-server/src/signature.rs` before this packet), with the streams fanned within the front half instead of
 //! evenly round the cone.
 //!
-//! Site: a uniform draw among the back-edge centres whose cone fits, taking first the centres farthest from every Fire
-//! camp (`Definition::camp_room` tiers, so the camps' craters keep out of the core band). A stream is laid as a line
+//! Site: a uniform draw among the back-edge centres whose cone fits in the zone's reserved site, taking first the
+//! centres farthest from every Fire camp (`Definition::camp_room` tiers, so the camps' craters keep out of the core
+//! band). A stream is laid as a line
 //! through free ground (the zone's floor outside the legacy landmark protection, camp halos and every apron marked so
 //! far); where the line is blocked it bends by one direction step at a time, within `stream_bend` of its own heading
 //! and `front_max` of the front, or stops and ends in its pool early. A site with fewer than two streams, lava outside
 //! `lava_budget`, or a split of the zone's floor is not used. Integer geometry: directions are `DIR16` vectors (length
 //! 1024) and positions are fixed point (1/1024 tile).
-use super::{at, front, pick, Built, Piece, Site};
+use super::{at, front, pick, Built, Owned, Piece, Site, TerrainCodes};
 use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind, TilePt, Zone, ZoneAnchor};
 use crate::mapgen::coliseum::{CX, CY, H, W};
@@ -29,7 +30,7 @@ pub(super) fn place(
     s: &Site<'_>,
     camps: &[CampSite],
     rng: &mut Mulberry32,
-    inner: Option<(i32, i32, i32, i32)>,
+    inner: (i32, i32, i32, i32),
 ) -> Option<Built> {
     let d = &s.ctx.rules;
     let from_centre = |x: f64, y: f64| {
@@ -63,9 +64,10 @@ pub(super) fn place(
         if from_centre(f64::from(x) + 0.5, f64::from(y) + 0.5) <= need
             || at(x - apron, y - apron).is_none()
             || at(x + apron, y + apron).is_none()
-            || inner.is_some_and(|r| {
-                x - half < r.0 || x + half > r.2 || y - half < r.1 || y + half > r.3
-            })
+            || x - half < inner.0
+            || x + half > inner.2
+            || y - half < inner.1
+            || y + half > inner.3
             || !cone
                 .iter()
                 .all(|&(dx, dy)| s.wall(x + dx, y + dy) && s.ground(x + dx, y + dy))
@@ -111,6 +113,7 @@ fn build(
     rng: &mut Mulberry32,
 ) -> Option<Built> {
     let d = &s.ctx.rules;
+    let codes = &s.ctx.codes;
     // Cell marks while the site is built: 1 the cone, 2 lava.
     let mut mark = vec![0u8; W * H];
     for &(dx, dy) in cone {
@@ -150,7 +153,7 @@ fn build(
         .map(|&(dx, dy)| {
             let i = at(x + dx, y + dy).unwrap();
             if crater.contains(&(dx, dy)) {
-                (i, TILE_LOW, d.lava)
+                (i, TILE_LOW, codes.lava)
             } else {
                 (i, TILE_WALL, 0)
             }
@@ -171,7 +174,7 @@ fn build(
             (FeatureKind::LavaPool, pool_cells, pool_at),
         ] {
             let mut out: Vec<(usize, u8, u8)> =
-                cells.iter().map(|&i| (i, TILE_LOW, d.lava)).collect();
+                cells.iter().map(|&i| (i, TILE_LOW, codes.lava)).collect();
             for &i in &cells {
                 let (cx, cy) = ((i % W) as i32, (i / W) as i32);
                 for (dx, dy) in (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy))) {
@@ -180,7 +183,7 @@ fn build(
                     };
                     if mark[j] == 0 && !ember[j] && free(s, cx + dx, cy + dy) {
                         ember[j] = true;
-                        out.push((j, TILE_FLOOR, d.ember));
+                        out.push((j, TILE_FLOOR, codes.ember));
                     }
                 }
             }
@@ -203,6 +206,22 @@ fn build(
         },
         pieces,
     })
+}
+
+/// What `SignatureContext::intact` accepts on the tiles the volcano's features own (the volcano's hand list until
+/// P-MAPGEN-SIG-SCALE-4 makes it a table entry with a drawing): the cone wall or its LOW crater lava; a stream's or a
+/// pool's LOW lava or its ember floor.
+pub(super) fn owned(codes: &TerrainCodes) -> Vec<(FeatureKind, Owned)> {
+    let (lava, ember) = (Some(codes.lava), Some(codes.ember));
+    let body = vec![(TILE_LOW, lava), (TILE_FLOOR, ember)];
+    vec![
+        (
+            FeatureKind::Volcano,
+            vec![(TILE_WALL, Some(0)), (TILE_LOW, lava)],
+        ),
+        (FeatureKind::LavaStream, body.clone()),
+        (FeatureKind::LavaPool, body),
+    ]
 }
 
 /// Ground a lava or ember tile may take: this zone's free floor outside the legacy protection, the camp halos and every
