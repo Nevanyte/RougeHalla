@@ -38,7 +38,7 @@ namespace Roguehalla.Client
             int n = Mathf.Min(_camps.Length, camps.Count);
             for (int i = 0; i < _camps.Length; i++)
             {
-                bool want = i < n && PatienceOutline.Visible(phase, training, camps[i].Alive);
+                bool want = i < n && attacked != null && attacked.IsAttacked(i) && PatienceOutline.Visible(phase, training, camps[i].Alive);
                 var c = _camps[i];
                 if (want && c == null) c = _camps[i] = new Camp();
                 if (want && !c.Built) Build(c, i);

@@ -44,7 +44,7 @@ namespace Roguehalla.Client
         public bool WeaponRangeSuppressed;
         WorldMarks _worldMarks; CampRespawnLabels _campLabels; System.Func<float, float, bool> _markVisible;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
-        readonly CampAttack _campAttack = new CampAttack();   // STUB (P-UNITY-CAMP-PATIENCE-SHOW-1): the implementer feeds it
+        readonly CampAttack _campAttack = new CampAttack(); readonly List<CampAttackMob> _campMobs = new List<CampAttackMob>(); MapBlob _campAttackMap;   // camp patience outlines show only while attacked (P-UNITY-CAMP-PATIENCE-SHOW-1)
         CampPatienceOutlines _patience; QuestCarrierFlags _carrierFlags; ActorPoint _carrierActorPoint; readonly List<CarrierFlagRow> _carrierRows = new List<CarrierFlagRow>();
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
         public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
@@ -449,12 +449,21 @@ namespace Roguehalla.Client
         {
             if (!ReferenceEquals(session, _visionSession))
             {
-                if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
-                _visionSession = session;
-                if (_visionSession != null) _visionSession.EventsReceived += OnVisionEvents;
+                if (_visionSession != null) { _visionSession.EventsReceived -= OnVisionEvents; _visionSession.FxReceived -= OnCampAttackFx; }
+                _visionSession = session; _campAttack.Clear();
+                if (_visionSession != null) { _visionSession.EventsReceived += OnVisionEvents; _visionSession.FxReceived += OnCampAttackFx; }
             }
             // A departing actor fades only while a raid is running; elsewhere (lobby, planning, results) it just goes.
             _actors.ExitFadesAllowed = session != null && session.State == SessionState.InMatch && session.Phase == MatchPhase.Active;
+        }
+        void OnCampAttackFx(ServerMsg.Fx fx)
+        {
+            if (fx == null) return;
+            for (int i = 0; i < fx.List.Count; i++)
+            {
+                var e = fx.List[i];
+                if (e.Kind == FxKind.Hit || e.Kind == FxKind.SigHit) _campAttack.NoteHit(e.By, e.Victim);
+            }
         }
         void OnVisionEvents(ServerMsg.Events message)
         {
@@ -594,6 +603,11 @@ namespace Roguehalla.Client
             _worldMarks.Update(collections, _markVisible); _campLabels.Update(_visionSession, _markVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
             var vs = _visionSession;
+            if (vs != null && !ReferenceEquals(vs.Map, _campAttackMap)) { _campAttackMap = vs.Map; _campAttack.Clear(); }   // a new map is a new match
+            _campMobs.Clear();
+            foreach (var a in _latestNpcs) if (a.Kind == ActorKind.RegionalMob) _campMobs.Add(new CampAttackMob(a.Id, a.X, a.Y));
+            var cm = vs != null ? vs.Map : null;
+            _campAttack.Update(Time.realtimeSinceStartupAsDouble * 1000.0, vs != null ? vs.PlayerId : 0, vs != null && vs.Me != null && vs.Me.Status == ActorStatus.Alive, _campMobs, cm != null ? cm.Patience : null, cm != null ? cm.W : 0, cm != null ? cm.H : 0);
             _patience.Update(vs != null ? vs.Map : null, vs != null ? vs.Collections.Camps : null, vs != null ? vs.Phase : (MatchPhase?)null, vs != null && vs.Training, _campAttack);
             QuestCarrierFlag.Rows(vs != null ? vs.Collections.Quests : null, vs != null ? vs.ServerTimeMs : 0, _carrierRows);
             _carrierFlags.Update(_carrierRows, _carrierActorPoint, _markVisible);
@@ -705,7 +719,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
-            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear(); _patience?.Update(null, null, null, false, null); _carrierFlags?.Update(null, null, null);
+            _wishFx.Reset(); _campAttack.Clear(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear(); _patience?.Update(null, null, null, false, null); _carrierFlags?.Update(null, null, null);
             _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {
@@ -880,7 +894,7 @@ namespace Roguehalla.Client
         void OnDestroy()
         {
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
-            if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
+            if (_visionSession != null) { _visionSession.EventsReceived -= OnVisionEvents; _visionSession.FxReceived -= OnCampAttackFx; }
             if (_frostWall != null) _frostWall.Dispose();
             if (_vignette != null) _vignette.Dispose();
             if (_visionFog != null) _visionFog.Dispose();
