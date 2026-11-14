@@ -76,6 +76,10 @@ namespace Roguehalla.Net.Protocol
         public uint? Owner, Subject;
         public float X, Y, X2, Y2, Radius, Vx, Vy;
         public double StartedAt, EndsAt;
+        /// <summary>P-FROST-WALL-2: a wall's tiles (Kind <see cref="FieldsState.KindWall"/> only): row-major tile indices into the
+        /// Welcome map, strictly ascending, 1..<see cref="FieldsState.MaxWallTiles"/>, each below MapBlob's tile cap. Null or
+        /// empty for every other kind. STUB: neither written, read nor checked yet.</summary>
+        public uint[] Tiles;
     }
     /// <summary>Legacy Trophy stat keys in source declaration order (rh-sim TrophyStatKey).</summary>
     public enum TrophyStatKey : byte { Ad = 0, Ap = 1, Damage = 2, Health = 3, AttackSpeed = 4, Armor = 5, Mr = 6, Speed = 7, Leech = 8 }
@@ -716,6 +720,12 @@ namespace Roguehalla.Net.Protocol
     public sealed class FieldsState : StateItem
     {
         public override uint Key { get { return 3; } }
+        /// <summary>P-FROST-WALL-2: field kind codes (rh-protocol <c>FIELD_KIND_*</c>); a wall row carries a tile list.</summary>
+        public const byte KindZone = 0, KindCloud = 1, KindTrail = 2, KindWall = 3;
+        /// <summary>Kinds at or above this are refused ("field"). STUB: becomes 4 with the wall row.</summary>
+        public const byte KindCount = 3;
+        /// <summary>Most tiles one wall row may carry (rh-protocol <c>MAX_WALL_TILES</c>).</summary>
+        public const int MaxWallTiles = 64;
         public WireField[] Rows = Array.Empty<WireField>();
         internal override void Check()
         {

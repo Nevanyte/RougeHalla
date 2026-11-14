@@ -15,6 +15,9 @@ namespace Roguehalla.Net.Protocol
         LastStandSpeedBonus = 16, LastStandHealShare = 17, LastStandFloorHp = 18,
         // P-WIRE17-HUD-2c: the Fire roam constants (shared/fireRoam.ts; championCombatModel.ts:115-116).
         FireRoamRampMs = 19, FireRoamChargeMax = 20, FireRoamBurstBase = 21, FireRoamBurstAdShare = 22,
+        // P-FROST-WALL-2: which Wish Frost has in the room (0 Freeze, 1 Frost Wall) and the wall's public numbers.
+        FrostWish = 23, FrostWallRange = 24, FrostWallMinRange = 25, FrostWallLength = 26, FrostWallMs = 27,
+        FrostWallCellReach = 28, FrostWallEndSlack = 29,
     }
 
     /// <summary>One weapon's damage scaling (legacy <c>WeaponSpec.scaling</c> and <c>dominant</c>).</summary>
