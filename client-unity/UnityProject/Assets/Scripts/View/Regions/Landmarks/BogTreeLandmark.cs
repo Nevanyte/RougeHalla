@@ -456,17 +456,17 @@ namespace Roguehalla.Client
             var fade = new HashSet<(int x, int y)>();                  // every tile the crown paints over: an actor there is hidden by it
             for (int j = 0; j < H; j++) for (int i = 0; i < W; i++)
             {
-                if (px[j * W + i].a < 100) continue;
+                if (px[j * W + i].a < 128) continue;
                 fade.Add((Mathf.FloorToInt(u0 + (i + .5f) / CanopyPpt), Mathf.FloorToInt(-(sB + (j + .5f) / CanopyPpt) / Sq)));
             }
-            var all = new List<MapTile>(coverTiles);
+            var all = new List<MapTile>();
             foreach (var t in fade) all.Add(new MapTile((ushort)(lm.FootX + t.x), (ushort)(lm.FootY + t.y)));
             lm.SetFadeTiles(all);
             PaintShadow(lm, g, cover, minX, maxX, minY, maxY);
         }
 
-        /// <summary>The crown's shadow on the ground it hangs over: soft, dappled, only on cover tiles that are not the trunk's own. A second roof piece
-        /// (so it fades with the crown) that spans the whole cover, which keeps the roof layer reaching every cover tile.</summary>
+        /// <summary>The crown's shadow on the ground it hangs over: soft, dappled, only on cover tiles that are not the trunk's own. A ground piece
+        /// (Landmark.AddGroundPiece): it never fades with the crown and sorts under actors.</summary>
         static void PaintShadow(Landmark lm, Grid g, bool[] cover, int minX, int maxX, int minY, int maxY)
         {
             float u0 = minX, u1 = maxX + 1f, sB = -(maxY + 1) * Sq, sT = -minY * Sq;
@@ -487,7 +487,8 @@ namespace Roguehalla.Client
                 }
             }
             var tex = NewTexture(lm, W, H, ShadowName); tex.SetPixels32(px); tex.Apply(false, false);
-            lm.AddRoofRenderer(NewSprite(lm, lm.Root.transform, tex, ShadowName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, ShadowPpt));
+            // a ground piece: never fades with the crown; above the ground, below an actor on the first cover row (2000 + 16 * tile y + 8)
+            lm.AddGroundPiece(NewSprite(lm, lm.Root.transform, tex, ShadowName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, ShadowPpt), 2000 + 16 * (lm.FootY + minY) - 4);
         }
 
         /// <summary>The cover, smoothed between tile centres (0..1): about one half at a cover tile's edge.</summary>
