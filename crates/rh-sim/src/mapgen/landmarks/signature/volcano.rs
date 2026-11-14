@@ -215,7 +215,10 @@ pub(super) fn owned(codes: &TerrainCodes) -> Vec<(FeatureKind, Owned)> {
     let (lava, ember) = (Some(codes.lava), Some(codes.ember));
     let body = vec![(TILE_LOW, lava), (TILE_FLOOR, ember)];
     vec![
-        (FeatureKind::Volcano, vec![(TILE_WALL, Some(0)), (TILE_LOW, lava)]),
+        (
+            FeatureKind::Volcano,
+            vec![(TILE_WALL, Some(0)), (TILE_LOW, lava)],
+        ),
         (FeatureKind::LavaStream, body.clone()),
         (FeatureKind::LavaPool, body),
     ]
