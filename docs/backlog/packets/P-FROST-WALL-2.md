@@ -21,6 +21,7 @@ client can tell from the Welcome which Wish Frost has; (d) the `source-arena` an
 Bots: a fair observation carries the wall like any other viewer's; the Brain's use of it is not this packet.
 
 ## 2. Dependencies
+- P-SIM-LIVE-CONTENT-1 merged (the live content world has one definition; the flip is one line there).
 - P-FROST-WALL-1b merged (fighters under the wall, walks under way, mob paths and blink landings read the wall):
   the profiles must not select a half-built rule.
 - Serial with every packet touching `observe.rs`, `status_runtime/observe.rs`, `state.rs`, `samples.rs`, the C# and
@@ -45,7 +46,9 @@ Bots: a fair observation carries the wall like any other viewer's; the Brain's u
 - listed by the oracle author on `packet/P-FROST-WALL-2`
 
 ## 10. Risk and suggested model tier
-Opus. Selecting `Wall` in a live profile before the client draws it would give players an invisible wall: the profile
-flip lands in the same integration as P-UNITY-FROST-WALL-1, or stays behind a flag until it does: say which.
+Opus. Selecting `Wall` in a live profile before the client draws it would give players an invisible wall.
+Coordinator decision 2026-11-14: the flip is part of this packet, made in ONE place (`SimConfig::live_content()`,
+P-SIM-LIVE-CONTENT-1, which therefore merges first; the operator flag `--frost-wish` still overrides it), and this
+packet is pushed in the same integration batch as P-UNITY-FROST-WALL-1. No deploy happens between the two.
 
 ## Notes from previous attempts
