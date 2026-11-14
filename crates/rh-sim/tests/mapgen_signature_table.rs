@@ -219,8 +219,8 @@ fn landmark(st: &LandmarkStage, placed: &Placed, zone: Zone) -> Landmark {
     Landmark {
         features,
         cells,
-        anchor: placed.anchors.iter().find(|a| a.zone == zone).cloned(),
-        landed: placed.landed.iter().find(|l| l.zone == zone).cloned(),
+        anchor: placed.anchors().find(|a| a.zone == zone).cloned(),
+        landed: placed.landed().into_iter().find(|l| l.zone == zone),
     }
 }
 
@@ -296,7 +296,7 @@ fn each_landmark_placed_alone_equals_it_placed_with_the_others() {
                     ));
                     continue;
                 };
-                let zones: Vec<Zone> = alone.anchors.iter().map(|a| a.zone).collect();
+                let zones: Vec<Zone> = alone.anchors().map(|a| a.zone).collect();
                 if zones != vec![z] {
                     bad.push(format!(
                         "seed {seed} attempt {n} {z:?}: alone, the anchors are {zones:?}"

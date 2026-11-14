@@ -8,10 +8,13 @@
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase, the style runtime, four stylers; every
   option-on map is pinned)
 - **Reviewer:** reviewer-opus
-- **Integration base:** `feature/unity-rework` with P-MAPGEN-SIG-BLUEPRINT-1 and -2 merged. Stacked until then: oracle
-  written on `packet/P-MAPGEN-LANDMARK-FRAME-1` from `agent/opus/P-MAPGEN-SIG-BLUEPRINT-1` @ `6f8821400`; the
-  coordinator rebases it onto Part 2. Run the gate with `--base <Part 2's branch>` until both reach the integration
-  branch.
+- **Integration base:** `feature/unity-rework` with P-MAPGEN-SIG-BLUEPRINT-1 and -2 merged. Until -2 is merged this
+  branch is stacked on it: `packet/P-MAPGEN-LANDMARK-FRAME-1` was rebased by the lane's session onto
+  `agent/opus/P-MAPGEN-SIG-BLUEPRINT-2`; run the gate with `--base agent/opus/P-MAPGEN-SIG-BLUEPRINT-2` until then.
+  **Line numbers in this brief were taken before that rebase** (Part 2 deleted about 480 lines under `signature/`):
+  re-find each by name. Part 2 added `SignatureContext::apply_only` and the shared per-zone `place`: `apply_only`
+  builds its zone's frame exactly as `apply` does (`mapgen_signature_table.rs` compares the two through
+  `Placed::anchors()` and `Placed::landed()`; the lane's session switched its three field reads to the accessors).
 - **D-rules touched:** D1: no legacy counterpart (DEV-020); option off and option on byte- and draw-identical (G8)
   · D2 n/a · no sim tick, wire, save, state-hash or content-hash change. The frame is generator working state: never
   serialized, exported, hashed or sent.
