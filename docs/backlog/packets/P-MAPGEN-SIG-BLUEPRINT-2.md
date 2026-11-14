@@ -4,10 +4,9 @@
   finding 2 (rest), finding 5, finding 6's terrain codes. Part 2 of 2 (the plan's parts 2 and 3, merged: decided by the
   lane's session 2026-11-14).
 - **Implementer tier:** implementer-opus · **Reviewer:** reviewer-opus
-- **Integration base:** stacked on Part 1 until it merges: branch `agent/<model>/P-MAPGEN-SIG-BLUEPRINT-2` from
-  `packet/P-MAPGEN-SIG-BLUEPRINT-2`, gate with `scripts/gate.sh --oracle packet/P-MAPGEN-SIG-BLUEPRINT-2 --base
-  agent/opus/P-MAPGEN-SIG-BLUEPRINT-1`. Once Part 1 is merged, the coordinator rebases `packet/…` onto the integration
-  branch and `--base` goes back to the default.
+- **Integration base:** `feature/unity-rework` @ `15c35e2f7` (Part 1 merged; `packet/P-MAPGEN-SIG-BLUEPRINT-2` was
+  rebased onto it by the lane's session). Branch `agent/<model>/P-MAPGEN-SIG-BLUEPRINT-2` from
+  `packet/P-MAPGEN-SIG-BLUEPRINT-2`; gate with `scripts/gate.sh --oracle packet/P-MAPGEN-SIG-BLUEPRINT-2` (no `--base`).
 - **D-rules touched:** D1: no legacy counterpart (DEV-020); option off byte-identical (G8); option on byte-identical but
   for each anchor's entrance order · D2 n/a · no sim, wire, save, state-hash or content-hash change.
 - **Status:** oracle committed (oracle author, 2026-11-14) on `packet/P-MAPGEN-SIG-BLUEPRINT-2`: one `stub:` commit, then
@@ -99,7 +98,7 @@ exactly-one-of-eight-orientations oracles; certify-clean; attempt bounds; `rh-ma
 draw added, removed or reordered.
 
 ## 8. Acceptance checks
-`crates/rh-sim/tests/mapgen_signature_table.rs` green (three tests red on the stub, below); full gate green; the
+`crates/rh-sim/tests/mapgen_signature_table.rs` green (four tests red on the stub, below); full gate green; the
 measured line counts (a net reduction).
 
 ### The oracle and what the stub shows (measured 2026-11-14, macOS arm64, debug)
@@ -113,7 +112,12 @@ measured line counts (a net reduction).
   volcano is compared whole.
 - `without_a_reserved_site_the_attempt_is_refused`: "seeds [1, 2, 3, 4, 5, 6, 7]: landmarks placed without a reserved
   site".
-- Green guard: `guard_the_terrain_codes_are_the_catalogs`.
+- Green guards: `guard_the_terrain_codes_are_the_catalogs`; and three added by the lane's session from the two
+  reviews of Part 1: `guard_every_shipped_drawing_is_the_approved_file` (the cave had no byte-equality check against
+  `docs/landmarks/blueprints/`), `guard_every_writing_glyph_is_owned_by_a_feature_of_its_entry` (the stamp refuses,
+  quietly in a release build, on a written tile no feature of the entry owns),
+  `guard_a_front_run_row_is_open_tiles_and_one_closing_glyph` (the table's gate rule counts only tiles that write
+  nothing; the old church reader counted every tile that was not `+`).
 
 Scratch prototype (reverted, not committed): `apply_only` as `apply`'s loop filtered to one zone, plus `apply`
 refusing a zone without a reserved site. Then `each_landmark_placed_alone_…` and `without_a_reserved_site_…` pass;
@@ -125,7 +129,7 @@ and on the unmodified test files the only other targets that went red (`--lib` a
 `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_table`; then
 `cargo test -p rh-sim --features trusted-status-probes --no-fail-fast`, `cargo test -p rh-mapdress`,
 `cargo test -p rh-server --test map_anchor_seeds --test map_anchors`; `scripts/gate.sh --quick`; finish with
-`scripts/gate.sh --oracle packet/P-MAPGEN-SIG-BLUEPRINT-2 --base agent/opus/P-MAPGEN-SIG-BLUEPRINT-1`.
+`scripts/gate.sh --oracle packet/P-MAPGEN-SIG-BLUEPRINT-2`.
 
 ## 10. Risk and suggested model tier
 Opus. Deleting `Definition` fields touches the reserve path's readers; `intact` from the table must accept exactly what

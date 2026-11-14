@@ -15,6 +15,7 @@
 //! The digest-neutrality guards (no generated map changes) are Part 1's, in `mapgen_signature_blueprint.rs` with their
 //! pins in `tests/support/signature_pins.rs`; they digest sorted entrances and stay green without a re-pin.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone, ZoneAnchor};
+use rh_sim::mapgen::landmarks::signature::blueprint::{Blueprint, EntranceRule, Write};
 use rh_sim::mapgen::landmarks::signature::spec::specs;
 use rh_sim::mapgen::landmarks::signature::{
     reserved_zones, Landed, Placed, SignatureContext, TerrainCodes, DEFAULT_DEFINITION,
@@ -355,4 +356,94 @@ fn without_a_reserved_site_the_attempt_is_refused() {
         placed.is_empty(),
         "seeds {placed:?}: landmarks placed without a reserved site"
     );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Guards on the table and its drawings (green on the stub; asked for by the two reviews of Part 1).
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// Guard (green on the stub). Every drawing the table ships is byte-equal to the owner-approved file under
+/// `docs/landmarks/blueprints/`. The church and the tree have this check in their own files; the cave had none. An
+/// entry that gains a drawing (the volcano, the hall) is added here with its approved file.
+#[test]
+fn guard_every_shipped_drawing_is_the_approved_file() {
+    let approved = |zone: Zone| match zone {
+        Zone::Sentenced => Some(include_str!(
+            "../../../docs/landmarks/blueprints/church.txt"
+        )),
+        Zone::Plague => Some(include_str!("../../../docs/landmarks/blueprints/bog.txt")),
+        Zone::Frost => Some(include_str!("../../../docs/landmarks/blueprints/cave.txt")),
+        _ => None,
+    };
+    for s in specs(&DEFAULT_DEFINITION) {
+        let Some(shipped) = s.drawing else { continue };
+        let Some(want) = approved(s.zone) else {
+            panic!("{:?}: a drawing with no approved file named here", s.zone);
+        };
+        assert!(
+            shipped == want,
+            "{:?}: the shipped drawing ({} bytes) is not byte-equal to its approved file ({} bytes)",
+            s.zone,
+            shipped.len(),
+            want.len()
+        );
+    }
+}
+
+/// Guard (green on the stub). In every entry, a glyph that writes a tile names a feature the entry lists, and a glyph
+/// that writes nothing names none. The stamp refuses the attempt (quietly, in a release build) on a written tile no
+/// feature of the entry owns: a new entry must not get that far.
+#[test]
+fn guard_every_writing_glyph_is_owned_by_a_feature_of_its_entry() {
+    let mut bad = Vec::new();
+    for s in specs(&DEFAULT_DEFINITION) {
+        for g in &s.legend.0 {
+            let listed = g
+                .feature
+                .is_some_and(|k| s.features.iter().any(|f| f.kind == k));
+            let ok = match g.write {
+                Write::Nothing => g.feature.is_none(),
+                _ => listed,
+            };
+            if !ok {
+                bad.push(format!("{:?} '{}'", s.zone, g.ch as char));
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "glyphs whose owner is not a feature of their entry: {bad:?}"
+    );
+}
+
+/// Guard (green on the stub). Where the entrance is the open run of the front row (`EntranceRule::FrontRun`: the
+/// church's main gate), that row holds only open tiles and one closing glyph (the church's fence `+`). The old church
+/// reader counted every tile that was not `+` as gate; the table counts only tiles that write nothing. The two agree
+/// while the row has no third kind of tile, so a drawing edit that puts a wall or a headstone on it is a decision, not
+/// an accident.
+#[test]
+fn guard_a_front_run_row_is_open_tiles_and_one_closing_glyph() {
+    let mut seen = 0;
+    for s in specs(&DEFAULT_DEFINITION) {
+        let (EntranceRule::FrontRun(_), Some(text)) = (s.entrance, s.drawing) else {
+            continue;
+        };
+        seen += 1;
+        let bp = Blueprint::parse(text, &s.legend).expect("the drawing parses");
+        let (w, h) = bp.size();
+        let mut closing = BTreeSet::new();
+        for x in 0..w {
+            let ch = bp.char_at((x, h - 1)).expect("a tile of the front row");
+            let g = s.legend.glyph(ch).expect("a glyph of the legend");
+            if g.write != Write::Nothing {
+                closing.insert(ch as char);
+            }
+        }
+        assert!(
+            closing.len() <= 1,
+            "{:?}: the front row closes with {closing:?}, want one glyph",
+            s.zone
+        );
+    }
+    assert!(seen >= 1, "no entry with a front-run entrance");
 }

@@ -35,9 +35,8 @@ use rh_sim::mapgen::certify::rules::R;
 use rh_sim::mapgen::coliseum::{CX, CY};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{
-    relabel_sites, relabelled_zones, ReservedSite, SignatureContext, DEFAULT_DEFINITION,
+    relabel_sites, relabelled_zones, ReservedSite, DEFAULT_DEFINITION,
 };
-use rh_sim::mapgen::landmarks::{recipes, stage};
 use rh_sim::mapgen::zones::camps::CampSite;
 use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline, style_gallows};
 use rh_sim::rng::Mulberry32;
