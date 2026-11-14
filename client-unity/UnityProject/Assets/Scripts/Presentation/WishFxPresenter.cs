@@ -81,6 +81,8 @@ namespace Roguehalla.Client
         static bool Reduced { get { return ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion; } }
 
         public void SetOwner(uint id) { _owner = id; }
+        /// <summary>Which Wish Frost has here; under Wall the Freeze windup beam is not drawn (FrostWallPresenter draws the wall's telegraph).</summary>
+        public FrostWishKind FrostWish;
 
         // ---------------------------------------------------------------- inputs
         /// <summary>Copies a delivered Wish fx record into a bounded cue. Same acceptance rules as the confirmed-cue layer.</summary>
@@ -464,7 +466,7 @@ namespace Roguehalla.Client
                     float rr = Mathf.Lerp(1.9f, .62f, e);
                     SafeRing(WishFxArt.Band, P, rr, A(Mix(col, Color.white, .15f), .25f + .45f * p), RingOrder);
                     SafeRing(WishFxArt.Hairline, P, .62f, A(Color.white, .5f * p), RingOrder + 1);
-                    if (hasT)
+                    if (hasT && FrostWish != FrostWishKind.Wall)
                     {
                         Vector3 up = new Vector3(0, .75f, 0);
                         Vector3 head = Vector3.Lerp(P, T, reduced ? 1f : WishFxModel.EaseOut(Mathf.Min(1f, p * 1.7f)));

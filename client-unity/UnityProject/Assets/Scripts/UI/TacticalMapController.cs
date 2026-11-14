@@ -389,7 +389,7 @@ namespace Roguehalla.Client
                 var modifiers = new UiKeyModifiers(kb.ctrlKey.isPressed, kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed, kb.altKey.isPressed, kb.shiftKey.isPressed);
                 if (kb.tabKey.wasPressedThisFrame) _mapKeys.KeyDown(UiKey.Tab, modifiers, context);
                 if (kb.tabKey.wasReleasedThisFrame) _mapKeys.KeyUp(UiKey.Tab);
-                if (kb.escapeKey.wasPressedThisFrame) { ReleaseMinimap(); if (IsOpen && !IsPlanning) _mapKeys.CloseMap(); }
+                if (kb.escapeKey.wasPressedThisFrame && !(_client != null && _client.EscapeConsumedByAim)) { ReleaseMinimap(); if (IsOpen && !IsPlanning) _mapKeys.CloseMap(); }
                 if (IsPlanning && !typing && !dialogOwnsKeys && !modifiers.Any)
                 {
                     if (kb.digit1Key.wasPressedThisFrame) PickSpawn(0);

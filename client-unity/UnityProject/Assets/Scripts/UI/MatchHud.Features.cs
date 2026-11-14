@@ -250,7 +250,8 @@ namespace Roguehalla.Client
             { ConsumeTrainingUiUpdate(); _map?.ReadUiInput(true, true); return; }
             // Recovery's read-only selectable key is still a focused input field. Escape must
             // clear it and close the Hub panel before the ordinary typing gate runs.
-            if (kb != null && AnyHubPanelVisible && kb.escapeKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
+            bool aimEsc = _client != null && _client.EscapeConsumedByAim; // this Esc only closed the Frost Wall aim
+            if (kb != null && !aimEsc && AnyHubPanelVisible && kb.escapeKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
             {
                 var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
                 selected?.GetComponent<TMP_InputField>()?.DeactivateInputField();
@@ -272,14 +273,14 @@ namespace Roguehalla.Client
                         else ShowPlayerFlow(DefaultPlayerFlowPage);
                         if (TrainingInputConsumed) return;
                     }
-                    if (kb.escapeKey.wasPressedThisFrame && PlayerFlowVisible) ClosePlayerFlows();
+                    if (kb.escapeKey.wasPressedThisFrame && !aimEsc && PlayerFlowVisible) ClosePlayerFlows();
                     // Build and Help can switch between each other, but neither may steal keys from
                     // account, menu, result, guide, or settings panels.
                     if (!unrelatedModal && !PlayerFlowVisible && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false))
                     { ToggleBuild(); if (TrainingInputConsumed) return; }
                     if (!unrelatedModal && !PlayerFlowVisible && kb.hKey.wasPressedThisFrame)
                     { ToggleHelp(); if (TrainingInputConsumed) return; }
-                    if (kb.escapeKey.wasPressedThisFrame)
+                    if (kb.escapeKey.wasPressedThisFrame && !aimEsc)
                     {
                         if (_signIn.gameObject.activeSelf) SetSignInVisible(false);
                         else

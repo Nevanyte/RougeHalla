@@ -10,9 +10,13 @@ namespace Roguehalla.Client
         const string RouteVisibleKey = "rh.ui.route.visible";
         const string ShowFpsKey = "rh.ui.showFps";
         const string ShowPingKey = "rh.ui.showPing";
+        const string QuickCastKey = "rh.ui.quickCast";
         const string MinimapScaleKey = "rh.ui.minimapScale.v2";
         /// <summary>The legacy minimap size steps (settings.ts): 75, 100, 125, 150 and 200 percent.</summary>
         public static readonly float[] MinimapScales = { .75f, 1f, 1.25f, 1.5f, 2f };
+
+        /// <summary>The stored Quick cast value, read by the match when a Wish key or click needs it (every view holds its own preferences object).</summary>
+        public static bool QuickCastStored { get { return PlayerPrefs.GetInt(QuickCastKey, 0) != 0; } }
 
         public event Action Changed;
         public bool MapToggle { get; private set; }
@@ -20,6 +24,8 @@ namespace Roguehalla.Client
         public bool ShowFps { get; private set; }
         public bool ShowPing { get; private set; }
         public float MinimapScale { get; private set; }
+        /// <summary>Quick cast (legacy settings.ts quickCast, off by default): a placed Wish casts on the key with no preview.</summary>
+        public bool QuickCast { get; private set; }
 
         public UiDisplayPreferences()
         {
@@ -28,12 +34,15 @@ namespace Roguehalla.Client
             ShowFps = PlayerPrefs.GetInt(ShowFpsKey, 0) != 0;
             ShowPing = PlayerPrefs.GetInt(ShowPingKey, 0) != 0;
             MinimapScale = Snap(PlayerPrefs.GetFloat(MinimapScaleKey, 1f));
+            QuickCast = PlayerPrefs.GetInt(QuickCastKey, 0) != 0;
         }
 
         public void SetMapToggle(bool value) { if (MapToggle == value) return; MapToggle = value; SaveInt(MapModeKey, value); RaiseChanged(); }
         public void SetShowRoute(bool value) { if (ShowRoute == value) return; ShowRoute = value; SaveInt(RouteVisibleKey, value); RaiseChanged(); }
         public void SetShowFps(bool value) { if (ShowFps == value) return; ShowFps = value; SaveInt(ShowFpsKey, value); RaiseChanged(); }
         public void SetShowPing(bool value) { if (ShowPing == value) return; ShowPing = value; SaveInt(ShowPingKey, value); RaiseChanged(); }
+
+        public void SetQuickCast(bool value) { if (QuickCast == value) return; QuickCast = value; SaveInt(QuickCastKey, value); RaiseChanged(); }
 
         public void SetMinimapScale(float value)
         {
@@ -49,8 +58,8 @@ namespace Roguehalla.Client
 
         public void ResetDefaults()
         {
-            MapToggle = false; ShowRoute = true; ShowFps = false; ShowPing = false; MinimapScale = 1f;
-            PlayerPrefs.SetInt(MapModeKey, 0); PlayerPrefs.SetInt(RouteVisibleKey, 1);
+            MapToggle = false; ShowRoute = true; ShowFps = false; ShowPing = false; MinimapScale = 1f; QuickCast = false;
+            PlayerPrefs.SetInt(QuickCastKey, 0); PlayerPrefs.SetInt(MapModeKey, 0); PlayerPrefs.SetInt(RouteVisibleKey, 1);
             PlayerPrefs.SetInt(ShowFpsKey, 0); PlayerPrefs.SetInt(ShowPingKey, 0); PlayerPrefs.SetFloat(MinimapScaleKey, 1f);
             PlayerPrefs.Save(); RaiseChanged();
         }
