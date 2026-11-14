@@ -564,9 +564,9 @@ Shader "Roguehalla/RegionGround"
                 // Server ground variants: a tint over the blended base ground, whole tiles, ragged edge from the same warp as the region borders.
                 [branch] if (_VariantOn > 0.5)
                 {
-                    float2 vuv = (floor(t + warp * 0.35) + 0.5) / _Map.xy;
+                    float2 vuv = (floor(t) + 0.5) / _Map.xy;
                     half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_TempleTex, vuv, 0);
-                    col = lerp(col, vt.rgb, vt.a);                  // raw bytes, the same convention as the palette colours
+                    col *= lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a);
                 }
 
                 float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
