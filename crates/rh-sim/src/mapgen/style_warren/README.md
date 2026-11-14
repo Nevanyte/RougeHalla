@@ -58,6 +58,12 @@ merge that would make a zone spawn's 4-connected walk to the coliseum (its centr
 `walk_detour` steps longer with bog avoided is not laid there, and after the barrows whole bodies are given back, last
 laid first, while a walk is still past its limit. Neither adds a draw.
 
+End-of-attempt guarantees (P-MAPGEN-GUARANTEES-1, `guarantees.rs`, signature mode only): later zones, the safety nets
+and the post repair may still change tiles, so the pipeline judges the finished map again with the styler's two rules,
+in this order: `"pool-walks"` (no Plague spawn's walk grows by more than `walk_detour` steps with styler bog avoided,
+`style_zones::walk_growth`) and `"pool-wet"` (no `BogPool` owns no bog). A failure discards the attempt as
+`pipeline::Refusal::Guarantee { zone: Plague, rule }`; nothing is repaired. Hand-built-map tests: `guarantees_tests.rs`.
+
 Admitted jitter definitions keep `512 * jitter_scale / jitter_divisor` finite and below 3.5, so the
 source sampling/cache and guaranteed/possible disc shortcuts stay within their exact -3..3 envelope.
 Default and zero jitter are accepted; oversized ratios and tiny divisors refuse before any callback.

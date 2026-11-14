@@ -75,8 +75,13 @@ and shifted mouths must also lie inside that grid before shape initializes its g
 phase writes. These checks bound route sampling and refuse malformed metadata atomically;
 the source defaults, capture tool, fixture and callback algorithms are unchanged.
 
-Signature mode (P-MAPGEN-SIG-FROST-1, ADR 0028 decision 11) runs only when the zone holds the
-signature step's `Cave` feature (`signature_anchor`): the mere is seeded within reach of the
-cave's mouth (`lakes::grow_lakes_at`), no lake tile lies in the cave's core band, the mere keeps
-off the spawn routes (`lakes::keep_off_routes`) and the second lake stays smaller. Without the
-feature every draw and write above is unchanged (G8).
+Signature mode (P-MAPGEN-SIG-FROST-1, ADR 0028 decision 11) runs only when the styler is handed
+the zone's landmark frame (`BaseContext::landmark`, read by `signature_anchor`; P-MAPGEN-LANDMARK-
+FRAME-1): the mere is seeded within reach of the cave's mouth (`lakes::grow_lakes_at`), no lake
+tile lies in the cave's core band, the mere keeps off the spawn routes (`lakes::keep_off_routes`)
+and the second lake stays smaller. Without the frame every draw and write above is unchanged (G8).
+
+End-of-attempt guarantee (P-MAPGEN-GUARANTEES-1, `guarantees.rs`, signature mode only):
+`"lake-at-mouth"`, the finished map's largest unowned Frost ice body lies within
+`lake_reach + lake_slack` floor steps of the cave's mouth (the frame's anchor entrance). A failure
+discards the attempt as `pipeline::Refusal::Guarantee { zone: Frost, rule }`; nothing is repaired.

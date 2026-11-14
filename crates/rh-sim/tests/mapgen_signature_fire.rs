@@ -798,7 +798,10 @@ fn note1_the_bog_tree_site_keeps_out_of_marked_aprons() {
 /// Note 2: the attempt report tells a zone with no legal landmark site (`Refusal::Signature`, refused in the Landmarks
 /// phase: the trace stops at `Prefix`) from a finished map discarded by the end-of-attempt check
 /// (`Refusal::SignatureDiscarded`, refused after `Records`). Seeds 6-10, attempts 0-3, option on; discards occur
-/// (amended by P-MAPGEN-SIG-RESERVE-1: site refusals need not).
+/// (amended by P-MAPGEN-SIG-RESERVE-1: site refusals need not). Amended by P-MAPGEN-GUARANTEES-1: a map discarded by a
+/// zone's end-of-attempt guarantee (`Refusal::Guarantee`, also after `Records`) is a discard too; the three discards
+/// here (seeds 7, 8, 9, attempt 0) fail only the Frost lake rule, so they are `Guarantee { Frost, "lake-at-mouth" }`
+/// once that rule is a guarantee.
 #[test]
 fn note2_refusals_tell_no_site_from_a_discarded_map() {
     let fixed = coliseum::fixed_layout();
@@ -825,12 +828,17 @@ fn note2_refusals_tell_no_site_from_a_discarded_map() {
                 Some(pipeline::Phase::Records) => {
                     if matches!(
                         refusal,
-                        pipeline::Refusal::Signature | pipeline::Refusal::SignatureDiscarded
+                        pipeline::Refusal::Signature
+                            | pipeline::Refusal::SignatureDiscarded
+                            | pipeline::Refusal::Guarantee { .. }
                     ) {
-                        assert_eq!(
-                            refusal,
-                            pipeline::Refusal::SignatureDiscarded,
-                            "seed {seed} attempt {n}: discarded after records"
+                        assert!(
+                            matches!(
+                                refusal,
+                                pipeline::Refusal::SignatureDiscarded
+                                    | pipeline::Refusal::Guarantee { .. }
+                            ),
+                            "seed {seed} attempt {n}: discarded after records, not {refusal:?}"
                         );
                         discarded += 1;
                     }
@@ -838,7 +846,9 @@ fn note2_refusals_tell_no_site_from_a_discarded_map() {
                 _ => assert!(
                     !matches!(
                         refusal,
-                        pipeline::Refusal::Signature | pipeline::Refusal::SignatureDiscarded
+                        pipeline::Refusal::Signature
+                            | pipeline::Refusal::SignatureDiscarded
+                            | pipeline::Refusal::Guarantee { .. }
                     ),
                     "seed {seed} attempt {n}: {refusal:?} after {last:?}"
                 ),
