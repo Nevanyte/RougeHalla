@@ -18,6 +18,11 @@ namespace Roguehalla.Client.Tests
         [SetUp] public void SetUp() { ShowcaseSprites.Initialize(); _root = new GameObject("world marks 2 test"); }
         [TearDown] public void TearDown() { UnityEngine.Object.DestroyImmediate(_root); }
 
+        /// <summary>Owner direction 2026-11-14 (P-UNITY-CAMP-PATIENCE-SHOW-1): the outline is drawn only for an attacked camp. These legacy-look tests
+        /// pin the outline's shape, label and build count, so every camp counts as attacked in them.</summary>
+        sealed class AllAttacked : ICampAttacked { public bool IsAttacked(int campIndex) { return true; } }
+        static readonly ICampAttacked All = new AllAttacked();
+
         // ---- camp patience outline -----------------------------------------------------------------------------------------------
 
         /// <summary>8 x 8, three camps: camp 1 owns tiles (1,1) and (2,1) (6 edges), camp 2 owns (5,5) (4 edges), camp 3 owns no tile.</summary>
@@ -36,7 +41,7 @@ namespace Roguehalla.Client.Tests
         public void A_living_camp_with_tiles_is_outlined_and_labelled_in_an_active_run()
         {
             var o = new CampPatienceOutlines(_root.transform);
-            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false);
+            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false, All);
             Assert.AreEqual(2, o.Shown, "camps 1 and 2 have tiles and living mobs; camp 3 has no tiles (legacy builds no outline for it)");
             Assert.IsTrue(o.IsShown(0)); Assert.IsTrue(o.IsShown(1)); Assert.IsFalse(o.IsShown(2));
             Assert.AreEqual("PATIENCE RANGE", o.LabelAt(0), "static word, no seconds (CampPatience.ts:81)");
@@ -50,12 +55,12 @@ namespace Roguehalla.Client.Tests
         public void A_cleared_camp_loses_its_outline_and_gets_it_back_when_its_mobs_respawn()
         {
             var o = new CampPatienceOutlines(_root.transform);
-            o.Update(Map(), Camps(2, 3, 0), MatchPhase.Active, false);
-            o.Update(Map(), Camps(0, 3, 0), MatchPhase.Active, false);
+            o.Update(Map(), Camps(2, 3, 0), MatchPhase.Active, false, All);
+            o.Update(Map(), Camps(0, 3, 0), MatchPhase.Active, false, All);
             Assert.IsFalse(o.IsShown(0), "alive == 0: no chase range until the mobs respawn (CampPatience.ts:92)");
             Assert.IsNull(o.LabelAt(0));
             Assert.AreEqual(1, o.Shown);
-            o.Update(Map(), Camps(1, 3, 0), MatchPhase.Active, false);
+            o.Update(Map(), Camps(1, 3, 0), MatchPhase.Active, false, All);
             Assert.IsTrue(o.IsShown(0), "alive again");
         }
 
@@ -66,7 +71,7 @@ namespace Roguehalla.Client.Tests
         public void Nothing_is_drawn_outside_an_active_non_training_run(MatchPhase phase, bool training)
         {
             var o = new CampPatienceOutlines(_root.transform);
-            o.Update(Map(), Camps(2, 3, 4), phase, training);
+            o.Update(Map(), Camps(2, 3, 4), phase, training, All);
             Assert.AreEqual(0, o.Shown, "RaidScene.ts:676 passes state.phase === \"active\" && !state.training");
         }
 
@@ -74,7 +79,7 @@ namespace Roguehalla.Client.Tests
         public void No_phase_yet_draws_nothing()
         {
             var o = new CampPatienceOutlines(_root.transform);
-            o.Update(Map(), Camps(2, 3, 4), null, false);
+            o.Update(Map(), Camps(2, 3, 4), null, false, All);
             Assert.AreEqual(0, o.Shown);
         }
 
@@ -82,10 +87,10 @@ namespace Roguehalla.Client.Tests
         public void Guard_a_map_without_a_patience_plane_draws_nothing_and_throws_nothing()
         {
             var o = new CampPatienceOutlines(_root.transform);
-            Assert.DoesNotThrow(() => o.Update(Map(withPlane: false), Camps(2, 3, 4), MatchPhase.Active, false));
-            Assert.DoesNotThrow(() => o.Update(null, Camps(2, 3, 4), MatchPhase.Active, false));
-            Assert.DoesNotThrow(() => o.Update(Map(), null, MatchPhase.Active, false));
-            Assert.DoesNotThrow(() => o.Update(Map(), new List<CampView>(), MatchPhase.Active, false));
+            Assert.DoesNotThrow(() => o.Update(Map(withPlane: false), Camps(2, 3, 4), MatchPhase.Active, false, All));
+            Assert.DoesNotThrow(() => o.Update(null, Camps(2, 3, 4), MatchPhase.Active, false, All));
+            Assert.DoesNotThrow(() => o.Update(Map(), null, MatchPhase.Active, false, All));
+            Assert.DoesNotThrow(() => o.Update(Map(), new List<CampView>(), MatchPhase.Active, false, All));
             Assert.AreEqual(0, o.Shown);
             Assert.AreEqual(0, o.Builds, "nothing to build from");
             Assert.IsFalse(o.IsShown(-1)); Assert.IsFalse(o.IsShown(99)); Assert.IsNull(o.LabelAt(99)); Assert.AreEqual(0, o.EdgeCount(99));
@@ -96,11 +101,11 @@ namespace Roguehalla.Client.Tests
         {
             var o = new CampPatienceOutlines(_root.transform);
             var map = Map();
-            o.Update(map, Camps(2, 3, 4), MatchPhase.Active, false);
+            o.Update(map, Camps(2, 3, 4), MatchPhase.Active, false, All);
             Assert.AreEqual(2, o.Builds, "one edge list per camp that has tiles");
-            for (int i = 0; i < 30; i++) o.Update(map, Camps((uint)(i % 2), 3, 4), MatchPhase.Active, false);
+            for (int i = 0; i < 30; i++) o.Update(map, Camps((uint)(i % 2), 3, 4), MatchPhase.Active, false, All);
             Assert.AreEqual(2, o.Builds, "visibility changes rebuild nothing");
-            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false);
+            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false, All);
             Assert.AreEqual(4, o.Builds, "a new map (a new match) is built again");
         }
 
@@ -109,9 +114,9 @@ namespace Roguehalla.Client.Tests
         {
             var o = new CampPatienceOutlines(_root.transform);
             var map = Map(); var camps = Camps(2, 3, 4);
-            for (int i = 0; i < 5; i++) o.Update(map, camps, MatchPhase.Active, false);
+            for (int i = 0; i < 5; i++) o.Update(map, camps, MatchPhase.Active, false, All);
             long before = GC.GetAllocatedBytesForCurrentThread();
-            for (int i = 0; i < 200; i++) o.Update(map, camps, MatchPhase.Active, false);
+            for (int i = 0; i < 200; i++) o.Update(map, camps, MatchPhase.Active, false, All);
             long grown = GC.GetAllocatedBytesForCurrentThread() - before;
             Assert.AreEqual(0, grown, "bytes allocated by 200 unchanged frames");
             Assert.AreEqual(2, o.Builds);
@@ -121,7 +126,7 @@ namespace Roguehalla.Client.Tests
         public void The_label_sits_25_px_below_the_camp_centre()
         {
             var o = new CampPatienceOutlines(_root.transform);
-            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false);
+            o.Update(Map(), Camps(2, 3, 4), MatchPhase.Active, false, All);
             var expected = ArenaView.WorldPoint(64, 64) + new Vector3(0, -25f / 32f, 0);
             Assert.That(Vector3.Distance(expected, o.LabelPosition(0)), Is.LessThan(1e-3f), "CampPatience.ts:81 (camp.y + 25 screen px)");
         }
