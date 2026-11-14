@@ -114,6 +114,29 @@ namespace Roguehalla.Editor
             return s.IsZone ? null : BuildSite(s).Anchor;
         }
 
+        // ---- the Frost Wall scenes (P-UNITY-LOOK-WALL-1) ---------------------------------------------------------------------------
+
+        /// <summary>What building one of the five frost-wall scenes leaves behind (no camera, no rendering): the arena built through the real ArenaView,
+        /// the presenter inside it, and what was injected. Dispose it with <see cref="DisposeWallScene"/>.</summary>
+        public sealed class WallScene
+        {
+            public GameObject Arena; public ArenaView View; public FrostWallPresenter Presenter; public MapBlob Map;
+            /// <summary>The standing wall's tiles in map coordinates (empty for the preview scenes).</summary>
+            public MapTile[] WallTiles = new MapTile[0];
+            /// <summary>Every actor drawn, as tile coordinates (tile centre = integer + 0.5), the self actor first.</summary>
+            public IReadOnlyList<Vector2> Actors = new Vector2[0];
+            /// <summary>The tile the preview is aimed at (preview scenes only).</summary>
+            public MapTile? AimTile;
+            /// <summary>The server render time the presenter was driven to, and the standing wall's end time (both server ms).</summary>
+            public double RenderMs, EndsAtMs;
+        }
+
+        /// <summary>STUB (P-UNITY-LOOK-WALL-1): builds the named frost-wall scene's arena, state and presenter; the implementer replaces this.</summary>
+        public static WallScene BuildWallScene(string scene) { return new WallScene(); }
+
+        /// <summary>STUB (P-UNITY-LOOK-WALL-1): destroys everything <see cref="BuildWallScene"/> made, stand-in actors included.</summary>
+        public static void DisposeWallScene(WallScene s) { }
+
         static string[] Orient(string[] rows, int k)
         {
             bool swap = (k & 1) != 0, fx = (k & 2) != 0, fy = (k & 4) != 0; int n = rows.Length;
