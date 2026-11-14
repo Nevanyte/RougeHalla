@@ -270,7 +270,7 @@ if [[ "$MODE" == oracle-check ]]; then
     grep -E "panicked at|^assertion |^  left: |^ right: " "$STEP_LOG" | grep -vE '^\s*$' | head -n 12 | sed 's/^/     | /' || true
   done
   ((${#RED[@]})) || fail "the oracle is green on the stub: no test target fails, so there is nothing for an implementer to make pass"
-  # Not "GATE PASS": this tree is red by design, and coordinators grep for ^GATE (PASS|FAIL).
+  # Its own success line, not the plain pass line: this tree is red by design, and coordinators grep for the plain one.
   echo; echo "GATE ORACLE-CHECK PASS — red on the stub, in oracle files only: ${RED[*]}"; echo "log: $LOG"
   exit 0
 fi
