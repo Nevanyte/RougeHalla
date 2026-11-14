@@ -12,13 +12,13 @@ use crate::mapgen::landmarks::signature::{at, catalog_codes, DEFAULT_DEFINITION}
 use crate::mapgen::style_zones::Guarantee;
 use std::collections::VecDeque;
 
-/// The Frost styler's guarantees, in the order they run.
+/// The Frost styler's guarantees, in the order they run (a promoted literal: no `const` item, which `tests/content.rs`
+/// would read as a tunable).
 pub fn guarantees() -> &'static [Guarantee] {
-    const LIST: &[Guarantee] = &[Guarantee {
+    &[Guarantee {
         rule: "lake-at-mouth",
         check: lake_at_mouth,
-    }];
-    LIST
+    }]
 }
 
 /// `"lake-at-mouth"` on a finished map. Unowned Frost ice is floor of the Frost region carrying the cave's ice terrain

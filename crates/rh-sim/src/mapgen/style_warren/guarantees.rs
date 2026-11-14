@@ -18,9 +18,10 @@ use crate::mapgen::landmarks::signature::frame::LandmarkFrame;
 use crate::mapgen::landmarks::signature::DEFAULT_DEFINITION;
 use crate::mapgen::style_zones::{walk_growth, Guarantee};
 
-/// The Plague styler's guarantees, in the order they run.
+/// The Plague styler's guarantees, in the order they run (a promoted literal: no `const` item, which
+/// `tests/content.rs` would read as a tunable).
 pub fn guarantees() -> &'static [Guarantee] {
-    const LIST: &[Guarantee] = &[
+    &[
         Guarantee {
             rule: "pool-walks",
             check: pool_walks,
@@ -29,8 +30,7 @@ pub fn guarantees() -> &'static [Guarantee] {
             rule: "pool-wet",
             check: pool_wet,
         },
-    ];
-    LIST
+    ]
 }
 
 /// `"pool-walks"`: every Plague spawn's walk with styler bog avoided is at most `POOLS.walk_detour` steps longer.

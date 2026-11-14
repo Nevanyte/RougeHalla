@@ -894,71 +894,68 @@ mod guarantee_tests {
         true
     }
 
+    // The lookups below return promoted literals: no `const` item (`tests/content.rs` reads every one as a tunable).
+
     /// The registry with the Plague list's `"pool-walks"` at a detour of -1.
     fn strict_pools(zone: Zone) -> &'static [Guarantee] {
-        const PLAGUE: &[Guarantee] = &[
-            Guarantee {
-                rule: "pool-walks",
-                check: walks_strict,
-            },
-            Guarantee {
-                rule: "pool-wet",
-                check: wet,
-            },
-        ];
         match zone {
-            Zone::Plague => PLAGUE,
+            Zone::Plague => &[
+                Guarantee {
+                    rule: "pool-walks",
+                    check: walks_strict,
+                },
+                Guarantee {
+                    rule: "pool-wet",
+                    check: wet,
+                },
+            ],
             z => guarantees(z),
         }
     }
 
     /// A Plague rule and a Frost rule that both fail.
     fn plague_and_frost_fail(zone: Zone) -> &'static [Guarantee] {
-        const PLAGUE: &[Guarantee] = &[Guarantee {
-            rule: "plague-fails",
-            check: never,
-        }];
-        const FROST: &[Guarantee] = &[Guarantee {
-            rule: "frost-fails",
-            check: never,
-        }];
         match zone {
-            Zone::Plague => PLAGUE,
-            Zone::Frost => FROST,
+            Zone::Plague => &[Guarantee {
+                rule: "plague-fails",
+                check: never,
+            }],
+            Zone::Frost => &[Guarantee {
+                rule: "frost-fails",
+                check: never,
+            }],
             _ => &[],
         }
     }
 
     /// Every zone with a frame has a failing rule.
     fn every_zone_fails(zone: Zone) -> &'static [Guarantee] {
-        const FIRE: &[Guarantee] = &[Guarantee {
-            rule: "fire-fails",
-            check: never,
-        }];
         match zone {
-            Zone::Fire => FIRE,
+            Zone::Fire => &[Guarantee {
+                rule: "fire-fails",
+                check: never,
+            }],
             z => plague_and_frost_fail(z),
         }
     }
 
     /// One zone with a passing rule, then two failing ones.
     fn two_fail_in_frost(zone: Zone) -> &'static [Guarantee] {
-        const FROST: &[Guarantee] = &[
-            Guarantee {
-                rule: "frost-holds",
-                check: always,
-            },
-            Guarantee {
-                rule: "frost-second",
-                check: never,
-            },
-            Guarantee {
-                rule: "frost-third",
-                check: never,
-            },
-        ];
         match zone {
-            Zone::Frost => FROST,
+            Zone::Frost => &[
+                Guarantee {
+                    rule: "frost-holds",
+                    check: always,
+                },
+                Guarantee {
+                    rule: "frost-second",
+                    check: never,
+                },
+                Guarantee {
+                    rule: "frost-third",
+                    check: never,
+                },
+            ],
             _ => &[],
         }
     }
