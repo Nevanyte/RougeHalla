@@ -88,28 +88,29 @@ fn pinned_off() -> [(i64, &'static str, u64); 8] {
     ]
 }
 
-/// The volcano, the church with its graveyard and the cave the Landmarks phase places on seeds 1-8, attempts 0 and 1
-/// (option on), before this packet: (seed, attempt, `others_digest`). The tree draws only from the Plague stream and
-/// stands in the Plague site, so they never move (measured on the stub commit, today's generator, and equal under the
-/// prototype; seed 2 attempt 1 fails its prefix: 0).
+/// The volcano and the cave the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet:
+/// (seed, attempt, `others_digest`). The tree draws only from the Plague stream and stands in the Plague site, so they
+/// never move (seed 2 attempt 1 fails its prefix: 0). Amended by P-MAPGEN-SIG-SCALE-2 (approved by the landmark lane,
+/// 2026-11-13): the church left the digest; re-measured on that packet's stub rebased onto this packet, and equal under
+/// its prototype.
 fn pinned_others() -> [(i64, u64, u64); 16] {
     [
-        (1, 0, 0x3e51_a83c_8f7c_a8c8),
-        (1, 1, 0x2b5d_2b07_841b_a6b8),
-        (2, 0, 0x6e1f_6277_74d3_a030),
+        (1, 0, 0x5729_ba0c_b534_a18a),
+        (1, 1, 0x644c_fa44_ab09_48d1),
+        (2, 0, 0xcb28_851d_ec56_00aa),
         (2, 1, 0),
-        (3, 0, 0x8d06_37b0_08fe_2af0),
-        (3, 1, 0x5f1e_7de6_561e_601f),
-        (4, 0, 0xe4f5_e0d1_893e_ca6e),
-        (4, 1, 0x251d_46bc_da8c_74b5),
-        (5, 0, 0xe9fa_bac6_7586_9976),
-        (5, 1, 0xee2f_9a5e_7b04_feb6),
-        (6, 0, 0x91c7_2ed8_db66_7f59),
-        (6, 1, 0x607f_e3c6_d921_73cb),
-        (7, 0, 0xf310_9ef3_091d_6185),
-        (7, 1, 0x3c8e_f74d_9656_acf8),
-        (8, 0, 0x54b6_2ae7_cecb_1345),
-        (8, 1, 0x8402_f7c0_1fde_6c86),
+        (3, 0, 0x1d45_88d8_4731_e35b),
+        (3, 1, 0x644d_3eaa_e2ac_912c),
+        (4, 0, 0x2aab_7410_10b3_4aee),
+        (4, 1, 0x5fa8_3458_e4b2_1b46),
+        (5, 0, 0xa180_8a72_bb00_e2b6),
+        (5, 1, 0x902e_92dc_6077_e4bd),
+        (6, 0, 0x59ee_f36f_591b_1003),
+        (6, 1, 0x7f16_8862_2772_497c),
+        (7, 0, 0xe845_1133_03f4_97f0),
+        (7, 1, 0x3e68_8146_80af_0c6a),
+        (8, 0, 0xfe61_79a9_440e_883d),
+        (8, 1, 0x4f45_1d1b_e737_8cee),
     ]
 }
 
@@ -422,9 +423,9 @@ fn fnv(bytes: &[u8]) -> u64 {
     h
 }
 
-/// FNV-1a 64 of what the Landmarks phase places for the volcano, the church with its graveyard and the cave on
-/// (seed, attempt), option on: their anchors (JSON) and, for every feature the phase leaves except the bog tree, the
-/// feature (JSON) and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
+/// FNV-1a 64 of what the Landmarks phase places for the volcano and the cave on (seed, attempt), option on: their anchors
+/// (JSON) and, for every feature the phase leaves except the bog tree, the church and its graveyard, the feature (JSON)
+/// and each tile it owns (index, tile, terrain). 0 when the phase refuses the attempt or the prefix fails.
 fn others_digest(seed: i64, n: u64) -> u64 {
     let fixed = coliseum::fixed_layout();
     let context = attempt::AttemptContext::new(&fixed);
@@ -446,11 +447,20 @@ fn others_digest(seed: i64, n: u64) -> u64 {
         return 0;
     };
     let mut bytes = Vec::new();
-    for a in placed.anchors.iter().filter(|a| a.zone != Zone::Plague) {
+    // Amended by P-MAPGEN-SIG-SCALE-2 (the church is the blueprint now; that packet's oracle pins it): the church, its
+    // graveyard and the Sentenced anchor are left out.
+    for a in placed
+        .anchors
+        .iter()
+        .filter(|a| a.zone != Zone::Plague && a.zone != Zone::Sentenced)
+    {
         bytes.extend(serde_json::to_vec(a).unwrap());
     }
     for (k, f) in st.state.features.iter().enumerate() {
-        if f.kind == FeatureKind::BogTree {
+        if matches!(
+            f.kind,
+            FeatureKind::BogTree | FeatureKind::Church | FeatureKind::Graveyard
+        ) {
             continue;
         }
         bytes.extend(serde_json::to_vec(f).unwrap());
@@ -751,15 +761,16 @@ fn option_off_is_todays_generator() {
     }
 }
 
-/// Guard. The volcano, the church with its graveyard and the cave the Landmarks phase places are today's
-/// (`pinned_others`): the tree draws only from the Plague stream and writes only inside the Plague site.
+/// Guard. The volcano and the cave the Landmarks phase places are today's (`pinned_others`): the tree draws only from
+/// the Plague stream and writes only inside the Plague site. (Amended by P-MAPGEN-SIG-SCALE-2: the church is no longer
+/// in the digest.)
 #[test]
 fn the_other_three_landmarks_are_unchanged() {
     for (seed, n, digest) in pinned_others() {
         assert_eq!(
             others_digest(seed, n),
             digest,
-            "seed {seed} attempt {n}: the volcano, church or cave moved"
+            "seed {seed} attempt {n}: the volcano or cave moved"
         );
     }
 }

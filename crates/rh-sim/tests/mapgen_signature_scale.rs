@@ -94,26 +94,26 @@ fn pinned_off() -> [(i64, &'static str, u64); 8] {
 /// The volcano the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this packet: (seed,
 /// attempt, `others_digest`). The cave is placed last on its own stream, so it never moves (seed 2 attempt 1 fails its
 /// prefix: 0). Amended by P-MAPGEN-SIG-SCALE-3: the bog tree is the blueprint now and is left out; amended by
-/// P-MAPGEN-SIG-SCALE-2: the church and its graveyard too (re-measured on that packet's stub rebased onto the tree; its
-/// oracle pins the church). STUB-REMEASURE: the values below are the tree's and are re-pinned in the rebase fix-up.
+/// P-MAPGEN-SIG-SCALE-2: the church and its graveyard too (re-measured on that packet's stub rebased onto the tree, and
+/// equal under its prototype; its oracle pins the church).
 fn pinned_others() -> [(i64, u64, u64); 16] {
     [
-        (1, 0, 0x8c46_fd6c_2a91_e159),
-        (1, 1, 0xd65b_7b72_989c_547d),
-        (2, 0, 0xd9de_f016_c1d3_97ec),
+        (1, 0, 0x8e42_fd3c_7a33_c95f),
+        (1, 1, 0x19b3_a5eb_9c7b_3706),
+        (2, 0, 0x6b77_87ce_903d_dc34),
         (2, 1, 0),
-        (3, 0, 0xc3fb_6a95_77e8_3c68),
-        (3, 1, 0xfbda_c5dd_f01d_bf8b),
-        (4, 0, 0xbcd6_c7f8_c4c5_fef6),
-        (4, 1, 0xe011_7dec_285d_eadf),
-        (5, 0, 0xdc51_3636_ef93_1a07),
-        (5, 1, 0xd3d9_c4b7_9052_c500),
-        (6, 0, 0xba9f_f7b0_ccc0_13e3),
-        (6, 1, 0x6c22_5bef_0da5_c4b0),
-        (7, 0, 0x9c08_27c4_14f6_2dc1),
-        (7, 1, 0xf45d_e6e2_0805_ee45),
-        (8, 0, 0x142b_c64a_6d01_3a5a),
-        (8, 1, 0x668e_daaf_2fcd_cc1b),
+        (3, 0, 0x5eaa_4b6d_4965_e9af),
+        (3, 1, 0xf376_df77_9f3c_14ce),
+        (4, 0, 0xcdcb_8297_fb4c_3e0a),
+        (4, 1, 0x11e0_ccc0_daf2_0cce),
+        (5, 0, 0x5c99_0530_5591_1569),
+        (5, 1, 0x751d_610a_079b_b401),
+        (6, 0, 0x366e_5a6e_c11b_ee01),
+        (6, 1, 0xdb8b_eb78_4b5d_60e5),
+        (7, 0, 0xb9b2_a035_2012_3dc0),
+        (7, 1, 0xb5fd_6ad5_9499_346b),
+        (8, 0, 0x916d_fca8_61d2_e1b4),
+        (8, 1, 0xde84_d3e3_617f_edc3),
     ]
 }
 

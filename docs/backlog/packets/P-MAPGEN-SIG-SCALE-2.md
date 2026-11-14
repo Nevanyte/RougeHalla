@@ -6,8 +6,9 @@
   (P-MAPGEN-SIG-SCALE-1, the cave, is the worked example).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase, the certifier's signature row)
 - **Reviewer:** reviewer-opus
-- **Integration base:** `feature/unity-rework` @ 2b1fcb638 (SCALE-1, RESERVE-1, STYLE-REFUSE-1, the wire's anchors
-  merged; rebased by the coordinator). Rebased again onto P-MAPGEN-SIG-SCALE-3 when that lands.
+- **Integration base:** the bog tree, `agent/fable/P-MAPGEN-SIG-SCALE-3-fix` @ 38b863381 (on `feature/unity-rework` @
+  2b1fcb638: SCALE-1, RESERVE-1, STYLE-REFUSE-1, the wire's anchors). The coordinator re-points the base to the
+  integration head that holds the tree once it is pushed.
 - **D-rules touched:** D1: option off byte- and draw-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim
   tick, wire or content-hash change (the drawing is a `signature::Definition` field; `SIGNATURE_KINDS` and
   `DEFAULT_DEFINITION` are `NON_GAMEPLAY` rows of `tests/content.rs`) · D5/D6/D9 untouched.
@@ -17,7 +18,7 @@
 ## What the owner must decide (oracle author, 2026-11-13; measured with a throwaway prototype on this branch's base)
 
 1. **The Sentenced lane fence share falls below the owner's bound.** `mapgen_land_sentenced.rs`
-   `lane_fence_share_stays_near_option_off` (median on/off ratio at least 0.6; 0.71 today) measures **0.529** with
+   `lane_fence_share_stays_near_option_off` (median on/off ratio at least 0.6; 0.71 today) measures **0.529** (0.532 on the bog tree's base) with
    the blueprint church (seeds 1-32; per seed 0.38-0.72; 25 of 32 under 0.6). Why: the 29 x 29 box and its 2-tile
    apron (33 x 33) hold **23.4 %** of today's lane fence (1750 of 7480 tiles over seeds 1-32; per seed 18-30 %,
    median 23 %), and the churchyard's own fence is not lane fence (`FenceRow`) in that measure. 0.71 x (1 - 0.23) is
@@ -44,9 +45,14 @@
      `relabel_sites_labels_the_frost_and_the_sentenced_sites` in this oracle (red on the stub); `relabel_sites` was
      made public for it (stub commit). The unit test keeps only the `stray_camp` predicate, renamed
      `stray_camp_finds_a_second_camp_in_the_site`; the implementer need not touch it.
-   - **Rebase note for SCALE-3 (bog tree):** both branches re-pin `pinned_others` in `mapgen_signature_scale.rs` and
-     the tree moves under SCALE-3, so after the rebase re-measure both that table and this file's `pinned_others`
-     (volcano, tree, cave) on the rebased stub.
+   - **Rebased onto the bog tree (P-MAPGEN-SIG-SCALE-3), 2026-11-13.** `mapgen_signature_scale.rs`
+     `the_other_three_landmarks_are_unchanged` takes both packets' exclusions, so its digest is now the volcano alone
+     (the tree, the Plague anchor, the church, the graveyard and the Sentenced anchor are out); re-pinned on the
+     rebased stub. This file's `pinned_others` (volcano, tree, cave) re-pinned there too.
+   - **A sixth test, from the tree's oracle:** `mapgen_signature_bog_tree.rs` `the_other_three_landmarks_are_unchanged`
+     pinned the church's tiles as the rule-drawn church left them. Amended the same way: the church, its graveyard and
+     the Sentenced anchor left its digest (now the volcano and the cave); re-pinned on the rebased stub; equal under
+     the prototype. Its other nine tests are untouched and pass under the prototype.
 
 ## 1. ID and outcome
 
@@ -134,7 +140,8 @@ collections; the signature stream only); `tests/content.rs` (no new `const`; the
 - Option off: byte-identical and draw-identical (`option_off_is_todays_generator` here and the G8 guards elsewhere).
 - Option on: the volcano, bog tree and cave the Landmarks phase places are exactly today's
   (`the_other_three_landmarks_are_unchanged`, digests pinned on the stub commit, equal under the prototype); every zone
-  keeps its landmark; every map certifies clean; the apron rule; the attempt bounds (70, 7).
+  keeps its landmark; every map certifies clean; the apron rule; the attempt bounds (57 attempts, worst index 5, on
+  the bog tree's base).
 - The church draws exactly one value (the mirror) from the Sentenced stream.
 
 ## 8. Acceptance checks
@@ -143,7 +150,8 @@ collections; the signature stream only); `tests/content.rs` (no new `const`; the
   oracle commits).
 - Every other `mapgen_signature_*` target, `mapgen_style_refusal`, `rh-server --test map_anchor_seeds` and
   `mapgen_land_sentenced` green, except `lane_fence_share_stays_near_option_off` until the owner rules.
-- `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-SCALE-2`.
+- `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-SCALE-2` (until the base is re-pointed:
+  `--base agent/fable/P-MAPGEN-SIG-SCALE-3-fix`).
 - The ignored `report_seeds_1_to_64` quoted in the hand-off.
 
 ## Oracle files (read-only for implementers)
@@ -151,6 +159,8 @@ collections; the signature stream only); `tests/content.rs` (no new `const`; the
 - `crates/rh-sim/tests/mapgen_signature_church.rs`
 - `crates/rh-sim/tests/mapgen_signature_core.rs` (three tests amended, `church_door` replaces `door_frame`)
 - `crates/rh-sim/tests/mapgen_signature_scale.rs` (`the_other_three_landmarks_are_unchanged` and its digest amended)
+- `crates/rh-sim/tests/mapgen_signature_bog_tree.rs` (`the_other_three_landmarks_are_unchanged` and its digest
+  amended)
 - `docs/backlog/packets/P-MAPGEN-SIG-SCALE-2.md`
 - The stub commits' files are the implementer's: `signature/mod.rs` (the empty `church_grid` must become
   `include_str!("church.txt")`; `relabelled_zones` and `relabel_sites` are public so the oracle can call them; the
@@ -175,7 +185,7 @@ Red on the oracle commit (assertions):
 Guards (green on the oracle commit and under the prototype): `the_elite_camp_stands_at_the_anchor_and_its_halo_is_free`,
 `every_zone_keeps_its_landmark_and_every_map_certifies_clean`, `no_landmark_stands_in_another_landmarks_apron`,
 `option_off_is_todays_generator`, `the_other_three_landmarks_are_unchanged`, `the_worst_attempt_stays_within_the_bound`
-(<= 7), `the_attempts_used_stay_within_the_bound` (<= 70). Ignored: `report_seeds_1_to_64`.
+(<= 5), `the_attempts_used_stay_within_the_bound` (<= 57). Ignored: `report_seeds_1_to_64`.
 
 Not proved: seeds beyond 32 (the report covers 1-64); the mirror draw (see Corrections, 1); that the relabel covers
 exactly the site (only the list and its effect on the bounds); the time per map; the `rh-mapdress` digests; the
@@ -194,11 +204,19 @@ file passed in full under it (13 tests; 14 with the moved relabel test, re-run o
 | **blueprint church + Sentenced relabel (prototype)** | **60** | **5** (seed 32) | **140** | **7** (seed 33) | 0 |
 | stub on base `2b1fcb638` (re-measured) | 59 | 4 (seed 14) | 132 | 9 (seed 33) | 0 |
 | prototype on base `2b1fcb638` (re-applied) | 60 | 5 (seed 32) | 140 | 7 (seed 33) | 0 |
+| **stub rebased onto the bog tree (`38b863381`)** | **46** | **2** (seed 12) | **109** | **6** (seed 52) | 0 |
+| **prototype on the bog tree** | **50** | **3** (seed 12) | **104** | **3** (seed 12) | 0 |
 
-The base moved nothing: the bounds (70, 7) stand.
+**Bounds on the bog tree's base: 57 attempts and worst index 5 over seeds 1-32** (oracle author's choice). The rule:
+the rebased stub's figures plus the headroom the earlier bounds had over their stub (70 over 59: +11; 7 over 4: +3),
+so 46 + 11 and 2 + 3. The prototype (50, 3) is inside them. On seeds 1-64 the church costs 5 fewer attempts than the
+stub and lowers the worst index from 6 to 3.
 
-- Refusals (1-64): `SignatureDiscarded` 50, `Prefix` 12, `Repair(RadiusPost)` 9, `SpawnRatio` 5, `Signature` 0
-  (stub: `SignatureDiscarded` 48, `Prefix` 12, `Repair(RadiusPost)` 8).
+- Refusals (1-64), prototype on the tree: `SignatureDiscarded` 21, `Prefix` 8, `SpawnRatio` 7, `Repair(RadiusPost)` 4,
+  `Signature` 0 (stub on the tree: `SignatureDiscarded` 26, `Prefix` 10, `Repair(RadiusPost)` 6, `SpawnRatio` 3).
+  On `2b1fcb638`: prototype `SignatureDiscarded` 50, `Prefix` 12, `Repair(RadiusPost)` 9, `SpawnRatio` 5; stub
+  `SignatureDiscarded` 48, `Prefix` 12, `Repair(RadiusPost)` 8.
+- `mapgen_style_refusal` under the prototype on the tree: 18 refusals, 0 `StyleLandmark`, decor off and on.
 - **The Unity art's reading, checked on seeds 1-32 under the prototype** (a throwaway probe): in every footprint the
   largest 8-connected wall group is the building (91 tiles) and its box is the `Church` box; its border's only non-wall
   tiles are the three door tiles, off the corners; the other wall groups are eight of 6 tiles. **Correction to the
@@ -206,7 +224,8 @@ The base moved nothing: the bounds (70, 7) stand.
   19-20). The pillar blocks at columns 4-5 and 23-24 touch the side walls (rows 6-8 and 11-13) and are part of the
   building's group (67 wall + 24 pillar tiles = 91). The art must not expect eight separate pillar groups.
 - Box 29 x 29 on every seed, offsets as section 1. Fronts seen: all four directions.
-- Lanes: see owner decision 1 (0.529 against 0.6; 23.4 % of today's lane fence lies in the box plus apron).
+- Lanes: see owner decision 1 (0.529 against 0.6 on `2b1fcb638`, **0.532 on the bog tree's base**; 23.4 % of today's
+  lane fence lies in the box plus apron, measured on `2e51457dd`).
 - The relabel alone was not measured without the church (the cave's history says it is needed: 396 to 132 attempts).
 
 ## Corrections (brief, hand-over and code against the grid; the grid wins)

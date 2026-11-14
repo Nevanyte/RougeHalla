@@ -75,16 +75,17 @@ fn attempt_limit() -> u64 {
     16
 }
 
-/// The worst attempt index allowed over seeds 1-32: P-MAPGEN-SIG-RESERVE-1's bound, held by the cave's oracle (brief,
-/// "Measurements": measured with the prototype; today 4).
+/// The worst attempt index allowed over seeds 1-32. Rebased onto the bog tree (P-MAPGEN-SIG-SCALE-3): the stub measures
+/// 2, the prototype 3; the bound is the stub's figure plus the same headroom the earlier bound had over its stub (7
+/// over 4: +3). Brief, "Measurements".
 fn worst_attempt_allowed() -> u64 {
-    7
+    5
 }
 
-/// The most attempts seeds 1-32 may use in all: P-MAPGEN-SIG-RESERVE-1's bound, held by the cave's oracle (brief,
-/// "Measurements": measured with the prototype; today 59).
+/// The most attempts seeds 1-32 may use in all. Rebased onto the bog tree: the stub measures 46, the prototype 50; the
+/// bound is the stub's figure plus the earlier headroom (70 over 59: +11). Brief, "Measurements".
 fn attempts_allowed() -> u64 {
-    70
+    57
 }
 
 /// Today's option-off generator, seeds 1-8: (seed, `map_hash`, FNV-1a 64 of the map's JSON); the values
@@ -103,26 +104,27 @@ fn pinned_off() -> [(i64, &'static str, u64); 8] {
 }
 
 /// The volcano, bog tree and cave the Landmarks phase places on seeds 1-8, attempts 0 and 1 (option on), before this
-/// packet: (seed, attempt, `others_digest`). Measured on the stub commit (today's generator; seed 2 attempt 1 fails its
-/// prefix: 0) and equal under the oracle author's prototype of the blueprint church.
+/// packet: (seed, attempt, `others_digest`). Measured on the stub rebased onto the bog tree (P-MAPGEN-SIG-SCALE-3, whose
+/// blueprint tree is now in these digests; seed 2 attempt 1 fails its prefix: 0) and equal under the oracle author's
+/// prototype of the blueprint church.
 fn pinned_others() -> [(i64, u64, u64); 16] {
     [
-        (1, 0, 0x94ab_3c14_ce63_8975),
-        (1, 1, 0x15e2_8439_9578_92f2),
-        (2, 0, 0x9ce1_5fa3_f16e_0ab4),
+        (1, 0, 0xfa2b_069d_9f27_b95a),
+        (1, 1, 0xdae2_c7c9_f13f_0db4),
+        (2, 0, 0x4ec3_63f5_dbdd_fd16),
         (2, 1, 0),
-        (3, 0, 0x4c15_ac65_d11e_c87f),
-        (3, 1, 0x2a8f_77bf_6009_4150),
-        (4, 0, 0x3f6b_0595_e567_5aba),
-        (4, 1, 0x41b7_ef42_a45d_ff2e),
-        (5, 0, 0x23ef_4fb2_41dc_f0ca),
-        (5, 1, 0x79d5_cb9a_6a82_d880),
-        (6, 0, 0xde64_dfd3_8c80_4c2f),
-        (6, 1, 0xc58f_734c_0727_04e2),
-        (7, 0, 0x2908_84df_7ac7_3b66),
-        (7, 1, 0x3f87_22d5_3037_6b18),
-        (8, 0, 0xfced_6aea_9a62_7ca7),
-        (8, 1, 0x073d_70e3_719a_4552),
+        (3, 0, 0x1f21_9df2_3ad8_d534),
+        (3, 1, 0x556a_eaa6_c255_ad29),
+        (4, 0, 0x33c2_a66f_f264_3297),
+        (4, 1, 0x19bc_5afe_f745_c8ef),
+        (5, 0, 0x82eb_fb81_9b5e_dbd5),
+        (5, 1, 0xa0b2_18dd_f3b3_43ff),
+        (6, 0, 0xa413_c186_6fa5_fbca),
+        (6, 1, 0x7d4a_65e8_261f_b951),
+        (7, 0, 0x32d1_1f8e_0821_9197),
+        (7, 1, 0xe175_af3f_8601_f64a),
+        (8, 0, 0xe7a7_be64_4cdd_9038),
+        (8, 1, 0x12cd_955b_88ad_a971),
     ]
 }
 
