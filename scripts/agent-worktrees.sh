@@ -77,7 +77,9 @@ case "$cmd" in
       IFS=, read -r _ _ _ rsession rstate <<<"$row"
       if [[ "$rsession" != "$session" ]]; then echo "left $name: claimed by session $rsession, not $session"; continue; fi
       if [[ "$rstate" != done ]]; then echo "left $name: not done (state $rstate)"; continue; fi
-      dirty="$(git -C "$p" status --porcelain --untracked-files=all 2>/dev/null | grep -vE '^.. "?\.agent-runs/' || true)"
+      # A failing git status (corrupt index, ownership error) is "unknown", never "clean": remove --force would lose work.
+      st="$(git -C "$p" status --porcelain --untracked-files=all 2>/dev/null)" || { echo "left $name: git status failed"; continue; }
+      dirty="$(grep -vE '^.. "?\.agent-runs/' <<<"$st" || true)"
       if [[ -n "$dirty" ]]; then echo "left $name: uncommitted or untracked files ($(grep -c . <<<"$dirty") paths, first: $(head -n 1 <<<"$dirty" | cut -c4-))"; continue; fi
       git -C "$MAIN" worktree unlock "$p" >/dev/null 2>&1 || true
       if git -C "$MAIN" worktree remove --force "$p" >/dev/null 2>&1; then

@@ -167,7 +167,7 @@ cleanup() {
 trap cleanup EXIT
 exec > >(tee "$LOG") 2>&1
 
-SKIPPED=() FAILED=() NOTRUN=() BROKEN=""
+SKIPPED=() FAILED=() NOTRUN=() BROKEN="" TESTHOOK=""
 fail() { echo; echo "GATE FAIL: $*"; echo "log: $LOG"; exit 1; }
 note() { echo "   - $*"; }
 red() { # a step went red: fail fast, or with --keep-going remember it and carry on
@@ -196,13 +196,13 @@ finish() { # finish <label> <exit code when green>: the one place a result line 
   if ((n)); then
     for f in "${FAILED[@]}"; do joined="${joined:+$joined; }$f"; done
     for f in ${NOTRUN[@]+"${NOTRUN[@]}"}; do echo "not run: $f"; done
-    echo "GATE FAIL ($n step$( ((n == 1)) || echo s)): $joined"
+    echo "GATE ${TESTHOOK:+TEST-HOOK }FAIL ($n step$( ((n == 1)) || echo s)): $joined"
     echo "log: $LOG"; exit 1
   fi
   if ((${#NOTRUN[@]})); then # cannot happen without a red step; never read as a pass if it does
-    echo "GATE FAIL: steps not run: ${NOTRUN[*]}"; echo "log: $LOG"; exit 1
+    echo "GATE ${TESTHOOK:+TEST-HOOK }FAIL: steps not run: ${NOTRUN[*]}"; echo "log: $LOG"; exit 1
   fi
-  echo "GATE PASS ($label)${SKIPPED:+ — skipped: ${SKIPPED[*]}}"; echo "log: $LOG"
+  echo "GATE ${TESTHOOK:+TEST-HOOK }PASS ($label)${SKIPPED:+ — skipped: ${SKIPPED[*]}}"; echo "log: $LOG"
   exit "$okrc"
 }
 
@@ -236,14 +236,15 @@ if [[ -n "$bad" ]]; then
 fi
 # Mesh colours: the project renders in Linear colour space and Mesh.SetColors takes raw values, so sRGB constants written
 # to a mesh show lifted. Only lines ADDED by this diff are judged, so untouched existing code never fails an unrelated edit.
-MESH_RE='SetColors\(|\.colors32 =|\.colors ='
+MESH_RE='SetColors\(|\.colors32 =|[Mm]esh\.colors ='
 MESH_OK_RE='/(Presentation/SrgbMeshColors|WeaponRangePresenter|HitZonePresenter|CampPatienceOutlines)\.cs$'
 bad=""
 while IFS= read -r f; do
   [[ -n "$f" && -f "$f" ]] || continue
   if grep -qE "$MESH_OK_RE" <<<"/$f"; then continue; fi
   if git cat-file -e "$MB:$f" 2>/dev/null; then
-    if git diff -U0 "$MB" -- "$f" | grep -E '^\+[^+]' | grep -qE "$MESH_RE"; then bad="$bad$f"$'\n'; fi
+    # No grep -q at the end of a pipeline: it exits early, the writer gets SIGPIPE and pipefail reports a miss.
+    if git diff -U0 "$MB" -- "$f" | grep -E '^\+[^+]' | grep -E "$MESH_RE" >/dev/null; then bad="$bad$f"$'\n'; fi
   elif grep -qE "$MESH_RE" "$f"; then
     bad="$bad$f"$'\n'
   fi
@@ -272,7 +273,7 @@ fi
 if grep -qE '(^|/)Cargo\.toml$' <<<"$CHANGED"; then
   note "WARNING: a Cargo.toml changed. New dependencies need coordinator approval; the coordinator regenerates Cargo.lock."
 fi
-if git diff "$MB" -- 'crates/*.rs' | grep -qE '^\+.*allow\(clippy::disallowed_(types|methods)\)'; then
+if git diff "$MB" -- 'crates/*.rs' | grep -E '^\+.*allow\(clippy::disallowed_(types|methods)\)' >/dev/null; then
   note "WARNING: new allow(clippy::disallowed_*) in the diff. Each needs its reason beside it; the reviewer checks it (ADR 0007)."
 fi
 
@@ -307,11 +308,12 @@ if [[ -n "${DATABASE_URL:-}" ]]; then PG=1; else export RH_SKIP_PG_TESTS=1; fi
 # list with those fake steps. Its result line says "test hook" and its green exit code is 43, never 0: a run of fake
 # steps must not look like a real PASS.
 if [[ -n "${GATE_TEST_STEPS:-}" ]]; then
+  TESTHOOK=1
   while IFS= read -r line; do
     [[ -n "$line" ]] || continue
     run "${line%%::*}" bash -c "${line#*::}"
   done <<<"$GATE_TEST_STEPS"
-  finish "test hook: fake steps only, not a real gate result" 43
+  finish "fake steps only, not a real gate result" 43
 fi
 
 if [[ "$MODE" == quick ]]; then

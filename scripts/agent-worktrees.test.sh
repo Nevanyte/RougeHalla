@@ -43,6 +43,13 @@ if [[ -d "$W/agent-eee" && "$out" == *eee*"not done"* ]]; then ok "clean leaves 
 if [[ -d "$W/agent-fff" && "$out" == *fff*"no row"* ]]; then ok "clean leaves an unclaimed worktree and says why"; else bad "unclaimed" "$out"; fi
 if git rev-parse -q --verify agent/aaa >/dev/null && git rev-parse -q --verify agent/ddd >/dev/null; then ok "clean never deletes a branch"; else bad "branches"; fi
 
+# A failing git status must read as "unknown", never as clean: fff is claimed, done, session s1, with a corrupt index.
+t claim fff P-1 s1; t done fff
+printf 'garbage' >"$(git -C "$W/agent-fff" rev-parse --absolute-git-dir)/index"
+t clean --session s1
+if [[ -d "$W/agent-fff" && "$OUT" == *fff*"git status failed"* ]]; then ok "clean leaves a worktree whose git status fails, with that reason"
+else bad "git status failure (rc=$RC)" "$OUT"; fi
+
 # Run from inside a worktree: the table is still the main checkout's.
 cd "$W/agent-bbb"
 t done bbb; rc=$RC

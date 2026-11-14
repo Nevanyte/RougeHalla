@@ -146,6 +146,25 @@ for f in Presentation/SrgbMeshColors.cs WeaponRangePresenter.cs HitZonePresenter
   if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "approved file may upload colours: $f"
   else bad "approved $f (rc=$rc)" "$out"; fi
 done
+# Unity UI code: button.colors = ... is not a vertex-colour upload.
+rc=0; out="$(newfile "$UA/Scripts/UI/Menu.cs" 'button.colors = colors;')" || rc=$?
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "UI button.colors = is allowed"; else bad "button.colors (rc=$rc)" "$out"; fi
+rc=0; out="$(newfile "$UA/Scripts/Other2.cs" 'm.mesh.colors = c;')" || rc=$?
+if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"Other2.cs"* ]]; then ok "mesh.colors = still fails"; else bad "mesh.colors (rc=$rc)" "$out"; fi
+# A large diff (about 600 KB added, one offending line near the start) must fail on every run (no SIGPIPE miss).
+git checkout -q -B work main
+mkdir -p "$UA/Scripts"; printf 'int x;\n' >"$UA/Scripts/Big.cs"; git add -A; git commit -q -m "big base"
+git checkout -q -B bigbase work
+{ printf 'int x;\nmesh.SetColors(c);\n'; for i in $(seq 1 20000); do printf 'int filler_%05d = %05d; // padding\n' "$i" "$i"; done; } >"$UA/Scripts/Big.cs"
+git commit -q -am "big edit"
+misses=0
+for i in $(seq 1 20); do
+  rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --quick --base bigbase~1 2>&1)" || rc=$?
+  [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"Big.cs"* ]] || misses=$((misses + 1))
+done
+if ((misses == 0)); then ok "a large added diff with one raw SetColors( fails on all 20 runs"; else bad "large diff missed $misses of 20 runs"; fi
+git checkout -q -B work main
+
 # Only added lines are judged: an untouched existing line does not fail an unrelated edit.
 git checkout -q -B work main
 mkdir -p "$UA/Scripts"; printf 'mesh.SetColors(old);\n' >"$UA/Scripts/Old.cs"; git add -A; git commit -q -m "old"
@@ -163,16 +182,16 @@ kg() { # <steps> <gate args...>
 }
 two=$'alpha::echo a-out; exit 1\nbeta::echo b-out; exit 1\ngamma::echo fine'
 rc=0; out="$(kg "$two" --keep-going)" || rc=$?
-if [[ $rc -eq 1 && "$out" == *"GATE FAIL (2 steps): alpha; beta"* && "$out" == *"a-out"* && "$out" == *"b-out"* && "$out" != *"GATE PASS"* ]]; then ok "--keep-going reports two failing steps, exit 1, no PASS"
+if [[ $rc -eq 1 && "$out" == *"GATE TEST-HOOK FAIL (2 steps): alpha; beta"* && "$out" == *"a-out"* && "$out" == *"b-out"* && "$out" != *"GATE PASS"* && "$out" != *"GATE FAIL"* ]]; then ok "--keep-going reports two failing steps, exit 1, no PASS"
 else bad "keep-going two failures (rc=$rc)" "$out"; fi
 
 one=$'alpha::echo a-out; exit 1\ngamma::echo fine'
 rc=0; out="$(kg "$one" --keep-going)" || rc=$?
-if [[ $rc -eq 1 && "$out" == *"GATE FAIL (1 step"* && "$out" == *"alpha"* && "$out" == *"== gamma"* && "$out" != *"GATE PASS"* ]]; then ok "--keep-going: a failing step then a passing one reports one failure"
+if [[ $rc -eq 1 && "$out" == *"GATE TEST-HOOK FAIL (1 step"* && "$out" == *"alpha"* && "$out" == *"== gamma"* && "$out" != *"GATE PASS"* ]]; then ok "--keep-going: a failing step then a passing one reports one failure"
 else bad "keep-going one failure (rc=$rc)" "$out"; fi
 
 rc=0; out="$(kg $'gamma::echo fine\ndelta::echo fine2' --keep-going)" || rc=$?
-if [[ "$out" == *"GATE PASS"* && "$out" == *"test hook"* && "$out" != *"GATE FAIL"* && $rc -ne 1 ]]; then ok "--keep-going with no failure prints GATE PASS, marked as the test hook"
+if [[ "$out" == *"GATE TEST-HOOK PASS"* && "$out" != *"GATE PASS"* && "$out" != *"GATE FAIL"* && $rc -ne 1 && $rc -ne 0 ]]; then ok "--keep-going with no failure prints GATE TEST-HOOK PASS (never a plain GATE PASS)"
 else bad "keep-going none (rc=$rc)" "$out"; fi
 
 rc=0; out="$(kg "$two")" || rc=$?
