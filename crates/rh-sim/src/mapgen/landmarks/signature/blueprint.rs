@@ -253,10 +253,19 @@ impl Blueprint {
 
     /// Every mark of the legend (glyphs with `mark`), ascending by character, with its grid tiles row-major.
     pub fn marks(&self) -> Vec<(u8, Vec<Cell>)> {
-        let mut chars: Vec<u8> = self.legend.0.iter().filter(|g| g.mark).map(|g| g.ch).collect();
+        let mut chars: Vec<u8> = self
+            .legend
+            .0
+            .iter()
+            .filter(|g| g.mark)
+            .map(|g| g.ch)
+            .collect();
         chars.sort_unstable();
         chars.dedup();
-        chars.into_iter().map(|ch| (ch, self.tiles_of(ch))).collect()
+        chars
+            .into_iter()
+            .map(|ch| (ch, self.tiles_of(ch)))
+            .collect()
     }
 
     /// The entrance's grid tiles under `rule`, row-major.
