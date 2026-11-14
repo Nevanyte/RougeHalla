@@ -51,7 +51,10 @@ namespace Roguehalla.Net.Ui
                 for (int i = 0; i < mobs.Count; i++)
                 {
                     var m = mobs[i];
-                    _camps[m.Id] = new Seen { Camp = planeOk ? CampOf(plane, w, h, m.X, m.Y) : -1, Frame = _frame };
+                    int camp = planeOk ? CampOf(plane, w, h, m.X, m.Y) : -1;
+                    Seen prev;
+                    if (camp < 0 && _camps.TryGetValue(m.Id, out prev)) camp = prev.Camp;   // a mob that chased off its camp's tiles still belongs to it
+                    _camps[m.Id] = new Seen { Camp = camp, Frame = _frame };
                 }
             if (localId == 0 || !localAlive)
             {
