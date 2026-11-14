@@ -66,9 +66,16 @@ fn off_options() -> pipeline::Options {
 }
 
 fn generate(options: pipeline::Options) -> Vec<(i64, Option<GameMapData>)> {
+    generate_seeds(options, 1..=16)
+}
+
+fn generate_seeds(
+    options: pipeline::Options,
+    seeds: std::ops::RangeInclusive<i64>,
+) -> Vec<(i64, Option<GameMapData>)> {
     let fixed = coliseum::fixed_layout();
     let generator = pipeline::Pipeline::new(&fixed);
-    (1..=16)
+    seeds
         .map(|seed| {
             let map = generator
                 .certified_styled(seed, options)
@@ -82,6 +89,12 @@ fn generate(options: pipeline::Options) -> Vec<(i64, Option<GameMapData>)> {
 fn on_maps() -> &'static Vec<(i64, Option<GameMapData>)> {
     static MAPS: OnceLock<Vec<(i64, Option<GameMapData>)>> = OnceLock::new();
     MAPS.get_or_init(|| generate(on_options()))
+}
+
+/// Seeds 17-32 with the option on, generated once per test binary (the stream test runs on seeds 1-32).
+fn more_on_maps() -> &'static Vec<(i64, Option<GameMapData>)> {
+    static MAPS: OnceLock<Vec<(i64, Option<GameMapData>)>> = OnceLock::new();
+    MAPS.get_or_init(|| generate_seeds(on_options(), 17..=32))
 }
 
 /// Seeds 1-16 with the option off, generated once per test binary.
@@ -317,8 +330,92 @@ fn g8_option_off_maps_are_todays() {
 // `mapgen_signature_volcano.rs` (exactly three streams, one per outlet run, each ending in its own pool, two tiles wide,
 // no ford; the cone the approved drawing).
 
-/// The volcano stands on the zone's back edge (its centre farther from the map centre than the Fire centroid) and
-/// every stream runs toward the front: its end is nearer the coliseum tile than the volcano centre is.
+/// The dominant axis of DIR16 direction `f` (x on a tie): the cone's front axis for the Fire anchor's `front`.
+fn front_axis(f: u8) -> Cell {
+    let v = DIR16[usize::from(f)];
+    if v[0].abs() >= v[1].abs() {
+        (v[0].signum(), 0)
+    } else {
+        (0, v[1].signum())
+    }
+}
+
+/// The stream half of `volcano_on_the_back_edge_with_streams_toward_the_front`, as a list of problems (empty: holds).
+/// With u the cone's front axis (`front_axis` of the Fire anchor's `front`) and the box the Fire anchor's footprint:
+/// every stream's end (its lava tile farthest from the volcano centre) lies in front of the box along u (beyond the
+/// box's side that faces u: no stream ends behind or beside the cone); and the middle stream (the one whose lava
+/// touches the middle outlet run: the third and fourth of the anchor's six entrance tiles ordered across u) ends
+/// nearer the coliseum tile than the volcano centre is.
+fn stream_problems(seed: i64, m: &GameMapData) -> Vec<String> {
+    let mut out = Vec::new();
+    let v = single(seed, m, FeatureKind::Volcano, Zone::Fire);
+    let centre = (m.features[v].ax, m.features[v].ay);
+    let a = anchor(seed, m, Zone::Fire);
+    let u = front_axis(a.front);
+    let (x0, y0, x1, y1) = grow(a.footprint, 0);
+    let col = point(coliseum_tile(m));
+    let from = dist(point(centre), col);
+    let mut outlets: Vec<Cell> = a.entrance.iter().map(|p| (p.x, p.y)).collect();
+    if outlets.len() != 6 {
+        out.push(format!(
+            "seed {seed}: the Fire anchor has {} outlet tiles, not 6",
+            outlets.len()
+        ));
+        return out;
+    }
+    outlets.sort_by_key(|c| if u.0 != 0 { (c.1, c.0) } else { (c.0, c.1) });
+    let middle = &outlets[2..4];
+    let mut middles = 0;
+    for (s, k) in of_kind(m, FeatureKind::LavaStream).into_iter().enumerate() {
+        let lava = lava_of(m, k);
+        let Some(&end) = lava.iter().max_by_key(|&&c| d2(c, centre)) else {
+            out.push(format!("seed {seed}: stream {s} holds no lava"));
+            continue;
+        };
+        let ahead = match u {
+            (1, 0) => end.0 > x1,
+            (-1, 0) => end.0 < x0,
+            (0, 1) => end.1 > y1,
+            _ => end.1 < y0,
+        };
+        if !ahead {
+            out.push(format!(
+                "seed {seed}: stream {s} ends at {end:?}, not in front of the cone's box ({x0}, {y0})-({x1}, {y1}) \
+                 along its front axis {u:?}"
+            ));
+        }
+        let is_middle = lava.iter().any(|&c| {
+            middle
+                .iter()
+                .any(|&o| (c.0 - o.0).abs() <= 1 && (c.1 - o.1).abs() <= 1)
+        });
+        if is_middle {
+            middles += 1;
+            let to = dist(point(end), col);
+            if to >= from {
+                out.push(format!(
+                    "seed {seed}: the middle stream {s} ends at {end:?}, {to:.1} from the coliseum; the volcano is \
+                     {from:.1}"
+                ));
+            }
+        }
+    }
+    if middles != 1 {
+        out.push(format!(
+            "seed {seed}: {middles} streams leave the middle outlet run {middle:?}"
+        ));
+    }
+    out
+}
+
+/// The volcano stands on the zone's back edge (its centre farther from the map centre than the Fire centroid), seeds
+/// 1-16; and its streams run toward the front, seeds 1-32 (`stream_problems`): every stream ends in front of the cone's
+/// box along the cone's own front axis, and the middle stream (the longest) ends nearer the coliseum tile than the
+/// volcano centre is. Amended by P-MAPGEN-SIG-SCALE-4 (2026-11-14): the stream half required EVERY stream's end to be
+/// nearer the coliseum than the volcano centre; the owner's fan puts the side streams 45 degrees off the cone's front,
+/// and the front axis is the dominant axis of the true direction (up to 45 degrees off it), so a side stream can run
+/// sideways in map terms (seed 7: a side stream ends 76.6 from the coliseum, the volcano 73.6). Enforcing the old
+/// reading by refusing attempts lost seed 40 (G2/G5); the owner's rule is the fan, read along the cone's axis.
 #[test]
 fn volcano_on_the_back_edge_with_streams_toward_the_front() {
     for (seed, m) in maps() {
@@ -330,19 +427,56 @@ fn volcano_on_the_back_edge_with_streams_toward_the_front() {
             d > centroid,
             "seed {seed}: volcano at {centre:?} is {d:.1} from the centre, the Fire centroid {centroid:.1}"
         );
-        let col = point(coliseum_tile(m));
-        let from = dist(point(centre), col);
-        for (s, k) in of_kind(m, FeatureKind::LavaStream).into_iter().enumerate() {
-            let lava = lava_of(m, k);
-            let Some(&end) = lava.iter().max_by_key(|&&c| d2(c, centre)) else {
-                panic!("seed {seed}: stream {s} holds no lava");
-            };
-            let to = dist(point(end), col);
-            assert!(
-                to < from,
-                "seed {seed}: stream {s} ends at {end:?}, {to:.1} from the coliseum; the volcano is {from:.1}"
-            );
+    }
+    let bad: Vec<String> = maps()
+        .chain(each(more_on_maps()))
+        .flat_map(|(seed, m)| stream_problems(seed, m))
+        .collect();
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// The stream check bites: on seed 1, moving any one stream's lava to a 2 x 6 strip just behind the cone's box (its
+/// side away from the front axis) makes `stream_problems` report that stream as not in front of the box.
+#[test]
+fn a_stream_behind_the_cone_fails_the_stream_check() {
+    let (seed, m) = maps().next().unwrap();
+    assert!(
+        stream_problems(seed, m).is_empty(),
+        "seed {seed}: undoctored"
+    );
+    let a = anchor(seed, m, Zone::Fire);
+    let u = front_axis(a.front);
+    let (x0, y0, x1, y1) = grow(a.footprint, 0);
+    let (mx, my) = ((x0 + x1) / 2, (y0 + y1) / 2);
+    let strip: Vec<Cell> = (0..2)
+        .flat_map(|depth| {
+            (-3..3).map(move |across| match u {
+                (1, 0) => (x0 - 1 - depth, my + across),
+                (-1, 0) => (x1 + 1 + depth, my + across),
+                (0, 1) => (mx + across, y0 - 1 - depth),
+                _ => (mx + across, y1 + 1 + depth),
+            })
+        })
+        .collect();
+    for (s, k) in of_kind(m, FeatureKind::LavaStream).into_iter().enumerate() {
+        let mut d = m.clone();
+        for c in owned(&d, k) {
+            let i = at(&d, c).unwrap();
+            d.feature_grid[i] = 0;
         }
+        for &c in &strip {
+            let i = at(&d, c).expect("the strip behind the cone lies on the map");
+            d.tiles[i] = T_LOW;
+            d.terrain[i] = LAVA;
+            d.feature_grid[i] = u8::try_from(k + 1).unwrap();
+        }
+        let problems = stream_problems(seed, &d);
+        assert!(
+            problems
+                .iter()
+                .any(|p| p.contains(&format!("stream {s} ends at")) && p.contains("not in front")),
+            "seed {seed}: stream {s} moved behind the cone, problems {problems:?}"
+        );
     }
 }
 
