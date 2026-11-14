@@ -30,6 +30,9 @@ namespace Roguehalla.Client
         /// <summary>Chunks baked so far (each at most once).</summary>
         public int BakedChunks { get; private set; }
         public int CasterCount { get; private set; }
+        /// <summary>Stub (P-UNITY-DRESS-2): the strength each prop caster was added with, in scatter order; props only, never walls.</summary>
+        public List<float> PropStrengths { get { return _propStrengths; } }
+        readonly List<float> _propStrengths = new List<float>();
 
         /// <summary>Shadow offset in tile space (x right, y down) for a caster of this height and length factor.</summary>
         public static Vector2 TileOffset(float height, float length)
@@ -81,7 +84,8 @@ namespace Roguehalla.Client
                 float height = art.Height * pl.Scale; if (height < MinPropHeight) continue;
                 float len = LengthAt(field, pl.X, pl.Y); if (len <= 0f) continue;
                 float hw = Mathf.Max(.07f, art.Width * pl.Scale * (art.Tall ? .16f : .30f)), hd = .09f;
-                Add(pl.X - hw, pl.Y - hd, pl.X + hw, pl.Y + hd, TileOffset(height * .85f, len), art.Tall ? .9f : .75f);
+                float strength = art.Tall ? .9f : .75f; _propStrengths.Add(strength);
+                Add(pl.X - hw, pl.Y - hd, pl.X + hw, pl.Y + hd, TileOffset(height * .85f, len), strength);
             }
         }
 
