@@ -67,18 +67,17 @@ namespace Roguehalla.Client
                 : new Vector4(-999f, -999f, -999f, -999f));
             var stone = TempleStyle.Stone.linear; Material.SetVector("_TempleStone", new Vector4(stone.r, stone.g, stone.b, 1f));
             Material.SetVectorArray("_TempleBraz", lights);
-            var pier = new Color32[w * h];
-            if (hasTemple) for (int ty = 0; ty < h; ty++) for (int tx = 0; tx < w; tx++) if (temple.TryBlock(tx, ty, out _, out _)) pier[ty * w + tx] = new Color32(255, 0, 0, 255);
+            // Pier texture: r = 1 on a pier tile; g, b, a = the ground bands' soft gain (byte 128 neutral) for that tile. It shares this plane and its point sampler: no extra texture.
+            var vin0 = BakeVariantInputs(map); var pier = new Color32[w * h];
+            for (int i = 0; i < pier.Length; i++) pier[i] = new Color32(0, vin0.Soft[i].r, vin0.Soft[i].g, vin0.Soft[i].b);
+            if (hasTemple) for (int ty = 0; ty < h; ty++) for (int tx = 0; tx < w; tx++) if (temple.TryBlock(tx, ty, out _, out _)) { var pc = pier[ty * w + tx]; pc.r = 255; pier[ty * w + tx] = pc; }
             var pierTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Temple piers", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
             pierTex.SetPixelData(pier, 0); pierTex.Apply(false, true); _owned.Add(pierTex);
             Material.SetTexture("_TempleTex", pierTex);
-            // Server ground variants, one texture twice as wide as the map: texel 2x of a row is tile x's crisp texel (rgb gain, a strength; the Sentenced scatter and every Tile-edge variant),
-            // texel 2x + 1 is its soft gain (the bands; the shader blends four of them by hand, so the plane needs no sampler of its own and no extra texture). Both read through the point sampler.
-            var vin = BakeVariantInputs(map);
-            var variantTex = new Texture2D(w * 2, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
-            var variantPx = new Color32[w * 2 * h];
-            for (int i = 0; i < w * h; i++) { variantPx[i * 2] = vin.Tile[i]; variantPx[i * 2 + 1] = vin.Soft[i]; }
-            variantTex.SetPixelData(variantPx, 0); variantTex.Apply(false, true); _owned.Add(variantTex);
+            // Server ground variants: the crisp plane, one texel per tile (rgb gain, a strength), point sampled. The bands' soft gain rides in the pier texture's g, b, a (see above).
+            var vin = vin0;
+            var variantTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true) { name = "Ground variants", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Point };
+            variantTex.SetPixelData(vin.Tile, 0); variantTex.Apply(false, true); _owned.Add(variantTex);
             Material.SetTexture("_VariantTex", variantTex);
             // On only when some tile carries a tint (a plane of zeros costs no extra sample); the soft path (the bands' blend and warp) only when a band exists.
             bool anyVariant = vin.SoftActive; for (int i = 0; i < vin.Tile.Length && !anyVariant; i++) if (vin.Tile[i].a != 0) anyVariant = true;
@@ -320,7 +319,8 @@ namespace Roguehalla.Client
             var c = Tile[y * Width + x]; float a = c.a / 255f;
             var t = new Vector3(1f + a * (c.r / 128f - 1f), 1f + a * (c.g / 128f - 1f), 1f + a * (c.b / 128f - 1f));
             var s = SoftGainAt(tx, ty);
-            return new Vector3(t.x * s.x, t.y * s.y, t.z * s.z);
+            const float Cap = 255f / 128f;   // one baked texel never exceeded byte 255
+            return new Vector3(Mathf.Min(t.x * s.x, Cap), Mathf.Min(t.y * s.y, Cap), Mathf.Min(t.z * s.z, Cap));
         }
     }
 }
