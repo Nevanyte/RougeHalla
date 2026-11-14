@@ -75,6 +75,11 @@ namespace Roguehalla.Client
             _roofMask = mask; _coverSet = true;
         }
 
+        /// <summary>P-UNITY-BOG-TREE-2 STUB: an art may hand over the tiles on which an actor fades the roof when they are wider than the cover
+        /// (a crown lifted off the ground overlaps tiles north of its cover). Afterwards <see cref="Fades"/> reads this set; RoofCovers stays the
+        /// cover. Tiles outside the footprint are ignored. Without a call, the fade reads the cover (or the interior) as before.</summary>
+        public void SetFadeTiles(IEnumerable<MapTile> tiles) { }
+
         /// <summary>Whether an actor on tile (x, y) fades the roof: the cover set when the art gave one, else the interior.</summary>
         internal bool Fades(int x, int y)
         {

@@ -22,6 +22,9 @@ namespace Roguehalla.Client
     public static class BogTreeLandmark
     {
         public const string TrunkName = "Bog tree trunk", StumpName = "Bog tree stump";
+        /// <summary>P-UNITY-BOG-TREE-2: the crown's sprite object (one SpriteRenderer, also a roof renderer). The oracle finds the crown by this name; a
+        /// ground-shadow or other roof piece must use another name.</summary>
+        public const string CrownName = "Bog tree canopy";
         const int Ppt = 16;                                       // texture pixels per tile
         const float Sq = ArenaView.GroundSquash;
         const float RootH = .72f, BoleH = 1.75f;                   // world units; RootH clears the wall blocks (face .67)
@@ -401,8 +404,8 @@ namespace Roguehalla.Client
                     px[j * W + i] = m;
                 }
             }
-            var tex = NewTexture(lm, W, H, "Bog tree canopy"); tex.SetPixels32(px); tex.Apply(false, false);
-            var sr = NewSprite(lm, lm.Root.transform, tex, "Bog tree canopy", new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, CanopyPpt);
+            var tex = NewTexture(lm, W, H, CrownName); tex.SetPixels32(px); tex.Apply(false, false);
+            var sr = NewSprite(lm, lm.Root.transform, tex, CrownName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, CanopyPpt);
             lm.AddRoofRenderer(sr);
         }
 
