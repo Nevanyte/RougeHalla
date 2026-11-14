@@ -45,8 +45,9 @@ None.
 `.claude/hooks/session-env.sh` (registered nowhere: see the hand-off), `docs/agent/LANES.md`, this brief.
 
 ## 5. Exclusive write scope
-`Cargo.toml` (the two profile tables); `.claude/agents/*.md`; `.claude/settings.json` (two hook entries);
-`.claude/hooks/{guard-kill.sh, session-env.sh}`; `CLAUDE.md`; `scripts/gate.sh`; `scripts/gate.test.sh`;
+`Cargo.toml` (the two profile tables); `.claude/agents/*.md`; `.claude/hooks/session-env.sh` (registered nowhere;
+`.claude/settings.json` is not touched: the owner's checkout carries a local change to it); `CLAUDE.md`;
+`scripts/gate.sh`; `scripts/gate.test.sh`;
 `docs/agent/{README.md, LANES.md}`; `crates/rh-mapdress/tests/{anchor.rs, marsh.rs, sentenced_rings.rs}` (one ignored
 test each); this brief and the hand-off.
 
@@ -63,8 +64,9 @@ results: the full gate on this branch is the proof); the three golden constants 
 - `scripts/gate.sh --oracle-check` on a real packet branch passes and names its red target; on a branch whose
   `oracle:` commit touches a source file it fails in the path checks.
 - Each `print_goldens` prints exactly the constants in its file.
-- The hooks: `guard-kill.sh` exits 2 on `pkill`, `killall`, `pgrep … | xargs kill` and `kill $(pgrep …)`, and 0 on
-  `kill <pid>` and on commands that only mention the words; `session-env.sh` writes a PATH line that finds `cargo`.
+- `session-env.sh`, run by hand with `CLAUDE_ENV_FILE` set, writes a PATH line that finds `cargo`. (The kill guard is
+  the coordinator's `no-pattern-kill.sh`, with its own test, `bash .claude/hooks/no-pattern-kill.test.sh`.)
+- `git diff origin/feature/unity-rework -- .claude/settings.json` prints nothing.
 - `scripts/gate.sh --allow-protected` (full) passes.
 
 ## 9. Validation commands

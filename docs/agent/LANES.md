@@ -33,8 +33,9 @@ writer of the integration branch and of the shared records.
 
 ## Handing a packet over
 
-1. The branch is green on `scripts/gate.sh --quick --oracle packet/<ID>` (a lane may run the full gate when it has the
-   machine) and reviewed `LAND` by the lane's reviewer.
+1. The branch is green on `scripts/gate.sh --quick --oracle packet/<ID>` and reviewed `LAND` by the lane's reviewer.
+   The gate that counts for the merge is the coordinator's full gate on the merged tree; a full gate a lane runs when
+   it has the machine is the lane's own evidence, reported in its hand-off.
    The gate result, the review and what the review carries forward are written into
    `docs/coordination/HANDOFF_<ID>_<date>.md` and committed on the agent branch.
 2. Name `packet/<ID>` and `agent/<model>/<ID>` in the message. Sessions share one repository, so the coordinator merges
@@ -42,7 +43,8 @@ writer of the integration branch and of the shared records.
 3. Send the coordinator one message. Its first line says which packet is ready. Then: BRANCH and ORACLE with short
    shas; BASE, and the branch it is stacked on if that one is unmerged; in one sentence what changes for a player, on
    the wire or in a pinned value; which pinned values the coordinator re-takes on the merged tree; the path of the hand-off. The hand-off carries the rest.
-4. The packet is handed over when the coordinator reports it merged. Until then the lane stacks its next packet on
+4. The packet is handed over when the coordinator reports it merged with the merge gate green. Until then the lane
+   stacks its next packet on
    its own branch.
 
 ## Stacked packets

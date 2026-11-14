@@ -37,8 +37,9 @@ RISKS:           `.claude/settings.json` has an uncommitted local change in the 
   each even optimised (`bots::temporal_percept::memory::source_tests`, `mapgen::{pipeline, landmarks::recipes,
   style_*, repair, certify}::tests`, `systems::planning::native_tests`). Why they are slow is not established.
 - **3, `--oracle-check`.** `bash scripts/gate.test.sh`: 12 passed, 0 failed (three new cases). On
-  `packet/P-MAPGEN-GUARANTEES-1` (`--base agent/opus/P-MAPGEN-LANDMARK-FRAME-1`): `GATE PASS (oracle-check) — red on the
-  stub, in oracle files only: -p rh-sim --test mapgen_guarantees`, with the assertion lines printed. On the session's
+  `packet/P-MAPGEN-GUARANTEES-1` (`--base agent/opus/P-MAPGEN-LANDMARK-FRAME-1`): `GATE ORACLE-CHECK PASS — red
+  on the stub, in oracle files only: -p rh-sim --test mapgen_guarantees` (as the mode prints it since amendment 2; at
+  the time of this run the line still began `GATE PASS (oracle-check)`), with the assertion lines printed. On the session's
   earlier mislabelled commit `1a6679895`: `GATE FAIL: source files in a commit that is not 'stub:'`, naming
   `signature/mod.rs`, in the path checks. On `packet/P-MAPGEN-SIG-SCALE-4` the commit rule passes.
 - **5, the kill guard.** Exit 2 on `pkill -f …`, `… && killall …`, `pgrep … | xargs kill -9`, `kill $(pgrep …)`, and
