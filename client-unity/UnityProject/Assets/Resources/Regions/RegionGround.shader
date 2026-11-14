@@ -61,12 +61,15 @@ Shader "Roguehalla/RegionGround"
 
             TEXTURE2D_ARRAY(_GroundTex); SAMPLER(sampler_GroundTex);
             TEXTURE2D_ARRAY(_GroundNrm); SAMPLER(sampler_GroundNrm);   // rg = baked surface tilt (tile space), b = gloss; same layers and mapping as _GroundTex
-            TEXTURE2D(_RegA); SAMPLER(sampler_RegA);
-            TEXTURE2D(_RegB); SAMPLER(sampler_RegB);
-            TEXTURE2D(_TerA); SAMPLER(sampler_TerA);
-            TEXTURE2D(_TerB); SAMPLER(sampler_TerB);
-            TEXTURE2D(_PlgTex); SAMPLER(sampler_PlgTex);   // r shallow water, g grass, b water depth (Plague only)
-            TEXTURE2D(_VariantTex); SAMPLER(sampler_VariantTex);   // rgb tint, a strength (0 = base ground), point sampled, 1 texel per tile
+            // Sampler states shared to stay under the 16 sampler limit of the Web target (GLES3): the state of the texture a sampler is named after governs.
+            // sampler_RhRegA (RhSun.hlsl) = bilinear, clamp, no mips: "Region weights A", made by RegionGround.Tex in RegionGround.cs. _RegA/_RegB/_TerA/_TerB/_PlgTex are all made by that same Tex (bilinear, clamp).
+            // sampler_TempleTex = point, clamp: "Temple piers" and "Ground variants" are both created point/clamp in RegionGround.cs.
+            TEXTURE2D(_RegA);
+            TEXTURE2D(_RegB);
+            TEXTURE2D(_TerA);
+            TEXTURE2D(_TerB);
+            TEXTURE2D(_PlgTex);   // r shallow water, g grass, b water depth (Plague only)
+            TEXTURE2D(_VariantTex);   // rgb tint, a strength (0 = base ground), point sampled, 1 texel per tile
             TEXTURE2D(_TempleTex); SAMPLER(sampler_TempleTex);   // r = 1 on tiles of a temple pier block (point sampled, 1 texel per tile)
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -519,9 +522,9 @@ Shader "Roguehalla/RegionGround"
                 [branch] if (_RhSwitch.w > 0.5)
                 {
                     float2 lu = t / _Map.xy; float2 o1 = float2(1.4, 0) / _Map.xy, o2 = float2(0, 1.4) / _Map.xy;
-                    float prox = SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu + o1, 0).r
-                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu - o1, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu + o2, 0).r
-                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, lu - o2, 0).r;
+                    float prox = SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, lu, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, lu + o1, 0).r
+                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, lu - o1, 0).r + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, lu + o2, 0).r
+                               + SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, lu - o2, 0).r;
                     float amp = smoothstep(0.08, 0.7, prox * 0.2);
                     float tm = _Time.y;
                     t += amp * 0.04 * float2(sin(t.y * 7.0 + tm * 3.1) + sin(t.x * 5.0 - tm * 2.3), cos(t.x * 6.0 + tm * 2.7) + sin(t.y * 4.0 + tm * 1.9));
@@ -529,8 +532,8 @@ Shader "Roguehalla/RegionGround"
                 // Ragged, noise-warped region borders on top of the blurred weight textures.
                 float2 warp = (float2(VNoise(t * 0.55 + 7.3), VNoise(t * 0.55 + 91.7)) - 0.5) * 1.6;
                 float2 ruv = (t + warp) / _Map.xy;
-                half4 wa = SAMPLE_TEXTURE2D(_RegA, sampler_RegA, ruv);
-                half4 wb = SAMPLE_TEXTURE2D(_RegB, sampler_RegB, ruv);
+                half4 wa = SAMPLE_TEXTURE2D(_RegA, sampler_RhRegA, ruv);
+                half4 wb = SAMPLE_TEXTURE2D(_RegB, sampler_RhRegA, ruv);
                 float wgt[6] = { wa.r, wa.g, wa.b, wa.a, wb.r, wb.g };
                 float tot = 0;
                 [unroll] for (int k = 0; k < 6; k++) { wgt[k] = smoothstep(0.10, 0.90, wgt[k]); tot += wgt[k]; }
@@ -544,7 +547,7 @@ Shader "Roguehalla/RegionGround"
                     [branch] if (wgt[k2] > 0.004)
                     {
                         Ground g;
-                        if (k2 == 2) g = ShadePlague(t, macro, SAMPLE_TEXTURE2D(_PlgTex, sampler_PlgTex, t / _Map.xy).rgb);
+                        if (k2 == 2) g = ShadePlague(t, macro, SAMPLE_TEXTURE2D(_PlgTex, sampler_RhRegA, t / _Map.xy).rgb);
                         else g = ShadeRegion(k2 + 1, k2, t, macro, pocketN);
                         if (k2 == 5) g.col = ColiseumSand(t, g.col, VNoise(t * 3.0));
                         float wk = wgt[k2] / tot;
@@ -562,7 +565,7 @@ Shader "Roguehalla/RegionGround"
                 [branch] if (_VariantOn > 0.5)
                 {
                     float2 vuv = (floor(t + warp * 0.35) + 0.5) / _Map.xy;
-                    half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_VariantTex, vuv, 0);
+                    half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_TempleTex, vuv, 0);
                     col = lerp(col, vt.rgb, vt.a);                  // raw bytes, the same convention as the palette colours
                 }
 
@@ -588,8 +591,8 @@ Shader "Roguehalla/RegionGround"
 
                 // Terrain surfaces on top: organic edges from a noise-offset coverage threshold.
                 float2 tuv = t / _Map.xy;
-                half4 ta = SAMPLE_TEXTURE2D(_TerA, sampler_TerA, tuv);
-                half4 tb = SAMPLE_TEXTURE2D(_TerB, sampler_TerB, tuv);
+                half4 ta = SAMPLE_TEXTURE2D(_TerA, sampler_RhRegA, tuv);
+                half4 tb = SAMPLE_TEXTURE2D(_TerB, sampler_RhRegA, tuv);
                 float edgeNoise = (Fbm(t * 1.7 + 3.1) - 0.5) * 0.30;
                 float cov[8] = { 0, ta.r, 0, tb.g, ta.a, ta.b, ta.g, tb.r };   // kind id -> coverage (2 fence has no ground art)
                 float tmax = max(max(ta.r, ta.g), max(max(ta.b, ta.a), max(tb.r, tb.g)));
@@ -704,7 +707,7 @@ Shader "Roguehalla/RegionGround"
                 [branch] if (wgt[0] / tot > 0.05)
                 {
                     float lp = 0;
-                    [unroll] for (int q = 0; q < 4; q++) lp += SAMPLE_TEXTURE2D_LOD(_TerA, sampler_TerA, tuv + float2(q < 2 ? (q == 0 ? 2.6 : -2.6) : 0.0, q >= 2 ? (q == 2 ? 2.6 : -2.6) : 0.0) / _Map.xy, 0).r;
+                    [unroll] for (int q = 0; q < 4; q++) lp += SAMPLE_TEXTURE2D_LOD(_TerA, sampler_RhRegA, tuv + float2(q < 2 ? (q == 0 ? 2.6 : -2.6) : 0.0, q >= 2 ? (q == 2 ? 2.6 : -2.6) : 0.0) / _Map.xy, 0).r;
                     lp = lp * 0.25 + ta.r * 0.5;
                     float lg = smoothstep(0.03, 0.55, lp) * (1.0 - smoothstep(0.4, 0.5, ta.r));
                     emis += _TerGlow[1].rgb * lg * lg * 0.16 * (0.85 + 0.15 * sin(_Time.y * 1.3 + t.x * 0.8));
