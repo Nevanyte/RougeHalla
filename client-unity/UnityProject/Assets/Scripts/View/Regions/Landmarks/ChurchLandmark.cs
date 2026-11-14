@@ -49,6 +49,10 @@ namespace Roguehalla.Client
             if (groups.Count == 0) return;
             var building = groups[0];
             foreach (var g in groups) if (g.Tiles.Count > building.Tiles.Count) building = g;
+            var cover = new List<Roguehalla.Net.Protocol.MapTile>();                                            // the roof's cover: the building's interior, walls and pillars (no headstone, gate or yard)
+            for (int y = building.MinY; y <= building.MaxY; y++) for (int x = building.MinX; x <= building.MaxX; x++)
+                if (lm.IsWall(x, y) || lm.IsInterior(x, y)) cover.Add(new Roguehalla.Net.Protocol.MapTile((ushort)x, (ushort)y));
+            lm.SetCover(cover);
             var door = DoorTiles(lm, building);
             Box notch = default; bool horizontalRun = true, outwardNorthOrWest = false;
             if (door.Count > 0) notch = DoorNotch(building, door, out horizontalRun, out outwardNorthOrWest);

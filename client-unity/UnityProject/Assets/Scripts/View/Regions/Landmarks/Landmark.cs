@@ -44,7 +44,7 @@ namespace Roguehalla.Client
         /// <summary>The material sprites of this landmark share (sun-lit like the region props).</summary>
         public Material Material { get; private set; }
 
-        bool[] _wall, _interior, _roofMask;
+        bool[] _wall, _low, _interior, _roofMask; byte[] _terrain; bool _coverSet;
         readonly List<SpriteRenderer> _roof = new List<SpriteRenderer>();
         SpriteRenderer[] _roofArray = new SpriteRenderer[0];
         readonly List<Object> _owned = new List<Object>();
@@ -58,6 +58,26 @@ namespace Roguehalla.Client
         /// <summary>Whether the roof layer covers tile (x, y): every interior tile and the landmark's own wall tiles (the rock the roof
         /// joins); false outside the footprint and on the mouth.</summary>
         public bool RoofCovers(int x, int y) { return Local(x, y, out int i) && _roofMask[i]; }
+
+        /// <summary>True for a Low tile (collision class low: walkers cannot cross, shots can) inside the footprint; false elsewhere.</summary>
+        public bool IsLow(int x, int y) { return Local(x, y, out int i) && _low[i]; }
+        /// <summary>The delivered terrain code (TerrainKind as a byte) of a footprint tile; 0 outside the footprint and when the map has no terrain plane.</summary>
+        public byte Terrain(int x, int y) { return Local(x, y, out int i) ? _terrain[i] : (byte)0; }
+        /// <summary>An art hands over the tiles under its roof or canopy. Afterwards RoofCovers is true exactly for those tiles (tiles outside the
+        /// footprint are ignored) and the fade reads them instead of the interior; an empty set means no cover (the roof never fades).
+        /// Replaces the default mask; call it while building.</summary>
+        public void SetCover(IEnumerable<MapTile> tiles)
+        {
+            var mask = new bool[FootW * FootH];
+            if (tiles != null) foreach (var t in tiles) if (Local(t.X, t.Y, out int i)) mask[i] = true;
+            _roofMask = mask; _coverSet = true;
+        }
+
+        /// <summary>Whether an actor on tile (x, y) fades the roof: the cover set when the art gave one, else the interior.</summary>
+        internal bool Fades(int x, int y)
+        {
+            return Local(x, y, out int i) && (_coverSet ? _roofMask[i] : _interior[i]);
+        }
 
         bool Local(int x, int y, out int i)
         {
@@ -95,10 +115,12 @@ namespace Roguehalla.Client
                 RoofOrder = 2000 + 16 * (f.Y + f.H), ArchTiles = anchor.Entrance,
                 FrontVector = new Vector2(Mathf.Cos(anchor.Front * Mathf.PI / 8f), Mathf.Sin(anchor.Front * Mathf.PI / 8f)),
             };
-            int n = f.W * f.H; lm._wall = new bool[n]; lm._roofMask = new bool[n];
+            int n = f.W * f.H; lm._wall = new bool[n]; lm._low = new bool[n]; lm._terrain = new byte[n]; lm._roofMask = new bool[n];
             for (int y = 0; y < f.H; y++) for (int x = 0; x < f.W; x++)
             {
                 int i = y * f.W + x, m = (f.Y + y) * map.W + f.X + x;
+                if (map.Terrain != null) lm._terrain[i] = map.Terrain[m];
+                if (map.Tiles[m] == MapBlob.Low) lm._low[i] = true;
                 if (map.Tiles[m] == MapBlob.Wall) { lm._wall[i] = true; lm.WallCount++; }
                 else if (map.Tiles[m] == MapBlob.Floor && map.Terrain != null && map.Terrain[m] == (byte)TerrainKind.Ice) lm.IceCount++;
             }

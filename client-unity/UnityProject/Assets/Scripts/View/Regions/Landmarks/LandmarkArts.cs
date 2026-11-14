@@ -14,8 +14,17 @@ namespace Roguehalla.Client
         /// <summary>True for the five codes the wire carries (MapBlob.AnchorKind*).</summary>
         public static bool IsKnownKind(byte kind) { return kind >= MapBlob.AnchorKindVolcano && kind <= MapBlob.AnchorKindHall; }
 
+        static readonly System.Collections.Generic.Dictionary<byte, LandmarkArtBuilder> Overrides = new System.Collections.Generic.Dictionary<byte, LandmarkArtBuilder>();
+
+        /// <summary>For tests only (SEAMS-1): registers <paramref name="builder"/> for <paramref name="kind"/>, taking precedence over the production switch
+        /// (also for a kind that has no art). Undo with <see cref="ClearOverrides"/>.</summary>
+        public static void SetOverride(byte kind, LandmarkArtBuilder builder) { Overrides[kind] = builder; }
+        /// <summary>For tests only: removes every override.</summary>
+        public static void ClearOverrides() { Overrides.Clear(); }
+
         public static bool TryGet(byte kind, out LandmarkArtBuilder builder)
         {
+            if (Overrides.TryGetValue(kind, out builder)) return true;
             switch (kind)
             {
                 case MapBlob.AnchorKindCave: builder = CaveLandmark.Build; return true;

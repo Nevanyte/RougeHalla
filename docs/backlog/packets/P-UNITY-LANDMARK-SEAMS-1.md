@@ -73,3 +73,60 @@ Sonnet. Small, but it edits the framework three arts stand on: the existing land
 - An EditMode run modifies `NunitoRegular.asset`: never commit it.
 
 ## Notes from previous attempts
+
+## Established facts (oracle author, 2026-11-13)
+
+Contract names (written as stubs in the `stub:` commit; the implementer replaces the bodies):
+- `Landmark.IsLow(int x, int y)` (bool): true for a Low tile (`MapBlob.Low`) inside the footprint; false elsewhere.
+- `Landmark.Terrain(int x, int y)` (byte): the delivered `MapBlob.Terrain` code (`TerrainKind` as byte) inside the footprint;
+  0 outside it and when the map has no terrain plane.
+- `Landmark.SetCover(IEnumerable<MapTile> tiles)`: the art's own cover set. After it, `RoofCovers(x, y)` is true exactly for
+  those tiles (those inside the footprint) and the fade (`LandmarkView.NoteActor`) fades when an actor stands on one, interior
+  or not. Never called: interior plus wall tiles, and the fade reads the interior, as today (cave unchanged). Calling it
+  replaces the default mask. The church calls it with its building's interior, walls and pillars (no headstone, gate or yard).
+- `LandmarkArts.SetOverride(byte kind, LandmarkArtBuilder builder)` / `LandmarkArts.ClearOverrides()`: the fault-injection and
+  test registration seam. `TryGet` consults the overrides first (already written in the stub; `LandmarkArts.cs` is not in the
+  implementer's scope). The assemblies have no `InternalsVisibleTo`, so the seam is public and documented test-only.
+- `VolcanoArt.IsLava(int x, int y)` (bool): what the art treats as lava, false outside the footprint. The stub exposes today's
+  flood-fill result (`Grid.Lava`), so the tests are red on assertions. The implementer keeps the accessor and feeds it from
+  `Landmark.IsLow(x, y) && Landmark.Terrain(x, y) == (byte)TerrainKind.Lava`. This accessor plus the existing `VolcanoArt.Tier`
+  are how the cut-off-lava and floor-beside-channel cases are pinned. The `Set(...)` signature of `VolcanoArt` gained a `lava`
+  parameter in the stub.
+
+How the cases are pinned:
+- Cut-off lava: the drawing gets a Rim-tier wall tile T (depth over 0.8 of the largest) and a neighbour K of it, walled in on all
+  four sides, turned into Low/Lava. Today K is unseeded by the flood fill, counts as open, so T's depth is 1 and its tier is Foot;
+  with the fix K is lava, T stays Rim. Asserted via `VolcanoArt.IsLava(K)`, `Tier(K) == -1`, `Tier(T) == Rim`, and
+  `Landmark.IsLow/Terrain` at K. Eight orientations.
+- Floor beside a channel: a wall tile west of the channel tile (row 25, column 7 of the drawing) becomes plain floor; the flood
+  fill takes it for lava today; `VolcanoArt.IsLava` there must be false and the art's lava count still 160.
+- Fault: `SetOverride(Church, ...)` registers a builder that registers a texture with `Own`, parents a child under `lm.Root`,
+  then throws; `SetOverride(Hall, ...)` is the healthy second landmark (one roof renderer). Both orders are tested. Expected log:
+  `LogAssert.Expect(Warning, /LandmarkView: art for kind 2 failed.*boom from the art/)` (regex with the exception message), exactly
+  once. Also asserted: Count 1, one child under the map root, nothing named "Landmark kind 2", the stray child and the owned
+  texture destroyed, `NoteActor` and `Tick` do not throw. The overrides are cleared in a `[TearDown]`.
+- Cover: kind BogTree is overridden with a builder that calls `SetCover` with five tiles (none interior) and adds one roof
+  renderer; on open ground (no interior).
+
+Not pinned (the brief is silent): two failing landmarks of the same kind in one build (one warning per kind per build, like the
+unknown-kind warning, is the natural reading); `SetCover` with an empty set; cover tiles outside the footprint; actors on a wall
+tile of a church (cover) fading the roof.
+
+## Oracle files (read-only for implementers)
+- `client-unity/UnityProject/Assets/Tests/Editor/LandmarkSeamsEditModeTests.cs`
+- `client-unity/UnityProject/Assets/Tests/Editor/LandmarkSeamsEditModeTests.cs.meta`
+
+Stub commit (the implementer edits these): `Landmark.cs`, `LandmarkArts.cs` (keep as is), `VolcanoLandmark.cs`.
+
+## Baseline (EditMode on the oracle commit: 1120 run, 1069 pass, 51 red, all in `LandmarkSeamsEditModeTests`)
+- 2 red `ABuilderThatThrows...` (true/false): the exception escapes `Build`; the test catches it and fails on "Build must catch".
+- 1 red `ACoverSetHandedOver...`: `RoofCovers(14, 14)` expected true.
+- 8 red `TheLandmarkReportsExactlyTheLavaTiles...`: `IsLow` false at a lava tile.
+- 8 red `ALavaTileCutOff...IsLowWithTerrainLavaForTheFramework`: `IsLow(K)` false.
+- 8 red `ALavaTileCutOff...IsStillLavaForTheArt`: `IsLava(K)` false (flood fill misses it).
+- 8 red `TheWallBesideACutOffLavaTileKeepsItsHeightTier`: tier 0 (Foot), expected 2 (Rim).
+- 8 red `AFloorTileBesideAChannelIsNotLava`: the flood fill takes the floor tile for lava.
+- 8 red `TheChurchsRoofCovers...`: a headstone tile is covered.
+- Green guards: `TheVolcanoArtTreatsExactlyTheLowLavaTilesAsLava...` (8), `TheCavesCoverIsStillItsInterior...` (1), every existing test.
+- `dotnet test client-unity/RoguehallaNet.Tests`: 1969 pass.
+- Not a compile error anywhere; the one compile slip during authoring was fixed before the baseline.
