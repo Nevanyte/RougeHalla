@@ -68,3 +68,28 @@ RISKS:           none known; every option-on map moves (expected: rh-mapdress SI
  docs/adr/0028-signature-landmarks.md               |  42 +++--
  5 files changed, 239 insertions(+), 39 deletions(-)
 ```
+
+## Review and fix (land-generation session, 2026-11-13)
+
+**reviewer-opus on `d873f4d0f`: LAND WITH NOTES**, nothing blocking and nothing REAL; two MINOR documentation notes.
+- Note 1 (ADR 0028 decision 4 omitted the legacy landmark protection from the refusal list): applied in `7baeb8a17` on
+  `agent/fable/P-MAPGEN-SIG-SCALE-3-fix`, stacked on this branch, documentation only. **Merge the fix branch.**
+- Note 2 is the coordinator's file: `crates/rh-protocol/src/map.rs:118`, the `MAX_ANCHOR_ENTRANCE` comment says
+  "today 3 ... the church's main gate is 5"; the tree now sends 6 (the cap of 16 and the C# mirror are unchanged; a
+  comment only, no protocol change). Proposed, not edited here.
+
+What the review established (by reading unless marked): option off cannot move (the drawing is parsed once and
+nothing is drawn or written); the tree's one draw is on its own zone's copy of its stream and cannot reach the other
+landmarks; the writer matches the legend, refuses before writing anything, and the anchor is as agreed in every
+orientation; `Drawing::land` behaves exactly like `cave::Blueprint::land`; no downstream reader assumes the small
+tree; the three amended tests drop only what the drawing breaks. Run by the reviewer: `mapgen_signature_bog_tree`
+10 of 10, the lib's `mapgen::landmarks` tests 45 of 45, `bog.txt` byte-equal to the docs copy.
+
+Two things for other lanes, from the review:
+- `rh-mapdress`'s `plague-marsh-*` decoration rings now also form round the tree's own marsh (cosmetic; already true
+  of the old tree's bog bands). Worth telling the Unity art lane.
+- Recommended, not part of this packet: after P-MAPGEN-SIG-SCALE-2 lands and before SCALE-4 and HOLY-1, one refactor
+  packet that moves a shared grid reader and `land` into `signature/mod.rs` for the cave, the tree and the church.
+
+Not checked by the review: the cause of the three new `SpawnRatio` refusals; seeds beyond 32 (the implementer's
+report covers 1-64); whether later non-styler steps can put something on the tree's unwritten dry tiles.
