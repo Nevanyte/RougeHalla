@@ -101,7 +101,7 @@ fn warmed_observations_with_a_frost_wall_standing_allocate_no_blocks_for_any_vie
             )
         })
         .collect();
-    let mut look = |seats: &mut Vec<(ItemObserver, Observation, SightCache)>, i: usize| {
+    let look = |seats: &mut Vec<(ItemObserver, Observation, SightCache)>, i: usize| {
         let (observer, out, cache) = &mut seats[i];
         observer.observe_into(&sim, &[], out, Some(cache)).unwrap();
     };
