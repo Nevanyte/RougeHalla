@@ -571,11 +571,11 @@ Shader "Roguehalla/RegionGround"
                 // Server ground variants: a gain over the blended base ground. _VariantTex is the crisp plane, one texel per tile (rgb gain, a strength: the Sentenced scatter and every Tile-edge
                 // variant, whole tiles as ever). The decoration bands' SOFT gain rides in the g, b, a channels of _TempleTex (one texel per tile, 128 = neutral; r is the pier flag). It is blended by
                 // hand from the four nearest tile centres (GAINS, never codes), at a point warped by the same noise family as the terrain edge below (Fbm at t * 2.2 against its 1.7), so a
-                // band's outline wanders like the bog's beside it. The product is capped at 255/128, as one baked texel always was.
+                // band's outline wanders like the bog's beside it. The tile gain times the soft gain is capped at 255/128, as one baked texel always was.
                 [branch] if (_VariantOn > 0.5)
                 {
                     half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_TempleTex, (floor(t) + 0.5) / _Map.xy, 0);
-                    float3 vg = lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a);
+                    col *= lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a);
                     [branch] if (_VariantSoft > 0.5)
                     {
                         float2 ts = t + (float2(Fbm(t * RH_BAND_NOISE_SCALE + 3.1), Fbm(t * RH_BAND_NOISE_SCALE + 17.7)) - 0.5) * (2.0 * RH_BAND_WARP);
@@ -586,9 +586,9 @@ Shader "Roguehalla/RegionGround"
                         float3 s10 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(hi.x, lo.y), 0).gba;
                         float3 s01 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(lo.x, hi.y), 0).gba;
                         float3 s11 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(hi.x, hi.y), 0).gba;
-                        vg *= lerp(lerp(s00, s10, f.x), lerp(s01, s11, f.x), f.y) * (255.0 / 128.0);
+                        float3 sg = lerp(lerp(s00, s10, f.x), lerp(s01, s11, f.x), f.y) * (255.0 / 128.0);
+                        col *= min(sg, (255.0 / 128.0) / lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a));
                     }
-                    col *= min(vg, 255.0 / 128.0);
                 }
 
                 float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
