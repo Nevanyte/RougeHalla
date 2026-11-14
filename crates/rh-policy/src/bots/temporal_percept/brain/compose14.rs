@@ -273,8 +273,8 @@ pub(crate) struct Composer14 {
     winner: String,
     /// The seat's mob tracks (live seats only, [`Composer14::track_mobs`]).
     tracks: Option<MobTracks>,
-    /// Which Wish Frost has in this room (`MatchStart::frost_wish`, the Welcome's HUD term 23). P-FROST-WALL-BOTS-1.
-    #[allow(dead_code)] // STUB (P-FROST-WALL-BOTS-1): `wish_record` reads it.
+    /// Which Wish Frost has in this room (`MatchStart::frost_wish`, the Welcome's HUD term 23): `wish_record` builds
+    /// Frost's def from the row this room plays (`bots::wish::wish_for`). Kept across [`Composer14::reset`].
     frost_wish: rh_sim::FrostWish,
 }
 
@@ -874,7 +874,11 @@ impl Composer14 {
         // ---- extras, in the declared key order (wish, skills, chests, camps, effects, fields).
         let mut extras: Record = Vec::new();
         if features.wishes {
-            if let Some(wish) = me.wish.as_ref().and_then(|w| wish_record(w, me.effects)) {
+            if let Some(wish) = me
+                .wish
+                .as_ref()
+                .and_then(|w| wish_record(w, me.effects, self.frost_wish))
+            {
                 extras.push(("wish", wish));
             }
         }
@@ -1729,15 +1733,27 @@ fn own(record: Record) -> Vec<(String, BVal)> {
 }
 
 /// perception.ts:702-708 `wishView`: the delivered Wish slot as the weapon bar shows it. The source `def` is shared
-/// `ABILITIES[id]`; here it is built from the public catalog only (`bots::wish::WISHES` for what the cast policy reads,
-/// `rh_sim::abilities::definition` for the cooldown and the order flag), in the source's own key order. Members no Brain
+/// `ABILITIES[id]`; here it is built from the public catalog only (the row the room plays, `bots::wish::wish_for`: a
+/// `WISHES` row, or legacy's `frostWall` for Frost in a Wall room; `rh_sim::abilities::definition` for the cooldown and
+/// the order flag), in the source's own key order. Members no Brain
 /// reader consumes (blurb, faction, telegraph, icon, colour, shape, cancelledBy, the non-policy effects and effect
 /// durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
-fn wish_record(w: &rh_protocol::WireWishOwner, own_effects: u16) -> Option<BVal> {
+fn wish_record(
+    w: &rh_protocol::WireWishOwner,
+    own_effects: u16,
+    frost_wish: rh_sim::FrostWish,
+) -> Option<BVal> {
     use crate::bots::wish::{AiIntent, BlockedBy, PolicyEffect, TargetRule};
     let id = *rh_sim::status_runtime::AbilityId::ALL.get(usize::from(w.ability))?;
-    let row = crate::bots::wish::wish_by_id(id)?;
-    let sim = rh_sim::abilities::definition(id);
+    let row = crate::bots::wish::wish_for(id, frost_wish)?;
+    // The sim's own row for this room (`rh_sim::abilities::definition_for`, keyed on the same public setting).
+    let sim = if id == rh_sim::status_runtime::AbilityId::Freeze
+        && frost_wish == rh_sim::FrostWish::Wall
+    {
+        rh_sim::abilities::frost_wall_definition()
+    } else {
+        rh_sim::abilities::definition(id)
+    };
     let ai = row.ai.iter().map(|a| {
         BVal::text(match a {
             AiIntent::Escape => "escape",
@@ -2017,6 +2033,12 @@ impl SeatComposer14 {
                 composer
             },
         }
+    }
+
+    /// The room's Frost Wish (`MatchStart::frost_wish`), handed to the composer ([`Composer14::with_frost_wish`]).
+    pub(crate) fn with_frost_wish(mut self, frost_wish: rh_sim::FrostWish) -> Self {
+        self.composer = self.composer.with_frost_wish(frost_wish);
+        self
     }
 
     #[cfg(test)]

@@ -220,7 +220,7 @@ impl Policy for BrainBot {
         };
         brain.use_tracked_mob_ids();
         self.seated = Some(Seated {
-            composer: SeatComposer14::new(m.me, self.tier, setup),
+            composer: SeatComposer14::new(m.me, self.tier, setup).with_frost_wish(m.frost_wish),
             brain,
             budget: PathBudget::default(),
             refs: Refs::default(),

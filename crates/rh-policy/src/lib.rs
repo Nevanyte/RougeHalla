@@ -72,7 +72,9 @@ pub struct MatchStart {
     /// Milliseconds per simulation tick.
     pub tick_ms: f64,
     /// Which Wish Frost has in this room (`SimConfig::frost_wish`): the room-wide public fact every human client reads
-    /// from its Welcome (HUD term 23, `delivery::projection::wire_hud_for`). P-FROST-WALL-BOTS-1.
+    /// from its Welcome (HUD term 23, `delivery::projection::wire_hud_for`). With `Wall`, a Frost bot of either stack
+    /// plays legacy's Frost Wall policy row (`bots::wish::wish_for`; the Brain's composed def); with `Freeze` every
+    /// decision is today's. P-FROST-WALL-BOTS-1.
     pub frost_wish: rh_sim::FrostWish,
 }
 

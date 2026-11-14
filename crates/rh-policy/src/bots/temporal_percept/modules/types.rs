@@ -158,7 +158,8 @@ pub(crate) struct AbilityRank {
     pub(crate) hides_caster: bool,
     /// `do: "blink"` effect distances, in source effect order.
     pub(crate) blink: Option<(f64, f64)>,
-    /// A declared `do: "wall"` effect (legacy 78dd8bd4 Frost Wall). STUB (P-FROST-WALL-BOTS-1): the readers leave it false.
+    /// A declared `do: "wall"` effect (legacy 78dd8bd4 `wallOf`, Frost Wall): the cast policy drops it between the bot and
+    /// a chaser or a threat (`wish::source_core` `wall_between`).
     pub(crate) wall: bool,
     pub(crate) raw: MethodValue,
 }

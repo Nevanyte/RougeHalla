@@ -27,7 +27,7 @@ use super::{
     AiIntent, BlockedBy, CastChoice, FoeView, MeView, TargetRule, ThreatView, WishRules,
     EFFECT_CASTING, ENGAGE_BLINK_MIN_DISTANCE, ENGAGE_BLINK_STOP_SHORT, ENGAGE_RANGE_MARGIN,
     ESCAPE_GAIN, ESCAPE_HP_HIT, ESCAPE_HP_THREATENED, ESCAPE_THREAT_DISTANCE, PEEL_DISTANCE,
-    SUSTAIN_HP,
+    SUSTAIN_HP, WALL_PEEL_DISTANCE, WALL_PEEL_MIN, WALL_PEEL_SHARE,
 };
 use rh_sim::abilities::blink;
 use rh_sim::{TileMap, Vec2};
@@ -82,7 +82,8 @@ pub(crate) struct SourceRank {
     pub(crate) hides_caster: bool,
     /// The first `do: "blink"` effect's `(maxDist, minDist)`.
     pub(crate) blink: Option<(f64, f64)>,
-    /// The rank has a `do: "wall"` effect (legacy 78dd8bd4 `abilityPolicy.ts` `wallOf`). STUB: not read by the policy yet.
+    /// The rank has a `do: "wall"` effect (legacy 78dd8bd4 `abilityPolicy.ts` `wallOf`): `peel` and `escape` drop it
+    /// between the caster and the enemy ([`wall_between`]).
     pub(crate) wall: bool,
 }
 
@@ -152,10 +153,10 @@ pub(crate) fn decide_cast(
     let r = rank_of(def.ranks, rank)?;
     for intent in def.ai {
         let choice = match intent {
-            AiIntent::Escape => escape(r.targeting, r.blink, s),
+            AiIntent::Escape => escape(r.targeting, r.blink, r.wall, s),
             AiIntent::Sustain => sustain(r.targeting, s),
             AiIntent::Engage | AiIntent::Control => engage(r.targeting, r.blink, s),
-            AiIntent::Peel => peel(r.targeting, s),
+            AiIntent::Peel => peel(r.targeting, r.wall, s),
             AiIntent::Burst | AiIntent::Zone | AiIntent::Buff => None,
         };
         if choice.is_some() {
@@ -189,12 +190,41 @@ fn landing(s: &SourceCastSituation<'_>, to: Vec2, max_dist: f64, min_dist: f64) 
     )
 }
 
+/// Legacy 78dd8bd4 `wallBetween`: a wall between us and an enemy at `(tx, ty)`, `d` away, most of the way to it,
+/// inside the wall's range: `me + (t - me) * min(range, d * 0.7) / d`, a point with no unit id. Only a point rule,
+/// and only from `WALL_PEEL_MIN` to `WALL_PEEL_DISTANCE` inclusive. No line of sight, no map, no draw; the aim is
+/// not clamped to the rule's minimum range (the sim clamps it, as legacy's server does).
+fn wall_between(
+    rule: TargetRule,
+    s: &SourceCastSituation<'_>,
+    tx: f64,
+    ty: f64,
+    d: f64,
+) -> Option<CastChoice> {
+    let TargetRule::Point { range, .. } = rule else {
+        return None;
+    };
+    // Source `t.d < WALL_PEEL_MIN || t.d > WALL_PEEL_DISTANCE`: a NaN distance passes, as it does there.
+    if d < WALL_PEEL_MIN || d > WALL_PEEL_DISTANCE {
+        return None;
+    }
+    // `Math.min` would keep a NaN that `f64::min` drops, but the quotient by a NaN `d` is NaN either way.
+    let k = range.min(d * WALL_PEEL_SHARE) / d;
+    Some(CastChoice {
+        x: s.me.x + (tx - s.me.x) * k,
+        y: s.me.y + (ty - s.me.y) * k,
+        id: None,
+    })
+}
+
 /// Source `escape`: in trouble (low hp with a threat close, or low hp while being hit). A self cast goes as it
-/// is; a point cast (blink) goes away from the threat at the first heading that has a valid landing and gets
-/// no closer; a unit cast is not an escape.
+/// is; a wall goes between us and the threat (else the foe) at the measured distance; a point cast (blink) goes
+/// away from the threat at the first heading that has a valid landing and gets no closer; a unit cast is not an
+/// escape.
 fn escape(
     rule: TargetRule,
     blink: Option<(f64, f64)>,
+    wall: bool,
     s: &SourceCastSituation<'_>,
 ) -> Option<CastChoice> {
     let m = s.me;
@@ -218,6 +248,12 @@ fn escape(
         (None, Some(f)) => (f.x, f.y),
         (None, None) => return None,
     };
+    if wall {
+        // Source: `wallBetween(rule, s, { x, y, d: Math.hypot(from.x - me.x, from.y - me.y) })`: the distance is
+        // measured here (not the threat's `d`), and the wall never reaches the blink headings.
+        let d = s.hypot.hypot(fx - m.x, fy - m.y);
+        return wall_between(rule, s, fx, fy, d);
+    }
     let dx = m.x - fx;
     let dy = m.y - fy;
     let len = s.hypot.hypot(dx, dy);
@@ -310,10 +346,17 @@ fn engage(
     }
 }
 
-/// Source `peel`: a targetable enemy right on us and chasing; a unit cast only.
-fn peel(rule: TargetRule, s: &SourceCastSituation<'_>) -> Option<CastChoice> {
+/// Source `peel`: a targetable enemy chasing us. A wall goes between us and it (its own 56..=260 window, the
+/// threat's carried `d`, before the unit cap); otherwise a unit cast on an enemy right on us.
+fn peel(rule: TargetRule, wall: bool, s: &SourceCastSituation<'_>) -> Option<CastChoice> {
     let t = s.threat.as_ref()?;
-    if !t.chasing || t.d > PEEL_DISTANCE || t.targetable == Some(false) {
+    if !t.chasing || t.targetable == Some(false) {
+        return None;
+    }
+    if wall {
+        return wall_between(rule, s, t.x, t.y, t.d);
+    }
+    if t.d > PEEL_DISTANCE {
         return None;
     }
     if let TargetRule::Unit { range, .. } = rule {

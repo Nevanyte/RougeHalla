@@ -1246,6 +1246,8 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
     };
     let mut hides_caster = false;
     let mut blink = None;
+    // Legacy 78dd8bd4 `wallOf`: any `do: "wall"` effect.
+    let mut wall = false;
     if let Some(effects) = value.get("effects") {
         let BVal::Arr(rows) = effects else {
             // A declared guard rank whose effects member is not an array keeps the admitted guard shape; the complete
@@ -1255,7 +1257,7 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
                 targeting,
                 hides_caster,
                 blink,
-                wall: false,
+                wall,
                 raw,
             });
         };
@@ -1273,6 +1275,8 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
                 if to == Some("self") && status == Some("hidden") {
                     hides_caster = true;
                 }
+            } else if operation == "wall" {
+                wall = true;
             } else if operation == "blink" {
                 let max_dist = number(effect, "maxDist")?;
                 let min_dist = number(effect, "minDist")?;
@@ -1285,7 +1289,7 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
         targeting,
         hides_caster,
         blink,
-        wall: false,
+        wall,
         raw,
     })
 }
