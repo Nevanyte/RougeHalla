@@ -67,6 +67,24 @@ P-UNITY-DRESS-1 (merged), P-WIRE17-MAP-2 (merged). Independent of P-UNITY-LANDMA
   runs decodes and one more is refused (the second half is green today and is a guard).
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-DRESS-2` passes.
 
+## Oracle files (read-only for implementers)
+- `client-unity/UnityProject/Assets/Tests/Editor/DressedMap2EditModeTests.cs` (+ `.meta`)
+- `client-unity/RoguehallaNet.Tests/MapRunLimitTests.cs`
+
+Stub commit (the implementer replaces or edits it): `RegionShadows.cs` gains `RegionShadowMap.PropStrengths` (the strength
+each prop caster was added with; behaviour unchanged). The implementer keeps that accessor, as the test reads it.
+
+**Baseline** (on `packet/P-UNITY-DRESS-2` after the stub): EditMode 1063 tests, 1 red:
+`AShippedPropCastsAsItsRowSaysWhateverItsSprite` (assertion: tall sprite, flat row, expected .75, was .9); the other two
+tests of the file are guards, green today. RoguehallaNet.Tests 1972, 3 red, each on an assertion:
+`TheMapRunLimitIsSixPlanesOfTiles` (expected 6291456, was 5242880), `TheStaleDecodedBytesConstantIsGoneOrSixPlanes`
+(same numbers; passes if the constant is deleted), `MapBlobKeepsNoRunLimitOfItsOwn` (MapBlob's private `MaxPlaneRuns`
+exists; no const field of MapBlob whose name contains "Run" may remain). `sync-net.sh --check` clean.
+
+**Not pinned, on purpose:** the Plague half (outcome 2). See "Established facts" 2: its premise is wrong and the
+coordinator or owner must decide it. The run limit has no "at the limit decodes, one more refused" test: neither blob can
+exist (fact 4).
+
 ## 9. Validation commands
 - `export PATH="$HOME/.dotnet:$PATH"; dotnet test client-unity/RoguehallaNet.Tests`
 - `bash client-unity/UnityProject/Tools/editmode.sh`; then
@@ -86,3 +104,44 @@ Sonnet. Small; the Plague half changes what a dressed map looks like, so it is s
 - An EditMode run modifies `NunitoRegular.asset`: never commit it.
 
 ## Notes from previous attempts
+
+## Established facts (oracle-author, 2026-11-13; all on the branch at `coord/int-26`)
+
+1. **Shadows.** `RegionShadowMap.Collect` (`View/Atmosphere/RegionShadows.cs:67-87`): wall and low tiles are casters of
+   strength 1; then every `RegionProps.Scatter(map)` placement whose art exists (`RegionPropArt.TryGet`), with
+   `art.Height * pl.Scale >= .38` and a sunny position, is a caster: half-width `max(.07, art.Width*pl.Scale*(art.Tall ? .16 : .30))`,
+   strength `art.Tall ? .9 : .75`. Both the width and the strength read `art.Tall`; the drawing and fade path reads
+   `pl.Shipped ? (pl.Flags & 1) != 0 : art.Tall` (`RegionProps.cs:168`). The one shared test would be a static on
+   `RegionProps`, e.g. `IsTall(Placement pl, RegionPropSprite art)` returning exactly that expression, called at
+   `RegionProps.cs:168` and in `Collect` for the strength (and, the implementer decides, the width; the oracle pins strength only).
+   Fixture facts: `sent.deadtree` (kind 14) has a tall sprite, `fire.crystal` (kind 2) a low one
+   (`TheFixtureSpritesDisagreeWithTheirRows` guards that).
+2. **Plague: the brief's premise is wrong; the Plague half is NOT written.** The server's marsh is not terrain. Owner
+   decision 2026-11-12 (MIGRATION.md:432): "Marsh slow 0% water 0% mud 30% bog"; `P-TERRAIN-MARSH-1` is CANCELLED, there
+   are no terrain codes 8 or 9 (the wire refuses a terrain value above 7: `crates/rh-protocol/src/map.rs:1215`;
+   `TerrainKind` stops at 7, `RegionThemes.cs:11`). Mud and water are **ground variants 7 and 8**, looks only, laid on the
+   zone's plain floor round bog (`crates/rh-mapdress/tests/marsh.rs:1-23`), carried only by the ground-variant plane
+   (`MapBlob.GroundVariants`), tinted by `GroundVariantLook` (rgb tint over the base ground, strength .62) in
+   `RegionGround.BakeVariants` (`RegionGround.cs:105-120`), for any tile whose region is 1..5. So (a) there is no terrain
+   code whose tile must be drawn as water or mud; (b) "every water or mud tile a player sees is one that slows" is false:
+   neither slows anyone; (c) `PlagueGround.Build` already skips every tile with a non-zero terrain value
+   (`PlagueGround.cs:48`), so noise water never lies on bog, only on plain floor, where the server's rings also lie
+   (they overlap there, and `RegionGround` draws both). Every variant 7 or 8 tile in region 1..5 is drawn tinted, so nothing
+   server-sent goes undrawn; the "larger defect" stop condition is not met, but the packet's outcome 2 rests on a
+   superseded decision. Whether a dressed Plague map should lose its client noise (still two looks of water, one of them
+   position noise) is a design call for the owner; the `EffectiveTerrain` change in outcome 2 is independent of it and
+   remains valid.
+3. **"Dressed"** is `map.Props != null && map.Props.Length > 0` (`RegionProps.cs:39`, the first line of `Scatter`). A single
+   predicate would be `RegionProps.IsDressed(MapBlob map)` with that body, used at `RegionProps.cs:39` and in `PlagueGround`
+   (if outcome 2 stands). Note `PlagueGround.Build` is also called from `Scatter`'s client-rolled branch (so on a
+   dressed map it is only reached from `RegionGround.Build`, `RegionGround.cs:21`).
+4. **Run limits.** `Wire.MaxMapRuns = 5 * MaxMapTiles` and `Wire.MaxMapDecodedBytes = 5 * MaxMapTiles`
+   (`Codec.cs:25-26`): used nowhere outside the synced copy (grep of `client-unity/`). The enforced limits are private to
+   `MapBlob`: `MaxPlaneRuns = 6L * Wire.MaxMapTiles` (`MapBlob.cs:80`; used at `:796`, `:1007`) and
+   `MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles` (`:80`; used at `:794`). Rust: `MAX_CUMULATIVE_RUNS = 6 * MAX_MAP_TILES`
+   and `MAX_DECODED_PLANES = 6 * MAX_MAP_TILES` (`crates/rh-protocol/src/map.rs:19-20`). Neither side of the run limit can
+   be built as a blob: a plane has at most one run per tile and six planes make exactly 6 * 1048576 runs, which needs about
+   18 MB, while the encoder refuses over `Wire.MaxServerFrame` (256 KiB, "welcome too large") and the decoder refuses a longer
+   extension; and a plane's runs above its tile count are refused before the cumulative check. So the limit is a ceiling no
+   frame reaches: the oracle pins the constants and that `MapBlob` keeps no copy. (A prototype at the limit failed on
+   "welcome too large", which is how this was found.)
