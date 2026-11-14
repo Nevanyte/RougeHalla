@@ -130,26 +130,28 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    sim's `LayerData` (checkpointed state, whose layout rule forbids skipped fields; serializing them always would move
    every checkpoint and state hash); `MapExport::validate` carries them on `ValidatedMap` for the export, and the
    decoration bake reads them from the generator's map at pool-build time. Fire the volcano (centre the site's centre tile, a
-   crater tile; footprint the blueprint's 30 x 30 box; the six outlets as entrance), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree (centre the site's centre tile, footprint the blueprint's 29 x 29 box, the six
+   crater tile; footprint the blueprint's 22 x 22 box; the six outlets as entrance), Sentenced the church (centre the camp tile, the door as entrance), Plague the tree (centre the site's centre tile, footprint the blueprint's 29 x 29 box, the six
    causeway openings as entrance), Holy
    the largest `Hall` (written when the map is finished: the hall is placed by the Holy styler in step 3), Frost the
    cave (centre the camp tile, footprint the blueprint's 29 x 29 box, the mouth as entrance). Not in the
    map hash (they restate hashed features). `rh-map/2` does not move: older readers refuse a document with anchors, which exists only inside an
    option-on server.
 8. **Bands (G4).** `signature::band(anchor, x, y)`: Chebyshev distance from the footprint, core <= 2, near <= 6,
-   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10; since P-MAPGEN-SIG-SCALE-4 the footprint is the 30 x 30 cone,
-   so the bands sit about 12 tiles farther out than round the old 5 x 5 cone), the Frost styler for its mere
+   mid <= 14, far beyond. The Fire styler uses it for its craters (decision 10; since P-MAPGEN-SIG-SCALE-4 the footprint is the 22 x 22 cone,
+   so the bands sit about 8 tiles farther out than round the old 5 x 5 cone), the Frost styler for its mere
    (decision 11); the other stylers and `rh-mapdress` from `P-MAPGEN-SIG-STYLE-1` on.
 9. **Server.** `--map-pool --signature-landmarks` sets the generator option and nothing else: the served map is the
    generator's own map, exported. The `rh-server` post-pass (`signature.rs`, which last built the Frost cave as a rock
    arch on 9 of 16 maps) is deleted (P-MAPGEN-SIG-FROST-1).
 10. **Fire, the volcano** (`Volcano`, job landmark; `LavaStream` and `LavaPool`, job crossing; certifier rows in
    `SIGNATURE_KINDS`). The owner-approved blueprint (G9; P-MAPGEN-SIG-SCALE-4, requirements L1 and L4):
-   `docs/landmarks/blueprints/volcano.txt`, 30 x 30 tiles, carried byte-equal in the crate as `signature/volcano.txt`
+   `docs/landmarks/blueprints/volcano.txt`, 22 x 22 tiles (owner decision 2026-11-14, "22 across"; it replaces the
+   approved 30 x 30 drawing, which no map could hold), carried byte-equal in the crate as `signature/volcano.txt`
    (`Definition::volcano_grid`). `#`, `X`, `H` (foot, slope, rim) are wall, `~` (the crater lake and three channels)
    and `O` (the six outlets, three runs of two on the front row, a named mark) LOW lava, `.` floor in the cut corners;
    every written glyph `Legality::WallGround` (off the legacy protection and the aprons marked before, as the old cone).
-   Placed by the generic stamp, `Placement::Centre`: the box is the Fire site's 30 x 30 inner rect, in one of eight
+   Placed by the generic stamp, `Placement::Centre`: the box is centred in the Fire site's unchanged 30 x 30 inner rect
+   (4 tiles spare on every side), in one of eight
    orientations (one mirror draw), front toward the coliseum; the anchor's centre is the site's centre tile (one of the
    four middle crater tiles), its entrance the six outlets (`intact` accepts an entrance tile its own landmark owns).
    Exactly three streams, laid after the stamp and before anything is written (`volcano::streams`): one per outlet
@@ -161,13 +163,24 @@ of them. On 2026-11-12 the owner set the order and rules that tie generation tog
    from the front) or ends sooner. Necks at turns are filled as before (P-MAPGEN-SIG-FIRE-2); a band that is not one
    4-connected piece is cut shorter. It ends in a lava pool (squared radius 4, else 2; at least 6 lava tiles with a 2x2
    block). Its length (1 + the fewest 8-connected steps through its lava from its run to its pool) lies in its run's
-   `outlet_len` (sides 10-14, middle 14-18); the middle is laid first and the sides are held below it, so it is
+   `outlet_len` (sides 7-10, middle 10-14: owner decision 2026-11-14); the middle is laid first and the sides are held below it, so it is
    strictly the longest. Streams and pools keep 3 tiles from each other (not asked within squared distance 20 of a
    run) and never touch; the pools fan out (beyond the front row, the side pools on their own sides, the middle one
    within 45 degrees of straight ahead). Ember floor edges every stream and pool, owned by it. An attempt is used only
-   with all three streams, total lava (cone, streams, pools) within `lava_budget` (PROVISIONAL 240-310), and the
-   zone's floor unsplit by the cone with its streams and pools; otherwise it is refused (`Refusal::Signature`), never
-   served with fewer streams. The Fire styler (`style_scorch`) reads the frame's anchor: it places no lava river, and
+   with all three streams, total lava (cone, streams, pools) within `lava_budget` (PROVISIONAL 200-270; measured 223-244 on seeds 1-64), and
+   the zone's floor unsplit by the cone with its streams and pools; otherwise it is refused (`Refusal::Signature`),
+   never served with fewer streams. **The fan** (owner decision 2026-11-14): `signature::fan`, a rectangle in front of
+   the Fire site's inner rect along the front axis read at the site's centre tile, `fan_depth` (14) deep and the inner
+   rect's width plus `fan_side` (14) on each side, clipped to the map. The Prefix passes it to camp placement as a
+   reserved rect with no zone and no camp, so no camp's halo enters it (a round whose church or cave camp, fixed with
+   the sites, has its halo in it fails as a camp failure does); the legacy landmark stage marks it in the recipes'
+   protection, so no legacy building enters it. Nothing else is forbidden there: the streams and pools run in it.
+   **Terrain rule T5** (a LOW tile within 4 tiles of floor; owner decision 2026-11-14) does not count a signature
+   landmark's own lava: a LOW tile of the lava terrain owned by a `Volcano`, `LavaStream`, `LavaPool`, `Church`,
+   `Graveyard`, `BogTree` or `Cave` feature (`signature::t5_exempt`, read by the terrain gate and the certifier; each
+   passes its own lava code). The crater lake's middle is the one such tile today. Any other far LOW tile still fails,
+   option on or off; option-off maps have no signature feature, so no option-off verdict moves. **Fairness is
+   unchanged**: repair's `floor_share_max` and the certifier's `zone-floor-share` stay 1.15. The Fire styler (`style_scorch`) reads the frame's anchor: it places no lava river, and
    a crater (a camp's pen; it cannot move)
    takes its size from its camp's band, fixed before any pen is drawn (P-MAPGEN-SIG-FIRE-2): the band of
    `dc - ceil(R / 4)`, `dc` the camp tile's distance from the footprint and `R` its largest radius option (the radius
