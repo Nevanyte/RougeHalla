@@ -178,7 +178,10 @@ pub(crate) fn set_down(
     p: Vec2,
     caster: bool,
 ) -> Option<Vec2> {
-    let (step, max) = (crate::constants::WALL_PUSH_STEP, crate::constants::WALL_PUSH_MAX);
+    let (step, max) = (
+        crate::constants::WALL_PUSH_STEP,
+        crate::constants::WALL_PUSH_MAX,
+    );
     let along = (p.x - seg.cx) * nx + (p.y - seg.cy) * ny;
     let first: f64 = if caster {
         -1.

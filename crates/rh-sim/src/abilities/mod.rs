@@ -271,8 +271,8 @@ pub const LAST_STAND_HEAL: f64 = 0.3;
 // `SimConfig::frost_wish = Wall`. The numbers are content registry rows (`constants.rs`, P-FROST-WALL-2a), folded into
 // content_hash there; the catalog row with the frostWall id comes in P-FROST-WALL-2.
 pub use crate::constants::{
-    FROST_WALL_CAST_MS, FROST_WALL_COOLDOWN_MS, FROST_WALL_LENGTH, FROST_WALL_MIN_RANGE, FROST_WALL_MS,
-    FROST_WALL_RANGE,
+    FROST_WALL_CAST_MS, FROST_WALL_COOLDOWN_MS, FROST_WALL_LENGTH, FROST_WALL_MIN_RANGE,
+    FROST_WALL_MS, FROST_WALL_RANGE,
 };
 pub const fn wish(faction: FactionId) -> AbilityId {
     match faction {
