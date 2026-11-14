@@ -1,170 +1,193 @@
-# Hand-off: P-MAPGEN-SIG-SCALE-4 (implementer-opus, 2026-11-14)
+# Hand-off: P-MAPGEN-SIG-SCALE-4, second build (implementer-opus, 2026-11-14)
 
 ```
 PACKET:          P-MAPGEN-SIG-SCALE-4 — serves owner direction 2026-11-12 late (landmarks "a lot larger"), owner
-                 decision 2026-11-13 (requirements L1, L4; ADR 0028 G9); last of the four SCALE packets
-BRANCH:          agent/opus/P-MAPGEN-SIG-SCALE-4 @ (this commit; implementation 975c23bcc, c6aa171ac, 24914675b,
-                 ADR 28f85f186), stacked on agent/opus/P-MAPGEN-GUARANTEES-1 @ 1eeacce97
-GATE:            not run by the implementer (the lane's session runs the full gate after the re-pin).
-                 STOP CONDITION: no option-on map exists on seeds 1-64 (every seed lost; see "Blocker" below), so the
-                 oracle cannot go green and the re-pin has nothing to pin. The packet goes back to the coordinator.
-CHANGED:         crates/rh-sim/src/mapgen/landmarks/signature/{spec.rs, mod.rs, volcano.rs, blueprint.rs};
-                 docs/adr/0028-signature-landmarks.md (decisions 7, 8, 10, G9); this file
-D-RULES:         D1: option off byte-identical (no option-off path touched: the Fire entry, `volcano::streams`,
-                 `intact` and the deleted Definition fields run only with `Options::signature`; pinned_off and the
-                 *_option_off_* guards: see the test table); no legacy counterpart (DEV-020). D2 n/a. No sim tick,
-                 wire or Unity change (the Fire anchor's entrance grows from 0 to 6 tiles, under MAX_ANCHOR_ENTRANCE).
-DEVIATIONS:      none (DEV-020 covers the signature landmarks)
-SHARED RECORDS:  none
+                 decisions 2026-11-13 (requirements L1, L4; ADR 0028 G9) and 2026-11-14 ("Yes to all 3": T5 exemption,
+                 22 across, streams 10-14 / 7-10); last of the four SCALE packets
+BRANCH:          agent/opus/P-MAPGEN-SIG-SCALE-4 @ (this commit); this build: 77e31d6ff (the three rules), ab586f5e7
+                 (stamp doc), 73c44a968 (ADR); 2dab1bd53 tried a stream rule and dc8de3d5d reverts it (see "Conflict 2");
+                 on the first build a93a6368b, rebased by the coordinator on packet/P-MAPGEN-SIG-SCALE-4 @ d3f66063c,
+                 stacked on agent/opus/P-MAPGEN-GUARANTEES-1 @ c64934582
+GATE:            not run by the implementer (the lane's session re-pins and runs the full gate).
+                 Implementer runs on this build: cargo fmt --all -- --check PASS; cargo clippy -p rh-sim --all-targets
+                 --features trusted-status-probes -D warnings PASS; cargo test -p rh-sim --features
+                 trusted-status-probes --no-fail-fast: 1498 passed, 27 failed (all listed below). rh-mapdress and
+                 rh-server not run.
+CHANGED:         crates/rh-sim/src/mapgen/landmarks/signature/{mod.rs, spec.rs, volcano.rs, blueprint.rs} (first build
+                 plus: fan, fan_holds_a_site_camp, landmark_kind, t5_exempt, lava_budget 200-270, docs);
+                 crates/rh-sim/src/mapgen/terrain_gate/mod.rs, crates/rh-sim/src/mapgen/certify/terrain.rs (T5 only);
+                 crates/rh-sim/src/mapgen/attempt/mod.rs (the fan as a camp Reserve); crates/rh-sim/src/mapgen/
+                 landmarks/stage/mod.rs (the fan in recipe_protect); docs/adr/0028-signature-landmarks.md
+                 (decisions 7, 8, 10); this file
+D-RULES:         D1: option off byte-identical: the fan exists only with reserved sites (option on); t5_exempt needs a
+                 signature landmark feature, which option-off maps never have; pinned_off and every *_option_off_*
+                 guard green in the full run. No legacy counterpart (DEV-020). D2 n/a. No sim tick, wire or Unity
+                 change (the Fire anchor's entrance grows from 0 to 6 tiles, under MAX_ANCHOR_ENTRANCE 16).
+DEVIATIONS:      proposed DEV-<n> (below, "Proposed record text"): T5 exempts a signature landmark's own lava; the
+                 22 x 22 cone replaces the approved 30 x 30 drawing; the reserved Fire fan
+SHARED RECORDS:  none edited. Proposed: the coordinator re-pins (section 13) and takes the numbers below to the owner
 LEGACY DOUBTS:   none (no legacy counterpart)
-NOT ESTABLISHED: any property of a finished option-on map (none certifies); the oracle's structural tests have
-                 never run against a real volcano; the lava window, the fan and the Fire crater bands on real maps;
-                 the other zones' amounts after the change; the time per map after the change.
-RISKS:           every option-on seed is lost until the owner decides the blocker; the stream legality drops the
-                 legacy landmark protection (camp halos still hold) — a design call the coordinator must confirm.
+NOT ESTABLISHED: that the 7 orientation-dependent volcano tests pass as written (they cannot: Conflict 1; they pass
+                 with the helper's tie broken locally); rh-mapdress goldens and rh-server map tests (not run); the
+                 Plague pool-size drift's cause beyond "the maps moved" (Plague code untouched); time per map under
+                 the gate's own profile.
+RISKS:           two oracle tests contradict the owner's rules (Conflicts 1 and 2); every older signature oracle's
+                 attempt bound is exceeded (expected by the brief); Plague pool sizes and one Sentenced lane seed fall
+                 under their floors on the moved maps.
 ```
 
-## Blocker: the 30 x 30 cone alone loses every seed (a number for the owner)
+## What this build adds to the first one
 
-Measured on the implementation with the streams switched off (a throwaway local switch, not committed: the stamp
-places the cone, nothing else), `report_seeds_1_to_64`, 16 attempts per seed:
+- **T5 exemption** (design item 10): `signature::landmark_kind` (Volcano, LavaStream, LavaPool, Church, Graveyard,
+  BogTree, Cave) and `signature::t5_exempt(map, i, lava)`: LOW, terrain = the reader's lava code, owned by a
+  `landmark_kind` feature. One predicate; the terrain gate passes the lava code from its own definition's kinds and the
+  certifier from its own `KEYS` table, so the certifier stays independent of the terrain gate's catalog.
+- **The fan** (design item 11): `signature::fan(&ReservedSite, &Definition)`, the brief's rectangle (front axis read at
+  the site's centre tile, `front` then `axis`), clipped to the map; `None` for other zones. The Prefix appends it to
+  the `Reserve` list as `{ zone: 0, camp: None }` (`place_camps_reserving` keeps every camp's halo off it unchanged:
+  `zones/camps/` untouched). The legacy stage marks it in `recipe_protect`.
+- **The in-site camps (the brief's trap):** the church's and the cave's camps are fixed with the sites, so the Prefix
+  checks them: when such a camp's certifier halo (`mark_halo`) reaches into the fan, the round fails as a camp failure
+  does (partition and sites redrawn; no extra draw, no new refusal kind). Measured with a throwaway counter: it never
+  fired on seeds 1-64; the oracle's fan test (every camp of every zone) is green.
+- `lava_budget` (200, 270); the `stamp` doc's centre tiles (10|11, 10|11); ADR decisions 7, 8, 10.
+- **What the first build assumed about a 30 x 30 box:** only docs (the `stamp` doc's grid tiles, ADR 7, 8, 10). The
+  stamp continuation, `volcano::streams` (it reads the landed runs, not the box) and `free` needed no change.
 
-| run | maps | refusals over 1,024 attempts |
+## Test results (the full rh-sim run on this build, plus the targeted runs)
+
+**Green** (1498 tests), among them: `mapgen_signature_volcano` 13 of 20 (the Fire entry, `dir16`, the drawing and
+outlet table, the provisional lava window, both provisional attempt bounds, the three T5 tests, the fan test, the
+streams' ground, fairness, every zone keeps its landmark and certifies clean); `mapgen_signature_fire` 9 of 10;
+`mapgen_signature_fire_bands` 5 of 5 (crater bands, count floor, streams two wide); `mapgen_landmark_frame` 8 of 8;
+`mapgen_signature_blueprint` 8 of 10; `mapgen_signature_table` 7 of 8 (incl. the shipped-drawing guard);
+`mapgen_land_plague` 23 of 26 (incl. every amount floor: marsh plus pools, pools alone, barrows);
+`mapgen_land_sentenced` 9 of 11 (incl. combined 0.75 and lanes alone 0.45); the volcano lib unit test; every
+option-off pin and guard.
+
+**Red: the oracle contradicts the owner's drawing (Conflict 1, structural; the build is not bent):**
+`mapgen_signature_volcano` `the_volcano_is_the_blueprint_under_one_of_eight_orientations`,
+`the_fire_anchor_is_the_box_the_crater_centre_and_the_six_outlets`, `the_mirror_and_every_front_direction_occur`,
+`exactly_three_streams_one_per_outlet_each_ending_in_its_pool`,
+`the_middle_stream_is_10_to_14_and_the_longest_the_sides_7_to_10`,
+`the_streams_fan_toward_the_coliseum_each_on_its_own_side`,
+`the_fire_frame_lands_the_drawing_and_writes_the_streams_in_outlet_order`. All seven fail in the helper `orientation()`
+(line 470): "the volcano equals the drawing under 2 orientations ... 0 of 484 tiles differ". The owner's 22 x 22
+drawing is left-right symmetric (every grid row reads the same reversed; `#`, `X`, `H` are all wall, `~` and `O` both
+lava; outlets 3-4 / 10-11 / 17-18 mirror onto each other), so a faithful stamp equals the drawing under both mirror
+states of its front, on every map. Evidence the build is otherwise right: a local copy of the oracle whose only change
+breaks that tie with the Fire frame's landing (`exact.retain(|o| *o == (landing.front, landing.mirrored))`; not
+committed) passes all 20 tests, these seven included. Proposed oracle fix: when the drawing is mirror-symmetric, accept
+both exact orientations and compare the frame's landing to the set, or take the landing's orientation when it is one of
+them.
+
+**Red: an older oracle contradicts the owner's geometry (Conflict 2, structural):** `mapgen_signature_fire`
+`volcano_on_the_back_edge_with_streams_toward_the_front` (left unchanged on purpose by the oracle author): seed 7,
+"stream 0 ends at (111, 10), 76.6 from the coliseum; the volcano is 73.6". The test reads "toward the coliseum" in map
+terms (each stream's farthest lava nearer the coliseum than the volcano's centre). The owner's geometry fixes the side
+headings at 45 degrees off the drawing's front, and the front is the dominant axis of the true direction (up to 45
+degrees off it), so a side stream can run at up to 90 degrees to the true direction. The owner's fan is enforced in
+grid terms (dy > 0, sides on their sides; green). Measured (commit 2dab1bd53, reverted in dc8de3d5d): accepting a
+stream only when it runs toward the coliseum in map terms (shortened within its range first, else the attempt refused)
+makes this test green but raises Fire Signature refusals from 38 to 81 over seeds 1-64, attempts from 89 / 192 to 118 /
+228 (seeds 1-32 / 1-64), and **loses seed 40** (no map in 16 attempts), which turns ten `mapgen_land_plague` `wide_*`
+and seeds-1-96 tests red (G2/G5: a landmark is never a reason to lose a seed). Bending blocked streams toward the true
+direction first changed nothing. I kept the owner's rules and G2/G5; the coordinator decides whether this test is
+re-aimed at the grid-terms fan or the rule is wanted at that cost.
+
+**Red by design, to re-pin** (every option-on map moved; not re-pinned here):
+`mapgen_signature_blueprint` `option_on_maps_are_unchanged`, `the_landmarks_phase_is_unchanged` (through
+`tests/support/signature_pins.rs`); `rh-mapdress` goldens `anchor.rs` `NO_ANCHOR_GOLDEN`, `marsh.rs` `SIG_GOLDEN`,
+`sentenced_rings.rs` `NO_ORIGIN_GOLDEN` (expected red; not run here). Outside the brief's re-pin list (section 13 says
+these go back to the coordinator): `mapgen_guarantees` `the_refusal_labels_of_seeds_1_to_32_are_todays_relabelled`
+(seed 2: the pinned labels are SpawnRatio, Prefix, SignatureDiscarded, Guarantee(Frost lake-at-mouth); this build
+lands seed 2 on attempt 0) and `a_lake_failure_is_refused_after_records_as_the_frost_guarantee` (lake-at-mouth
+refusals over seeds 1-32: 6, pinned 11): both pin option-on refusal sequences.
+
+**Red for a number** (tests not edited, the generator not bent; the measured value against the bound):
+
+| test | bound | measured |
 |---|---|---|
-| cone only, no streams | 0 of 64 | `Prefix` 127, `Repair(FloorShare)` 726, `SpawnPool` 171 |
-| cone and three streams (this branch) | 0 of 64 | `Prefix` 127, `Signature` 844, `Repair(FloorShare)` 30, `SpawnPool` 23 |
-| before (stub: 5 x 5 cone, 2-3 streams) | 64 of 64 | see "Numbers" |
+| `mapgen_signature_bog_tree` worst / attempts (1-32) | 4 / 59 | 9 (seed 22) / 89 |
+| `mapgen_signature_church` worst / attempts | 5 / 57 | 9 / 89 |
+| `mapgen_signature_reserve` worst / attempts | 7 / 70 | 9 / 89 |
+| `mapgen_signature_scale` worst / attempts | 7 / 70 | 9 / 89 |
+| `mapgen_signature_frost_lake` worst | 8 | 9 |
+| `mapgen_land_plague` `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | 8 | 9 (seed 22) |
+| `mapgen_land_sentenced` `the_worst_attempt_over_seeds_1_to_32_is_at_most_eight` | 8 | 9 (seed 22) |
+| `mapgen_signature_table` `each_landmark_placed_alone_equals_it_placed_with_the_others` | >= 28 accepted Landmarks phases (seeds 1-16, attempts 0-1) | 25 (crossings 0) |
+| `mapgen_land_sentenced` `every_seed_keeps_its_lanes` | lane fence on/off >= 0.3 per seed | seed 6: 97/4060 on, 354/4253 off, 0.29 |
+| `mapgen_land_plague` `all_three_sizes_occur_and_maps_with_three_pools_mix_sizes` | a Large pool on 1-32 | none (Small 51, Medium 15) |
+| `mapgen_land_plague` `pools_are_large_near_the_tree_and_small_far` | near and far pools, near mean >= 2 x far | near 0; far 32, mean area 67.2 |
 
-- The stamp itself never refuses: the 30 x 30 drawing fits every Fire site's inner rect under `WallGround` (0
-  `Signature` refusals with the streams off).
-- `Repair(FloorShare)` (`repair/mod.rs`, `floor_share_max` 1.15: the largest zone's painted floor may be at most 1.15
-  times the smallest's) refuses almost every attempt that reaches repair: the cone writes 816 non-floor tiles (656 wall,
-  160 lava) into the Fire zone, the streams and pools about 130 more, against roughly 4,000-4,500 painted floor tiles
-  per zone; the church, the tree and the cave take far fewer. The rest fail `SpawnPool`.
-- This is not the stream code and not a guarantee: it is the drawing's size against a repair rule outside this
-  packet's write scope (`repair/`). Options for the owner: lower the cone's solid tile count (a smaller or hollower
-  drawing), exclude landmark tiles from the floor-share count (a repair rule change, its own packet, option-on only to
-  keep G8), or raise `floor_share_max` with the option on. None was taken here (hard rule 1: the generator is not bent
-  to fit a number).
+"Worst" is the 0-based attempt index the tests print (9 = the tenth attempt). The Plague pool sizes: no Plague code
+changed; on the stub the same report shows pools of inscribed r2 up to 36 on seeds 1-32, on this build at most 24
+(styler bog 4974 -> 4789 tiles, pieces 71 -> 66): the maps moved (camps leave the fan, the Fire cone is bigger). The
+Plague and Sentenced amount floors themselves pass.
 
-## Second finding: the stream ground in front of the outlets
+## Numbers (seeds 1-64, option on, 16 attempts each; `report_seeds_1_to_64` with the tie-broken helper)
 
-With the brief's legality (`Site::ground`: off the legacy landmark protection, the halos and every apron), the middle
-stream was refused on nearly every attempt: the camps keep only their certifier halo out of the reserved site, and
-their landmark protection (clearing grown by `landmark_clearing_margin` 3) reaches 2 tiles further, exactly over the
-site's apron ring in front of the outlets (diagnostic: 466 of ~1,100 stream refusals were the first pair, every one on
-`protect`). `volcano::free` now asks for Fire floor off the camp halos and every apron, not the protection (commit
-c6aa171ac; one line to revert). What still blocks streams, by the first tile a blocked stream could not take
-(seeds 1-64, all attempts): a camp's halo (~390), the Fire zone's edge (~210), a legacy building's apron (~175). By
-stream (the first stream that failed on an attempt): middle 469, left 252, right 113; floor split 10; of those, 381
-were short of their range. Only 53 of 897 attempts that reach the Landmarks phase keep three streams; the in-crate
-Landmarks-phase test sees the volcano with its streams on 5 of 72 attempts (seeds 1-12, attempts 0-5). The structural
-cause: the Fire camps stand in front of the cone (the site is on the back edge; nothing reserves the stream fan), so
-a 14-18 tile middle stream toward the coliseum runs into a camp halo or out of the zone. A fix belongs in the prefix
-(reserve the fan in front of the Fire site from camp halos, `zones/camps`), outside this write scope.
+| | stub (5 x 5 cone) | prototype (measured) | this build |
+|---|---|---|---|
+| seeds with a map | 64 / 64 | 64 / 64 | **64 / 64** |
+| attempts 1-32 / 1-64 | - / 111 | ~105 / 210 | **89 / 192** (provisional bound 137 on 1-32) |
+| worst attempt (the report's 0-based index) 1-32 / 1-64 | - / 4 | - / 10 | **9 (seed 22) / 10 (seed 64)** (provisional 12) |
+| mean attempts per seed | | | 3.00 |
+| Prefix refusals, share of attempts | | 12.4% | 24 of 192, 12.5% |
+| lava per map (Fire) | 80-114 | 221-244 | **223-244** (cone 136, streams 52-70, pools 31-38) |
+| largest / smallest zone floor | 1.025-1.065 | 1.11-1.15 | 1.100-1.150 |
+| Fire floor / others' mean | 0.977-1.013 | 0.88-0.92 | 0.883-0.930 |
+| time per map (opt-level 2, sequential, incl. refused attempts) | 0.131 s on, 0.034 s off | | 0.185 s on, 0.035 s off |
 
-## What was built
+(The floor columns count FLOOR tiles per zone; the certifier's own `zone-floor-share` passes on every map of 1-32.)
 
-- `spec.rs`: the Fire entry is the drawing (`Some(d.volcano_grid)`), legend `#`/`X`/`H` wall, `~` lava, `O` lava and a
-  mark, all `WallGround`, `.` plain floor; feature Volcano (Landmark, Centre); `Placement::Centre`;
-  `EntranceRule::Mark(b'O')`; no doorway; members and by-tile unchanged.
-- `blueprint.rs`: `dir16` (largest dot product with `DIR16`, first on a tie).
-- `mod.rs`: `place` sends every zone through `stamp`; for Fire it then calls `volcano::streams` with an unconfined
-  `Site` (`inner: None`) before the write loop; the `None if zone == Fire` arm and `Site::inner = None` for the cone are
-  gone. `intact`'s `door_ok`: an entrance tile is floor or owned by its own zone's landmark. `Definition`: deleted
-  `cone_d2`, `crater_d2`, `camp_room`, `site_tries`, `streams`, `spreads`, `stream_len`; `stream_start` 3 -> 1 (now
-  steps beyond the outlet run's centre); `lava_budget` (80, 150) -> (240, 310) (PROVISIONAL, the oracle's window);
-  `back_slack` stays (the reservation reads it); docs for `volcano_grid`, `outlet_heading`, `outlet_len`.
-- `volcano.rs`: `place`/`build`/`ends_well` deleted; `streams` (one length draw per run in grid order before anything
-  can refuse; runs from the entrance tiles on the front row; the middle laid first, sides held below its measured
-  length; refuses on any missing part, touching bodies, a stray run touch, a broken fan, lava out of budget, or a floor
-  split of cone plus streams and pools); `stream` starts so its first pair continues the run's two outlets, grows to
-  two tiles past the drawn length and shortens until the oracle's measure (`length`) fits; a band that is not one
-  4-connected piece is shortened (no ford); `owned` now lists only the streams and pools (the cone's pairs come from
-  the legend). The front bound (`front_max`) reads the drawing's front (`dir16(orientation.front)`), not the centre's
-  DIR16 front: the two differ by up to two steps, which would have refused every side heading.
-- Draw order on the Fire stream: the stamp's mirror draw, then three length draws (left, middle, right as drawn).
-  Nothing else draws. No other stream is touched.
-- Unit test `volcano::tests::landmarks_phase_streams_keep_the_volcano_guarantees` (green): on the Landmarks phase,
-  wherever the volcano is placed, the frame's feature order, one run per stream, no ford, two wide, lengths in range,
-  the middle strictly longest, no bodies touching.
-
-## Test results
-
-- `cargo fmt --all -- --check`: clean. `cargo clippy -p rh-sim --all-targets --features trusted-status-probes -- -D
-  warnings`: clean.
-- `cargo test -p rh-sim --features trusted-status-probes --lib`: 1,107 green, 4 red, 17 ignored, every red one an option-on
-  pipeline test that needs a certified option-on map (`pipeline::guarantee_tests::{the_pipeline_discards_a_finished_map_a_guarantee_refuses_and_never_errs,
-  frames_run_in_placement_order_and_each_list_in_its_order}`, `pipeline::style_refusal_tests::{a_landmark_refusal_from_a_styler_refuses_the_attempt_and_the_next_is_tried,
-  a_real_styler_fault_still_fails_the_call_with_the_same_error}`). Every option-off pin in the lib is green
-  (`all_original_plain_pins_full_maps_and_independent_hard_checks`, `styled::all_original_styled_pins_*`, the stylers'
-  captured-callback tests). New `volcano::tests::landmarks_phase_streams_keep_the_volcano_guarantees`: green.
-- `mapgen_signature_volcano`: green `the_fire_entry_is_the_volcano_drawing_with_its_legend`,
-  `the_heading_helper_turns_the_outlet_headings_into_dir16`, `guard_the_drawing_and_the_outlet_table_are_the_owners`;
-  the other 11 red, all on `seed 1: no map with the option on`, not on a structural assertion.
-- Full `cargo test -p rh-sim --features trusted-status-probes --no-fail-fast`: 1,384 passed, 134 failed, in 20
-  targets: the lib (the 4 above) and `mapgen_guarantees`, `mapgen_land_decor_attempts`, `mapgen_land_plague`,
-  `mapgen_land_sentenced`, `mapgen_landmark_frame`, `mapgen_signature_{aprons, blueprint, bog_tree, church, core, fire,
-  fire_bands, frost, frost_lake, reserve, scale, table, volcano}`, `mapgen_style_refusal`: every one builds option-on
-  maps, and none exist, so none of them is "red by design, to re-pin" yet. The 11 tests named `*option_off*` are
-  green; the two red tests with "option_off" in their names (`lane_fence_share_stays_near_option_off`,
-  `lane_and_churchyard_fence_together_stay_near_option_off`) compare an option-on map with option off. The
-  coordinator's full gate is the record.
-- Not run: `cargo test -p rh-mapdress`, `cargo test -p rh-server --test map_anchor_seeds --test map_anchors` (they
-  read option-on maps; nothing to measure until the blocker is decided).
-
-## Numbers for the owner (section 10)
-
-### Before (stub `fb6b9dc51`: 5 x 5 cone, two or three streams)
-
-- Attempts: 54 over seeds 1-32, 111 over 1-64; worst attempt 4 (seed 2); no seed lost. Per seed (1-64): 1, 4, 0, 0, 1,
-  0, 2, 1, 1, 0, 0, 3, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0 | 0, 1, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0,
-  2, 2, 0, 3, 0, 1, 0, 0, 1, 0, 2, 0, 2, 0, 1, 0, 0, 1, 2, 2.
-- Refusals: `Guarantee { Frost, lake-at-mouth }` 21, `Prefix` 10, `SpawnRatio` 7, `SignatureDiscarded` 5,
-  `Repair(RadiusPost)` 4.
-- Fire lava per map: 80-114 (cone 5, streams 47-82, pools 17-38).
-- Stream lengths: n/a (not the drawing).
-- Fire craters, option on: 7-10 per map (10 on 45, 9 on 13, 8 on 5, 7 on 1 of 64); option off: 8-10 (10 on 57). `mapgen_signature_fire_bands.rs`: all 5
-  green.
-- Sentenced (`report_lanes_seeds_1_to_32`) and Plague (`report_seeds_1_to_32`): printed and green before; the after
-  run has no map to measure.
-
-### After (this branch)
-
-- Attempts: no map on any seed 1-64 (16 attempts each). Refusals over 1,024 attempts: `Signature` 844, `Prefix` 127,
-  `Repair(FloorShare)` 30, `SpawnPool` 23. Split of `Signature` at Fire (local throwaway counters): the cone never;
-  a stream short of its range or without a pool 834 (middle 469, left 252, right 113), floor split 10; touching bodies,
-  fan, lava budget: 0 observed.
-- Lava by part, stream lengths, Fire craters, the other zones' amounts, time per map: not measurable (no finished
-  map). Report runtime 31.5 s for 64 seeds x 16 attempts (before: 13.3 s for 111 attempts).
-
-## What `style_scorch/` needed
-
-Nothing was changed. Whether the crater bands round the 30 x 30 footprint hold (`craters_are_arranged_by_band_round_the_volcano`,
-the three crater tests of `mapgen_signature_fire_bands.rs`) cannot be measured until a map certifies.
+- **Refusals by reason** (128): Signature 38, SpawnRatio 26, Prefix 24, Guarantee(Frost lake-at-mouth) 16,
+  SpawnPool 9, Repair(RadiusPost) 8, SignatureDiscarded 5, Repair(FloorShare) 2. **Fire Signature by cause**
+  (throwaway counter, not committed): middle stream not laid 13, left 7, right 6, floor split 12; touching, spread,
+  column order, lava budget 0; the stamp itself never refused (no Signature refusal at any other zone).
+- **Stream lengths** (the oracle's measure): left 7-10 (mean 8.55), middle 10-14 (12.12), right 7-10 (8.30).
+- **Proposed final lava window:** measured 223-244; about 10% each side gives **(200, 270)**, the provisional window:
+  keep it.
+- **Proposed attempt bounds** for this oracle: worst 9 and 89 used on 1-32; the provisional 12 / 137 hold with room.
+  Older oracles, to hold this build: worst >= 9 and attempts >= 89 on seeds 1-32 (with the brief's ~30% headroom:
+  12 / 116).
+- **Fire craters** per map, seeds 1-64: option on 7-10 (mean 9.44), option off 8-10 (mean 9.88). The
+  `mapgen_signature_fire_bands` tests (bands, count floor) are green.
+- **The owner's picture, seeds 1-8** (option on, accepted attempt): 1 -> 1, 2 -> 0, 3 -> 1, 4 -> 0, 5 -> 0, 6 -> 0,
+  7 -> 2, 8 -> 1.
 
 ## What the brief got wrong
 
-1. Section 14 expected "refusals and attempts will rise"; in fact the cone alone loses every seed (`Repair(FloorShare)`),
-   which no implementation inside the write scope can change.
-2. Section 3/4 keep `free` (`Site::ground`, with the legacy protection) for the streams; the camps' protection covers
-   the apron ring in front of the outlets, so the streams cannot start (measured above).
-3. The front bound: the brief has the side headings at "the front's index +-2", true for the drawing's front
-   (`dir16(u)`), not for `signature::front(centre)`, which `front_max` read before; with the latter every side heading
-   of a centre whose DIR16 front is off-axis would exceed `front_max`.
+1. The oracle's `orientation()` (exactly one exact orientation) cannot hold for the owner's 22 x 22 drawing, which is
+   mirror-symmetric (Conflict 1).
+2. `volcano_on_the_back_edge_with_streams_toward_the_front` was "left unchanged on purpose"; with fixed 45-degree side
+   headings off a dominant-axis front it can only be met by refusing attempts, which loses seed 40 (Conflict 2).
+3. Section 13's re-pin list misses the two `mapgen_guarantees` refusal-sequence pins.
+4. Section 7 lists the older attempt bounds and the amount floors as the expected number failures; the
+   `mapgen_signature_table` phase count (25 < 28), the Sentenced per-seed lane ratio (seed 6) and the two Plague
+   pool-size tests also go red on the moved maps.
 
-## Re-pin
+## Proposed record text
 
-Not done and not possible: no option-on map exists to pin. The digest guards are red, but not "by design": they are
-red because every option-on seed is lost.
+**ADR 0028, decision 10 (paragraph; the build's text is already in the ADR on this branch):** The Fire volcano is the
+owner's 22 x 22 drawing (owner decision 2026-11-14, "22 across"; it replaces the approved 30 x 30 drawing, which no map
+could hold: its 816 floor tiles broke the zone fairness rule on every seed), centred in the Fire site's unchanged 30 x
+30 inner rect, with exactly three lava streams from its outlet runs: the middle 10-14 path tiles and strictly the
+longest, the sides 7-10. A fan in front of the site's inner rect (14 deep, the inner rect's width plus 14 on each side,
+along the front axis read at the site's centre tile) is reserved in the Prefix: no camp's halo and no legacy landmark
+building enters it; the streams and pools run in it. Terrain rule T5 does not count a signature landmark's own lava (a
+LOW lava tile a Volcano, LavaStream, LavaPool, Church, Graveyard, BogTree or Cave feature owns: today the crater lake),
+in the terrain gate and the certifier through one predicate; every other far LOW tile still fails, option on or off.
+The zone fairness rule is unchanged (1.15 in repair and the certifier).
 
-## What the next packets should know
+**DEVIATIONS.md row (the coordinator numbers it, the owner signs):**
 
-- The coordinator decides the blocker first (the owner's call: cone size, the floor-share rule with the option on, or
-  reserving the stream fan in the prefix). Until then P-LAND-FIRE-1 has no map to work on.
-- `volcano::streams` is a self-contained continuation: it reads the landed outlet runs from the entrance rule, the
-  headings and lengths from `Definition`, and refuses rather than serve fewer streams. Its legality is one function
-  (`free`).
-- P-LAND-FIRE-1: the streams now run from the cone's front edge through the camp field (halos only kept); craters
-  clear of the streams will compete with them for that ground.
-- Holy hall (HOLY-1): every table entry now has a drawing; `Spec::drawing: None` only refuses.
+| DEV-<n> | Signature landmarks, Fire (P-MAPGEN-SIG-SCALE-4; owner decisions 2026-11-14) | (1) Terrain rule T5 ("a LOW tile lies within 4 tiles of floor") does not count a signature landmark's own lava: a LOW lava tile owned by a Volcano, LavaStream, LavaPool, Church, Graveyard, BogTree or Cave feature (the volcano's walled-in crater lake), in the terrain gate and the certifier; every other far LOW tile still fails. (2) The volcano is a 22 x 22 drawing centred in the 30 x 30 inner rect, replacing the approved 30 x 30 drawing; streams 7-10 / 10-14 / 7-10 replace 10-14 / 14-18 / 10-14. (3) A fan in front of the Fire site (14 deep, inner rect width + 14 a side) is reserved from camp halos and legacy landmark buildings. Option on only; option-off maps byte-identical. No legacy counterpart (extends DEV-020). | owner: 2026-11-14 "Yes to all 3" |
+
+## Left for the coordinator
+
+- Decide Conflicts 1 and 2 (oracle amendments), then the re-pin commit (section 13) and the new bounds.
+- A detached worktree of the stub, made for the "before" measurements, is registered at
+  `/private/tmp/claude-501/-Users-nevinmckinnon--claude-spares-spare-jXC9Bt/dc84f353-8639-4f9e-ba13-481dad5d2ccf/scratchpad/stub`
+  (remove it with `git worktree remove`); the tie-broken oracle copy and the floor-share script are beside it
+  (`zz_scratch_volcano_tie.rs`, `zz_scratch_share.rs`).
