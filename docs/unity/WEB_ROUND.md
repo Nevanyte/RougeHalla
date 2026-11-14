@@ -32,11 +32,11 @@ cargo build --release -p rh-server
 ```
 
 Done when it ends with `Finished` (about 40 s warm). In a fresh worktree the first server build is cold (about 1 minute):
-finish it before the next step. If it fails, report the last 20 lines and stop. Practice (step 7) needs the Postgres build instead, a second
-binary built over the same path:
+finish it before the next step. If it fails, report the last 20 lines and stop. Step 2 runs `target/release/rh-server` (this build). Practice (step 7) needs the Postgres build, which goes to its own
+folder so it never replaces the arena binary (its first build is cold, several minutes; build it only if you need practice):
 
 ```
-cargo build --release -p rh-server --features postgres
+cargo build --release -p rh-server --features postgres --target-dir target/pg
 ```
 
 ## 2. Start both arenas (a solo room each)
@@ -78,7 +78,8 @@ echo $! > $OUT/build.pid
 ```
 
 Poll with `tail -n 5 $OUT/unity-build.out` and `kill -0 $(cat $OUT/build.pid)` (it fails once the build has ended) every minute
-or two. Never start a second build. A clean run exits 0 and prints `Baked authoritative content hash <hex>`, `Building Web player; log: ...` and
+or two. Never start a second build. Done when the process has ended, `$OUT/unity-build.out` contains `Audio check: all streamed files present` and no line with
+`Shader error`, and `Logs/web-build.log` has none either. A clean run exits 0 and prints `Baked authoritative content hash <hex>`, `Building Web player; log: ...` and
 `Audio check: all streamed files present`; `Logs/web-build.log` has no line with `Shader error`. A failing build exits 1 with
 `error: a Roguehalla shader failed to compile for WebGL` and a line like
 `Shader error in 'Roguehalla/RegionGround': maximum ps_5_0 sampler register index (16) exceeded ...`: the player files may
@@ -145,10 +146,11 @@ post "{\"cmd\":\"shot\",\"path\":\"$OUT/00-hub.png\"}"
 ```
 
 Done when the hub screenshot shows the lobby. Then enter the match (all click coordinates assume the 1920 x 1080 window of step 5): click START RUN at (163, 677), wait 3 s, press `1` or `2`
-to pick one of the two spawns offered on the plan screen, click READY at (1390, 107), wait 4 s. The faction does NOT choose the zone you
+to pick one of the two spawns offered on the plan screen, click READY at (1390, 107), wait 4 s. Done when `where` (step 6b) answers a
+position; if it answers `ERR`, the click missed: `shot` the screen, and repeat the pick and READY from the plan screen. The faction does NOT choose the zone you
 start in (each session draws a new map): the plan offers two spawns in two OTHER zones, so take a Tab-map shot after joining
-(`down` `Tab`, `shot`, `up` `Tab`) to see where you are, then walk to the zone or landmark you want. Done when `where` (step 6b)
-answers a position; if it answers `ERR`, you are not in a match yet: wait 5 s and ask again, and after 30 s read `errs`.
+(`down` `Tab`, `shot`, `up` `Tab`) to see where you are, then walk to the zone or landmark you want. If `where` still answers `ERR`
+after 30 s, read `errs`.
 
 Moving: hold `W`, `A`, `S`, `D` with `down` and release with `up`. Keys act about 0.5 s after key-up, so near props or walls use
 250 to 500 ms taps (`down`, `wait`, `up`), not long holds. Long walks: hold `Tab` (the map), right-click a point on the Tab map
@@ -193,7 +195,7 @@ RH_PGTEST_STATE=$OUT/pgstate TMPDIR=/private/tmp/rh-pg tools/pgtest/start.sh
 use that URL below, then start the practice server and stop it with its pid and `tools/pgtest/stop.sh` when done:
 
 ```
-target/release/rh-server --bind 127.0.0.1:7818 --database-url "$DATABASE_URL" --insecure-dev-auth --api-cors-origins http://127.0.0.1:8117 --runtime training > $OUT/training.log 2>&1 &
+target/pg/release/rh-server --bind 127.0.0.1:7818 --database-url "$DATABASE_URL" --insecure-dev-auth --api-cors-origins http://127.0.0.1:8117 --runtime training > $OUT/training.log 2>&1 &
 echo $! > $OUT/training.pid
 ```
 

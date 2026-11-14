@@ -25,6 +25,7 @@ async function walk(c, page, env) {
   if (c.x === undefined || c.y === undefined || !Number.isFinite(gx) || !Number.isFinite(gy)) return 'ERR goto needs numeric x and y (world units)';
   const within = c.within === undefined ? 48 : Number(c.within);
   const timeoutMs = c.timeoutMs === undefined ? 30000 : Number(c.timeoutMs);
+  if (!Number.isFinite(within) || !Number.isFinite(timeoutMs)) return 'ERR goto: within and timeoutMs must be numbers';
   let pos = await where(page);
   if (!pos) return NO_PROBE;
   const start = env.now();
