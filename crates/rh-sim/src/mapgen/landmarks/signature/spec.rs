@@ -107,7 +107,8 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
     use FeatureKind::{BogTree, Cave, Church, Graveyard, LavaPool, LavaStream, Volcano};
     let codes = catalog_codes();
     vec![
-        // The volcano: still `volcano::place` (P-MAPGEN-SIG-SCALE-4 makes it an entry with a drawing).
+        // The volcano: still `volcano::place`, its owned tiles checked by `volcano::owned` (P-MAPGEN-SIG-SCALE-4 makes it
+        // an entry with a drawing).
         Spec {
             zone: Zone::Fire,
             kind: Volcano,

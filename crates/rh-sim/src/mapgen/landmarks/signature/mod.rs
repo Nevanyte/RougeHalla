@@ -418,6 +418,14 @@ impl<'f> SignatureContext<'f> {
                 }
             }
         }
+        // A member kind without a rule would pass `intact`'s owned-tile check whatever its tiles hold.
+        debug_assert!(
+            table
+                .iter()
+                .flat_map(|s| &s.members)
+                .all(|m| owned.iter().any(|(k, _)| k == m)),
+            "signature: a member kind with no owned-tile rule"
+        );
         Self {
             _fixed: core::marker::PhantomData,
             rules: *d,

@@ -5,8 +5,9 @@
 //! (`crates/rh-server/src/signature.rs` before this packet), with the streams fanned within the front half instead of
 //! evenly round the cone.
 //!
-//! Site: a uniform draw among the back-edge centres whose cone fits, taking first the centres farthest from every Fire
-//! camp (`Definition::camp_room` tiers, so the camps' craters keep out of the core band). A stream is laid as a line
+//! Site: a uniform draw among the back-edge centres whose cone fits in the zone's reserved site, taking first the
+//! centres farthest from every Fire camp (`Definition::camp_room` tiers, so the camps' craters keep out of the core
+//! band). A stream is laid as a line
 //! through free ground (the zone's floor outside the legacy landmark protection, camp halos and every apron marked so
 //! far); where the line is blocked it bends by one direction step at a time, within `stream_bend` of its own heading
 //! and `front_max` of the front, or stops and ends in its pool early. A site with fewer than two streams, lava outside
