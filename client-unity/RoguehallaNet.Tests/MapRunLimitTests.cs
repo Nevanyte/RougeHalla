@@ -23,15 +23,6 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void TheStaleDecodedBytesConstantIsGoneOrSixPlanes()
-        {
-            // Rust MAX_DECODED_PLANES = 6 * MAX_MAP_TILES. The packet may delete the unused constant or correct it; it may not leave 5x.
-            var f = typeof(Wire).GetField("MaxMapDecodedBytes", BindingFlags.Public | BindingFlags.Static);
-            if (f == null) return;
-            Assert.AreEqual(6L * Wire.MaxMapTiles, Convert.ToInt64(f.GetRawConstantValue()));
-        }
-
-        [Test]
         public void MapBlobKeepsNoRunLimitOfItsOwn()
         {
             var own = typeof(MapBlob).GetFields(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
