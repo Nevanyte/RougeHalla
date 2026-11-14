@@ -1,14 +1,12 @@
-// Shared allocation counter for rh-sim tests (P-TEST-HARDEN-1).
-//
-// STUB: counts every thread (a process-wide atomic), like `dhat::HeapStats::total_blocks`. The implementer replaces the
-// counter with a thread-local one so that only the measuring thread's blocks are counted; the API stays.
-//
-// How to write an allocation test (the implementer finishes this comment):
-//   1. `#[path = "support/alloc_count.rs"] mod alloc_count;` and
-//      `#[global_allocator] static ALLOC: alloc_count::CountingAlloc = alloc_count::CountingAlloc;`
-//   2. Warm up outside the measured section, then
-//      `let (_, blocks) = alloc_count::blocks_on_this_thread(|| steady_section()); assert_eq!(blocks, 0);`
-#![allow(dead_code, unsafe_code)]
+//! Test-only allocation counter (P-TEST-HARDEN-1). A dev-dependency only: no shipped crate may depend on it normally.
+//!
+//! STUB: counts every thread (a process-wide atomic), like `dhat::HeapStats::total_blocks`. The implementer replaces the
+//! counter with a thread-local one so that only the measuring thread's blocks are counted; the API stays.
+//!
+//! How to write an allocation test (the implementer finishes this comment):
+//!   1. In the test binary: `#[global_allocator] static ALLOC: rh_alloc_count::CountingAlloc = rh_alloc_count::CountingAlloc;`
+//!   2. Warm up outside the measured section, then
+//!      `let (_, blocks) = rh_alloc_count::blocks_on_this_thread(|| steady_section()); assert_eq!(blocks, 0);`
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicU64, Ordering};
 

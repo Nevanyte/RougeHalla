@@ -1316,6 +1316,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rh-alloc-count"
+version = "0.1.0"
+
+[[package]]
 name = "rh-headless"
 version = "0.1.0"
 dependencies = [
@@ -1433,6 +1437,7 @@ version = "0.1.0"
 dependencies = [
  "dhat",
  "libm",
+ "rh-alloc-count",
  "ryu-js",
  "serde",
  "serde_json",
