@@ -41,11 +41,13 @@ namespace Roguehalla.Client.Tests
                 l.Add(k + "-rot-wide");
             }
             l.Add("volcano-edge-wide"); l.Add("volcano-edge-close"); l.Add("volcano-edge-rot-wide");
+            // P-UNITY-LOOK-WALL-1: the Frost Wall scenes, after the rest (what they build is pinned in LookCaptureWallEditModeTests)
+            l.Add("frost-wall"); l.Add("frost-wall-vertical"); l.Add("frost-wall-cracking"); l.Add("frost-wall-preview"); l.Add("frost-wall-preview-invalid");
             return l.ToArray();
         }
 
         static IEnumerable<string> All() { return Pinned; }
-        static IEnumerable<string> LandmarkScenes() { return Pinned.Where(s => !s.Contains("-scene")); }
+        static IEnumerable<string> LandmarkScenes() { return Pinned.Where(s => !s.Contains("-scene") && !s.StartsWith("frost-wall")); }   // the frost-wall scenes carry no landmark
         static IEnumerable<string> ZoneScenes() { return Pinned.Where(s => s.Contains("-scene")); }
         static IEnumerable<string> DressedScenes() { return Pinned.Where(s => s.EndsWith("-scene-dressed")); }
 
@@ -56,10 +58,10 @@ namespace Roguehalla.Client.Tests
         // ---- the list -----------------------------------------------------------------------------------------------------
 
         [Test]
-        public void ThePinnedListHasThirtyTwoDistinctNames()
+        public void ThePinnedListHasThirtySevenDistinctNames()
         {
-            Assert.That(Pinned.Length, Is.EqualTo(32));
-            Assert.That(Pinned.Distinct().Count(), Is.EqualTo(32));
+            Assert.That(Pinned.Length, Is.EqualTo(37));
+            Assert.That(Pinned.Distinct().Count(), Is.EqualTo(37));
         }
 
         [Test]
@@ -283,9 +285,9 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
-        public void TheCaptureReachesExactlyThreeNonPublicClientMembersByReflectionAndAllResolve()
+        public void TheCaptureReachesExactlyFourNonPublicClientMembersByReflectionAndAllResolve()
         {
-            Assert.That(LookCapture.ReflectionTargets.ToArray(), Is.EqualTo(new[] { "ArenaView.Awake", "ArenaView._landmarks", "Landmark.Fades" }),
+            Assert.That(LookCapture.ReflectionTargets.ToArray(), Is.EqualTo(new[] { "ArenaView.Awake", "ArenaView._landmarks", "Landmark.Fades", "ArenaView._frostWall" }),
                 "a fourth non-public member needs the brief amended (the packet forbids widening production visibility silently)");
             Assert.That(LookCapture.MissingReflectionTargets(), Is.Empty);
             // the same lookups, independent of the capture, so a rename in the client fails here with the member's name
@@ -293,6 +295,7 @@ namespace Roguehalla.Client.Tests
             Assert.That(typeof(ArenaView).GetMethod("Awake", f), Is.Not.Null, "ArenaView.Awake");
             Assert.That(typeof(ArenaView).GetField("_landmarks", f), Is.Not.Null, "ArenaView._landmarks");
             Assert.That(typeof(Landmark).GetMethod("Fades", f, null, new[] { typeof(int), typeof(int) }, null), Is.Not.Null, "Landmark.Fades(int, int)");
+            Assert.That(typeof(ArenaView).GetField("_frostWall", f), Is.Not.Null, "ArenaView._frostWall (P-UNITY-LOOK-WALL-1: how the capture reaches the presenter)");
         }
     }
 }

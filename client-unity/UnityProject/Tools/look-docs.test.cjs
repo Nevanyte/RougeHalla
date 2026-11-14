@@ -19,6 +19,7 @@ for (const k of ['cave', 'volcano', 'church', 'bog', 'hall']) {
   PINNED.push(k + '-rot-wide');
 }
 PINNED.push('volcano-edge-wide', 'volcano-edge-close', 'volcano-edge-rot-wide');
+PINNED.push('frost-wall', 'frost-wall-vertical', 'frost-wall-cracking', 'frost-wall-preview', 'frost-wall-preview-invalid');   // P-UNITY-LOOK-WALL-1
 
 /** Build outputs a command may name although they are not in the tree. */
 const GENERATED = [/^target\//, /^client-unity\/UnityProject\/(Build|Logs|Library|Temp)\//, /^(Build|Logs)\//];
