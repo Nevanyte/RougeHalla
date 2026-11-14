@@ -114,12 +114,22 @@ clean worktrees and says why it left the rest. Deleting a merged `agent/*` branc
 
 | Mode | Runs |
 |---|---|
-| `--quick` | Path checks; fmt; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI); the parity report if sim/policy/parity changed; JS vector checks if the protocol changed; C# tests and the Unity copy check if the net library or vectors changed; the Unity EditMode suite (`client-unity/UnityProject/Tools/editmode.sh`) if a path under `UnityProject/Assets/` changed; the Unity tool tests (`node --test`) if a path under `UnityProject/Tools/` changed; Postgres suites when `DATABASE_URL` is set |
-| full (default) | Path checks; fmt; workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; JS vectors; C# tests and Unity copy check; the Unity EditMode suite and the Unity tool tests; a release headless smoke on `parity/maps/seed1.map.json` |
+| `--quick` | Path checks; fmt; then, in the same relative order as full mode: the Unity tool tests (`node --test`) if a path under `UnityProject/Tools/` changed; JS vector checks if the protocol changed; the reload-proof tests if the protocol or web client changed; C# tests and the Unity copy check if the net library or vectors changed; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI; Postgres suites when `DATABASE_URL` is set); the parity report if sim/policy/parity changed; the Unity EditMode suite (`client-unity/UnityProject/Tools/editmode.sh`) if a path under `UnityProject/Assets/` changed |
+| full (default) | In this order (`scripts/gate.sh --list-steps` prints it and runs nothing): path checks; fmt; the cheap area checks (Unity tool tests with the docs tests, JS vectors, reload-proof tests, C# tests and Unity copy check); workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; the Unity EditMode suite; a release headless smoke on `parity/maps/seed1.map.json` |
 | CI only | Source-witness `capture.sh --check` runs (Docker, Node 22.23.4), perfproof (valgrind, Linux), cross-architecture determinism, browser proof, legacy recapture |
 
+`--keep-going` runs every step even after one fails: each red step prints its last 40 lines as usual, and the result
+line is `GATE FAIL (n steps): <step>; <step>` with exit code 1. A cargo test or run step that did not compile makes the
+later cargo steps `not run (after <step>)`, listed on the result and never counted as passed. Without the flag the first
+red step ends the run (`GATE FAIL: <step>`). The coordinator uses `--keep-going` on the merged tree.
+
 Path checks: protected paths need `--allow-protected` (owner approval), shared records `--coordinator`, wire packets
-`--regen-fixtures`. With `--oracle packet/<ID>`, the oracle files are the files touched by the commits in
+`--regen-fixtures`, build artefacts `--allow-artefacts` (a Showcase font asset under
+`UnityProject/Assets/Resources/Showcase/`, `BakedContent.cs`, `ProjectSettings/ShaderGraphSettings.asset`: rewritten by
+`build-web.sh` and EditMode runs, restored by `git checkout <base> -- <file>`; the hand-off says when a packet means to
+change one). A C# file under `UnityProject/Assets/Scripts/` whose diff adds `SetColors(`, `.colors32 =` or `.colors =`
+fails by name and points at the helper `SrgbMeshColors` (linear colour space; only added lines are judged, and
+`SrgbMeshColors.cs`, `WeaponRangePresenter.cs`, `HitZonePresenter.cs`, `CampPatienceOutlines.cs` are exempt). With `--oracle packet/<ID>`, the oracle files are the files touched by the commits in
 `merge-base..packet/<ID>` whose subject does not start with `stub:` (the oracle author commits `stub: <ID> ...` first,
 then `oracle: <ID> ...`): a file touched only by `stub:` commits is the implementer's to replace, any other must stay
 unchanged, as must all captures and golden vectors. A branch with no `stub:` commit treats every touched file as oracle.
@@ -133,7 +143,7 @@ locale when `LC_ALL` is unset (PostgreSQL 16 on macOS needs one). `editmode.sh` 
 or the project is open; the gate then prints "Unity EditMode (no Editor / project open)" on the result line. Unity tool
 tests that fail on the integration branch are excluded by name in `UNITY_TOOL_TEST_EXCLUDE` in `scripts/gate.sh`.
 A skipped suite is printed on the result line, and a reviewer treats it as unproven. `bash scripts/gate.test.sh` checks
-the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`, which stops the gate after its checks with exit code 42, never 0).
+the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`, which stops the gate after its checks with exit code 42, never 0, and `GATE_TEST_STEPS`, which replaces the steps with fake ones; its result line says "test hook" and its green exit code is 43, never 0).
 
 Before the first packet on a new integration branch the coordinator runs the full gate there with Postgres: a red base
 makes every later result meaningless.
