@@ -4,6 +4,22 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integration 45 (2026-11-14): the volcano
+
+Staged as `coord/int-45` on top of 44: **P-MAPGEN-SIG-SCALE-4** at `5b49a874b` (map generator session; the
+coordinator's reviewer-opus: REJECT at `ad3d47efc`, LAND at `5b49a874b` after the delta: `doors_intact` exact, one fan
+definition, the Plague gap pinned, comments corrected). DEV-038 records the three rule changes and what comes with
+them; DEV-034 gains the known gap. Every option-on map moves; the branch carries its own re-pins
+(`tests/support/signature_pins.rs`, the refusal-label sequence, the three rh-mapdress goldens), and nothing else on
+staging touches map generation, so the merged-tree gate is their check. Amended expectations in existing tests, old
+to new, are in the hand-off's "Final state" table; four bounds were reset by the author on measurement (attempts
+worst 12 and total 137 over seeds 1 to 32, Landmarks phases at least 20, the Sentenced per-seed lane guard 0.30 to
+0.25, Plague pool sizes "at least two classes"). The owner's floors still hold on the new maps (that session's
+figures: Plague marsh plus pools 1.037 against 0.8, pools alone 0.480 against 0.35, barrows 64.7% against 55%;
+Sentenced lanes plus fence 0.836 against 0.75, lanes alone 0.551 against 0.45). Not seen in the running client. The
+look-capture tool's two edge frames show the smaller cone smaller. Still unbuilt in that lane: the Holy hall, the
+Frost lake at the cave's mouth, the Fire crater rule, the Holy land rules.
+
 ## Owner decision 2026-11-14 (chat): go with the recommendations
 
 After the coordinator set out Q18, Q20 and Q21 with its recommendations, the owner wrote: **"Please go with your
