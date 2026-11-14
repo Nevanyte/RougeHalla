@@ -69,6 +69,9 @@ pub struct MatchStart {
     pub observation_version: u16,
     /// Milliseconds per simulation tick.
     pub tick_ms: f64,
+    /// Which Wish Frost has in this room (`SimConfig::frost_wish`): the room-wide public fact every human client reads
+    /// from its Welcome (HUD term 23, `delivery::projection::wire_hud_for`). P-FROST-WALL-BOTS-1.
+    pub frost_wish: rh_sim::FrostWish,
 }
 
 impl MatchStart {
@@ -85,6 +88,7 @@ impl MatchStart {
             },
             observation_version: OBSERVATION_VERSION,
             tick_ms: rh_sim::constants::TICK_MS,
+            frost_wish: sim.config().frost_wish,
         }
     }
 

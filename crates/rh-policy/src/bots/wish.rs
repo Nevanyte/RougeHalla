@@ -126,7 +126,15 @@ pub enum TargetRule {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PolicyEffect {
     HidesCaster,
-    Blink { max_dist: f64, min_dist: f64 },
+    Blink {
+        max_dist: f64,
+        min_dist: f64,
+    },
+    /// Legacy `do: "wall"` (78dd8bd4 shared/abilities.ts): a barrier `length` long standing `ms` at the aim point.
+    Wall {
+        ms: f64,
+        length: f64,
+    },
 }
 /// One rank of a Wish (Wishes have one).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -229,6 +237,15 @@ pub const WISHES: [WishDef; 5] = [
 pub fn wish_by_id(id: AbilityId) -> Option<&'static WishDef> {
     WISHES.iter().find(|d| d.id == id)
 }
+/// The policy row a room plays for a Wish id: the catalog's, except that in a room whose Frost Wish is Frost Wall
+/// (`SimConfig::frost_wish`, staged under Freeze's id as `rh_sim::abilities::definition_for` does) Frost's Wish is the
+/// Frost Wall row.
+///
+/// STUB (P-FROST-WALL-BOTS-1): returns the catalog row for every setting; the implementer adds the Frost Wall row.
+pub fn wish_for(id: AbilityId, frost_wish: rh_sim::FrostWish) -> Option<&'static WishDef> {
+    let _ = frost_wish;
+    wish_by_id(id)
+}
 /// The rank numbers, clamped to 1..ranks.length (rankOf): a Wish has one rank, so any rank is rank 1.
 pub fn wish_rank(def: &WishDef, rank: u8) -> &WishRank {
     let _ = rank;
@@ -266,6 +283,7 @@ fn static_rank(def: &WishDef) -> SourceRank {
             .iter()
             .any(|e| matches!(e, PolicyEffect::HidesCaster)),
         blink: blink_of(def.rank.effects),
+        wall: false,
     }
 }
 /// The static `WISHES` row as the source-shaped borrowed ability the shared core consumes.
@@ -314,7 +332,7 @@ pub fn hides_caster(def: &WishDef, rank: u8) -> bool {
 fn blink_of(effects: &[PolicyEffect]) -> Option<(f64, f64)> {
     effects.iter().find_map(|e| match e {
         PolicyEffect::Blink { max_dist, min_dist } => Some((*max_dist, *min_dist)),
-        PolicyEffect::HidesCaster => None,
+        PolicyEffect::HidesCaster | PolicyEffect::Wall { .. } => None,
     })
 }
 

@@ -135,7 +135,7 @@ fn the_wish_static_rows_match_the_source() {
         };
         let policy_blink = def.rank.effects.iter().find_map(|e| match e {
             PolicyEffect::Blink { max_dist, min_dist } => Some((*max_dist, *min_dist)),
-            PolicyEffect::HidesCaster => None,
+            PolicyEffect::HidesCaster | PolicyEffect::Wall { .. } => None,
         });
         assert_eq!(policy_blink, corpus_blink, "{} blink", def.name);
 

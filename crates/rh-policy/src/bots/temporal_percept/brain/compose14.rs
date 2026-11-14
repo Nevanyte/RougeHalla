@@ -273,6 +273,9 @@ pub(crate) struct Composer14 {
     winner: String,
     /// The seat's mob tracks (live seats only, [`Composer14::track_mobs`]).
     tracks: Option<MobTracks>,
+    /// Which Wish Frost has in this room (`MatchStart::frost_wish`, the Welcome's HUD term 23). P-FROST-WALL-BOTS-1.
+    #[allow(dead_code)] // STUB (P-FROST-WALL-BOTS-1): `wish_record` reads it.
+    frost_wish: rh_sim::FrostWish,
 }
 
 /// The groups a composition reads, all present (the composer's preflight).
@@ -297,6 +300,7 @@ impl Composer14 {
             last_plan: None,
             winner: String::new(),
             tracks: None,
+            frost_wish: rh_sim::FrostWish::Freeze,
         }
     }
 
@@ -304,6 +308,13 @@ impl Composer14 {
     /// only; the frozen-corpus and composer oracles keep reference keys.
     pub(crate) fn track_mobs(&mut self) {
         self.tracks = Some(MobTracks::default());
+    }
+
+    /// The room's Frost Wish (`MatchStart::frost_wish`): with `Wall`, `extras.wish.def` of a Frost seat is legacy's
+    /// `frostWall` def. A composer starts at `Freeze` (today's def).
+    pub(crate) fn with_frost_wish(mut self, frost_wish: rh_sim::FrostWish) -> Self {
+        self.frost_wish = frost_wish;
+        self
     }
 
     /// Forget every retained sample (a new session or match).
@@ -1775,6 +1786,12 @@ fn wish_record(w: &rh_protocol::WireWishOwner, own_effects: u16) -> Option<BVal>
             ("do", BVal::text("blink")),
             ("maxDist", BVal::num(max_dist)),
             ("minDist", BVal::num(min_dist)),
+        ]),
+        // Legacy 78dd8bd4 shared/abilities.ts `frostWall`: `{ do: "wall", ms, length }`.
+        PolicyEffect::Wall { ms, length } => BVal::obj([
+            ("do", BVal::text("wall")),
+            ("ms", BVal::num(ms)),
+            ("length", BVal::num(length)),
         ]),
     });
     let def = BVal::obj([

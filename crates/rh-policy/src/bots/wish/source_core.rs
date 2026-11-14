@@ -82,6 +82,8 @@ pub(crate) struct SourceRank {
     pub(crate) hides_caster: bool,
     /// The first `do: "blink"` effect's `(maxDist, minDist)`.
     pub(crate) blink: Option<(f64, f64)>,
+    /// The rank has a `do: "wall"` effect (legacy 78dd8bd4 `abilityPolicy.ts` `wallOf`). STUB: not read by the policy yet.
+    pub(crate) wall: bool,
 }
 
 /// A source-opaque declared ability, borrowed. No catalog row is substituted for a declared def.
@@ -358,6 +360,8 @@ pub(crate) struct DeclaredRank {
     pub(crate) targeting: Option<DeclaredTargeting>,
     pub(crate) hides_caster: bool,
     pub(crate) blink: Option<(f64, f64)>,
+    /// A declared `do: "wall"` effect.
+    pub(crate) wall: bool,
 }
 
 /// The source targeting union as the finite reader can name it; anything that is not one of the five actual
@@ -472,6 +476,7 @@ pub(crate) fn admit_ranks(ranks: &[DeclaredRank]) -> Result<Vec<SourceRank>, Wis
             targeting,
             hides_caster: rank.hides_caster,
             blink: rank.blink,
+            wall: rank.wall,
         });
     }
     Ok(out)
@@ -862,8 +867,10 @@ mod tests {
                 super::super::PolicyEffect::Blink { max_dist, min_dist } => {
                     Some((*max_dist, *min_dist))
                 }
-                super::super::PolicyEffect::HidesCaster => None,
+                super::super::PolicyEffect::HidesCaster
+                | super::super::PolicyEffect::Wall { .. } => None,
             }),
+            wall: false,
         }]
     }
 
@@ -875,12 +882,14 @@ mod tests {
                 targeting: TargetRule::Self_,
                 hides_caster: false,
                 blink: None,
+                wall: false,
             },
             SourceRank {
                 cast_ms: 2.,
                 targeting: TargetRule::Self_,
                 hides_caster: true,
                 blink: None,
+                wall: false,
             },
         ];
         // floor, clamp to 1..=len; nonfinite becomes 1; a rank is never narrowed/rejected.
@@ -980,6 +989,7 @@ mod tests {
             targeting,
             hides_caster: false,
             blink,
+            wall: false,
         }
     }
 

@@ -1255,6 +1255,7 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
                 targeting,
                 hides_caster,
                 blink,
+                wall: false,
                 raw,
             });
         };
@@ -1284,6 +1285,7 @@ fn ability_rank(value: &BVal) -> R<AbilityRank> {
         targeting,
         hides_caster,
         blink,
+        wall: false,
         raw,
     })
 }

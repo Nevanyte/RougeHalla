@@ -2616,6 +2616,7 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
                 targeting,
                 hides_caster,
                 blink,
+                wall: false,
                 raw,
             });
         };
@@ -2655,6 +2656,7 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
         targeting,
         hides_caster,
         blink,
+        wall: false,
         raw,
     })
 }

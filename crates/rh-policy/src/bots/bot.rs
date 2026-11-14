@@ -939,6 +939,7 @@ mod knowledge_repair_reset_tests {
             content_hash: rh_sim::content::content_hash(),
             observation_version: rh_sim::OBSERVATION_VERSION,
             tick_ms: TICK_MS,
+            frost_wish: rh_sim::FrostWish::Freeze,
         }
     }
 
