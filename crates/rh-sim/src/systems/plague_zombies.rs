@@ -57,7 +57,9 @@ pub(crate) fn stats(owner: &Player) -> (f64, f64) {
 }
 
 fn beside_owner(k: &MatchStatic, w: &World, owner: &Player) -> Vec2 {
-    let map = k.collision_map(w.rt.gates_locked);
+    // Legacy `collisionMap`: a standing wall is not a place beside the owner (P-FROST-WALL-1c).
+    let held = crate::barriers::held(w);
+    let map = crate::barriers::body_map(k, &held, w.rt.gates_locked);
     let from = owner.pos();
     for distance in [32., 24., 16.] {
         for turn in [
@@ -368,7 +370,11 @@ pub(crate) fn update(cx: &mut Cx) {
             distance <= 66.
                 && cx.w.fighter_idx(id).is_some_and(|ix| {
                     has_line_of_sight(
-                        cx.k.collision_map(cx.w.rt.gates_locked),
+                        crate::barriers::body_map(
+                            cx.k,
+                            &crate::barriers::held(cx.w),
+                            cx.w.rt.gates_locked,
+                        ),
                         zpos,
                         cx.w.core(ix).pos(),
                         MASK_MOVE,
