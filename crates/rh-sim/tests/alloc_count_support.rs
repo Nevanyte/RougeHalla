@@ -5,8 +5,7 @@ use rh_sim::{terrain::Mode, Arena, FactionId, Placement, Secrets, Sim, SimConfig
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[path = "support/alloc_count.rs"]
-mod alloc_count;
+use rh_alloc_count as alloc_count;
 
 #[global_allocator]
 static ALLOC: alloc_count::CountingAlloc = alloc_count::CountingAlloc;
@@ -78,8 +77,7 @@ fn a_section_counts_exactly_its_own_blocks_while_other_threads_allocate() {
     // Growing a vector past its capacity is a realloc: one block per call.
     let (v, blocks) = alloc_count::blocks_on_this_thread(|| {
         let mut v: Vec<u64> = Vec::with_capacity(1);
-        v.push(1);
-        v.push(2);
+        v.extend([1, 2]);
         v
     });
     assert_eq!(blocks, 2, "alloc plus one realloc");

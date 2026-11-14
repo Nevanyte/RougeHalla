@@ -156,6 +156,10 @@ namespace Roguehalla.Net.Tests
                 if (f.FieldType == typeof(byte[])) planes++;
             Assert.GreaterOrEqual(planes, 6, "the planes were found");
             Assert.AreEqual(planes * Wire.MaxMapTiles, Wire.MaxMapDecodedBytes);
+            // One source of truth: the decoder's own budget (MapBlob.MaxDecodedPlaneBytes, private) is that constant.
+            var budget = typeof(MapBlob).GetField("MaxDecodedPlaneBytes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(budget, "MapBlob.MaxDecodedPlaneBytes exists");
+            Assert.AreEqual((long)Wire.MaxMapDecodedBytes, Convert.ToInt64(budget.GetRawConstantValue()));
 
             var oversized = new byte[Wire.MaxServerFrame + 1];
             Assert.AreEqual(DecodeError.TooLarge, Assert.Throws<DecodeException>(() => ServerMsg.Decode(oversized)).Error);
