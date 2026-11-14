@@ -71,16 +71,11 @@ impl HuntAdapter {
     }
 
     fn mobs(ctx: &StrategyContext<'_>) -> Vec<(String, HuntMobLike)> {
-        let mut mobs = Vec::new();
-        for (id, m) in ctx.mem.mobs() {
-            if m.returning {
-                continue;
-            }
-            if let Some(like) = mob_like_of(m) {
-                mobs.push((id.clone(), like));
-            }
-        }
-        mobs
+        hunt_mobs(
+            ctx.mem.mobs(),
+            ctx.p.extras.camps.as_deref(),
+            &ctx.cfg.map.camps,
+        )
     }
 
     fn players(ctx: &StrategyContext<'_>) -> (Vec<Vec2>, f64) {
@@ -298,7 +293,10 @@ fn mob_max_hp(zone: Option<FactionId>, elite: bool, name: Option<&str>) -> f64 {
     base * typed_mult
 }
 
-fn mob_like_of(m: &super::super::memory::MobMemory) -> Option<HuntMobLike> {
+fn mob_like_of(
+    m: &super::super::memory::MobMemory,
+    reward: Option<crate::bots::build_route::FarmStat>,
+) -> Option<HuntMobLike> {
     if !is_regional_kind(&m.kind) {
         return None;
     }
@@ -319,5 +317,47 @@ fn mob_like_of(m: &super::super::memory::MobMemory) -> Option<HuntMobLike> {
         weapon0: m.in_hand,
         weapon0_text: m.in_hand.map(|w| w.as_str().to_string()),
         type_: m.type_.clone(),
+        reward,
     })
+}
+
+/// The hunter's mob snapshot (huntAdapter.ts, the `mobs` loop as patched by a7b5c4ce): every remembered regional mob
+/// not walking home, in memory order, each carrying what its kill pays when its camp (`MobMemory::camp_id`, the map
+/// camp id `defs[i].id`) pays a stat other than its type's own, as the seat's percept reports it
+/// (`camps[j].reward` of the view with `index == i`). `camps` is `None` when the camps feature is off.
+pub(crate) fn hunt_mobs(
+    mobs: &[(String, super::super::memory::MobMemory)],
+    camps: Option<&[super::types::CampView]>,
+    defs: &[super::types::CampDef],
+) -> Vec<(String, HuntMobLike)> {
+    let mut out = Vec::new();
+    for (id, m) in mobs {
+        if m.returning {
+            continue;
+        }
+        let reward = m
+            .camp_id
+            .as_deref()
+            .and_then(|camp| camp_paid_stat(camp, camps?, defs));
+        if let Some(like) = mob_like_of(m, reward) {
+            out.push((id.clone(), like));
+        }
+    }
+    out
+}
+
+/// What the camp with map id `camp` pays when that is not its own type's stat (legacy's `CampState.buff`, set only off
+/// theme). Rust's percept names the paid stat for every camp, so "off theme" is: the percept's code is a stat
+/// (`hud_code_stat`), the view names its camp type, and that type's own stat (`reward_stat`) differs. On theme, an
+/// unknown camp id, a view-less camp, an untyped view or a non-stat reward: `None` (the mob keeps its type's weight).
+fn camp_paid_stat(
+    camp: &str,
+    camps: &[super::types::CampView],
+    defs: &[super::types::CampDef],
+) -> Option<crate::bots::build_route::FarmStat> {
+    let index = defs.iter().position(|d| d.id == camp)?;
+    let view = camps.iter().find(|v| v.index == index)?;
+    let paid = super::build_route::hud_code_stat(&view.reward)?;
+    let own = crate::bots::build_route::reward_stat(Some(view.type_.as_deref()?))?;
+    (paid != own).then_some(paid)
 }

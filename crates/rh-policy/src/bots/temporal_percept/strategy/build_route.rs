@@ -243,11 +243,12 @@ impl BuildRoute {
     }
 }
 
-/// The farm stat a camp's percept reward names, when it is one of the composer's nine HUD stat codes (`compose14.rs`
-/// `HUD_STATS`, `rh-sim` `observe.rs` `hud_stat` read backwards); `None` for any other text (the frozen corpus's legacy
-/// clear-reward kind `"" | "?" | "skills" | "relic" | "cursed"`, or anything unknown).
-fn paid_stat(reward: &str) -> Option<FarmStat> {
-    Some(match reward {
+/// P-BOT-BRAIN-THEMED-2: the one shared HUD stat code -> farm stat table (the composer's nine `HUD_STATS` codes,
+/// `rh-sim` `observe.rs` `hud_stat` read backwards), read by the route (`route_camp_value`) and the hunt
+/// (`hunt_adapter.rs` `hunt_mobs`) alike; `None` for any other text (the frozen corpus's `"known"`, `"weapon"`, legacy
+/// clear-reward kinds `"" | "?" | "skills" | "relic" | "cursed"`, mis-cased codes, anything unknown).
+pub(crate) fn hud_code_stat(code: &str) -> Option<FarmStat> {
+    Some(match code {
         "offense" => FarmStat::Ad,
         "soulOffense" => FarmStat::Ap,
         "damage" => FarmStat::Damage,
@@ -274,7 +275,7 @@ pub(crate) fn route_camp_value(build: &BuildGoal, c: &RouteCamp, elites: bool) -
         f64::from(c.alive)
     };
     let normals = if c.elite { (mobs - 1.).max(0.) } else { mobs };
-    let weight = match paid_stat(&c.reward) {
+    let weight = match hud_code_stat(&c.reward) {
         Some(stat) => build.weight(stat).max(STAT_FLOOR),
         None => type_weight(
             build,

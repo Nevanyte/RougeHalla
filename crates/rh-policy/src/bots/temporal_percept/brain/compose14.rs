@@ -79,8 +79,9 @@ const EFFECT_HIDDEN: u16 = crate::bots::wish::EFFECT_HIDDEN;
 /// shared abilities.ts `FIELD_KINDS` and `ABILITY_IDS` (the wire codes are their indices).
 const FIELD_KINDS: [&str; 3] = ["zone", "cloud", "trail"];
 const ABILITY_IDS: [&str; 5] = ["freeze", "swarm", "trial", "blaze", "lastStand"];
-/// The HUD stat codes of a camp's per-kill reward (`rh_protocol::HUD_STAT_COUNT` order).
-const HUD_STATS: [&str; 9] = [
+/// The HUD stat codes of a camp's per-kill reward (`rh_protocol::HUD_STAT_COUNT` order). Crate-visible for the
+/// P-BOT-BRAIN-THEMED-2 table test (`strategy/build_route.rs` `hud_code_stat` must name a stat for every code).
+pub(crate) const HUD_STATS: [&str; 9] = [
     "offense",
     "soulOffense",
     "damage",

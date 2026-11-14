@@ -37,6 +37,10 @@ pub(crate) struct HuntMobLike {
     pub weapon0: Option<WeaponId>,
     pub weapon0_text: Option<String>,
     pub type_: Option<String>,
+    /// P-BOT-BRAIN-THEMED-2 (a7b5c4ce `MobLike.reward`): the stat this mob's kill pays when its camp pays one other than
+    /// its camp type's own (an off-theme camp buff, read from the seat's own percept by `hunt_adapter.rs` `hunt_mobs`);
+    /// `None` = weigh it by its type (legacy `m.reward ?? m.type`). `hunt_wanted` reads it for normal mobs only.
+    pub reward: Option<crate::bots::build_route::FarmStat>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -547,11 +551,7 @@ impl MobHunter {
             if walk > reach * cfg.walk_slack {
                 continue;
             }
-            let wanted = match inp.type_weight {
-                None => 1.,
-                Some(_weight) if m.kind == "elite" => 1.,
-                Some(weight) => weight(m.type_.as_deref()),
-            };
+            let wanted = hunt_wanted(&m, inp.type_weight);
             if wanted < BUILD_WANTED && walk > OFF_BUILD_WALK && inp.self_.mob_kills > 0. {
                 continue;
             }
@@ -587,6 +587,28 @@ impl MobHunter {
         }
         best.map(|(id, _)| id)
     }
+}
+
+/// mobHunt.ts `wanted` (a7b5c4ce: `m.kind === "elite" || !inp.typeWeight ? 1 : inp.typeWeight(m.reward ?? m.type)`): what
+/// one candidate mob is worth to the build. The hunter's pick reads it here and nowhere else. `TypeWeightFn` is keyed by
+/// mob type (frozen-corpus callers pass such closures), so a mob whose camp pays `reward` is weighed as the first normal
+/// type paying that stat, as legacy calls `typeWeight` with the buff type: the build's weight for the paid stat,
+/// floored, bit for bit.
+pub(crate) fn hunt_wanted(m: &HuntMobLike, type_weight: Option<&TypeWeightFn<'_>>) -> f64 {
+    match type_weight {
+        None => 1.,
+        Some(_weight) if m.kind == "elite" => 1.,
+        Some(weight) => weight(m.reward.and_then(type_paying).or(m.type_.as_deref())),
+    }
+}
+
+/// The first normal type (source MOB_STAT_REWARDS order) whose kill pays `stat`; every farm stat has one.
+fn type_paying(stat: crate::bots::build_route::FarmStat) -> Option<&'static str> {
+    rh_sim::modifiers::farm::DEFINITION
+        .rows
+        .iter()
+        .map(|row| row.mob.as_str())
+        .find(|t| crate::bots::build_route::reward_stat(Some(t)) == Some(stat))
 }
 
 fn mob_type_progress(stacks: &[(String, u32)]) -> f64 {

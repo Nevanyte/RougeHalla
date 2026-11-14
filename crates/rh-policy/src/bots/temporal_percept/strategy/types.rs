@@ -193,7 +193,8 @@ pub(crate) struct RouteCamp {
     /// P-BOT-BRAIN-THEMED-1: the stat this camp's normal kills pay as the seat's percept reports it
     /// (`extras.camps[].reward`, the composer's HUD stat code: "offense", "soulOffense", "damage", "attackSpeed",
     /// "lifeSteal", "health", "defense", "soulDefense", "moveSpeed"); any other text, "" included, is unknown. The
-    /// legacy (frozen-corpus) percept carries CampState.reward there, the clear-reward kind, always "" in the corpus.
+    /// legacy (frozen-corpus) percept carries CampState.reward there, the clear-reward kind ("weapon" and "known" in the
+    /// corpus, never a stat code).
     pub reward: String,
     pub alive: u32,
     pub state: u8,

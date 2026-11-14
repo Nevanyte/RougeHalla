@@ -215,8 +215,7 @@ impl Strategy {
         self.settle(current, status, now);
         self.plan_route(ctx);
         let build = self.route.as_ref().map(|r| r.build);
-        let type_weight_fn =
-            build.map(|b| move |mob_type: Option<&str>| -> f64 { type_weight(b, mob_type) });
+        let type_weight_fn = build.map(hunt_type_weight);
         let elites_ready = build.map(|_| {
             ready_for_elites(
                 now - ctx.p.hud.raid_started_at,
@@ -224,9 +223,7 @@ impl Strategy {
                 ctx.p.self_.power,
             )
         });
-        let tw_ref = type_weight_fn
-            .as_ref()
-            .map(|f| f as &dyn Fn(Option<&str>) -> f64);
+        let tw_ref = type_weight_fn.as_deref();
         let hunt =
             self.adapter
                 .as_mut()
@@ -1811,6 +1808,15 @@ fn source_pick_option(
         return (order[k].1, true);
     }
     (source_softmax_index(rng, utilities, temperature), false)
+}
+
+/// The weight the hunt reads for the build (strategy.ts:259 `(type) => typeWeight(build, type)`, as patched by a7b5c4ce
+/// for a mob whose camp pays another stat). The engine passes exactly this to the hunt.
+/// STUB (P-BOT-BRAIN-THEMED-2): today's type-keyed weight.
+pub(crate) fn hunt_type_weight<'b>(
+    build: &'b crate::bots::build_route::BuildGoal,
+) -> Box<super::mob_hunt::TypeWeightFn<'b>> {
+    Box::new(move |mob_type: Option<&str>| -> f64 { type_weight(build, mob_type) })
 }
 
 /// The route's camps (strategy.ts:711-718): each camp view the map defines, its geometry from the map and its state and
