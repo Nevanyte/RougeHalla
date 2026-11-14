@@ -32,6 +32,65 @@ landed: this packet is built and tested against a test map stamped from the appr
 ## 3. Relevant legacy paths
 none (DEV-020)
 
+## Established facts (oracle author, 2026-11-13; base `coord/int-25`)
+
+### E1. How the volcano's tiles reach the client (checked in code)
+- Cone (`#`, `X`, `H`): `Tiles == Wall`, no terrain: 656 tiles (362 + 214 + 80). Lava (`~`, `O`): `Tiles == Low` with terrain `Lava` (1):
+  160 tiles (154 + 6). Corner floor (`.`): `Floor`, 84 tiles. Nothing else is in the box.
+- `RegionWalls` skips a tile whose terrain is Lava or Crevasse (`RegionWalls.cs:66`, `:91`: "the ground shader draws the hazard"), so
+  lava is the ground shader's and is never a wall mesh; the cone's `Wall` tiles are the wall meshes the art is drawn over (see trap
+  on the soft edge in section 11).
+- Rust: the certifier's `SIGNATURE_KINDS` row for `Volcano` is `wall: true, low: true, terrain: 1`
+  (`crates/rh-sim/src/mapgen/certify/rules.rs:204`): wall (cone) and LOW tiles whose terrain code is 1 = lava, as above. Terrain codes:
+  `rules.rs:17` `terrain_ice: 6`; client enum `TerrainKind` (Lava 1). Fire is zone 1 (`mapdata/model.rs:37`).
+- The generator for the new 30 x 30 volcano has NOT landed: `landmarks/signature/volcano.rs` still builds the older shape and records
+  `entrance: Vec::new()` (`volcano.rs:202`). The map generator session must record, for this drawing, the same anchor the test map
+  uses: kind 1, zone 1, `footprint` the 30 x 30 box, `front` the side of the three outlets (DIR16), and **`entrance` = the six outlet
+  tiles** (the `O` tiles, two per outlet, three outlets on the front row), centre = a lava tile at the lake's middle. `MapBlob.MaxAnchorEntrance`
+  is 16, so six passes the wire check.
+- Framework seams checked: `Landmark.Create` takes any entrance length (averages it for `ArchCentre`, which this art ignores);
+  `LandmarkInterior.Find` closes the entrance tiles and finds **0** interior in all eight orientations with or without the entrance
+  (guarded engine-free). No seam is missing. The one limitation: `Landmark` has no slot for a kind's own data, so the oracle reads the art
+  through a static table kept by `VolcanoLandmark` (below). No framework edit is needed.
+
+### E2. The tier rule (one rule; the implementer follows it exactly)
+For each wall tile of the footprint, **depth** = Euclidean distance (tile centres) to the nearest tile that is neither Wall nor Low
+(a floor tile inside the footprint, or ANY tile outside the footprint: the nearest outside tile is `min(x+1, W-x, y+1, H-y)` away in
+footprint-local coordinates). **D** = the largest depth over the footprint's wall tiles (11 for the drawing). Tier **Foot** if
+`depth <= 0.4 D`, **Slope** if `depth <= 0.8 D`, else **Rim**. No depth lies on a threshold (depth squared is an integer; `(0.4 D)^2` and
+`(0.8 D)^2` are not), so rounding cannot matter. The rule is symmetric under the eight placements.
+- Measured on the drawing: counts Foot 346, Slope 230, Rim 80 (drawn: 362, 214, 80); **16 of 656 tiles differ from the drawn rings**
+  (all on the foot/slope edge). Alternatives measured and rejected: distance to the nearest lava tile (194 or more wrong of 656: the channels
+  pull foot tiles beside them next to the lava); ratio rules (110+ wrong); thresholds .4/.75 (20 wrong); the rule above was best and
+  has round constants. The rule is pinned, not the drawn rings. The engine-free test fails if it stops reproducing the rings within 16.
+- "Nearer the lake": the lake core = lava tiles whose eight neighbours are all lava (58 tiles; the channels are 2 wide, so none of
+  them is core). Every Rim tile is within 4.24 tiles of the core, every Foot tile at least 7.81: `rim max < foot min` holds in all eight
+  orientations. (The lake as ALL lava does not work: foot tiles beside a channel outlet are 1 tile from lava. This is why the core.)
+
+### E3. What the stub exposes (names the implementer keeps)
+In `Landmarks/VolcanoLandmark.cs` (stub, `.meta` included, no `case` registered in `LandmarkArts.cs`):
+- `public static class VolcanoLandmark { public static void Build(Landmark lm); public static VolcanoArt ArtOf(Landmark lm); }`: `Build` is the
+  `LandmarkArtBuilder`; it must record the art it makes so `ArtOf(lm)` returns it (the stub keeps a `ConditionalWeakTable`; use `Arts.Add(lm, art)`).
+- `public sealed class VolcanoArt { const int Foot = 0, Slope = 1, Rim = 2; int Tier(int x, int y); SpriteRenderer[] ConeRenderers; SpriteRenderer[] GlowRenderers; }`:
+  `Tier` is the E2 tier for a wall tile of the footprint and -1 for any other tile (the whole map may be asked); `ConeRenderers` are every
+  renderer that draws the cone; `GlowRenderers` every glow (one per outlet and one over the lake).
+- The registration line is the implementer's: `case MapBlob.AnchorKindVolcano: builder = VolcanoLandmark.Build; return true;`.
+
+### E4. What the Unity tests pin (all eight orientations unless stated)
+One landmark, one object under the parent; `WallCount` 656, `IceCount` 0, `InteriorCount` 0, no roof renderer; every renderer under the
+root sorts below the fog (31000). Cone: `Tier >= 0` exactly on the wall tiles of the footprint; the union of the cone renderers' bounds
+contains every wall tile's centre and stays within one tile beside, one below and two above the footprint; each cone renderer sorts in
+the footprint's row range (`2000 + 16 * FootY .. 2000 + 16 * (FootY + 30) + 15`) and is under the root. Tiers equal E2 for every tile
+(346 / 230 / 80) and rim is nearer the lake core than foot. Glows: at least three; for each outlet a distinct glow whose bounds centre
+lies from 0 to 1.5 tiles beyond the outlet's centre in the front direction and within 1.5 tiles across (fronts 0, 4, 8, 12 are all produced
+by the eight orientations: guarded); one glow's centre is inside the crater (orientation 0). The volcano is registered. 200 unchanged
+frames allocate 0 bytes and create no object; the art's textures and sprites are gone after the view is disposed (`Landmark.Own`).
+Not pinned: colours, shapes, how the cone meets the lava, the crater wall and channel banks (no structural handle; the screenshot round judges them).
+
+### E5. Legacy and doubts
+No legacy counterpart (DEV-020). Lava is `Low`, not wall, in the drawing and the certifier; the tile count of 160 is the brief's. The brief
+says the 16 foot/slope differences are tolerated; if the owner wants the drawn rings exactly, the tiers would have to come over the wire.
+
 ## 5. Exclusive write scope
 - new `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/VolcanoLandmark.cs` (+ `.meta`)
 - `Landmarks/LandmarkArts.cs`: one `case MapBlob.AnchorKindVolcano` line
@@ -58,6 +117,25 @@ none (DEV-020)
 - Screenshots (the coordinator's round, after merge): close and wide, in play; a visual review signs them before the
   owner sees them.
 - `scripts/gate.sh --quick --oracle packet/P-UNITY-LANDMARK-2` passes.
+
+## Oracle files (read-only for implementers)
+- `client-unity/RoguehallaNet.Tests/VolcanoLandmarkDrawingTests.cs` (new; reads `docs/landmarks/blueprints/volcano.txt`)
+- `client-unity/UnityProject/Assets/Tests/Editor/VolcanoLandmarkEditModeTests.cs` and its `.meta` (new; reads `volcano.txt`)
+- `docs/landmarks/blueprints/volcano.txt` (approved drawing; never edited here)
+- Stub commit (`stub:`), filled by the implementer: `Scripts/View/Regions/Landmarks/VolcanoLandmark.cs` + `.meta`.
+- Mechanical edit to an existing test (coordinator-approved, in the stub commit): `LandmarkViewEditModeTests.cs`: the volcano comes off the
+  no-art list of `TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts`, and `AKnownKindWithNoArtRegisteredBuildsNothingAndLogsOnce`
+  uses the Hall (kind 5, "no art for kind 5") as its example instead. Nothing else there changed.
+
+Baseline (base `coord/int-25` + stub + oracle): `dotnet test client-unity/RoguehallaNet.Tests`: the 25 new drawing tests are green guards (they pin the
+drawing and the tier rule: counts, outlets, no interior, 16-tile rule fidelity, rim-nearer-than-foot); the rest of the suite is as before.
+EditMode: total 1009, passed 973, **36 failed, all new, all on assertions** (35 at "Expected 1, but was 0": the Volcano anchor builds no landmark
+because no art is registered; 1 at `TheVolcanoIsRegisteredAtTheOnePlace`). Red: `AVolcanoAnchorBuildsOneLandmark...` x8, `TheConeArtCovers...` x8,
+`TheConeHasThreeTiers...` x8, `AGlowStandsOnEachOutlet...` x8, `AGlowStandsOverTheLake`, `AFrameWhereNothingChanged...`,
+`EverythingTheArtCreatesIsDisposed...`, `TheVolcanoIsRegisteredAtTheOnePlace`. Green guard: `TheFourFrontDirectionsAreAllCoveredByTheEightOrientations`.
+Every existing test stays green (including the two edited framework tests). Because each red test stops at its first assertion, the later
+assertions (bounds, tiers, glow offsets, allocation, disposal) were reasoned, not run, until an implementation exists; the tier and core numbers
+were measured in a throwaway script and the same rule runs, green, in the engine-free test.
 
 ## 9. Validation commands
 - `export PATH="$HOME/.dotnet:$PATH"; dotnet test client-unity/RoguehallaNet.Tests`
