@@ -27,7 +27,7 @@ namespace Roguehalla.Client
         public const string CrownName = "Bog tree canopy";
         const int Ppt = 16;                                       // texture pixels per tile
         const float Sq = ArenaView.GroundSquash;
-        const float RootH = .72f, BoleH = 3.3f;                    // world units; RootH clears the wall blocks (face .67); the bole stands 3.3 tall
+        const float RootH = .72f, BoleH = 2.7f;                    // world units; RootH clears the wall blocks (face .67); the bole stands 2.7 tall
         const float BoleRise = 1.15f;                               // tiles of depth over which the flared root skirt turns into the steep column
         const float BoleTilt = .22f;                                // how much higher the bole's top is on its north west side (units)
         const float Dz = .055f;
@@ -36,7 +36,7 @@ namespace Roguehalla.Client
         const string ShadowName = "Bog tree crown shadow";
         // Looks-only numbers of the crown (docs/unity/DIALS.md rows bog-tree-*).
         const float CrownLiftMargin = .35f;                       // the crown's bottom edge (moss included) above the trunk bounds' midpoint, units (test floor .25)
-        const float CrownTopGap = .6f;                            // the crown's top edge below the footprint's top edge, units
+        const float CrownTopGap = 1.0f;                            // the crown's top edge below the footprint's top edge, units
         const float CrownMossLength = 1.1f;                       // longest hanging moss strand, units
         const float CrownShape = 2.6f;                            // superellipse exponent of the crown's outline (2 = ellipse, higher = boxier)
         const float CrownGapAmount = .58f;                        // the noise level above which the crown has a gap (lower = more sky); range .5 to .68
