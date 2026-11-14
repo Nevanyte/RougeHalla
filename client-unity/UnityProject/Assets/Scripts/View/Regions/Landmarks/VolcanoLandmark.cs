@@ -8,6 +8,8 @@ namespace Roguehalla.Client
     /// <summary>
     /// P-UNITY-LANDMARK-2: what the Fire volcano's art made, for the tests and for nobody else. Tiers follow the packet's one rule (depth =
     /// distance to the nearest tile that is neither Wall nor Low; Foot to 0.4 of the largest depth, Slope to 0.8, Rim above).
+    /// Lava is a Low tile with terrain Lava (P-UNITY-LANDMARK-SEAMS-1); a Low tile of any other terrain (a fence, a crevasse)
+    /// is not lava and counts as open ground for the depth.
     /// </summary>
     public sealed class VolcanoArt
     {

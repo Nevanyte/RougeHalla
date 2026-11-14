@@ -48,7 +48,7 @@ namespace Roguehalla.Client
                 {
                     lm.Dispose();
                     if (failed == null) failed = new HashSet<byte>();
-                    if (failed.Add(anchor.Kind)) Debug.LogWarning("LandmarkView: art for kind " + anchor.Kind + " failed: " + e.Message);
+                    if (failed.Add(anchor.Kind)) Debug.LogWarning("LandmarkView: art for kind " + anchor.Kind + " failed: " + e.GetType().Name + ": " + e.Message);
                     continue;
                 }
                 view._landmarks.Add(lm);
