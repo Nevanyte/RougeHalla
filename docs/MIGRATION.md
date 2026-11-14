@@ -4,6 +4,55 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integrations 41 and 42 (2026-11-14): the wall is live and seen; the retrospective's fixes; current checkpoint
+
+Integration branch `feature/unity-rework` @ `947958208` on origin (integrations 40b and 41, full gates with Postgres
+green). Staged as `coord/int-42` and under gate as one tree. **Identities:** protocol 17 (18 at the next deploy),
+observation 30, policy contract **25** (a seat is told the room's Frost Wish, P-FROST-WALL-BOTS-1), checkpoint 32,
+replay 25, content hash `7a542a13187f034c`.
+
+**Frost Wall is live in the tree** (`SimConfig::live_content()`; the default world and every parity fixture stay
+Freeze) and was played in the running Web client (round 13, shots in the session scratchpad `shots13/`; three sent to
+the owner): the panel names it, R opens the aim preview, a click places it, it blocks the player, cracks and falls,
+Escape only cancels the aim. Since round 13: stronger colours so it reads on Frost ground (P-UNITY-FROST-WALL-READ-1,
+DEV-035 proposed); capture scenes for it (P-UNITY-LOOK-WALL-1); the panel, card and hub guide text
+(P-UNITY-WISH-TEXT-1); loot, corpse and trader reach across the ice (P-FROST-WALL-1d).
+**The round's defect and its fix:** two casts in the Plague bog raised no wall on screen. The walls existed and
+blocked; the server sent a wall only when its first end was in the viewer's sight, and the bog tree's trunk hid that
+tip from the caster (7,177 of 29,232 casts on that map). P-FROST-WALL-NOWALL-1: the owner always, and any viewer who
+sees the first end or one tile (DEV-036 proposed). **Bots** aim the wall as legacy's do, a peel or an escape
+(P-FROST-WALL-BOTS-1); fill bots (`HumanBot`) rarely use it, the Brain does. The learner and tuner runs may now start.
+Open on the wall: client walk prediction round it (P-FROST-WALL-PREDICT-1), the cast telegraph's colour, no capture
+or Web shot of a wall on a dark ground, training-room practice placements.
+
+**Owner instruction 2026-11-14 (chat, after a retrospective):** "Please keep everything in this session for now as it
+is all wrapping up. Please apply your best suggested fixes for the found production issues 1-6". Fix 1 (lane
+sessions) is therefore not applied. Applied as P-ENV-RETRO-1, under the owner's approval for the protected paths it
+names: the gate runs its cheap checks first, `--keep-going` reports every red step in one run, `--list-steps`, path
+checks for build artefacts and unconverted mesh colours, a step for release-only tests; a pattern-kill hook in every
+agent definition (`.claude/hooks/no-pattern-kill.sh`; `settings.json` untouched); `scripts/agent-worktrees.sh`
+(worktree ownership); implementers finish on the quick gate and the coordinator's merged-tree gate is the one full
+gate; oracle-author habits; [coordination/OWNER_QUEUE.md](coordination/OWNER_QUEUE.md) (open decisions with the default
+in force) and [OWNER_DECISIONS.md](OWNER_DECISIONS.md) (an index of recorded decisions).
+
+**Decisions that were recorded only in packet briefs until the index found them** (stated here so this file holds
+them): 2026-11-12, Frost Wall: its numbers stay out of the content hash until the wire packet, so the content hash and
+the wire move at one deploy (done at P-FROST-WALL-2a/-2); 2026-11-12, Frost's Wish keeps the ability id `Freeze` under
+the wall; 2026-11-11, the degraded fair Brain profile (facts a seat cannot see are unknown, never inferred);
+2026-11-10, competitive-speed netcode departures; 2026-11-05, Unity optimisations deferred and a separate Claude
+branch. The index also found this file contradicting itself: DEV-033 (the Sentenced floor) is called signed,
+withdrawn and owed in different sections (it is **proposed and unsigned**, as DEVIATIONS says), and one section says
+every deviation is signed while DEV-001 to DEV-008 and DEV-011 are pending.
+
+**Map generator session:** P-MAPGEN-SIG-BLUEPRINT-2 on origin; P-MAPGEN-LANDMARK-FRAME-1 reviewed and in this batch.
+Its measurement, for the Frost land packet: with landmarks on, 11 of 54 attempts on seeds 1-32 (34 of 178 on 1-96) are
+discarded only because the Frost lake is not at the cave's mouth. Its own environment packet (P-AGENT-RETRO-1: a
+dev-profile `opt-level` that more than halves gate test time, an oracle preflight, a reviewer note rule, LANES.md) is
+reviewed (land after fixes) and waits for the owner to confirm in this chat the approval given in that session's.
+**Coordinator errors this stretch, for the record:** removed a live worktree of that session (ownership script now);
+briefed against the 2026-11-12 decision (index now); ruled the policy contract unchanged against its own version
+history (corrected to 25 before implementation).
+
 ## Integrations 38 to 40 (2026-11-14): Frost Wall is complete behind its switch; identities move
 
 Integration branch `feature/unity-rework` @ `15c35e2f7` on origin (full gates with Postgres green on `76bf3ba7a` and
