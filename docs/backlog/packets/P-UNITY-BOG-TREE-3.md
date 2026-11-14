@@ -6,29 +6,17 @@
 - **Integration base:** aadff95e3 (the coordinator's staging head; contains P-UNITY-BOG-TREE-2)
 - **D-rules touched:** D1 n/a (presentation; DEV-020) · D2 n/a · D5/D6/D9 none · no wire change · no game rule in Unity
 
-## BLOCKED ON A DECISION (read first)
-An existing test conflicts with the second half of this packet (the shadow is not a roof). The implementer may not edit tests, so
-this packet cannot go gate-green until the coordinator/owner applies the amendment below as its own commit on `packet/P-UNITY-BOG-TREE-3`.
-The first half (crown fade set) has no conflict.
-
-`BogTreeLandmarkEditModeTests` (all three read `Landmark.RoofRenderers`, which is the crown plus the shadow today):
-1. `TheCanopyIsDrawnOverEveryCoverTileAndNoTileOutsideTheFootprintAndSortsUnderTheFog` (line 247): `var roof = RoofBounds(lm);` where
-   `RoofBounds` (line 166) is the union of every `RoofRenderers` bounds; then `Assert.That(Reaches(roof, t), Is.True, ...)` for every one of the 275
-   cover tiles (give or take half a tile). The lifted crown cannot reach the ring south of the trunk; only the shadow does.
-2. Same test (line 257): `Assert.That(lm.RoofRenderers.All(r => r.sortingOrder == lm.RoofOrder), Is.True, "every canopy piece on the roof order")`.
-3. `TheCanopyFadesForAnActorOnTheDryGround...` (line 289): `foreach (var r in lm.RoofRenderers) Assert.That(r.color.a, Is.EqualTo(LandmarkView.RoofFadedAlpha)...`
-   "every canopy piece carries the alpha". Also `LandmarkRoofPeekEditModeTests` lines 126 and 169 assert the same for the peek alpha, on their own fixtures.
-
-So the shadow cannot stay in `RoofRenderers` (it would have to be on the roof order and fade: 2 and 3), and if it leaves `RoofRenderers` the union in 1
-no longer reaches the cover ring (the crown is lifted: `BogTreeCrownEditModeTests`). No way to satisfy the existing tests and the new rule together.
-
-**Smallest amendment proposed (owner's to approve):**
-- `Landmark.cs`: a general seam `AddGroundPiece(SpriteRenderer r, int sortingOrder)` and `GroundRenderers` (not in `RoofRenderers`, never tinted by
-  `SetRoofAlpha`, order as given, disposed with the landmark).
-- `BogTreeLandmarkEditModeTests.RoofBounds` (one helper, used only by test 1 above): also `Encapsulate` the bounds of `lm.GroundRenderers`. Then 1 holds
-  (union of crown and shadow still reaches the cover and stays inside the footprint), and 2 and 3 hold because the shadow is not a roof renderer.
-The new oracle finds the shadow by name (`BogTreeLandmark.ShadowName`) and does not depend on which list holds it, so it needs no change either way.
-If the owner prefers, relax assertion 1 instead; then nothing else changes.
+## Established facts
+- **Decision 2026-11-14 (coordinator; flagged to the owner as a mechanical test-helper change).** `BogTreeLandmarkEditModeTests` read
+  `Landmark.RoofRenderers` three ways: the union of their bounds must reach all 275 cover tiles (line 247 via `RoofBounds`, line 166), every one is on
+  `RoofOrder` (line 257) and every one carries the faded alpha (line 289; `LandmarkRoofPeekEditModeTests` lines 126, 169 the peek alpha). A shadow that is
+  not a roof cannot be in `RoofRenderers`, and then the first assertion fails because the crown is lifted. Accepted amendment: a general seam in
+  `Landmark.cs`, `AddGroundPiece(SpriteRenderer r, int order)` / `GroundRenderers` (never tinted by the roof fade, keeps the order it is given, disposed
+  with the landmark; the `stub:` commit has it compile-only), and the `RoofBounds` helper also encapsulates `GroundRenderers` (the only change to that
+  file; assertions at 257 and 289 untouched, they stay true for real roof pieces). `BogTreeLandmark` registers the shadow through `AddGroundPiece` with an
+  order below every actor on the cover (see Known traps).
+- The crown's fade set is by the actor's FEET tile, like every roof in this client (cave, church, hall, volcano): accepted for this packet that a head
+  can be under the crown's bottom edge while the crown stays solid.
 
 ## 1. ID and outcome
 Seen in the running Web client (round 11, 2026-11-14): the landmark's crown is lifted over a tall trunk; a second roof piece, the ground shadow, lies over
@@ -41,7 +29,7 @@ top of the screen: the roof fades to 20 percent at once and the player never see
 - The roof rule is unchanged: local player on a fade tile 20 percent, another visible actor 50 percent, nobody solid. Cave, church, hall, volcano unchanged.
 
 ## 2. Dependencies
-P-UNITY-BOG-TREE-2 (in the base). The decision above before the implementer starts.
+P-UNITY-BOG-TREE-2 (in the base). none open (see Established facts).
 
 ## 3. Relevant legacy paths
 none (DEV-020: the landmarks are new)
@@ -51,7 +39,7 @@ none (DEV-020: the landmarks are new)
 
 ## 5. Exclusive write scope
 - `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` (`PaintCanopy` fade set at the `SetFadeTiles` call, `PaintShadow`)
-- `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/Landmark.cs` only for the general seam (above): any art may use it; nothing bog specific in it
+- `client-unity/UnityProject/Assets/Scripts/View/Regions/Landmarks/Landmark.cs`: the ground-piece seam only (`AddGroundPiece`, `GroundRenderers`, clear it in `Dispose`); any art may use it; nothing bog specific
 - `docs/unity/DIALS.md` only if a dial row changes (`bog-tree-shadow`)
 - not `LandmarkView.cs`, not the other arts, not shaders, not any existing test
 
@@ -66,13 +54,14 @@ none (DEV-020: the landmarks are new)
 - The shadow still reaches the cover ring and stays inside the footprint (`BogTreeLandmarkEditModeTests`, as amended).
 
 ## 8. Acceptance checks
-- `BogTreeCrownFadeEditModeTests` all green (24 red today, see Baseline).
+- `BogTreeCrownFadeEditModeTests` all green (see Baseline).
 - `scripts/gate.sh --oracle packet/P-UNITY-BOG-TREE-3` passes; `BogTreeCrownEditModeTests` (incl. `EveryTileTheCrownPaintsOverFades...`) stays green.
 - Look check `bog-wide`, `bog-close` before and after (docs/unity/LOOK_CHECK.md), attached to the hand-off: crown solid when the player stands on the shadow south of it.
 
 ## Oracle files (read-only for implementers)
 - `client-unity/UnityProject/Assets/Tests/Editor/BogTreeCrownFadeEditModeTests.cs` (and its `.meta`)
-- The existing structure tests stay read-only and green: `BogTreeLandmarkEditModeTests.cs` (except the one helper if the owner approves the amendment),
+- `client-unity/UnityProject/Assets/Tests/Editor/BogTreeLandmarkEditModeTests.cs`: ONLY the `RoofBounds` helper is amended (coordinator-approved); read-only for implementers
+- The other existing structure tests stay read-only and green:
   `BogTreeCrownEditModeTests.cs`, `LandmarkRoofPeekEditModeTests.cs`, `LandmarkViewEditModeTests.cs`, `LandmarkSeamsEditModeTests.cs`.
 
 ## What the oracle pins
@@ -81,14 +70,16 @@ Fixture: the bog drawing stamped in all eight orientations (as `BogTreeCrownEdit
 2. Guard (8, green today): every tile under an opaque (alpha >= 128) crown pixel fades to 0.2 for the local player and gives 0.5 for another visible actor.
 3. Red today (16): (a) the shadow's `sortingOrder` is below every cover tile's actor order; actor order in this client is `2000 + RoundToInt(server y px * .5)`
    (`SpriteActorPresenter.cs:437`), here `2000 + 16 * tileY + 8` at a tile's centre; (b) the shadow's `color.a` is unchanged while the crown is 0.2 and 0.5.
+3c. Seam (red today): a ground piece added with `AddGroundPiece` is listed in `GroundRenderers`, not in `RoofRenderers`, keeps its order and alpha through a fade and a peek, and is destroyed and delisted with the landmark.
 4. Guards (2, green today): church override with a cover only (0.2 / 0.5 / 1.0) and the cave (0.2 inside, 0.5 for another actor).
 Not pinned: the shadow's order against the ground and trunk (above the ground, below actors is the intent; look check decides); the exact fade set.
 
 ## Baseline (packet/P-UNITY-BOG-TREE-3 at the oracle commit)
-`bash client-unity/UnityProject/Tools/editmode.sh`: 1493 tests, 1469 pass, 24 fail, all in `BogTreeCrownFadeEditModeTests`:
+`bash client-unity/UnityProject/Tools/editmode.sh`: 1495 tests, 1469 pass, 26 fail, all in `BogTreeCrownFadeEditModeTests`:
 - `AnActorOnTheCoverTwoTiles...` (8): e.g. orientation 4, tile (14, 30): expected 1.0, was 0.2.
 - `TheGroundShadowSortsBelow...` (8): e.g. orientation 0, tile (17, 9): expected less than 2152, was 2576 (the roof order).
 - `TheGroundShadowsAlphaDoesNotChange...` (8): expected 1.0, was 0.2.
+- `AGroundPieceKeepsItsOrder...` and `AGroundPieceIsDisposedWithTheLandmark` (2): `GroundRenderers` expected to contain the piece, was empty (the stub seam does nothing).
 Green: the 8 painted-tile guards, the church and the cave guards. The pre-existing 1459 tests are unchanged and green at this commit.
 
 ## 9. Validation commands
@@ -96,7 +87,7 @@ Green: the 8 painted-tile guards, the church and the cave guards. The pre-existi
 - `scripts/gate.sh --quick --base aadff95e3`
 
 ## 10. Risk and suggested model tier
-Sonnet. Small change, but it needs the owner's decision on the conflicting test first.
+Sonnet. Small change; the one conflicting test helper is amended in the oracle commits.
 
 ## 11. Known traps
 - "Hidden" is by the actor's FEET tile, as the existing crown test does. An actor's body is about 1.7 units tall (more than two tile heights, 1.56), so one

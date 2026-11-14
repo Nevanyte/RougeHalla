@@ -176,6 +176,60 @@ namespace Roguehalla.Client.Tests
             }
         }
 
+        // ---- 3b. the ground-piece seam (Landmark.AddGroundPiece) -------------------------------------------------------------------------------
+
+        static (Scene scene, SpriteRenderer piece) GroundPieceScene()
+        {
+            const byte Kind = MapBlob.AnchorKindChurch; SpriteRenderer made = null;
+            LandmarkArts.SetOverride(Kind, lm =>
+            {
+                lm.SetCover(ChurchCover.Select(c => new MapTile((ushort)c.x, (ushort)c.y)));
+                var roof = new GameObject("roof"); roof.transform.SetParent(lm.Root.transform, false);
+                lm.AddRoofRenderer(roof.AddComponent<SpriteRenderer>());
+                var go = new GameObject("ground piece"); go.transform.SetParent(lm.Root.transform, false);
+                made = go.AddComponent<SpriteRenderer>(); lm.AddGroundPiece(made, 2123);
+            });
+            var regions = new byte[40 * 40];
+            for (int i = 0; i < regions.Length; i++) regions[i] = 2;
+            var map = new MapBlob(40, 40, new byte[40 * 40], null, regions);
+            var anchor = new MapAnchor(2, Kind, new MapTile(15, 15), new MapRect(10, 10, 10, 10), 4, new MapTile[0]);
+            return (new Scene(map, anchor), made);
+        }
+
+        [Test]
+        public void AGroundPieceKeepsItsOrderAndItsAlphaThroughAFadeAndIsNotARoofPiece()
+        {
+            var (scene, piece) = GroundPieceScene();
+            using (scene)
+            {
+                var lm = scene.View.Get(0); float before = piece.color.a;
+                Assert.That(lm.GroundRenderers, Does.Contain(piece), "the piece is listed as a ground renderer");
+                Assert.That(lm.RoofRenderers.Contains(piece), Is.False, "and is not a roof renderer");
+                Assert.That(piece.sortingOrder, Is.EqualTo(2123), "it keeps the order it was given, not the roof order");
+                Assert.That(Settle(scene, TileCentre(14, 14)), Is.EqualTo(LandmarkView.RoofFadedAlpha), "guard: the roof fades");
+                Assert.That(piece.color.a, Is.EqualTo(before).Within(.001f), "the ground piece's alpha does not follow the roof");
+                Settle(scene, null);
+                Assert.That(Settle(scene, null, TileCentre(15, 14)), Is.EqualTo(LandmarkView.RoofPeekAlpha));
+                Assert.That(piece.color.a, Is.EqualTo(before).Within(.001f), "nor while the roof peeks");
+                Assert.That(piece.sortingOrder, Is.EqualTo(2123));
+            }
+        }
+
+        [Test]
+        public void AGroundPieceIsDisposedWithTheLandmark()
+        {
+            var (scene, piece) = GroundPieceScene();
+            try
+            {
+                var lm = scene.View.Get(0);
+                Assert.That(lm.GroundRenderers, Does.Contain(piece), "guard: listed");
+                scene.View.Dispose();
+                Assert.That(piece == null, Is.True, "the piece's object is destroyed with the landmark");
+                Assert.That(lm.GroundRenderers.Length, Is.EqualTo(0), "and the landmark lists no ground piece afterwards");
+            }
+            finally { scene.Dispose(); }
+        }
+
         // ---- 4. the other landmarks are unchanged (guards, green today) -------------------------------------------------------------------------
 
         static readonly (int x, int y)[] ChurchCover = { (14, 14), (15, 14), (14, 15) };

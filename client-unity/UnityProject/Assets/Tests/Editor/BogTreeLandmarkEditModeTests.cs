@@ -167,6 +167,7 @@ namespace Roguehalla.Client.Tests
         {
             Assert.That(lm.RoofRenderers.Length, Is.GreaterThan(0), "the canopy is drawn (a roof renderer)");
             var all = lm.RoofRenderers[0].bounds; foreach (var r in lm.RoofRenderers) all.Encapsulate(r.bounds);
+            foreach (var r in lm.GroundRenderers) all.Encapsulate(r.bounds);   // P-UNITY-BOG-TREE-3 (coordinator-approved): the ground shadow is no roof piece
             return all;
         }
 
