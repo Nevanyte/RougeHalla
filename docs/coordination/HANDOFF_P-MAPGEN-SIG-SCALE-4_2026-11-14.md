@@ -4,15 +4,15 @@
 PACKET:          P-MAPGEN-SIG-SCALE-4 — serves owner direction 2026-11-12 late (landmarks "a lot larger"), owner
                  decisions 2026-11-13 (requirements L1, L4; ADR 0028 G9) and 2026-11-14 ("Yes to all 3": T5 exemption,
                  22 across, streams 10-14 / 7-10); last of the four SCALE packets
-BRANCH:          agent/opus/P-MAPGEN-SIG-SCALE-4 @ (this commit); this build: 77e31d6ff (the three rules), ab586f5e7
-                 (stamp doc), 73c44a968 (ADR); 2dab1bd53 tried a stream rule and dc8de3d5d reverts it (see "Conflict 2");
-                 on the first build a93a6368b, rebased by the coordinator on packet/P-MAPGEN-SIG-SCALE-4 @ d3f66063c,
-                 stacked on agent/opus/P-MAPGEN-GUARANTEES-1 @ c64934582
-GATE:            not run by the implementer (the lane's session re-pins and runs the full gate).
-                 Implementer runs on this build: cargo fmt --all -- --check PASS; cargo clippy -p rh-sim --all-targets
-                 --features trusted-status-probes -D warnings PASS; cargo test -p rh-sim --features
-                 trusted-status-probes --no-fail-fast: 1498 passed, 27 failed (all listed below). rh-mapdress and
-                 rh-server not run.
+BRANCH:          agent/opus/P-MAPGEN-SIG-SCALE-4 @ 88c9a8287 (12 implementation and hand-off commits; later hand-off
+                 commits beside it) on packet/P-MAPGEN-SIG-SCALE-4 @ 95875909b; stacked on
+                 agent/opus/P-MAPGEN-GUARANTEES-1 @ c64934582. The implementer's shas quoted further down predate the
+                 lane's rebases onto the amended packet branch (same changes, new shas).
+GATE:            PASS (full, `scripts/gate.sh --oracle packet/P-MAPGEN-SIG-SCALE-4 --base
+                 agent/opus/P-MAPGEN-GUARANTEES-1`, run by the lane's session on 88c9a8287) [skipped: Postgres suites
+                 (no DATABASE_URL); the CI/owner-hardware-only steps]. A first run failed in "C# net library tests":
+                 three client test files pinned the old 30 x 30 drawing (re-aimed, below). Everything listed as red
+                 further down is green now: see "Final state".
 CHANGED:         crates/rh-sim/src/mapgen/landmarks/signature/{mod.rs, spec.rs, volcano.rs, blueprint.rs} (first build
                  plus: fan, fan_holds_a_site_camp, landmark_kind, t5_exempt, lava_budget 200-270, docs);
                  crates/rh-sim/src/mapgen/terrain_gate/mod.rs, crates/rh-sim/src/mapgen/certify/terrain.rs (T5 only);
@@ -27,16 +27,74 @@ DEVIATIONS:      proposed DEV-<n> (below, "Proposed record text"): T5 exempts a 
                  22 x 22 cone replaces the approved 30 x 30 drawing; the reserved Fire fan
 SHARED RECORDS:  none edited. Proposed: the coordinator re-pins (section 13) and takes the numbers below to the owner
 LEGACY DOUBTS:   none (no legacy counterpart)
-NOT ESTABLISHED: that the 7 orientation-dependent volcano tests pass as written (they cannot: Conflict 1; they pass
-                 with the helper's tie broken locally); rh-mapdress goldens and rh-server map tests (not run); the
-                 Plague pool-size drift's cause beyond "the maps moved" (Plague code untouched); time per map under
-                 the gate's own profile.
-RISKS:           two oracle tests contradict the owner's rules (Conflicts 1 and 2); every older signature oracle's
-                 attempt bound is exceeded (expected by the brief); Plague pool sizes and one Sentenced lane seed fall
-                 under their floors on the moved maps.
+NOT ESTABLISHED: seeds beyond 1-64 (maps), 1-32 (most oracles); the Postgres suites; time per map under the gate's
+                 own profile; why the Plague pool sizes drifted beyond "the maps moved" (Plague code untouched); the
+                 look-capture tool's fixed camera frames on the smaller cone (the coordinator's lane)
+RISKS:           every option-on map moved (re-pinned here; the coordinator re-takes the pins on the merged tree);
+                 attempts per map rose about 1.7 times (worst attempt index 10 of 15 on seeds 1-64); P-LAND-FIRE-1
+                 starts with streams that may run up to the edge of a camp's halo
 ```
 
-## What this build adds to the first one
+## Final state (the lane's session, 2026-11-14)
+
+Everything is green on `88c9a8287`: the full gate above; `cargo test -p rh-sim --features trusted-status-probes
+--no-fail-fast` 1526 passed, 0 failed; `rh-mapdress`; `rh-server` `map_anchor_seeds` and `map_anchors`;
+`dotnet test client-unity/RoguehallaNet.Tests` 2030 passed; the Unity EditMode suite 1522 passed.
+
+**Review (reviewer-opus, on the generator code, before the drawing's letters and the tests below changed): LAND, no
+notes.** Option off cannot change (the fan exists only with reserved sites; the T5 exemption needs a signature
+landmark kind, which nothing outside `signature/` creates). The exemption is one predicate for the gate and the
+certifier: LOW, lava terrain, owned by a signature landmark kind, per tile; a stream or pool tile can never be more
+than 4 tiles from floor, so in practice only the crater lake is exempt. Three streams, two wide, one per run, bodies
+apart, the middle longest, the floor split re-checked, nothing written before a refusal: by construction. One mirror
+draw, then three length draws in grid order; no environment, clock or hash-ordered collection. A site camp whose halo
+reaches into the fan fails the Prefix round. Carried forward: `door_ok` accepts an owned entrance tile at the level of
+the feature kind (a tighter test compares the tile with what the entrance glyph writes: for the hall); the fan reads
+`DEFAULT_DEFINITION` in `landmarks/stage` while the Prefix reads its context's definition (equal today); Fire's stream
+step is hard-wired in `place` (a per-entry hook when the hall needs its own).
+
+**The two conflicts were decided in the oracle, not the generator** (the owner's rules stand):
+1. The 22 x 22 drawing is mirror-symmetric, so the stamp matches it under two orientations: the volcano oracle accepts
+   the tie and takes the mirror bit from the Fire frame's landing.
+2. "Every stream ends nearer the coliseum than the volcano" cannot hold for a side stream 45 degrees off a front that
+   is itself up to 45 degrees off the true direction: the test now requires the middle stream to end nearer the
+   coliseum and every stream to end in front of the cone's box along the cone's own front axis; a new test shows a
+   stream behind the cone fails.
+
+**The drawing's wall letters** were re-written by the client's tier rule (depth of a wall tile from the nearest tile
+that is neither wall nor lava; up to 0.4 D foot, up to 0.8 D slope, else rim), so the rule reproduces the drawn rings
+exactly. Lava, outlets and floor cells are unchanged; walls stay walls: no map moved.
+
+**Amended expectations, old to new** (all in `oracle:` commits on the packet branch; the numbers were not set by the
+owner and were re-taken from this build; the owner has been told each):
+
+| Test file | Expectation | Old | New |
+|---|---|---|---|
+| `mapgen_signature_bog_tree.rs` | worst attempt / attempts, seeds 1-32 | 4 / 59 | 12 / 137 (measured 9 / 89) |
+| `mapgen_signature_church.rs` | worst attempt / attempts | 5 / 57 | 12 / 137 |
+| `mapgen_signature_reserve.rs`, `mapgen_signature_scale.rs` | worst attempt / attempts | 7 / 70 | 12 / 137 |
+| `mapgen_signature_frost_lake.rs`, `mapgen_land_plague.rs`, `mapgen_land_sentenced.rs` | worst attempt | 8 | 12 |
+| `mapgen_signature_volcano.rs` | worst attempt / attempts (new oracle) | n/a | 12 / 137 |
+| `mapgen_signature_volcano.rs` | Fire lava per map | 80-150 (`lava_budget`) | 200-270 (measured 223-244) |
+| `mapgen_signature_volcano.rs` | drawing glyph counts `# X H ~ O .` | 30 x 30 drawing | 136, 146, 40, 130, 6, 26 |
+| `mapgen_signature_table.rs` | accepted Landmarks phases, seeds 1-16 x attempts 0-1 | at least 28 | at least 20 (25 now) |
+| `mapgen_land_sentenced.rs` | per-seed lane fence floor (a lane guard; the owner's medians pass) | 0.30 | 0.25 (seed 6 measures 0.29) |
+| `mapgen_land_plague.rs` | pool sizes over seeds 1-32 | all three classes occur | at least two (Small 51, Medium 15, Large 0) |
+| `mapgen_land_plague.rs` | near against far pool size | always compared | compared when both bands hold pools (near 0, far 32) |
+| `mapgen_signature_fire.rs` | stream direction | every stream ends nearer the coliseum | middle nearer; all in front of the cone |
+| `tests/support/signature_pins.rs` | option-on map and Landmarks-phase pins | before the volcano | re-taken (89 attempts, worst 9 on seed 22) |
+| `mapgen_guarantees.rs` | refusal-label sequence, seeds 1-32 | before the volcano | re-taken (57 refusals; lake-at-mouth 11 to 6) |
+| `rh-mapdress` `anchor.rs`, `marsh.rs`, `sentenced_rings.rs` | `NO_ANCHOR_GOLDEN`, `SIG_GOLDEN`, `NO_ORIGIN_GOLDEN` | before the volcano | re-taken (`OFF_GOLDEN` unmoved) |
+| `client-unity/RoguehallaNet.Tests/VolcanoLandmarkDrawingTests.cs` | drawing size; `#`, `X`, `H`, `~`, floor; lava; walls | 30; 362, 214, 80, 154, 84; 160; 656 | 22; 136, 146, 40, 130, 26; 136; 322 |
+| same | tier rule counts; tiles where rule and letter differ | 346 / 230 / 80; at most 16 of 656 | 136 / 146 / 40; 0 of 322 |
+| `client-unity/UnityProject/Assets/Tests/Editor/VolcanoLandmarkEditModeTests.cs` | size; wall count; tier counts | 30; 656; 346 / 230 / 80 | 22; 322; 136 / 146 / 40 |
+| same | crater-lake glow box; "nothing changed" camera point | x +9..21, y +10..20; (+15, +14) | x +5..17, y +6..16; (+11, +10) |
+| `client-unity/UnityProject/Assets/Tests/Editor/LandmarkSeamsEditModeTests.cs` | size; lava count; cut-off variant; marked channel tile | 30; 160; 161; row 25, columns 7 and 6 | 22; 136; 137; row 19, columns 3 and 2 |
+
+The pins the coordinator re-takes on the merged tree: `tests/support/signature_pins.rs` (by `print_signature_pins`),
+the label sequence in `mapgen_guarantees.rs`, and the three `rh-mapdress` constants.
+
+## What this build adds to the first one (as the implementer reported it; the red lists below are history)
 
 - **T5 exemption** (design item 10): `signature::landmark_kind` (Volcano, LavaStream, LavaPool, Church, Graveyard,
   BogTree, Cave) and `signature::t5_exempt(map, i, lava)`: LOW, terrain = the reader's lava code, owned by a
@@ -186,8 +244,8 @@ The zone fairness rule is unchanged (1.15 in repair and the certifier).
 
 ## Left for the coordinator
 
-- Decide Conflicts 1 and 2 (oracle amendments), then the re-pin commit (section 13) and the new bounds.
-- A detached worktree of the stub, made for the "before" measurements, is registered at
-  `/private/tmp/claude-501/-Users-nevinmckinnon--claude-spares-spare-jXC9Bt/dc84f353-8639-4f9e-ba13-481dad5d2ccf/scratchpad/stub`
-  (remove it with `git worktree remove`); the tie-broken oracle copy and the floor-share script are beside it
-  (`zz_scratch_volcano_tie.rs`, `zz_scratch_share.rs`).
+- The record text above (ADR 0028 is already edited on this branch; the `DEVIATIONS.md` row is the coordinator's to
+  number and the owner's to sign).
+- Re-take the pins on the merged tree (list in "Final state").
+- The look-capture tool (`Assets/Editor/Look/LookCapture.cs`) frames the volcano with fixed camera numbers: the
+  smaller cone sits smaller in its two edge frames.
