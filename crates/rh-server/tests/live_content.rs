@@ -8,6 +8,7 @@
 //!    (`--runtime training`). The expected configs are written as exhaustive struct literals (no `..Default`), so a new
 //!    `SimConfig` field does not compile here until someone states what the live server plays for it.
 //!    No `--frost-wish`, camp-buff or regen flag exists in `runtime.rs` (they are fixed in `Settings::sim`).
+//!    P-FROST-WALL-3 amended the stated live `frost_wish` from `Freeze` to `Wall` in both tables (coordinator-approved).
 //!    The core runtime (no `--runtime`, `--runtime core`, `--first-playable`) builds its `SimConfig` inline in
 //!    `src/main.rs` and is not reachable from a test; what is reachable (`from_args` declines it, `core_hitboxes`) is
 //!    pinned here, and `main.rs` is outside the packet's write scope.
@@ -83,7 +84,8 @@ fn expected_source(
         mob_spacing: MobSpacing::Auto,
         regen_in_combat: RegenInCombat::Off,
         camp_buffs: CampBuffRule::Themed,
-        frost_wish: FrostWish::Freeze,
+        // P-FROST-WALL-3: the live profiles play Frost Wall (owner decision 2, 2026-11-10).
+        frost_wish: FrostWish::Wall,
     }
 }
 
@@ -112,7 +114,8 @@ fn expected_training(hitboxes: HitboxMode) -> SimConfig {
         mob_spacing: MobSpacing::Auto,
         regen_in_combat: RegenInCombat::Off,
         camp_buffs: CampBuffRule::Themed,
-        frost_wish: FrostWish::Freeze,
+        // P-FROST-WALL-3: the live profiles play Frost Wall (owner decision 2, 2026-11-10).
+        frost_wish: FrostWish::Wall,
     }
 }
 
