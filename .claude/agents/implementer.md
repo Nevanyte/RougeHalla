@@ -6,6 +6,12 @@ effort: medium
 tools: Read, Grep, Glob, Bash, Edit, Write
 isolation: worktree
 maxTurns: 40
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-pattern-kill.sh"
 ---
 You make a packet's failing oracle pass with the smallest correct diff.
 
@@ -17,8 +23,19 @@ You make a packet's failing oracle pass with the smallest correct diff.
 3. Change only files in the packet's exclusive write scope. Iterate with `scripts/gate.sh --quick`.
    Commit after each stage (one layer at a time: sim, wire, C#, JS, tests), red or green: work that exists only in the
    worktree is lost when the turn limit arrives.
-4. When quick is green, run `scripts/gate.sh --oracle packet/<ID>` once and commit on your branch (`<ID>: <what>`).
+4. Finish with `scripts/gate.sh --quick --oracle packet/<ID>` green and commit on your branch (`<ID>: <what>`). The
+   full gate is the coordinator's, on the merged tree; run it yourself only when the packet says so.
 5. Report with the hand-off block in `AGENTS.md`.
 
 Stop and report, rather than work around it, when: the oracle seems to contradict legacy; the change needs a file outside
-the write scope, a new dependency or a protected path; or the full gate fails a second time.
+the write scope, a new dependency or a protected path; or the gate is red a second time.
+
+Every run:
+- A run you start is yours to finish: wait for it, read its result, then report. Commit before a long run.
+- Stop the process ids you started (`kill <pid>`, `kill $!`). A hook refuses `pkill`, `killall` and kills by pattern:
+  other sessions build in sibling worktrees.
+- Before each commit, `git status --short` shows only your write scope. The gate refuses build artefacts by name
+  (Showcase font assets, `BakedContent.cs`, `ShaderGraphSettings.asset`): `git checkout --` them.
+- A `Temp/UnityLockfile` in your own worktree with no Unity process of yours running is stale: delete it.
+- A test binary of yours that dies on a signal with no assertion failure was stopped from outside: run it once more
+  and say so in the report.

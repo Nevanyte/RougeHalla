@@ -64,6 +64,7 @@ fn declared_rank(rank: &AbilityRank) -> DeclaredRank {
         }),
         hides_caster: rank.hides_caster,
         blink: rank.blink,
+        wall: rank.wall,
     }
 }
 
@@ -829,7 +830,7 @@ mod tests {
             .any(|effect| matches!(effect, PolicyEffect::HidesCaster));
         let blink = row.rank.effects.iter().find_map(|effect| match effect {
             PolicyEffect::Blink { max_dist, min_dist } => Some((*max_dist, *min_dist)),
-            PolicyEffect::HidesCaster => None,
+            PolicyEffect::HidesCaster | PolicyEffect::Wall { .. } => None,
         });
         WishView {
             ability: row.name.to_owned(),
@@ -842,6 +843,7 @@ mod tests {
                     targeting: Some(targeting),
                     hides_caster,
                     blink,
+                    wall: false,
                     raw: MethodValue::Obj(Vec::new()),
                 }],
                 raw: MethodValue::Obj(Vec::new()),
@@ -1668,6 +1670,7 @@ mod tests {
                 targeting: None,
                 hides_caster: false,
                 blink: None,
+                wall: false,
                 raw: MethodValue::Obj(Vec::new()),
             }];
         }

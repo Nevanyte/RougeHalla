@@ -142,8 +142,8 @@ impl Callbacks<'_> {
         let guard = c.route_guard();
         let corridor = guard.corridor().to_vec();
         let has_members = !guard.members().is_empty();
-        // Signature mode (P-LAND-PLAGUE-1): `pools::tree` is `Some` only when the Landmarks phase placed the bog tree in
-        // this zone. The bog is then laid first, as free pools by band round the tree, keeping off where today's rule
+        // Signature mode (P-LAND-PLAGUE-1): `pools::tree` is `Some` only when the Landmarks phase handed this zone the
+        // bog tree's frame (P-MAPGEN-LANDMARK-FRAME-1). The bog is then laid first, as free pools by band round the tree, keeping off where today's rule
         // would site the barrows where it can; the barrows are then sited by today's rule, without a crescent, on what
         // the pools leave. Option off this is `None`: no pool, no draw, today's barrows and crescents (G8).
         let tree = super::pools::tree(c.base());

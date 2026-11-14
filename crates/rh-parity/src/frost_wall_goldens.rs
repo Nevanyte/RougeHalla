@@ -109,7 +109,58 @@ fn maps() -> Vec<MapCase> {
             tiles: vec![TILE_FLOOR; 100],
             gates: None,
         },
+        bog_tree(),
     ]
+}
+
+/// P-FROST-WALL-NOWALL-1: the Web round-13 bog tree, copied from the certified signature map of pool seed 263678495 (map
+/// hash 75bf127e; tiles x 106..=137, y 8..=35, so local (x, y) is map (x + 106, y + 8)). `#` is WALL (the trunk and
+/// roots), `.` floor, `~` bog. Bog is a FLOOR tile with terrain code 5: the Welcome map's class bytes (what the mirror
+/// reads) carry it as 0, and `wall_cells` reads the class alone, so `~` is written as FLOOR here. A literal copy, so a
+/// generator change does not move this vector.
+fn bog_tree() -> MapCase {
+    const ROWS: [&str; 28] = [
+        "...................~~~~~~~~~~~~~",
+        "..................~~~###~~~..~~~",
+        ".................~~~~###.....~~~",
+        "................~~~~...........~",
+        ".............###~~~.............",
+        ".............###~~.....#####..##",
+        ".............~~~~.....##########",
+        "............~~~~~....###########",
+        "............~~~~~....#########..",
+        "...........~~~~.....###########.",
+        "....................###########.",
+        "..#...#.............###########.",
+        ".##...##...~~~~~~....#########..",
+        "###...##......~~~....###########",
+        "###...###.....~~~~....##########",
+        "###...###....~~~~~~..#######..##",
+        "###...###.....~~~~~~.###.......~",
+        "###...###.....###~~~###........~",
+        ".##...##......###~~~###.......~~",
+        "..................~###~~~....~~~",
+        "...................##~..~....~~~",
+        "........................~~~..~~~",
+        "......................~~~~~..~~.",
+        "#......................~~~~.....",
+        "##.......................~~.....",
+        "##..............................",
+        "#...............................",
+        "................................",
+    ];
+    let tiles = ROWS
+        .iter()
+        .flat_map(|r| r.bytes())
+        .map(|b| if b == b'#' { TILE_WALL } else { TILE_FLOOR })
+        .collect();
+    MapCase {
+        name: "bog_tree",
+        w: 32,
+        h: 28,
+        tiles,
+        gates: None,
+    }
 }
 
 /// (name, map, from, cursor, facing)
@@ -176,6 +227,16 @@ fn cases() -> Vec<(&'static str, &'static str, Vec2, Vec2, f64)> {
             "room",
             at(tc(5), 247.),
             at(tc(12), 247.),
+            0.,
+        ),
+        // P-FROST-WALL-NOWALL-1: Frost on a bog tile beside the round-13 bog tree (map (122, 22)) aims 160 u south,
+        // past the trunk: the wall takes floor and bog alike (map row 27, columns 119..=124), and its first end
+        // (map (119, 27.5)) is behind the trunk from the caster.
+        (
+            "bog_tree_past_trunk",
+            "bog_tree",
+            at(tc(16), tc(14)),
+            at(tc(16), tc(14) + 160.),
             0.,
         ),
     ]

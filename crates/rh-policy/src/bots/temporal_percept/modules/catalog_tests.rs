@@ -373,7 +373,8 @@ fn admitted_wish_table_matches_the_frozen_source_ability_rows() {
                 crate::bots::wish::PolicyEffect::Blink { max_dist, min_dist } => {
                     Some((*max_dist, *min_dist))
                 }
-                crate::bots::wish::PolicyEffect::HidesCaster => None,
+                crate::bots::wish::PolicyEffect::HidesCaster
+                | crate::bots::wish::PolicyEffect::Wall { .. } => None,
             });
         assert_eq!(blink, admitted_blink, "{} blink", id.as_str());
     }

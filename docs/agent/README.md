@@ -59,14 +59,24 @@ Kinds of oracle, for reference, strongest first:
 3. **Invariant tests** (proptest, `hash_coverage`, `no_alloc`, `check_world` refusals) for state and determinism.
 4. **Unit tests** for everything else.
 
+Three habits that each cost a day when skipped (2026-11-14):
+- **Facts first.** The brief's established facts are committed as `brief:` before any stub or test, and the oracle in
+  layers, so a turn limit loses nothing.
+- **Survey before pinning.** The brief lists the existing tests that already pin what the packet changes, with what
+  each asserts. A conflict is the coordinator's to settle before an implementer starts; an amended expectation goes in
+  its own `oracle-amend:` commit and is listed for the owner.
+- **Rare events over a sweep.** A test on one seed asserts what holds on every seed; an event that happens on some
+  seeds is asserted over a sweep with a floor (release-only if slow).
+
 When legacy behaviour looks like a bug, the oracle pins legacy and the brief flags it. Security packets skip this step:
 `implementer-opus` writes the failing tests first.
 
 ### 4. Implement
 
 The implementer checks out `agent/<model>/<ID>` from `packet/<ID>` in its own worktree, reads the packet and the crate's
-`AGENTS.md`, iterates with `scripts/gate.sh --quick`, and finishes with `scripts/gate.sh --oracle packet/<ID>`. It stops
-and reports when the oracle contradicts legacy, the scope is too small, or the second full gate fails. The escalation
+`AGENTS.md`, iterates with `scripts/gate.sh --quick`, and finishes with `scripts/gate.sh --quick --oracle packet/<ID>`. It stops
+and reports when the oracle contradicts legacy, the scope is too small, or the gate is red a second time. The full gate
+runs once, on the merged tree, in step 6: an implementer's own full gate costs an hour that step repeats. The escalation
 ladder is in `CLAUDE.md`.
 
 ### 5. Review
@@ -79,7 +89,7 @@ defect in behaviour, a broken guarantee or a structural problem, and becomes a `
 ### 6. Integrate
 
 The coordinator merges `LAND` branches into the integration branch one at a time (shared-file packets strictly
-serially), re-runs the full gate on the merge, updates the backlog row, the MIGRATION checkpoint and, where a contract's
+serially), runs the full gate on the merge with `--keep-going` (every red step is reported in one run), updates the backlog row, the MIGRATION checkpoint and, where a contract's
 validation changed, the CONTRACTS table, then removes the worktree. Promotion from the integration branch to
 `optimization_port` or `main`, any push and any deploy wait for the owner.
 
@@ -95,8 +105,11 @@ validation changed, the CONTRACTS table, then removes the worktree. Promotion fr
 Agents with `isolation: worktree` get a fresh worktree under `.claude/worktrees/`, based on the coordinator's `HEAD`
 (`worktree.baseRef: "head"`). Their first command selects their branch, e.g.
 `git checkout -B agent/sonnet/P-X-1 packet/P-X-1`. Each worktree compiles its own `target/` (several GB, minutes): that
-cost is why `CLAUDE.md` caps parallel Rust implementers at three. After integration:
-`git worktree remove <path>` and delete the merged `agent/*` branch (deletion needs the owner's yes per `CLAUDE.md`).
+cost is why `CLAUDE.md` caps parallel Rust implementers at three. Several sessions share
+`.claude/worktrees/`, and an agent's harness worktree can look idle while the agent works elsewhere, so ownership is
+written down: the coordinator runs `scripts/agent-worktrees.sh claim <agent-id> <packet> <session>` after each launch
+and `done <agent-id>` when the agent has reported; `clean --session <session>` removes only that session's finished,
+clean worktrees and says why it left the rest. Deleting a merged `agent/*` branch needs the owner's yes per `CLAUDE.md`.
 
 ## The gate
 
@@ -104,12 +117,22 @@ cost is why `CLAUDE.md` caps parallel Rust implementers at three. After integrat
 
 | Mode | Runs |
 |---|---|
-| `--quick` | Path checks; fmt; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI); the parity report if sim/policy/parity changed; JS vector checks if the protocol changed; C# tests and the Unity copy check if the net library or vectors changed; the Unity EditMode suite (`client-unity/UnityProject/Tools/editmode.sh`) if a path under `UnityProject/Assets/` changed; the Unity tool tests (`node --test`) if a path under `UnityProject/Tools/` changed; Postgres suites when `DATABASE_URL` is set |
-| full (default) | Path checks; fmt; workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; JS vectors; C# tests and Unity copy check; the Unity EditMode suite and the Unity tool tests; a release headless smoke on `parity/maps/seed1.map.json` |
+| `--quick` | Path checks; fmt; then, in the same relative order as full mode: the Unity tool tests (`node --test`) if a path under `UnityProject/Tools/` changed; JS vector checks if the protocol changed; the reload-proof tests if the protocol or web client changed; C# tests and the Unity copy check if the net library or vectors changed; clippy and tests for each changed crate (`rh-sim` with `trusted-status-probes`, as CI; Postgres suites when `DATABASE_URL` is set); the parity report if sim/policy/parity changed; the Unity EditMode suite (`client-unity/UnityProject/Tools/editmode.sh`) if a path under `UnityProject/Assets/` changed |
+| full (default) | In this order (`scripts/gate.sh --list-steps` prints it and runs nothing): path checks; fmt; the cheap area checks (Unity tool tests with the docs tests, JS vectors, reload-proof tests, C# tests and Unity copy check); workspace clippy with all and default features; the workspace suite and the `rh-sim` suite; Postgres suites when `DATABASE_URL` is set; parity report; the Unity EditMode suite; a release headless smoke on `parity/maps/seed1.map.json`; the release-only tests (`rh-headless` tests marked `cfg_attr(debug_assertions, ignore)`: a packet that adds one adds its file to the gate's list) |
 | CI only | Source-witness `capture.sh --check` runs (Docker, Node 22.23.4), perfproof (valgrind, Linux), cross-architecture determinism, browser proof, legacy recapture |
 
+`--keep-going` runs every step even after one fails: each red step prints its last 40 lines as usual, and the result
+line is `GATE FAIL (n steps): <step>; <step>` with exit code 1. A cargo test or run step that did not compile makes the
+later cargo steps `not run (after <step>)`, listed on the result and never counted as passed. Without the flag the first
+red step ends the run (`GATE FAIL: <step>`). The coordinator uses `--keep-going` on the merged tree.
+
 Path checks: protected paths need `--allow-protected` (owner approval), shared records `--coordinator`, wire packets
-`--regen-fixtures`. With `--oracle packet/<ID>`, the oracle files are the files touched by the commits in
+`--regen-fixtures`, build artefacts `--allow-artefacts` (a Showcase font asset under
+`UnityProject/Assets/Resources/Showcase/`, `BakedContent.cs`, `ProjectSettings/ShaderGraphSettings.asset`: rewritten by
+`build-web.sh` and EditMode runs, restored by `git checkout <base> -- <file>`; the hand-off says when a packet means to
+change one). A C# file under `UnityProject/Assets/Scripts/` whose diff adds `SetColors(`, `.colors32 =` or `.colors =`
+fails by name and points at the helper `SrgbMeshColors` (linear colour space; only added lines are judged, and
+`SrgbMeshColors.cs`, `WeaponRangePresenter.cs`, `HitZonePresenter.cs`, `CampPatienceOutlines.cs` are exempt). With `--oracle packet/<ID>`, the oracle files are the files touched by the commits in
 `merge-base..packet/<ID>` whose subject does not start with `stub:` (the oracle author commits `stub: <ID> ...` first,
 then `oracle: <ID> ...`): a file touched only by `stub:` commits is the implementer's to replace, any other must stay
 unchanged, as must all captures and golden vectors. A branch with no `stub:` commit treats every touched file as oracle.
@@ -123,7 +146,7 @@ locale when `LC_ALL` is unset (PostgreSQL 16 on macOS needs one). `editmode.sh` 
 or the project is open; the gate then prints "Unity EditMode (no Editor / project open)" on the result line. Unity tool
 tests that fail on the integration branch are excluded by name in `UNITY_TOOL_TEST_EXCLUDE` in `scripts/gate.sh`.
 A skipped suite is printed on the result line, and a reviewer treats it as unproven. `bash scripts/gate.test.sh` checks
-the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`, which stops the gate after its checks with exit code 42, never 0).
+the gate's own rules on a temporary repository (it uses the test hook `GATE_STOP_AFTER_CHECKS=1`, which stops the gate after its checks with exit code 42, never 0, and `GATE_TEST_STEPS`, which replaces the steps with fake ones; its result line says "test hook" and its green exit code is 43, never 0).
 
 Before the first packet on a new integration branch the coordinator runs the full gate there with Postgres: a red base
 makes every later result meaningless.

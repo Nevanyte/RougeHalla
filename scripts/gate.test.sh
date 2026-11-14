@@ -124,6 +124,109 @@ if [[ $rc -eq 42 && ! -d "$CT/rh-pgtest.mine" && -d "$CT/rh-pgtest.other" && -d 
   ok "cleanup stops only this run's clusters, skips DATABASE_URL's, keeps a cluster whose stop failed"
 else bad "cluster cleanup (rc=$rc)" "$out"$'\n'"$log"; fi
 
+# ---------- step order, artefact and mesh-colour path checks, --keep-going (P-ENV-RETRO-1) ----------------------------
+# expect <label> <rc-expected|any> <rc> <out> <must-contain...>: tiny helper, never exits the test script.
+git checkout -q -B work main
+
+# --list-steps prints the full-mode order and runs nothing.
+rc=0; out="$(bash scripts/gate.sh --list-steps 2>&1)" || rc=$?
+prev=0 order_ok=1 missing=""
+for pat in "path checks" "rustfmt" "Unity tool tests" "JS decoder vs golden" "reload-proof" "C# net library tests" \
+  "Unity copy of the net library" "clippy workspace (all features)" "workspace tests except rh-sim" "rh-sim suite" \
+  "Postgres suite" "parity report" "Unity EditMode" "headless smoke" "release-only checks"; do
+  n="$(grep -nF -- "$pat" <<<"$out" | head -n 1 | cut -d: -f1 || true)"
+  if [[ -z "$n" ]]; then order_ok=0; missing="$missing [$pat]"; continue; fi
+  if ((n <= prev)); then order_ok=0; missing="$missing [$pat out of order]"; fi
+  prev=$n
+done
+if [[ $rc -eq 0 && $order_ok -eq 1 && "$out" != *"GATE PASS"* && "$out" != *"== "* ]]; then ok "--list-steps prints the full-mode order without running anything"
+else bad "--list-steps order (rc=$rc;$missing)" "$out"; fi
+
+# newfile <path> <content>: add a new file on a fresh branch off main, commit, run the gate checks (test hook).
+newfile() {
+  local file="$1" content="$2"; shift 2
+  git checkout -q -B work main
+  mkdir -p "$(dirname "$file")"
+  printf '%s\n' "$content" >"$file"
+  git add -A; git commit -q -m "work"
+  GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --quick --base main "$@" 2>&1
+}
+UA=client-unity/UnityProject/Assets
+for art in "$UA/Resources/Showcase/NunitoBold.asset" "$UA/Scripts/BakedContent.cs" "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset"; do
+  rc=0; out="$(newfile "$art" "x")" || rc=$?
+  if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"$art"* && "$out" == *"--allow-artefacts"* ]]; then ok "artefact in the diff fails by name: $(basename "$art")"
+  else bad "artefact $art (rc=$rc)" "$out"; fi
+  rc=0; out="$(newfile "$art" "x" --allow-artefacts)" || rc=$?
+  if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "artefact passes with --allow-artefacts: $(basename "$art")"
+  else bad "artefact allowed $art (rc=$rc)" "$out"; fi
+done
+
+# Mesh colours: added lines in a C# file under Assets/Scripts.
+rc=0; out="$(newfile "$UA/Scripts/Presentation/NewPresenter.cs" 'mesh.SetColors(colors);')" || rc=$?
+if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"NewPresenter.cs"* && "$out" == *"SrgbMeshColors"* ]]; then ok "raw SetColors( in a new file fails naming the file and SrgbMeshColors"
+else bad "SetColors new file (rc=$rc)" "$out"; fi
+for snippet in 'mesh.colors32 = c;' 'mesh.colors = c;'; do
+  rc=0; out="$(newfile "$UA/Scripts/Other.cs" "$snippet")" || rc=$?
+  if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"Other.cs"* && "$out" == *"SrgbMeshColors"* ]]; then ok "raw '$snippet' fails"
+  else bad "raw $snippet (rc=$rc)" "$out"; fi
+done
+for f in Presentation/SrgbMeshColors.cs WeaponRangePresenter.cs HitZonePresenter.cs CampPatienceOutlines.cs; do
+  rc=0; out="$(newfile "$UA/Scripts/$f" 'mesh.SetColors(colors);')" || rc=$?
+  if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "approved file may upload colours: $f"
+  else bad "approved $f (rc=$rc)" "$out"; fi
+done
+# Unity UI code: button.colors = ... is not a vertex-colour upload.
+rc=0; out="$(newfile "$UA/Scripts/UI/Menu.cs" 'button.colors = colors;')" || rc=$?
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "UI button.colors = is allowed"; else bad "button.colors (rc=$rc)" "$out"; fi
+rc=0; out="$(newfile "$UA/Scripts/Other2.cs" 'm.mesh.colors = c;')" || rc=$?
+if [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"Other2.cs"* ]]; then ok "mesh.colors = still fails"; else bad "mesh.colors (rc=$rc)" "$out"; fi
+# A large diff (about 600 KB added, one offending line near the start) must fail on every run (no SIGPIPE miss).
+git checkout -q -B work main
+mkdir -p "$UA/Scripts"; printf 'int x;\n' >"$UA/Scripts/Big.cs"; git add -A; git commit -q -m "big base"
+git checkout -q -B bigbase work
+{ printf 'int x;\nmesh.SetColors(c);\n'; for i in $(seq 1 20000); do printf 'int filler_%05d = %05d; // padding\n' "$i" "$i"; done; } >"$UA/Scripts/Big.cs"
+git commit -q -am "big edit"
+misses=0
+for i in $(seq 1 20); do
+  rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --quick --base bigbase~1 2>&1)" || rc=$?
+  [[ $rc -ne 0 && $rc -ne 42 && "$out" == *"Big.cs"* ]] || misses=$((misses + 1))
+done
+if ((misses == 0)); then ok "a large added diff with one raw SetColors( fails on all 20 runs"; else bad "large diff missed $misses of 20 runs"; fi
+git checkout -q -B work main
+
+# Only added lines are judged: an untouched existing line does not fail an unrelated edit.
+git checkout -q -B work main
+mkdir -p "$UA/Scripts"; printf 'mesh.SetColors(old);\n' >"$UA/Scripts/Old.cs"; git add -A; git commit -q -m "old"
+git checkout -q -B base2 work
+printf '// comment\n' >>"$UA/Scripts/Old.cs"; git commit -q -am "edit"
+rc=0; out="$(GATE_STOP_AFTER_CHECKS=1 bash scripts/gate.sh --quick --base base2~1 2>&1)" || rc=$?
+if [[ $rc -eq 42 && "$out" == *"GATE STOP (test hook)"* ]]; then ok "an untouched existing SetColors( line is not judged"
+else bad "existing SetColors line (rc=$rc)" "$out"; fi
+git checkout -q -B work main
+
+# --keep-going, with the test hook GATE_TEST_STEPS (lines "name::shell command") replacing the step list.
+kg() { # <steps> <gate args...>
+  local steps="$1"; shift
+  GATE_TEST_STEPS="$steps" bash scripts/gate.sh --base main "$@" 2>&1
+}
+two=$'alpha::echo a-out; exit 1\nbeta::echo b-out; exit 1\ngamma::echo fine'
+rc=0; out="$(kg "$two" --keep-going)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"GATE TEST-HOOK FAIL (2 steps): alpha; beta"* && "$out" == *"a-out"* && "$out" == *"b-out"* && "$out" != *"GATE PASS"* && "$out" != *"GATE FAIL"* ]]; then ok "--keep-going reports two failing steps, exit 1, no PASS"
+else bad "keep-going two failures (rc=$rc)" "$out"; fi
+
+one=$'alpha::echo a-out; exit 1\ngamma::echo fine'
+rc=0; out="$(kg "$one" --keep-going)" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"GATE TEST-HOOK FAIL (1 step"* && "$out" == *"alpha"* && "$out" == *"== gamma"* && "$out" != *"GATE PASS"* ]]; then ok "--keep-going: a failing step then a passing one reports one failure"
+else bad "keep-going one failure (rc=$rc)" "$out"; fi
+
+rc=0; out="$(kg $'gamma::echo fine\ndelta::echo fine2' --keep-going)" || rc=$?
+if [[ "$out" == *"GATE TEST-HOOK PASS"* && "$out" != *"GATE PASS"* && "$out" != *"GATE FAIL"* && $rc -ne 1 && $rc -ne 0 ]]; then ok "--keep-going with no failure prints GATE TEST-HOOK PASS (never a plain GATE PASS)"
+else bad "keep-going none (rc=$rc)" "$out"; fi
+
+rc=0; out="$(kg "$two")" || rc=$?
+if [[ $rc -eq 1 && "$out" == *"GATE FAIL: alpha"* && "$out" != *"== beta"* && "$out" != *"== gamma"* && "$out" != *"GATE PASS"* ]]; then ok "without --keep-going the first failing step ends the run"
+else bad "fail fast (rc=$rc)" "$out"; fi
+
 echo
 echo "$PASSES passed, $FAILS failed"
 [[ $FAILS -eq 0 ]]

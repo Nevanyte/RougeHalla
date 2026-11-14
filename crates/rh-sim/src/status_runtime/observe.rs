@@ -97,24 +97,69 @@ pub(crate) fn project(
     actors: &[crate::observe::ActorView],
     out: &mut Vec<FieldView>,
 ) {
-    out.clear();
-    let Some(me) = sim.player(viewer) else { return };
-    let Some(a) = &sim.w.abilities else { return };
+    let Some(me) = sim.player(viewer) else {
+        out.clear();
+        return;
+    };
+    let Some(a) = &sim.w.abilities else {
+        out.clear();
+        return;
+    };
+    let no_rows = crate::barriers::Barriers::default();
+    let mut n = 0;
     let map = sim.collision_view();
     let wards = crate::vision::WardSight::of_sim(sim);
+    let visible = |p: Vec2| crate::vision::point_visible(map, me, p, sim.w.tick, wards);
+    let w = sim.k.arena.map.w;
+    let tile_centre = |i: u32| {
+        let c = |t: u32| f64::from(t) * crate::constants::TILE + crate::constants::TILE / 2.;
+        Vec2::new(c(i % w), c(i / w))
+    };
     for f in &a.fields {
-        // P-FROST-WALL-2: a wall follows the non-trail rule (legacy 78dd8bd4 FieldView.ts `update`): shown when its
-        // first end `(x, y)` is visible, whatever its other tiles.
-        if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick, wards)
-            || (f.kind == FieldKind::Trail
-                && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick, wards))
-        {
+        let cells: &[u32] = if f.kind == FieldKind::Wall {
+            a.barriers
+                .0
+                .iter()
+                .find(|b| b.field == f.id)
+                .map_or(&[], |b| &b.cells)
+        } else {
+            &[]
+        };
+        let shown = match f.kind {
+            // P-FROST-WALL-NOWALL-1 (proposed DEV-036): a standing wall reaches its owner always, and any other viewer
+            // who sees its first end `(x, y)` (the P-FROST-WALL-2 rule, legacy 78dd8bd4 FieldView.ts `update`) or any
+            // one of its tiles; that viewer gets the whole wall. A viewer who sees neither gets nothing (C-OBS).
+            FieldKind::Wall => {
+                f.owner.id == Some(viewer)
+                    || visible(Vec2::new(f.x, f.y))
+                    || cells.iter().any(|&i| visible(tile_centre(i)))
+            }
+            FieldKind::Trail => visible(Vec2::new(f.x, f.y)) && visible(Vec2::new(f.x2, f.y2)),
+            FieldKind::Zone | FieldKind::Cloud => visible(Vec2::new(f.x, f.y)),
+        };
+        if !shown {
             continue;
         }
-        out.push(FieldView::from_field(f, &a.barriers, |id| {
+        // The row is written over slot `n` of the caller's reusable list, keeping that slot's tile buffer, so a warmed
+        // observation with a wall standing copies the tiles without allocating. `from_field` gets no barrier rows and so
+        // builds an empty, unallocated tile list; the tiles are then copied into the kept buffer.
+        let mut tiles = out
+            .get_mut(n)
+            .map(|v| std::mem::take(&mut v.tiles))
+            .unwrap_or_default();
+        tiles.clear();
+        tiles.extend_from_slice(cells);
+        let mut view = FieldView::from_field(f, &no_rows, |id| {
             id == viewer || actors.binary_search_by_key(&id, |a| a.id).is_ok()
-        }));
+        });
+        view.tiles = tiles;
+        match out.get_mut(n) {
+            Some(slot) => *slot = view,
+            None => out.push(view),
+        }
+        n += 1;
     }
+    out.truncate(n);
     out.sort_unstable_by(FieldView::cmp);
 }
 pub(crate) fn public(sim: &Sim) -> Vec<FieldView> {

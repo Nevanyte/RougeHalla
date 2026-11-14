@@ -42,6 +42,9 @@ mod knowledge_repair_tests;
 mod mob_hunt_parity_tests;
 #[cfg(test)]
 mod parity_tests;
+// P-FROST-WALL-BOTS-1 oracle: bots aim Frost Wall as legacy's bots do.
+#[cfg(test)]
+mod frost_wall_bots_tests;
 #[cfg(test)]
 mod paths_parity_tests;
 #[cfg(test)]

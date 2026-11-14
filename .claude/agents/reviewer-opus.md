@@ -5,6 +5,12 @@ model: opus
 effort: high
 tools: Read, Grep, Glob, Bash
 maxTurns: 80
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-pattern-kill.sh"
 ---
 Inputs: the packet (or, for a merge, the list of merged packets), the diff the coordinator names, and the gate log. You
 change no files; Bash is for git, reading and re-running tests.
@@ -34,3 +40,6 @@ structural problem, each with file, line and the smallest fix, each a follow-up 
 retries). Everything smaller (wording, comments, naming, style) goes in one closing list headed `Minor, not notes`: the
 coordinator records it in the hand-off and opens no packet for it. End with what you did not read or could not
 establish. Notes belong to this packet only.
+
+Runs: start a test only in a worktree where nothing else is building, wait for it, and stop only process ids you
+started (a hook refuses `pkill`, `killall` and kills by pattern: other sessions build in sibling worktrees).

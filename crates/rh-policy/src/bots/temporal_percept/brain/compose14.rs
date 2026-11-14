@@ -273,6 +273,9 @@ pub(crate) struct Composer14 {
     winner: String,
     /// The seat's mob tracks (live seats only, [`Composer14::track_mobs`]).
     tracks: Option<MobTracks>,
+    /// Which Wish Frost has in this room (`MatchStart::frost_wish`, the Welcome's HUD term 23): `wish_record` builds
+    /// Frost's def from the row this room plays (`bots::wish::wish_for`). Kept across [`Composer14::reset`].
+    frost_wish: rh_sim::FrostWish,
 }
 
 /// The groups a composition reads, all present (the composer's preflight).
@@ -297,6 +300,7 @@ impl Composer14 {
             last_plan: None,
             winner: String::new(),
             tracks: None,
+            frost_wish: rh_sim::FrostWish::Freeze,
         }
     }
 
@@ -304,6 +308,13 @@ impl Composer14 {
     /// only; the frozen-corpus and composer oracles keep reference keys.
     pub(crate) fn track_mobs(&mut self) {
         self.tracks = Some(MobTracks::default());
+    }
+
+    /// The room's Frost Wish (`MatchStart::frost_wish`): with `Wall`, `extras.wish.def` of a Frost seat is legacy's
+    /// `frostWall` def. A composer starts at `Freeze` (today's def).
+    pub(crate) fn with_frost_wish(mut self, frost_wish: rh_sim::FrostWish) -> Self {
+        self.frost_wish = frost_wish;
+        self
     }
 
     /// Forget every retained sample (a new session or match).
@@ -863,7 +874,11 @@ impl Composer14 {
         // ---- extras, in the declared key order (wish, skills, chests, camps, effects, fields).
         let mut extras: Record = Vec::new();
         if features.wishes {
-            if let Some(wish) = me.wish.as_ref().and_then(|w| wish_record(w, me.effects)) {
+            if let Some(wish) = me
+                .wish
+                .as_ref()
+                .and_then(|w| wish_record(w, me.effects, self.frost_wish))
+            {
                 extras.push(("wish", wish));
             }
         }
@@ -1718,15 +1733,26 @@ fn own(record: Record) -> Vec<(String, BVal)> {
 }
 
 /// perception.ts:702-708 `wishView`: the delivered Wish slot as the weapon bar shows it. The source `def` is shared
-/// `ABILITIES[id]`; here it is built from the public catalog only (`bots::wish::WISHES` for what the cast policy reads,
-/// `rh_sim::abilities::definition` for the cooldown and the order flag), in the source's own key order. Members no Brain
-/// reader consumes (blurb, faction, telegraph, icon, colour, shape, cancelledBy, the non-policy effects and effect
-/// durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
-fn wish_record(w: &rh_protocol::WireWishOwner, own_effects: u16) -> Option<BVal> {
+/// `ABILITIES[id]`; here it is built from the public catalog only (the row the room plays, `bots::wish::wish_for`: a
+/// `WISHES` row, or legacy's `frostWall` for Frost in a Wall room; `rh_sim::abilities::definition` for the cooldown and
+/// the order flag), in the source's own key order. Members no Brain reader consumes (blurb, faction, telegraph, icon,
+/// colour, shape, cancelledBy, the non-policy effects and effect durations) are left out. The rank is not on the wire: `undefined`. `None` only for an ability code outside the catalog.
+fn wish_record(
+    w: &rh_protocol::WireWishOwner,
+    own_effects: u16,
+    frost_wish: rh_sim::FrostWish,
+) -> Option<BVal> {
     use crate::bots::wish::{AiIntent, BlockedBy, PolicyEffect, TargetRule};
     let id = *rh_sim::status_runtime::AbilityId::ALL.get(usize::from(w.ability))?;
-    let row = crate::bots::wish::wish_by_id(id)?;
-    let sim = rh_sim::abilities::definition(id);
+    let row = crate::bots::wish::wish_for(id, frost_wish)?;
+    // The sim's own row for this room (`rh_sim::abilities::definition_for`, keyed on the same public setting).
+    let sim = if id == rh_sim::status_runtime::AbilityId::Freeze
+        && frost_wish == rh_sim::FrostWish::Wall
+    {
+        rh_sim::abilities::frost_wall_definition()
+    } else {
+        rh_sim::abilities::definition(id)
+    };
     let ai = row.ai.iter().map(|a| {
         BVal::text(match a {
             AiIntent::Escape => "escape",
@@ -1775,6 +1801,12 @@ fn wish_record(w: &rh_protocol::WireWishOwner, own_effects: u16) -> Option<BVal>
             ("do", BVal::text("blink")),
             ("maxDist", BVal::num(max_dist)),
             ("minDist", BVal::num(min_dist)),
+        ]),
+        // Legacy 78dd8bd4 shared/abilities.ts `frostWall`: `{ do: "wall", ms, length }`.
+        PolicyEffect::Wall { ms, length } => BVal::obj([
+            ("do", BVal::text("wall")),
+            ("ms", BVal::num(ms)),
+            ("length", BVal::num(length)),
         ]),
     });
     let def = BVal::obj([
@@ -2000,6 +2032,12 @@ impl SeatComposer14 {
                 composer
             },
         }
+    }
+
+    /// The room's Frost Wish (`MatchStart::frost_wish`), handed to the composer ([`Composer14::with_frost_wish`]).
+    pub(crate) fn with_frost_wish(mut self, frost_wish: rh_sim::FrostWish) -> Self {
+        self.composer = self.composer.with_frost_wish(frost_wish);
+        self
     }
 
     #[cfg(test)]

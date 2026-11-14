@@ -67,7 +67,7 @@ fn identities_move_for_the_panel() {
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        24,
+        25,
         "policy projection gains the panel (20), then codes 23-27 (21, P-WIRE17-HUD-2c); 22: P-WIRE17-HUD-3"
     );
 }

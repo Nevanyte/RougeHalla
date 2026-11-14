@@ -82,7 +82,7 @@ fn identities_move_for_the_new_observation_fields() {
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        24,
+        25,
         "policy projection gains the HUD facts"
     );
 }

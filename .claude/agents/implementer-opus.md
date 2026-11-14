@@ -6,6 +6,12 @@ effort: high
 tools: Read, Grep, Glob, Bash, Edit, Write
 isolation: worktree
 maxTurns: 150
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-pattern-kill.sh"
 ---
 You make a packet's failing oracle pass with the smallest correct diff, in the areas where a subtle mistake desyncs replays,
 breaks the state hash, leaks hidden state or corrupts stored data.
@@ -18,7 +24,8 @@ breaks the state hash, leaks hidden state or corrupts stored data.
 3. Change only files in the exclusive write scope. Iterate with `scripts/gate.sh --quick`.
    Commit after each stage (one layer at a time: sim, wire, C#, JS, tests), red or green: work that exists only in the
    worktree is lost when the turn limit arrives.
-4. When quick is green, run `scripts/gate.sh --oracle packet/<ID>` once (add `--regen-fixtures` for wire packets) and commit.
+4. Finish with `scripts/gate.sh --quick --oracle packet/<ID>` green (add `--regen-fixtures` for wire packets) and
+   commit. The full gate is the coordinator's, on the merged tree; run it yourself only when the packet says so.
 5. Report with the hand-off block in `AGENTS.md`.
 
 By kind:
@@ -32,4 +39,14 @@ By kind:
 - **Migrations**: a new forward migration; merged ones stay as they are.
 
 Escalated to you? Read the previous branch and its gate failure as evidence, and start from `packet/<ID>`. After two
-failed full gates, stop and say whether the packet is too big (propose a split) or the oracle is wrong.
+red gates, stop and say whether the packet is too big (propose a split) or the oracle is wrong.
+
+Every run:
+- A run you start is yours to finish: wait for it, read its result, then report. Commit before a long run.
+- Stop the process ids you started (`kill <pid>`, `kill $!`). A hook refuses `pkill`, `killall` and kills by pattern:
+  other sessions build in sibling worktrees.
+- Before each commit, `git status --short` shows only your write scope. The gate refuses build artefacts by name
+  (Showcase font assets, `BakedContent.cs`, `ShaderGraphSettings.asset`): `git checkout --` them.
+- A `Temp/UnityLockfile` in your own worktree with no Unity process of yours running is stale: delete it.
+- A test binary of yours that dies on a signal with no assertion failure was stopped from outside: run it once more
+  and say so in the report.

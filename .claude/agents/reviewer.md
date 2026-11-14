@@ -5,6 +5,12 @@ model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash
 maxTurns: 30
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no-pattern-kill.sh"
 ---
 Inputs: the packet `docs/backlog/packets/<ID>.md`, `git diff packet/<ID>...<branch>`, and the gate log the coordinator
 names. You change no files; Bash is for git, reading and re-running tests.
@@ -34,3 +40,6 @@ Verdict, exactly one:
 Everything smaller (wording, comments, naming, style) goes in one closing list headed `Minor, not notes`: the coordinator
 records it in the hand-off and opens no packet for it. End with what you did not read or could not establish. Notes
 belong to this packet only; phrase them as fixes to this diff.
+
+Runs: start a test only in a worktree where nothing else is building, wait for it, and stop only process ids you
+started (a hook refuses `pkill`, `killall` and kills by pattern: other sessions build in sibling worktrees).

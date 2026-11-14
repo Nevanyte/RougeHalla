@@ -75,7 +75,7 @@ fn identities_move_for_the_clocks_and_the_minimum() {
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        24,
+        25,
         "the projected inventory and arena view carry them (P-WIRE17-HUD-3)"
     );
 }

@@ -2606,6 +2606,8 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
     };
     let mut hides_caster = false;
     let mut blink = None;
+    // Legacy 78dd8bd4 `wallOf`: any `do: "wall"` effect.
+    let mut wall = false;
     if let Some(effects) = optional(value, "effects") {
         let effects_path = format!("{path}.effects");
         let SVal::Arr(rows) = effects else {
@@ -2616,6 +2618,7 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
                 targeting,
                 hides_caster,
                 blink,
+                wall,
                 raw,
             });
         };
@@ -2643,6 +2646,8 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
                 if to == Some("self") && status == Some("hidden") {
                     hides_caster = true;
                 }
+            } else if operation == "wall" {
+                wall = true;
             } else if operation == "blink" {
                 let max_dist = finite_number(effect, "maxDist", &effect_path)?;
                 let min_dist = finite_number(effect, "minDist", &effect_path)?;
@@ -2655,6 +2660,7 @@ fn parse_ability_rank(value: &SVal, path: &str) -> R<AbilityRank> {
         targeting,
         hides_caster,
         blink,
+        wall,
         raw,
     })
 }

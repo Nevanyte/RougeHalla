@@ -1,6 +1,7 @@
-//! P-FROST-WALL-2 oracle (observation): a standing Frost Wall reaches every viewer who may see it, by the rule the
-//! observation already applies to every non-trail field: its first point `(x, y)` is visible to the viewer
-//! (`status_runtime/observe.rs` `project`). A wall field's `(x, y)` is its segment's first end (`seg.x1, seg.y1`,
+//! P-FROST-WALL-2 oracle (observation): a standing Frost Wall reaches every viewer who may see it. Amended by
+//! P-FROST-WALL-NOWALL-1 (coordinator-approved; proposed DEV-036): its owner always, and any other viewer to whom at
+//! least one of its tiles is visible (`status_runtime/observe.rs` `project`). P-FROST-WALL-2 pinned legacy's drawing rule,
+//! the one every non-trail field keeps: its first point `(x, y)` visible. A wall field's `(x, y)` is its segment's first end (`seg.x1, seg.y1`,
 //! `systems/abilities/effects.rs` wall landing), as in legacy, whose client and bots tested `canSee` on the field's
 //! `(x, y)` for every kind but a trail (78dd8bd4 `client/src/render/FieldView.ts` `update`; in-repo
 //! `server/src/bots/brain/perception.ts:816` `seeFields`). The wall carries its tiles: the barrier row the sim blocks on.
@@ -218,11 +219,13 @@ fn a_viewer_out_of_sight_receives_neither_the_wall_nor_its_landing_centre() {
     }
 }
 
-/// Legacy's rule, pinned as legacy (flagged in the brief): the wall is shown when its FIRST end is visible, whatever the
-/// rest of it. A viewer who sees only the first end receives the whole wall; one who sees only the second end and some of
-/// its tiles receives none of it.
+/// Amended by P-FROST-WALL-NOWALL-1 (coordinator-approved, flagged to the owner; proposed DEV-036). P-FROST-WALL-2 pinned
+/// legacy's drawing rule here: a wall shown only when its FIRST end is visible. Now a viewer other than the owner is sent
+/// the whole wall when ANY of its tiles is visible to it. The first-end viewer (its first end and the two tiles beside
+/// it in sight) still receives the whole wall; the second-end viewer (rows 37 and 38 in sight, the first end not) now
+/// receives it too. Neither sees the wall's centre, so neither receives the landing centre (its own point rule).
 #[test]
-fn the_wall_is_shown_by_its_first_point_as_every_non_trail_field_is() {
+fn the_wall_is_shown_to_a_viewer_who_sees_any_of_its_tiles() {
     let mut s = rig(FrostWish::Wall);
     let obs = cast_and_watch(&mut s, LANDED);
     let last = &obs[LANDED - 1];
@@ -233,9 +236,16 @@ fn the_wall_is_shown_by_its_first_point_as_every_non_trail_field_is() {
         first[0].owner, None,
         "the caster is out of its sight: no owner"
     );
-    assert!(
-        walls(&last[SECOND_END]).is_empty(),
-        "sees only the second end: no wall (legacy)"
+    let second = walls(&last[SECOND_END]);
+    assert_eq!(
+        second.len(),
+        1,
+        "sees the second end and two of its tiles, not the first end: receives the wall"
+    );
+    assert_eq!(second[0].tiles, the_tiles(), "with all its tiles");
+    assert_eq!(
+        second[0].owner, None,
+        "the caster is out of its sight: no owner"
     );
     // Neither sees the centre, so neither receives the landing centre.
     for slot in [FIRST_END, SECOND_END] {

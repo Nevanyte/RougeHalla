@@ -41,7 +41,7 @@ Rules:
 
 `implementer` → `implementer-sonnet` → `implementer-opus` → `debugger` (determinism or parity divergence only).
 
-- Each tier gets two full-gate attempts; the second attempt runs one effort level higher than the agent's default.
+- Each tier gets two gate attempts; the second attempt runs one effort level higher than the agent's default.
 - Escalate with the packet, the previous branch name (a reference, not a base) and the gate's failure block.
 - After Opus fails twice on anything that is not a divergence, stop: the packet goes back to the coordinator to split it or
   fix the oracle, and the owner hears about it.
@@ -53,14 +53,17 @@ Rules:
 2. `oracle-author` commits the brief and failing oracle on `packet/<ID>`, branched from the integration branch
    (`docs/agent/INTEGRATION_BRANCH`). The oracle fails for the right reason: an assertion, not a compile error
    (`scripts/gate.sh --oracle-check` passes on `packet/<ID>` before an implementer starts).
-3. The implementer works on `agent/<model>/<ID>` from `packet/<ID>` in its own worktree or the one its brief names, iterating with
-   `scripts/gate.sh --quick`, finishing with `scripts/gate.sh --oracle packet/<ID>`.
+3. The implementer works on `agent/<model>/<ID>` from `packet/<ID>` in its own worktree or the one its brief names,
+   iterating with `scripts/gate.sh --quick`, finishing with `scripts/gate.sh --quick --oracle packet/<ID>`. The full gate
+   is the coordinator's, on the merged tree.
 4. Only gate-green branches are reviewed. Verdict: `LAND`, `LAND WITH NOTES` (at most three notes, each a defect in
    behaviour, a broken guarantee or a structural problem, each becoming a `<ID>-fix` packet at the same tier) or `REJECT`
    (with the tier that retries). The reviewer's `Minor, not notes` list goes into the hand-off and gets no packet (owner
    direction 2026-11-13).
-5. The coordinator merges `LAND` branches into the integration branch, re-runs the full gate on the merge, records the
-   result in the MIGRATION checkpoint, and removes the worktree.
+5. The coordinator merges `LAND` branches into the integration branch, runs the full gate on the merge
+   (`scripts/gate.sh --coordinator --keep-going`), records the result in the MIGRATION checkpoint, and removes the
+   worktrees it claimed (`scripts/agent-worktrees.sh clean --session <id>`). A worktree without a row in
+   `.agent-runs/worktrees.csv` belongs to another session: leave it.
 
 ## Parallelism
 
@@ -71,6 +74,11 @@ Rules:
   (`worktree.baseRef` in `.claude/settings.json`), so their first command checks out their own branch, unless the brief
   names the worktree to work in.
 - Reviewer notes are scoped to one packet. They never become new rules in this file or `AGENTS.md`.
+- After each launch, `scripts/agent-worktrees.sh claim <agent-id> <packet> <session>`; when the agent has reported,
+  `done <agent-id>`.
+- Open owner decisions live in `docs/coordination/OWNER_QUEUE.md` (each with the default in force); recorded ones are
+  indexed in `docs/OWNER_DECISIONS.md`. Search the index before writing a brief; status notes go to the owner on a push
+  or a decision, not on every agent report.
 - Log every attempt to `.agent-runs/log.csv`: `date,packet,agent,model,attempt,gate,minutes,notes`. ORDER_OF_OPERATIONS
   asks for coordinator throughput; this is that measurement.
 

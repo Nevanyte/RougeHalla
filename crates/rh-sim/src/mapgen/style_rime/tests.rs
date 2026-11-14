@@ -541,6 +541,7 @@ fn replay(row: &Value, metadata: &Value, actual: bool) {
     let mut rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &hard,
             no_block: &nb,
@@ -1754,6 +1755,7 @@ fn oversized_callback_geometry_refuses_before_writes() {
     let mut rt = Runtime::new(
         &mut state,
         Inputs {
+            landmark: None,
             geometry: &geometry,
             hard: &zero,
             no_block: &zero,
@@ -1875,6 +1877,7 @@ fn malformed_tower_boxes_refuse_continuations_without_writes() {
         let mut rt = Runtime::new(
             &mut state,
             Inputs {
+                landmark: None,
                 geometry: &geometry,
                 hard: &zero,
                 no_block: &zero,
@@ -2002,6 +2005,7 @@ fn malformed_gate_geometry_refuses_before_sampling_or_writes() {
         let mut rt = Runtime::new(
             &mut state,
             Inputs {
+                landmark: None,
                 geometry: &geometry,
                 hard: &zero,
                 no_block: &zero,

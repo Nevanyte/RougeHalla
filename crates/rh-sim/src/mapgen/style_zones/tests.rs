@@ -499,6 +499,7 @@ fn replay(registry: &Registry<'_>, row: &Value) -> State {
         no_block: no_block.as_deref(),
         no_prop: no_prop.as_deref(),
         caps: caps.as_ref(),
+        landmarks: None,
     };
     eq(
         &json!(style_runtime::no_block(&protect, no_block.as_deref()).unwrap()),
@@ -744,6 +745,7 @@ fn input_refusals_leave_all_state_unchanged_and_pass_reset_is_fresh() {
         no_block: None,
         no_prop: None,
         caps: None,
+        landmarks: None,
     };
     let before = state.clone();
     assert_eq!(
@@ -886,6 +888,7 @@ fn malformed_watchtower_refuses_before_earlier_fire_writes() {
         no_block: None,
         no_prop: None,
         caps: None,
+        landmarks: None,
     };
     assert_eq!(
         registry.apply(&input, &mut state).unwrap_err(),

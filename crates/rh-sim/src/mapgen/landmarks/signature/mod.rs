@@ -17,6 +17,7 @@ pub mod blueprint;
 mod bog_tree;
 mod cave;
 mod church;
+pub mod frame;
 pub mod spec;
 mod volcano;
 
@@ -293,19 +294,19 @@ pub fn band(anchor: &ZoneAnchor, x: i32, y: i32) -> Band {
     }
 }
 
-/// What the step placed in one attempt: the anchors of the zones it built (zone-code order), the terrain layer the
-/// attempt starts its styler pass from (all zero except the landmarks' own terrain, such as the bog tree's bands), and
-/// (P-MAPGEN-SIG-BLUEPRINT-1) one `Landed` per landmark placed from a drawing, in placement order.
+/// What the step placed in one attempt: the terrain layer the attempt starts its styler pass from (all zero except the
+/// landmarks' own terrain, such as the bog tree's bands) and (P-MAPGEN-LANDMARK-FRAME-1) one `LandmarkFrame` per zone it
+/// built, in placement order (`reserved_zones`): the one record of what was placed. The zones' anchors and the drawn
+/// landmarks' landings are read through `Placed::anchors()` and `Placed::landed()`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Placed {
-    pub anchors: Vec<ZoneAnchor>,
     pub terrain: Vec<u8>,
-    pub landed: Vec<Landed>,
+    pub frames: Vec<frame::LandmarkFrame>,
 }
 
 /// P-MAPGEN-SIG-BLUEPRINT-1: one landmark placed from its drawing: the zone, the landing (orientation, origin, box) and
 /// every mark of its legend (ascending by character) with the map tiles it landed on, row-major. Generator working
-/// state (the landing place of the `LandmarkFrame` the stylers will read); never exported.
+/// state, derived from the frames (`Placed::landed()`); never exported.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Landed {
     pub zone: Zone,
@@ -426,18 +427,28 @@ impl<'f> SignatureContext<'f> {
                 .all(|m| owned.iter().any(|(k, _)| k == m)),
             "signature: a member kind with no owned-tile rule"
         );
+        let landmarks: Vec<(spec::Spec, Option<Blueprint>)> = table
+            .into_iter()
+            .map(|s| {
+                let drawing = s.drawing.and_then(|t| Blueprint::parse(t, &s.legend).ok());
+                (s, drawing)
+            })
+            .collect();
+        // A frame records marks by their tiles (`LandmarkFrame::marks`): a legend mark no tile of its drawing carries
+        // would drop out of `Placed::landed()`.
+        debug_assert!(
+            landmarks
+                .iter()
+                .filter_map(|(_, bp)| bp.as_ref())
+                .all(|bp| bp.marks().iter().all(|(_, gs)| !gs.is_empty())),
+            "signature: a legend mark with no tile in its drawing"
+        );
         Self {
             _fixed: core::marker::PhantomData,
             rules: *d,
             codes,
             hard,
-            landmarks: table
-                .into_iter()
-                .map(|s| {
-                    let drawing = s.drawing.and_then(|t| Blueprint::parse(t, &s.legend).ok());
-                    (s, drawing)
-                })
-                .collect(),
+            landmarks,
             owned,
         }
     }
@@ -651,25 +662,19 @@ impl<'f> SignatureContext<'f> {
     ) -> Result<Option<Placed>, AttemptInputError> {
         let halo = camp_halo(frame);
         let mut terrain = vec![0u8; W * H];
-        let mut anchors = Vec::new();
-        let mut landed = Vec::new();
+        let mut frames = Vec::with_capacity(reserved_zones().len());
         for zone in reserved_zones() {
-            let Some((anchor, l)) = self.place(frame, stage, &halo, &mut terrain, zone) else {
+            let Some(f) = self.place(frame, stage, &halo, &mut terrain, zone) else {
                 return Ok(None);
             };
-            anchors.push(anchor);
-            landed.extend(l);
+            frames.push(f);
         }
-        Ok(Some(Placed {
-            anchors,
-            terrain,
-            landed,
-        }))
+        Ok(Some(Placed { terrain, frames }))
     }
 
     /// P-MAPGEN-SIG-BLUEPRINT-2 (review finding 5): `apply` for the one landmark of `zone` alone, as if the zones placed
     /// before it in `apply` had placed nothing: the same site, stream, draws and checks (`place`), its features written
-    /// into `stage`, and a `Placed` holding only its anchor, its terrain and (for a drawing) its landing. A test seam: what
+    /// into `stage`, and a `Placed` holding only its terrain and its frame (built as `apply` builds it). A test seam: what
     /// each landmark's own oracle pins without depending on the others. `Ok(None)` where `apply` would refuse at this
     /// zone, and for a zone that reserves no site (Holy).
     pub fn apply_only(
@@ -685,17 +690,18 @@ impl<'f> SignatureContext<'f> {
         let mut terrain = vec![0u8; W * H];
         Ok(self
             .place(frame, stage, &halo, &mut terrain, zone)
-            .map(|(anchor, landed)| Placed {
-                anchors: vec![anchor],
+            .map(|f| Placed {
                 terrain,
-                landed: landed.into_iter().collect(),
+                frames: vec![f],
             }))
     }
 
     /// One zone's landmark in its reserved site, continuing the zone's signature stream the Prefix began there
     /// (P-MAPGEN-SIG-RESERVE-1): drawn from its table entry by `stamp`, or (the volcano, the one entry without a drawing)
-    /// by `volcano::place`; its features written into `stage` and their terrain into `terrain`. The anchor and, for a
-    /// drawing, the landing; `None` refuses (no slot, no reserved site, or the site cannot hold the landmark). `halo` is
+    /// by `volcano::place`; its features written into `stage` and their terrain into `terrain`. Its frame (P-MAPGEN-
+    /// LANDMARK-FRAME-1): the anchor, for a drawing the landing and the landed marks, each written feature's kind and box
+    /// in write order, and every written tile ascending (the last writer's tile and terrain where pieces overlap, as the
+    /// layers hold them); `None` refuses (no slot, no reserved site, or the site cannot hold the landmark). `halo` is
     /// every prefix camp's certifier halo (`camp_halo`).
     fn place(
         &self,
@@ -704,7 +710,7 @@ impl<'f> SignatureContext<'f> {
         halo: &[u8],
         terrain: &mut [u8],
         zone: Zone,
-    ) -> Option<(ZoneAnchor, Option<Landed>)> {
+    ) -> Option<frame::LandmarkFrame> {
         let prefix = &frame.state;
         let slot = slot_of(&prefix.order, zone)?;
         let r = prefix.reserved.iter().find(|r| r.zone == zone)?;
@@ -736,28 +742,57 @@ impl<'f> SignatureContext<'f> {
             // The volcano's streams and pools leave its site: only its cone is confined (`volcano::place`).
             inner: (zone != Zone::Fire).then_some(corners),
         };
-        let (built, landed) = match spec.drawing {
+        let (built, landing, marks) = match spec.drawing {
             Some(_) => {
                 let target = Target {
                     inner,
                     camp: r.camp.map(|t| ((t % W) as i32, (t / W) as i32)),
                 };
-                let (built, l) = stamp(&site, &mut rng, spec, drawing.as_ref(), &target)?;
-                (built, Some(l))
+                let (built, landing, marks) =
+                    stamp(&site, &mut rng, spec, drawing.as_ref(), &target)?;
+                (built, Some(landing), marks)
             }
             None if zone == Zone::Fire => (
                 volcano::place(&site, &prefix.layout.camps, &mut rng, corners)?,
                 None,
+                Vec::new(),
             ),
             None => return None,
         };
+        let mut features = Vec::with_capacity(built.pieces.len());
+        let mut wrote: Vec<(u32, u8, u8)> = Vec::new();
         for piece in &built.pieces {
-            self.write(stage, terrain, zone, piece);
+            features.push((piece.kind, self.write(stage, terrain, zone, piece)));
+            wrote.extend(piece.cells.iter().map(|&(i, t, k)| (i as u32, t, k)));
         }
-        Some((built.anchor, landed))
+        // Ascending by tile, one entry per tile: the stable sort keeps write order among a tile's entries, and the last
+        // one (the layers' value) replaces the earlier.
+        wrote.sort_by_key(|c| c.0);
+        let mut cells: Vec<(u32, u8, u8)> = Vec::with_capacity(wrote.len());
+        for c in wrote {
+            match cells.last_mut() {
+                Some(last) if last.0 == c.0 => *last = c,
+                _ => cells.push(c),
+            }
+        }
+        Some(frame::LandmarkFrame {
+            anchor: built.anchor,
+            landing,
+            marks,
+            features,
+            cells,
+        })
     }
 
-    fn write(&self, stage: &mut LandmarkStage, terrain: &mut [u8], zone: Zone, p: &Piece) {
+    /// Writes piece `p` of zone `zone`'s landmark into the stage (tiles, owners, masks, the feature) and its terrain
+    /// into `terrain`; the written feature's box.
+    fn write(
+        &self,
+        stage: &mut LandmarkStage,
+        terrain: &mut [u8],
+        zone: Zone,
+        p: &Piece,
+    ) -> TileRect {
         let id = u16::try_from(stage.state.features.len() + 1).expect("feature id");
         let bbox = bounds(p.cells.iter().map(|c| c.0));
         for &(i, tile, kind) in &p.cells {
@@ -803,30 +838,15 @@ impl<'f> SignatureContext<'f> {
             bbox,
             tiles: p.cells.len() as u32,
         });
+        bbox
     }
 
-    /// Writes the finished map's anchors (G3) from the step's anchors and the finished features: the footprints of the
-    /// volcano, the bog tree and the cave re-read from their features after records renumbered them (the church's is
-    /// kept as placed: the blueprint's spans its graveyard and churchyard, the `Church` feature only the building; the
-    /// rule-drawn church's is its feature's box either way), plus the Holy hall's (the largest `Hall` feature, placed by
-    /// the Holy styler), in zone-code order.
-    pub fn finish(&self, map: &mut GameMapData, anchors: Vec<ZoneAnchor>) {
-        let mut out: Vec<ZoneAnchor> = anchors
-            .into_iter()
-            .map(|mut a| {
-                if a.kind == FeatureKind::Church {
-                    return a;
-                }
-                if let Some(f) = map
-                    .features
-                    .iter()
-                    .find(|f| f.kind == a.kind && f.zone == a.zone)
-                {
-                    a.footprint = f.bbox;
-                }
-                a
-            })
-            .collect();
+    /// Writes the finished map's anchors (G3): each frame's anchor as the Landmarks phase placed it (P-MAPGEN-LANDMARK-
+    /// FRAME-1: no footprint is re-read from the finished features; records keep every landmark feature's box), plus
+    /// the Holy hall's (the largest `Hall` feature, placed by the Holy styler, until P-MAPGEN-SIG-HOLY-1 gives the hall a
+    /// frame), in zone-code order.
+    pub fn finish(&self, map: &mut GameMapData, frames: &[frame::LandmarkFrame]) {
+        let mut out: Vec<ZoneAnchor> = frames.iter().map(|f| f.anchor.clone()).collect();
         let hall = map
             .features
             .iter()
@@ -1012,7 +1032,8 @@ fn camp_halo(frame: &AttemptFrame) -> Vec<u8> {
 }
 
 /// P-MAPGEN-SIG-BLUEPRINT-1: one landmark drawn from its table entry `spec` and its parsed drawing in the zone's
-/// reserved site `target`, with the landing it used; `None` refuses the attempt (G5: the drawing is never served
+/// reserved site `target`, with the landing it used and every mark tile of its legend in grid order (by character, then
+/// the drawing's row-major order) on the map tile it landed on; `None` refuses the attempt (G5: the drawing is never served
 /// smaller). In order, each step as the cave's, the church's and the tree's own code did before this packet:
 /// 1. the zone's one draw on its signature stream, `pick(rng, 2) == 1` = mirrored, before anything can refuse;
 /// 2. a drawing that did not parse refuses;
@@ -1034,7 +1055,7 @@ fn stamp(
     spec: &spec::Spec,
     drawing: Option<&Blueprint>,
     target: &Target,
-) -> Option<(Built, Landed)> {
+) -> Option<(Built, blueprint::Landing, Vec<frame::Mark>)> {
     let mirrored = pick(rng, 2) == 1;
     let bp = drawing?;
     let t = match spec.placement {
@@ -1117,13 +1138,16 @@ fn stamp(
             cells,
         });
     }
-    let marks = bp
+    // Grid order: by character, then the drawing's row-major order (`Blueprint::marks`).
+    let marks: Vec<frame::Mark> = bp
         .marks()
         .into_iter()
-        .map(|(ch, gs)| {
-            let mut ts: Vec<TilePt> = gs.into_iter().map(landed_tile).collect();
-            ts.sort_unstable_by_key(|p| (p.y, p.x));
-            (ch, ts)
+        .flat_map(|(ch, gs)| {
+            gs.into_iter().map(move |grid| frame::Mark {
+                ch,
+                grid,
+                tile: landed_tile(grid),
+            })
         })
         .collect();
     // The anchor's entrance is row-major (P-MAPGEN-SIG-BLUEPRINT-2); the grid order above stays the feature anchors'.
@@ -1138,12 +1162,7 @@ fn stamp(
         front: f,
         entrance,
     };
-    let landed = Landed {
-        zone: spec.zone,
-        landing,
-        marks,
-    };
-    Some((Built { pieces, anchor }, landed))
+    Some((Built { pieces, anchor }, landing, marks))
 }
 
 /// One feature the step writes: kind, job, anchor point and its cells (index, tile, terrain).
