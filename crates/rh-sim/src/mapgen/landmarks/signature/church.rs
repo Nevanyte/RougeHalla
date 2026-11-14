@@ -9,8 +9,8 @@
 //! cannot hold the drawing refuses the attempt; the drawing is never served smaller.
 //!
 //! Without a reserved site (a `begin_attempt` prefix, which only tests feed the step) the older rule-drawn church stands
-//! round the zone's far elite camp, with its graveyard. The church is a rectangular wall ring whose interior holds the camp's whole halo; each wall line stands 4-7 tiles from the camp tile,
-//! or the side leans on the map border (a camp near the edge or a corner), so the rectangle may be off-centre. Its
+//! round the zone's far elite camp, with its graveyard. The church is a rectangular wall ring whose interior holds the
+//! camp's whole halo; each wall line stands 4-7 tiles from the camp tile, or the side leans on the map border (a camp near the edge or a corner), so the rectangle may be off-centre. Its
 //! 3-tile door is on the side facing the coliseum (the dominant axis of the front), and beyond the door the graveyard's
 //! headstones (2x3 walls) stand in rows mirrored about the door axis, every row starting the same gap past the door
 //! line.
@@ -238,9 +238,9 @@ pub(super) fn place(
     None
 }
 
-/// The church's approved drawing (`Definition::church_grid`), parsed once per context (`SignatureContext::from_definition`).
-/// Grid tile (gx, gy) is character gx of row gy (`cave::grid`); the front (the door and the main gate, toward the
-/// coliseum) is +gy. `#` church wall and `P` pillar (the building), `G` headstone, `+` fence, `.` plain floor, `D` the
+/// The church's approved drawing (`Definition::church_grid`), parsed once per context
+/// (`SignatureContext::from_definition`). Grid tile (gx, gy) is character gx of row gy (`cave::grid`); the front (the
+/// door and the main gate, toward the coliseum) is +gy. `#` church wall and `P` pillar (the building), `G` headstone, `+` fence, `.` plain floor, `D` the
 /// church door, `E` the elite camp's tile, `*` a lantern post mark (plain floor to the generator).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Blueprint {
@@ -405,4 +405,30 @@ pub(super) fn smallest_piece(cells: &[usize]) -> usize {
         smallest = smallest.min(n);
     }
     smallest
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::DEFAULT_DEFINITION;
+    use super::*;
+
+    #[test]
+    fn the_default_blueprint_parses_and_malformed_grids_do_not() {
+        let bp =
+            Blueprint::parse(DEFAULT_DEFINITION.church_grid).expect("the approved drawing parses");
+        assert_eq!((bp.side, bp.camp), (29, (14, 7)));
+        assert_eq!(bp.gate, (12..=16).map(|gx| (gx, 28)).collect::<Vec<_>>());
+        let ok = ";legend\n+++++\n+.E.+\n+#D#+\n+G.G+\n++.++\n";
+        assert_eq!(Blueprint::parse(ok).map(|b| b.gate), Some(vec![(2, 4)]));
+        for bad in [
+            "",
+            "+++++\n+.E.+\n+#D#+\n++.++\n",        // not square
+            "+++++\n+.E.+\n+#E#+\n+G.G+\n++.++\n", // two camps
+            "+++++\n+...+\n+#D#+\n+G.G+\n++.++\n", // no camp
+            "+++++\n+.E.+\n+#D#+\n+G.G+\n+.+.+\n", // the camp's column fenced on the front row
+            "+++++\n+.E.+\n+#x#+\n+G.G+\n++.++\n", // unknown character
+        ] {
+            assert!(Blueprint::parse(bad).is_none(), "{bad:?}");
+        }
+    }
 }

@@ -692,18 +692,22 @@ impl<'f> SignatureContext<'f> {
     /// rule-drawn church's is its feature's box either way), plus the Holy hall's (the largest `Hall` feature, placed by
     /// the Holy styler), in zone-code order.
     pub fn finish(&self, map: &mut GameMapData, anchors: Vec<ZoneAnchor>) {
-        let mut out: Vec<ZoneAnchor> =
-            anchors
-                .into_iter()
-                .map(|mut a| {
-                    if let Some(f) = map.features.iter().find(|f| {
-                        f.kind == a.kind && f.zone == a.zone && a.kind != FeatureKind::Church
-                    }) {
-                        a.footprint = f.bbox;
-                    }
-                    a
-                })
-                .collect();
+        let mut out: Vec<ZoneAnchor> = anchors
+            .into_iter()
+            .map(|mut a| {
+                if a.kind == FeatureKind::Church {
+                    return a;
+                }
+                if let Some(f) = map
+                    .features
+                    .iter()
+                    .find(|f| f.kind == a.kind && f.zone == a.zone)
+                {
+                    a.footprint = f.bbox;
+                }
+                a
+            })
+            .collect();
         let hall = map
             .features
             .iter()
@@ -726,8 +730,8 @@ impl<'f> SignatureContext<'f> {
 
     /// The finished map still holds every signature landmark as it was placed (G5: later steps may have taken nothing
     /// of it): a tree of trunk walls and bog floor, a church of walls, a graveyard of walls and LOW fence (the fence
-    /// terrain), an open door, all in their zone; no
-    /// styler feature in an apron; no landmark's tiles in another landmark's apron, either way round
+    /// terrain), an open door, all in their zone; no styler feature in an apron; no landmark's tiles in another
+    /// landmark's apron, either way round
     /// (`aprons_apart`); and the Frost zone's largest ice body outside the cave at the cave's mouth
     /// (`cave::lake_at_mouth`). A pure predicate: it draws nothing and changes nothing.
     pub fn intact(&self, map: &GameMapData) -> bool {
