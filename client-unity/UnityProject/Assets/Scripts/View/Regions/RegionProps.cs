@@ -32,11 +32,14 @@ namespace Roguehalla.Client
         GameObject _root; Material _material;
         public int Count { get { return _props.Count; } }
 
+        /// <summary>True when the map blob carries the server's decoration (shipped props): the client then rolls none of its own look.</summary>
+        public static bool IsDressed(MapBlob map) { return map != null && map.Props != null && map.Props.Length > 0; }
+
         /// <summary>The deterministic placement list, separated from rendering so tests can run it without a GPU.</summary>
         public static List<Placement> Scatter(MapBlob map)
         {
             var list = new List<Placement>(2048);
-            if (map.Props != null && map.Props.Length > 0) { AddShipped(map, list); return list; }
+            if (IsDressed(map)) { AddShipped(map, list); return list; }
             if (map.Regions == null) { AddRealBushes(map, list); return list; }
             int w = map.W, h = map.H; var tiles = map.Tiles; var regions = map.Regions; var terrain = map.Terrain;     // props avoid every terrain tile, drawn or not
             int seed = unchecked((int)(map.LayerHash ^ (map.SemanticHash * 2654435761u)));
