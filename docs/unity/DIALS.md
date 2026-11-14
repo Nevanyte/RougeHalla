@@ -18,6 +18,11 @@ A value that is not in this table is not a dial yet: adding one is a packet.
 | `bog-tree-shadow` | How dark the crown's shadow on the ground is at its darkest | `Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` `ShadowAlpha` | 0.36 | 0.2 to 0.5 | none (looks only; keep the shadow's alpha under 0.5) | `bog-wide`, `bog-close` |
 | `bog-tree-fade-south-rows` | How many tile rows south of the opaque crown still fade it (the actor's body is taller than a tile row) | `Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` `CrownFadeSouthRows` | 1 | 0 to 1 (2 or more fails the oracle: a cover tile two or more rows south of the crown's bottom edge must leave the crown solid) | `BogTreeCrownFadeEditModeTests` | `bog-wide`, `bog-under` |
 | `bog-tree-knee-height` | How far a cypress knee stands above the root height | `Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` `KneeRise` | 0.75 (units) | 0.4 to 1.0 | `BogTreeLandmarkEditModeTests` marsh test | `bog-wide`, `bog-close` |
+| `band-edge-warp` | How far a decoration band's outline wanders (tiles; times the noise's own small amplitude) | `Assets/Resources/Regions/RegionGround.shader` `RH_BAND_WARP` | 1.5 | 0.8 to 2.0 (below 0.8 the outline reads as a blurred rectangle: `band-outline-check.sh` longest straight run above 1.5 tiles) | `band-outline-check.sh --max 1.5` (render; not in the gate) | `plague-scene-dressed` |
+| `band-edge-noise-scale` | Wobbles of that outline per tile | same file, `RH_BAND_NOISE_SCALE` | 2.2 | 1.7 (the terrain edge's own scale) to 3 | same check | `plague-scene-dressed` |
+| `band-edge-width` | How much of the tile-to-tile gain fade a band keeps at its rim (1 = a full tile of fade, smaller = a narrower rim) | same file, `RH_BAND_WIDTH` | 0.55 | 0.4 to 1.0 (the soft rim must stay wider than 0; a band 1 tile wide must still show its colour) | same check | `plague-scene-dressed` |
+
+The `band-edge-*` dials live only in the shader: the CPU mirror (`GroundVariantInputs.SoftGainAt`) models neither the warp nor `RH_BAND_WIDTH` (it is plain bilinear, which the EditMode tests pin); their look is judged on renders.
 
 The `bog-tree-*` ranges are reasoned from the tests' constraints and checked only at the shipped value (EditMode and two renders); the ends of a range were not swept.
 

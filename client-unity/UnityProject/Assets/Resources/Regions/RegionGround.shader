@@ -19,6 +19,7 @@ Shader "Roguehalla/RegionGround"
         _PlgTex("Plague ground", 2D) = "black" {}
         _VariantTex("Ground variants (rgb tint, a strength, 1 texel per tile)", 2D) = "black" {}
         _VariantOn("Ground variants present", Float) = 0
+        _VariantSoft("Soft band gains present", Float) = 0
         _Exposure("Exposure", Float) = 1
         _Debug("Debug", Float) = 0
     }
@@ -69,8 +70,8 @@ Shader "Roguehalla/RegionGround"
             TEXTURE2D(_TerA);
             TEXTURE2D(_TerB);
             TEXTURE2D(_PlgTex);   // r shallow water, g grass, b water depth (Plague only)
-            TEXTURE2D(_VariantTex);   // rgb tint, a strength (0 = base ground), point sampled, 1 texel per tile
-            TEXTURE2D(_TempleTex); SAMPLER(sampler_TempleTex);   // r = 1 on tiles of a temple pier block (point sampled, 1 texel per tile)
+            TEXTURE2D(_VariantTex);   // rgb tint, a strength (0 = base ground), point sampled, 1 texel per tile (the crisp plane; the bands' soft gain is in _TempleTex.gba)
+            TEXTURE2D(_TempleTex); SAMPLER(sampler_TempleTex);   // r = 1 on tiles of a temple pier block, gba = the ground bands' soft gain (128 = neutral) (point sampled, 1 texel per tile)
 
             #if USE_SHAPE_LIGHT_TYPE_0
             SHAPE_LIGHT(0)
@@ -91,6 +92,7 @@ Shader "Roguehalla/RegionGround"
                 half _Exposure;
                 half _Debug;
                 half _VariantOn;
+                half _VariantSoft;
             CBUFFER_END
             #include "RhSun.hlsl"
             #include "RhLocalLights.hlsl"
@@ -105,6 +107,11 @@ Shader "Roguehalla/RegionGround"
             float4 _PalPar[8];
             // x macro variation, y accent emission, z highlight toward the key colour (brightest detail), w glint intensity
             float4 _PalPar2[8];
+            // Looks-only dials of the decoration bands (docs/unity/DIALS.md): warp = how far the band's outline wanders (tiles), noise scale = wobbles per tile, width = how much of the
+            // tile-to-tile fade is kept (1 = fades across a whole tile, smaller = a narrower, crisper rim).
+            #define RH_BAND_WARP 1.5
+            #define RH_BAND_NOISE_SCALE 2.2
+            #define RH_BAND_WIDTH 0.55
             // Terrain table, index = kind 0..7. rgb colour A (deep), _TerLight (light), _TerGlow (emissive).
             float4 _TerDeep[8];
             float4 _TerLight[8];
@@ -561,12 +568,27 @@ Shader "Roguehalla/RegionGround"
                     }
                 }
 
-                // Server ground variants: a tint over the blended base ground, whole tiles, ragged edge from the same warp as the region borders.
+                // Server ground variants: a gain over the blended base ground. _VariantTex is the crisp plane, one texel per tile (rgb gain, a strength: the Sentenced scatter and every Tile-edge
+                // variant, whole tiles as ever). The decoration bands' SOFT gain rides in the g, b, a channels of _TempleTex (one texel per tile, 128 = neutral; r is the pier flag). It is blended by
+                // hand from the four nearest tile centres (GAINS, never codes), at a point warped by the same noise family as the terrain edge below (Fbm at t * 2.2 against its 1.7), so a
+                // band's outline wanders like the bog's beside it. The tile gain times the soft gain is capped at 255/128, as one baked texel always was.
                 [branch] if (_VariantOn > 0.5)
                 {
-                    float2 vuv = (floor(t) + 0.5) / _Map.xy;
-                    half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_TempleTex, vuv, 0);
+                    half4 vt = SAMPLE_TEXTURE2D_LOD(_VariantTex, sampler_TempleTex, (floor(t) + 0.5) / _Map.xy, 0);
                     col *= lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a);
+                    [branch] if (_VariantSoft > 0.5)
+                    {
+                        float2 ts = t + (float2(Fbm(t * RH_BAND_NOISE_SCALE + 3.1), Fbm(t * RH_BAND_NOISE_SCALE + 17.7)) - 0.5) * (2.0 * RH_BAND_WARP);
+                        float2 u = ts - 0.5; float2 i0 = floor(u); float2 f = u - i0;
+                        f = saturate((f - 0.5) / RH_BAND_WIDTH + 0.5);
+                        float2 lo = (clamp(i0, 0.0, _Map.xy - 1.0) + 0.5) / _Map.xy, hi = (clamp(i0 + 1.0, 0.0, _Map.xy - 1.0) + 0.5) / _Map.xy;
+                        float3 s00 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(lo.x, lo.y), 0).gba;
+                        float3 s10 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(hi.x, lo.y), 0).gba;
+                        float3 s01 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(lo.x, hi.y), 0).gba;
+                        float3 s11 = SAMPLE_TEXTURE2D_LOD(_TempleTex, sampler_TempleTex, float2(hi.x, hi.y), 0).gba;
+                        float3 sg = lerp(lerp(s00, s10, f.x), lerp(s01, s11, f.x), f.y) * (255.0 / 128.0);
+                        col *= min(sg, (255.0 / 128.0) / lerp(1.0, vt.rgb * (255.0 / 128.0), vt.a));
+                    }
                 }
 
                 float templeIn = 0.0;                                   // 1 inside the temple floor: holy-light terrain is then drawn as a translucent pool on the stone so the inlay stays readable
