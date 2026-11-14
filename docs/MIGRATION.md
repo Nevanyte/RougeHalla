@@ -36,6 +36,10 @@ no merged migration edited; `main` is an ancestor of the tip, so the pull reques
 - **Records:** DEV-001 to DEV-006, DEV-008 and DEV-011 pending, DEV-007 "confirm": queue Q24. The committed
   `.claude/settings.json` would reach `main`: queue Q25.
 
+**Owner, later the same day (chat): "Q20: please go with your recommendation".** The oracle-guard hook is fixed to
+resolve a path against the worktree that holds it, with a test (P-ENV-RETRO-2, implementer-sonnet; the approval covers
+`.claude/hooks/guard-oracles.sh` and its test only).
+
 **Map generator session:** the owner asked it in its chat to build the rest ("Please build those": the Holy hall, the
 Frost lake at the cave's mouth, the Fire crater rule; relayed, not confirmed here). P-LAND-FROST-1, P-LAND-FIRE-1 and
 P-MAPGEN-SIG-HOLY-1 land after the finish steps, one at a time, each through the coordinator's review.
