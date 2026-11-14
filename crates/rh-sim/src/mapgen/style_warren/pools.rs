@@ -11,8 +11,13 @@
 //! discs are then laid merged onto the pools already standing, each of them a `BogPool` of its own: a merged body has
 //! several owners, so a reader finds a pool as a 4-connected piece of styler bog, not as one feature.
 //!
+//! Pools keep the spawns' walks (P-LAND-PLAGUE-1-fix, `walk.rs`): a pool, or discs merged onto one, that would make some
+//! spawn's walk to the coliseum more than `walk_detour` steps longer with bog avoided is not laid; after the barrows,
+//! `walk::give_way` gives back whole bodies, last laid first, while a walk is still past its limit.
+//!
 //! Draws: only the styler's own shape stream (`c.streams.rng`), nine per pool slot (disc count, then four
 //! parent/direction pairs), in laying order; candidate order and rough rims are stateless noise.
+use super::walk::Walk;
 use super::*;
 use crate::mapdata::{TilePt, ZoneAnchor};
 use crate::mapgen::certify::rules::R;
@@ -64,6 +69,8 @@ pub struct Pools {
     pub rough_cell: f64,
     pub rough_salt: f64,
     pub order_salt: f64,
+    /// The most steps a pool may add to a spawn's walk to the coliseum (4-connected, bog avoided).
+    pub walk_detour: i32,
 }
 
 pub const POOLS: Pools = Pools {
@@ -99,6 +106,7 @@ pub const POOLS: Pools = Pools {
     rough_cell: 3.0,
     rough_salt: 401.0,
     order_salt: 402.0,
+    walk_detour: 2,
 };
 
 /// Plague's anchor as the styler sees it: the zone's `BogTree` feature (present only with the option on). Only its
@@ -187,15 +195,17 @@ struct Grown {
     drops: Vec<usize>,
 }
 
-/// Lays the pools, nearest band first, and returns their tiles (each pool's new tiles in row order, in laying order).
-/// Every pool tile is owned by its `BogPool` feature; every ring tile is reserved for the rest of the zone's shape.
+/// Lays the pools, nearest band first, and returns their tiles (each pool's new tiles in row order, in laying order)
+/// with the body (1-based) each belongs to. Every pool tile is owned by its `BogPool` feature; every ring tile is
+/// reserved for the rest of the zone's shape. No pool lengthens a spawn's walk past `walk_detour` (`walk.rs`).
 pub(super) fn lay(
     c: &mut ShapeContext<'_, '_>,
     tree: &ZoneAnchor,
     corridor: &[u8],
     sites: &[Vec<i32>],
+    fixed: &FixedLayout,
     d: &Pools,
-) -> Result<Vec<i32>, Error> {
+) -> Result<(Vec<i32>, Vec<u16>), Error> {
     let (w, h) = (c.base().w, c.base().h);
     let n = w * h;
     let (wi, hi) = (w as i32, h as i32);
@@ -325,7 +335,9 @@ pub(super) fn lay(
         near: vec![0; n],
         pools: Vec::new(),
     };
+    let mut walk = Walk::new(&c.base(), fixed, d.walk_detour);
     let mut out = Vec::new();
+    let mut owner = Vec::new();
     let mut total = 0;
     // Barrow sites the pools may take (today's rule then sites those barrows again on what is left).
     let most = sites.len() * d.give_way_permille / 1000;
@@ -345,8 +357,9 @@ pub(super) fn lay(
             }
             let mut found: Option<(usize, Grown)> = None;
             // The drawn disc count in the band's sizes, in order; of the first `best_of` centres (in noise order) that
-            // grow a pool of at least two discs, the largest. Off the barrows' sites first; where no pool fits, over
-            // at most `most` of them in all.
+            // grow a pool of at least two discs, the largest that keeps the spawns' walks (when none of them does, the
+            // first further one that does). Off the barrows' sites first; where no pool fits, over at most `most` of
+            // them in all.
             for room in rooms(most, gone) {
                 if found.is_some() {
                     break;
@@ -362,7 +375,7 @@ pub(super) fn lay(
                     let k = lo + ((kd * (hi - lo + 1) as f64).floor() as usize).min(hi - lo);
                     let mut seen = 0;
                     for &(_, i) in &order {
-                        if seen >= d.best_of {
+                        if seen >= d.best_of && found.is_some() {
                             break;
                         }
                         if !ground.pool_ok[i] || laid.near[i] != 0 {
@@ -390,6 +403,7 @@ pub(super) fn lay(
                             if found
                                 .as_ref()
                                 .is_none_or(|q| p.tiles.len() > q.1.tiles.len())
+                                && walk.keeps(&p.tiles)
                             {
                                 found = Some((s, p));
                             }
@@ -409,7 +423,10 @@ pub(super) fn lay(
                 centres: Vec::new(),
             });
             let id = laid.pools.len();
+            let from = out.len();
             total += place(c, &mut laid, id, p, d, &mut dropped, &mut gone, &mut out)?;
+            walk.refresh(&out[from..]);
+            owner.resize(out.len(), id as u16);
             count += 1;
         }
     }
@@ -442,10 +459,12 @@ pub(super) fn lay(
                     dropped: &dropped,
                     room,
                 };
-                found = grow(&ground, &free, tree, d, s, &base, k, 2, &links, want);
+                found = grow(&ground, &free, tree, d, s, &base, k, 2, &links, want)
+                    .filter(|g| walk.keeps(&g.tiles));
             }
             match found {
                 Some(grown) if grown.tiles.iter().any(|&i| laid.body[i as usize] == 0) => {
+                    let from = out.len();
                     total += place(
                         c,
                         &mut laid,
@@ -455,13 +474,15 @@ pub(super) fn lay(
                         &mut dropped,
                         &mut gone,
                         &mut out,
-                    )?
+                    )?;
+                    walk.refresh(&out[from..]);
+                    owner.resize(out.len(), (p + 1) as u16);
                 }
                 _ => *done = true,
             }
         }
     }
-    Ok(out)
+    Ok((out, owner))
 }
 
 /// A pool slot's draws: the disc count, then four (parent, direction) pairs.

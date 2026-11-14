@@ -3,6 +3,7 @@ mod planning;
 mod pools;
 mod rules;
 mod shape;
+mod walk;
 use crate::map::{TILE_FLOOR, TILE_WALL};
 use crate::mapdata::{FeatureJob, FeatureKind};
 use crate::mapgen::coliseum::{FixedDefinition, FixedLayout};

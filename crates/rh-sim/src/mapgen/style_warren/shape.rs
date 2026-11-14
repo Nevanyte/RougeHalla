@@ -149,14 +149,18 @@ impl Callbacks<'_> {
         let tree = super::pools::tree(c.base());
         let pools = tree.is_some();
         let pool_corridor = if pools { corridor.clone() } else { Vec::new() };
-        let lay = |c: &mut ShapeContext<'_, '_>, plan: &mut Plan, sites: &[Vec<i32>]| match &tree {
-            Some(tree) => {
-                plan.pools =
-                    super::pools::lay(c, tree, &pool_corridor, sites, &super::pools::POOLS)?;
-                Ok(())
-            }
-            None => Ok(()),
-        };
+        // The body of each pool tile, for `walk::give_way` after the barrows.
+        let mut owner = Vec::new();
+        let mut lay =
+            |c: &mut ShapeContext<'_, '_>, plan: &mut Plan, sites: &[Vec<i32>]| match &tree {
+                Some(tree) => {
+                    let d = &super::pools::POOLS;
+                    (plan.pools, owner) =
+                        super::pools::lay(c, tree, &pool_corridor, sites, self.fixed, d)?;
+                    Ok(())
+                }
+                None => Ok(()),
+            };
         let b = c.base();
         let nodes = camp_nodes_from(
             CampNodeInputs {
@@ -310,6 +314,11 @@ impl Callbacks<'_> {
             }
         }
         plan.placed = plan.barrows.len();
+        if pools {
+            // Signature mode: walls laid after the pools may block the dry way round one; give way where they do.
+            let d = super::pools::POOLS.walk_detour;
+            super::walk::give_way(&c.base(), self.fixed, d, &mut plan.pools, &mut owner);
+        }
         Ok(plan)
     }
 }
