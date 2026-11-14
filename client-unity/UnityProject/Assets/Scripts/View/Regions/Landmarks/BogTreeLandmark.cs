@@ -35,7 +35,8 @@ namespace Roguehalla.Client
         const float Dz = .055f;
         const int CanopyPpt = 12;                                 // the crown is soft foliage: bilinear, a little under the bark's resolution
         const int ShadowPpt = 6;                                  // the ground shadow under the crown is soft: low resolution, bilinear
-        const string ShadowName = "Bog tree crown shadow";
+        /// <summary>P-UNITY-BOG-TREE-3: the crown's ground shadow object (one SpriteRenderer); the oracle finds it by this name.</summary>
+        public const string ShadowName = "Bog tree crown shadow";
         // Looks-only numbers of the crown (docs/unity/DIALS.md rows bog-tree-*).
         const float CrownLiftMargin = .35f;                       // the crown's bottom edge (moss included) above the trunk bounds' midpoint, units (test floor .25)
         const float CrownTopGap = 1.0f;                            // the crown's top edge below the footprint's top edge, units
