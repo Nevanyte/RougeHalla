@@ -43,6 +43,7 @@ namespace Roguehalla.Client
         const float CrownMossLength = 1.1f;                       // longest hanging moss strand, units
         const float CrownShape = 2.25f;                            // superellipse exponent of the crown's outline (2 = ellipse, higher = boxier)
         const float CrownGapAmount = .58f;                        // the noise level above which the crown has a gap (lower = more sky); range .5 to .68
+        const int CrownFadeSouthRows = 1;                         // tile rows south of the opaque crown that also fade it (an actor is ~1.7 units tall); range 0 to 1
         const float ShadowAlpha = .36f;                           // darkest the ground shadow gets under the crown; range .2 to .5
         const float KneeRise = .75f;                              // how far a cypress knee stands above the root height, units
         const int CoverRadiusSquared = 9;
@@ -461,6 +462,7 @@ namespace Roguehalla.Client
             }
             var all = new List<MapTile>();
             foreach (var t in fade) all.Add(new MapTile((ushort)(lm.FootX + t.x), (ushort)(lm.FootY + t.y)));
+            foreach (var t in fade) for (int r = 1; r <= CrownFadeSouthRows; r++) if (!fade.Contains((t.x, t.y + r))) all.Add(new MapTile((ushort)(lm.FootX + t.x), (ushort)(lm.FootY + t.y + r)));
             lm.SetFadeTiles(all);
             PaintShadow(lm, g, cover, minX, maxX, minY, maxY);
         }
@@ -488,7 +490,7 @@ namespace Roguehalla.Client
             }
             var tex = NewTexture(lm, W, H, ShadowName); tex.SetPixels32(px); tex.Apply(false, false);
             // a ground piece: never fades with the crown; above the ground, below an actor on the first cover row (2000 + 16 * tile y + 8)
-            lm.AddGroundPiece(NewSprite(lm, lm.Root.transform, tex, ShadowName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, ShadowPpt), 2000 + 16 * (lm.FootY + minY) - 4);
+            lm.AddGroundPiece(NewSprite(lm, lm.Root.transform, tex, ShadowName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, ShadowPpt), 2000 + 16 * (lm.FootY + minY) - 6);
         }
 
         /// <summary>The cover, smoothed between tile centres (0..1): about one half at a cover tile's edge.</summary>
