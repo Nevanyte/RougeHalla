@@ -129,7 +129,8 @@ pub struct Definition {
     /// P-MAPGEN-SIG-SCALE-3: the Plague bog tree's approved blueprint (owner decision 2026-11-13; ADR 0028 G9), the text
     /// of `bog.txt` beside this file, a byte-equal copy of `docs/landmarks/blueprints/bog.txt` (the docs are not in the
     /// server image's build context). Lines starting `;` are its legend; the rest is the 29 x 29 grid, front (toward the
-    /// coliseum) at the bottom. STUB: empty until the implementer reads the copy with `include_str!("bog.txt")`.
+    /// coliseum) at the bottom. Parsed once per context (`bog_tree::Drawing`); a grid that does not parse refuses every
+    /// option-on attempt at the tree (`Refusal::Signature`).
     pub bog_grid: &'static str,
 }
 
@@ -190,7 +191,7 @@ pub const DEFAULT_DEFINITION: Definition = Definition {
     site_side: 34,
     site_depth: 9,
     cave_grid: include_str!("cave.txt"),
-    bog_grid: "",
+    bog_grid: include_str!("bog.txt"),
 };
 
 /// One zone's reserved landmark site (P-MAPGEN-SIG-RESERVE-1): chosen in the Prefix, after the partition and before
@@ -334,6 +335,8 @@ pub struct SignatureContext<'f> {
     hard: Vec<u8>,
     /// The cave's drawing (`Definition::cave_grid`), parsed once; `None` when it does not parse.
     cave: Option<cave::Blueprint>,
+    /// The bog tree's drawing (`Definition::bog_grid`), parsed once; `None` when it does not parse.
+    bog: Option<bog_tree::Drawing>,
 }
 
 impl<'f> SignatureContext<'f> {
@@ -370,6 +373,7 @@ impl<'f> SignatureContext<'f> {
             rules: *d,
             hard,
             cave: cave::Blueprint::parse(d.cave_grid, d.mouth),
+            bog: bog_tree::Drawing::parse(d.bog_grid),
         }
     }
 
@@ -600,7 +604,11 @@ impl<'f> SignatureContext<'f> {
             let built = match zone {
                 Zone::Fire => volcano::place(&site, &prefix.layout.camps, &mut rng, inner),
                 Zone::Sentenced => church::place(&site, &prefix.layout.camps, &mut rng, camp),
-                Zone::Plague => bog_tree::place(&site, &mut rng),
+                Zone::Plague => bog_tree::place(
+                    &site,
+                    &mut rng,
+                    reserved.map(|r| (r.rect.x + r.rect.w as i32 / 2, r.rect.y + r.rect.h as i32 / 2)),
+                ),
                 _ => cave::place(&site, &prefix.layout.camps, &mut rng, camp),
             };
             let Some(built) = built else {
