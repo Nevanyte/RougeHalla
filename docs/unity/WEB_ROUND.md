@@ -6,12 +6,20 @@ order from the repository root (your worktree); each step says what "done" looks
 
 ## 0. Prerequisites
 
-- Node with Playwright and a Chromium: set `RH_PLAYWRIGHT_MODULE` to the directory of the `playwright` node module
-  (`export RH_PLAYWRIGHT_MODULE=<dir>/node_modules/playwright`). Done when `node -e "require(process.env.RH_PLAYWRIGHT_MODULE)"` prints nothing.
+- Node with Playwright and a Chromium: set `RH_PLAYWRIGHT_MODULE` to the directory of the `playwright` node module. On this
+  machine the earlier rounds used the one at `~/.codex/tools/rougehalla-stage2/browser/node_modules/playwright`: use it if it
+  is present; otherwise report that Playwright is missing and stop (never install anything).
+
+```
+export RH_PLAYWRIGHT_MODULE=$HOME/.codex/tools/rougehalla-stage2/browser/node_modules/playwright
+node -e "require(process.env.RH_PLAYWRIGHT_MODULE)"
+```
+
+  Done when the second command prints nothing.
 - The Unity editor of `ProjectSettings/ProjectVersion.txt` under `/Applications/Unity/Hub/Editor` (or `RH_UNITY_EDITOR`). Close the
   editor on this project: a batch build needs it closed. A leftover `Temp/UnityLockfile` is removed only when no Unity process of
   yours runs.
-- Free ports: 7817 (arena server), 7818 (practice server, only for step 7), 8117 (page), 9777 (driver). Done when `lsof -i :7817 -i :8117 -i :9777` prints nothing.
+- Free ports: 7817 (arena server), 7818 (practice server, only for step 7), 7819 (second arena, without landmarks), 8117 (page), 9777 (driver). Done when `lsof -i :7817 -i :7818 -i :7819 -i :8117 -i :9777` prints nothing.
 - Rust: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - A scratch folder for logs, pids and screenshots outside the repository; below it is `$OUT` (`mkdir -p $OUT`).
 
@@ -93,13 +101,15 @@ echo $! > $OUT/drive.pid
 
 A Chromium window opens (headed, 1920 x 1080, device scale 1). Send commands as JSON by POST to `127.0.0.1:9777`; each answers
 `ok` (or `ERR ...`). Commands: `goto {url}`, `move {x,y,steps}`, `click {x,y,button}` (`button` `left` or `right`), `down {key}`,
-`up {key}`, `press {key}`, `wait {ms}`, `shot {path}`, `errs` (browser console errors so far, JSON), `quit`. Example:
+`up {key}`, `press {key}`, `wait {ms}`, `shot {path}`, `errs` (browser console errors so far, JSON), `quit`. A shell does not
+expand variables inside single quotes, so define one helper and build each JSON with double quotes where it needs a variable:
 
 ```
-curl -s -X POST http://127.0.0.1:9777 -d '{"cmd":"wait","ms":1000}'
+post() { curl -s -X POST http://127.0.0.1:9777 -d "$1"; echo; }
+post '{"cmd":"wait","ms":1000}'
 ```
 
-Done when that prints `ok`.
+Done when that prints `ok`. Define `post` again in every new shell.
 
 ## 6. Open the page and play
 
@@ -113,12 +123,13 @@ runs without accounts (an arena match works; practice does not, see step 7); `au
 quality preset.
 
 ```
-curl -s -X POST http://127.0.0.1:9777 -d '{"cmd":"goto","url":"<the page URL>"}'
-curl -s -X POST http://127.0.0.1:9777 -d '{"cmd":"wait","ms":15000}'
-curl -s -X POST http://127.0.0.1:9777 -d '{"cmd":"shot","path":"<OUT>/00-hub.png"}'
+URL="http://127.0.0.1:8117/?server=ws%3A%2F%2F127.0.0.1%3A7817%2Fws&trainingServer=ws%3A%2F%2F127.0.0.1%3A7818%2Fws&accountApi=http%3A%2F%2F127.0.0.1%3A7817%2Fapi&profile=s1&faction=3&diagnostic=1&token=t1&auto=0&fx.quality=high"
+post "{\"cmd\":\"goto\",\"url\":\"$URL\"}"
+post '{"cmd":"wait","ms":15000}'
+post "{\"cmd\":\"shot\",\"path\":\"$OUT/00-hub.png\"}"
 ```
 
-Done when the hub screenshot shows the lobby. Then enter the match: click START RUN at (163, 677), wait 3 s, press `1` or `2`
+Done when the hub screenshot shows the lobby. Then enter the match (all click coordinates assume the 1920 x 1080 window of step 5): click START RUN at (163, 677), wait 3 s, press `1` or `2`
 to pick one of the two spawns offered on the plan screen, click READY at (1390, 107), wait 4 s. The faction does NOT choose the zone you
 start in: the plan offers two spawns in two OTHER zones, so walk to the zone or landmark you want.
 
@@ -156,7 +167,7 @@ echo $! > $OUT/training.pid
 ## 9. The rules
 
 - Stop only your own processes (those you started), by the pids you kept in `$OUT/*.pid` (`kill $(cat $OUT/arena.pid)`), never by name or
-  pattern. First `{"cmd":"quit"}` to the driver.
+  pattern. First `{"cmd":"quit"}` to the driver. If you started the throwaway Postgres of step 7, stop it too with `tools/pgtest/stop.sh` (same `RH_PGTEST_STATE`), and the practice server by its pid.
 - Restore `Assets/Scripts/BakedContent.cs` (step 3) and leave `git status` clean of everything the round touched.
 - Never show the owner, or approve, a look from anything but Web screenshots (not editor renders, colour patches or
   texture composites). Editor renders of Plague and Sentenced scenes are darker than the Web client, so they cannot stand in.

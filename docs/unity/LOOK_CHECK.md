@@ -53,7 +53,7 @@ Options of `look-capture.sh` (exit 0 done; 1 run failed, log at `<dir>/look-capt
 editor at `$RH_UNITY_EDITOR` or the version in `ProjectSettings/ProjectVersion.txt`, or the project is open in an
 editor): `--ground-only` draws only the ground mesh (no props, actors, walls); `--quality low|medium|high|ultra`
 (default `ultra`). After a run the script restores `ProjectSettings/ShaderGraphSettings.asset` and
-`Assets/Resources/Showcase/*.asset` when they were unmodified before. Several scenes in one command share one editor
+`Assets/Resources/Showcase/*.asset` when they were unmodified before. A file that was already modified before the run (for example a font asset left by an EditMode run) is not touched: the script warns and names it; restore it with `git checkout -- <file>` before committing, and never commit anything under `Assets/Resources/` or `ProjectSettings/`. Several scenes in one command share one editor
 start: name them all.
 
 Scenes (each is the PNG's file stem). Zone scenes: a 60 x 60 map of one zone with an L-shaped wall cluster and a fence

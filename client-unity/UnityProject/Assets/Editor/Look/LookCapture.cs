@@ -411,6 +411,8 @@ namespace Roguehalla.Editor
 
         static IEnumerable<object> RunInner()
         {
+            var renamed = MissingReflectionTargets();
+            if (renamed.Count > 0) throw new InvalidOperationException("LookCapture: client member(s) renamed: " + string.Join(", ", renamed));
             string outDir = Arg("-lookOut", ""); if (outDir.Length == 0) throw new ArgumentException("-lookOut <dir> is required");
             var scenes = Arg("-lookScenes", "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (scenes.Length == 0) throw new ArgumentException("-lookScenes a,b,c is required");

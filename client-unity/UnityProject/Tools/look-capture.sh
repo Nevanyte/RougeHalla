@@ -46,11 +46,12 @@ if [[ ! -d "$PROJECT/Library" ]]; then
   fi
 fi
 
-# What Unity rewrites on a run; restored afterwards when it was unmodified before.
+# What Unity rewrites on a run: the settings asset and the font assets. A file changed by the run is restored; a file that was
+# already modified before the run is left alone, with a warning (an earlier EditMode run may have left it).
 REL="client-unity/UnityProject"
 TOUCH=("$REL/ProjectSettings/ShaderGraphSettings.asset" "$REL/Assets/Resources/Showcase")
-CLEAN=()
-for p in "${TOUCH[@]}"; do [[ -z "$(git -C "$REPO" status --porcelain -- "$p")" ]] && CLEAN+=("$p"); done
+dirty() { git -C "$REPO" status --porcelain -- "${TOUCH[@]}" | sed 's/^...//' | sort; }
+DIRTY_BEFORE="$(dirty)"
 
 mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"; LOG="$OUT/look-capture.log"
 JOINED="$(IFS=,; echo "${SCENES[*]}")"
@@ -63,9 +64,14 @@ echo "look-capture: ${#SCENES[@]} scene(s) to $OUT, log $LOG"
 RC=0
 "$EDITOR_BIN" -batchmode -projectPath "$PROJECT" -executeMethod Roguehalla.Editor.LookCapture.Run "${ARGS[@]}" -logFile "$LOG" >/dev/null 2>&1 || RC=$?
 
-for p in "${CLEAN[@]}"; do
-  if [[ -n "$(git -C "$REPO" status --porcelain -- "$p")" ]]; then git -C "$REPO" checkout -- "$p"; echo "look-capture: restored $p"; fi
-done
+while IFS= read -r f; do
+  [[ -n "$f" ]] || continue
+  if grep -qxF -- "$f" <<<"$DIRTY_BEFORE"; then
+    echo "look-capture: warning: $f was already modified before this run; restore it before committing (git checkout -- $f)" >&2
+  else
+    git -C "$REPO" checkout -- "$f"; echo "look-capture: restored $f"
+  fi
+done <<<"$(dirty)"
 
 MISSING=()
 for s in "${SCENES[@]}"; do [[ -s "$OUT/$s.png" ]] || MISSING+=("$s"); done
