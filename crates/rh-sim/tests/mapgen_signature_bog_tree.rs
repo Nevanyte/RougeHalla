@@ -65,14 +65,18 @@ fn attempt_limit() -> u64 {
 /// The worst attempt index allowed over seeds 1-32: today's (the rule-drawn tree with the blueprint cave), so the fixed
 /// tree costs no more than the tree it replaces (the brief, "Measurements": measured 2 with the fixed tree under either
 /// mapping of the mirror draw; the cave's bound is 7).
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: worst 12.
 fn worst_attempt_allowed() -> u64 {
-    4
+    12
 }
 
 /// The most attempts seeds 1-32 may use in all: today's (measured 46 with the fixed tree under either mapping of the
 /// mirror draw; the cave's bound is 70).
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: 137 in all.
 fn attempts_allowed() -> u64 {
-    59
+    137
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

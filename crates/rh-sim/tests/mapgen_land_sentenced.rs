@@ -44,8 +44,10 @@ fn attempt_limit() -> u64 {
 }
 
 /// Brief section 7: the worst attempt index on seeds 1-32 (option on).
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: worst 12.
 fn worst_attempt_allowed() -> u64 {
-    8
+    12
 }
 
 /// Owner decision 2026-11-13: lane lines 8 apart.

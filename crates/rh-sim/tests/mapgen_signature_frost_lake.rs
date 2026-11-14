@@ -40,8 +40,10 @@ fn attempt_limit() -> u64 {
 
 /// The worst attempt index over seeds 1-32 under the rule. Measured 3 (seed 18) at P-MAPGEN-SIG-FROST-2; re-measured
 /// for P-MAPGEN-SIG-SCALE-1 with the brief's prototype of the larger cave: 5 (seeds 1 and 23); plus a margin of 3.
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: worst 12.
 fn worst_attempt_allowed() -> u64 {
-    5 + 3
+    12
 }
 
 fn on_options() -> pipeline::Options {

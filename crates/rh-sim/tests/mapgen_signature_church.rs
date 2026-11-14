@@ -80,14 +80,18 @@ fn attempt_limit() -> u64 {
 /// The worst attempt index allowed over seeds 1-32. Rebased onto the bog tree (P-MAPGEN-SIG-SCALE-3): the stub measures
 /// 2, the prototype 3; the bound is the stub's figure plus the same headroom the earlier bound had over its stub (7
 /// over 4: +3). Brief, "Measurements".
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: worst 12.
 fn worst_attempt_allowed() -> u64 {
-    5
+    12
 }
 
 /// The most attempts seeds 1-32 may use in all. Rebased onto the bog tree: the stub measures 46, the prototype 50; the
 /// bound is the stub's figure plus the earlier headroom (70 over 59: +11). Brief, "Measurements".
+/// Re-taken for P-MAPGEN-SIG-SCALE-4 (the three-stream volcano): measured 89 attempts and worst 9 over seeds 1-32;
+/// the volcano oracle's bounds, headroom about 50% and three attempts: 137 in all.
 fn attempts_allowed() -> u64 {
-    57
+    137
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

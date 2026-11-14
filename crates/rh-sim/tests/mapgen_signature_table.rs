@@ -233,6 +233,11 @@ fn landmark(st: &LandmarkStage, placed: &Placed, zone: Zone) -> Landmark {
 /// The volcano's streams and pools leave its site but stay in the Fire zone, and every reserved site lies wholly in its
 /// own zone: measured on the stub, on these 30 accepted phases no stream or pool tile lies in another zone's reserved
 /// site (0 crossings), so the volcano is compared whole. Red on the stub: `apply_only` refuses every zone.
+///
+/// The floor on accepted phases was 28 (of the stub's 30). Lowered to 20 for P-MAPGEN-SIG-SCALE-4: the three-stream
+/// volcano refuses more Landmarks phases (Fire Signature refusals: its middle or a side stream not laid, the floor
+/// split), so 25 of the 32 phases are accepted on this build (crossings still 0); the floor only keeps the comparison
+/// from running on too few phases, and 20 leaves room for the maps to move again.
 #[test]
 fn each_landmark_placed_alone_equals_it_placed_with_the_others() {
     let fixed = coliseum::fixed_layout();
@@ -311,7 +316,7 @@ fn each_landmark_placed_alone_equals_it_placed_with_the_others() {
             }
         }
     }
-    assert!(phases >= 28, "only {phases} accepted Landmarks phases");
+    assert!(phases >= 20, "only {phases} accepted Landmarks phases");
     assert_eq!(
         crossings, 0,
         "stream or pool tiles in another zone's site: compare the volcano without them"
