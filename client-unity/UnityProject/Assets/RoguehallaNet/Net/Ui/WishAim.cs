@@ -1,6 +1,6 @@
 // P-UNITY-FROST-WALL-1: what the Wish key, the mouse buttons and Esc do while Frost's Wish is a placed wall (legacy 78dd8bd4
 // RaidScene.ts castSlot, pointerdown, Escape, updateAimPreview; the brief's F5 table). Engine-free: MatchClient forwards its
-// input here, and every cast leaves through Session.CollectWishInput. STUB: today's behaviour (the key casts at once).
+// input here, and every cast leaves through Session.CollectWishInput.
 using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net.Ui
@@ -30,27 +30,61 @@ namespace Roguehalla.Net.Ui
         /// <summary>The preview is up.</summary>
         public bool Aiming { get; private set; }
 
-        /// <summary>The Wish key. Returns the cast's order number, 0 when nothing was sent. STUB: casts as today.</summary>
+        /// <summary>The Wish key. Returns the cast's order number, 0 when nothing was sent.</summary>
         public byte Key(Session session, in WishAimFrame f)
         {
-            return session.CollectWishInput(true, f.UiOwnsInput, f.HasGroundPoint, f.CursorX, f.CursorY, f.ActorRef);
+            if (f.Wish != FrostWishKind.Wall || !f.Numbers.HasValue)
+            {
+                Aiming = false;
+                return session.CollectWishInput(true, f.UiOwnsInput, f.HasGroundPoint, f.CursorX, f.CursorY, f.ActorRef);
+            }
+            if (Aiming) { Aiming = false; return 0; }
+            if (!f.QuickCast)
+            {
+                // Opens only when a cast could leave (the lifecycle gates of CollectWishInput); no ground point needed.
+                Aiming = !f.UiOwnsInput && CanCast(session);
+                return 0;
+            }
+            return CastAtCentre(session, f);
         }
 
         /// <summary>A left click. <paramref name="consumed"/>: the click belonged to the aim (no attack). Returns the cast's
-        /// order number, 0 when nothing was sent. STUB.</summary>
+        /// order number, 0 when nothing was sent.</summary>
         public byte Click(Session session, in WishAimFrame f, out bool consumed)
         {
-            consumed = false;
-            return 0;
+            consumed = Aiming;
+            if (!Aiming) return 0;
+            Aiming = false;
+            return f.Numbers.HasValue ? CastAtCentre(session, f) : (byte)0;
         }
 
-        /// <summary>A right click: puts the preview away (the caller still sends its move). STUB.</summary>
-        public void RightClick() { }
+        /// <summary>A right click: puts the preview away (the caller still sends its move).</summary>
+        public void RightClick() { Aiming = false; }
 
-        /// <summary>Esc: true when it put the preview away (consumed). STUB.</summary>
-        public bool Escape() { return false; }
+        /// <summary>Esc: true when it put the preview away (consumed).</summary>
+        public bool Escape()
+        {
+            if (!Aiming) return false;
+            Aiming = false;
+            return true;
+        }
 
-        /// <summary>Once per frame: puts the preview away when it can no longer be cast. STUB.</summary>
-        public void Frame(Session session, in WishAimFrame f) { }
+        /// <summary>Once per frame: puts the preview away when it can no longer be cast.</summary>
+        public void Frame(Session session, in WishAimFrame f)
+        {
+            if (Aiming && (f.Wish != FrostWishKind.Wall || !CanCast(session))) Aiming = false;
+        }
+
+        static bool CanCast(Session s)
+        {
+            return s.State == SessionState.InMatch && s.Latest != null && s.Latest.Phase == 1 && s.Me != null && s.Me.Status == ActorStatus.Alive;
+        }
+
+        static byte CastAtCentre(Session session, in WishAimFrame f)
+        {
+            var n = f.Numbers.Value;
+            var seg = FrostWallAim.SegmentFor(f.CasterX, f.CasterY, f.CursorX, f.CursorY, n.Range, n.MinRange, n.Length, f.Facing);
+            return session.CollectWishInput(true, f.UiOwnsInput, true, (float)seg.Cx, (float)seg.Cy, null);
+        }
     }
 }
