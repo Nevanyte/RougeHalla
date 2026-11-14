@@ -19,8 +19,9 @@ pub struct Guarantee {
     pub check: fn(&GameMapData, &LandmarkFrame) -> bool,
 }
 
-/// The guarantees of `zone`'s styler, in the order they run (STUB: every list is empty; the implementer fills Frost
-/// and Plague from `style_rime::guarantees` and `style_warren::guarantees`).
+/// The guarantees of `zone`'s styler, in the order they run: each styler's list, written beside it
+/// (`style_rime::guarantees`: `"lake-at-mouth"`; `style_warren::guarantees`: `"pool-walks"`, `"pool-wet"`); none yet
+/// for Fire, Sentenced and Holy.
 pub fn guarantees(zone: Zone) -> &'static [Guarantee] {
     match zone {
         Zone::Frost => crate::mapgen::style_rime::guarantees(),
