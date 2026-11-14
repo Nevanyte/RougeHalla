@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 29;
+pub const OBSERVATION_VERSION: u16 = 30;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {

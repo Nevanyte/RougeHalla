@@ -2,7 +2,7 @@
 //! first), its golden vectors and its refusals. Layout (docs/backlog/packets/P-WIRE17-HUD-2b.md, "Wire layout"), after
 //! the weapon table and before the map:
 //!   scaling count u8 (<= 32), rows of id u8, ad f64, ap f64, bonus_hp f64, bonus_defense f64, dominant u8 (0/1);
-//!   term count u8 (<= 23 after P-WIRE17-HUD-2c), rows of code u8 (< 23), value f64.
+//!   term count u8 (<= 30 after P-FROST-WALL-2), rows of code u8 (< 30), value f64.
 //! Ids and codes strictly ascend; every f64 is finite and in 0..=1e6. All multi-byte values little-endian.
 use rh_protocol::hud_content::{
     content_fault, content_len, HUD_TERM_ROW_LEN, MAX_HUD_VALUE, MAX_SCALING_ROWS, SCALING_ROW_LEN,
@@ -122,7 +122,8 @@ fn legacy_scaling() -> Vec<WireWeaponScaling> {
 fn legacy_terms() -> Vec<WireHudTerm> {
     [
         1250.0, 450.0, 8000.0, 72.0, 5000.0, 0.8, 0.7, 1.2, 1500.0, 300.0, 200.0, 30.0, 2000.0,
-        64.0, 300.0, 5000.0, 0.3, 0.3, 1.0, 20_000.0, 1_000.0, 50.0, 0.4,
+        64.0, 300.0, 5000.0, 0.3, 0.3, 1.0, 20_000.0, 1_000.0, 50.0, 0.4, 0.0, 450.0, 64.0, 224.0,
+        4000.0, 24.0, 8.0,
     ]
     .into_iter()
     .enumerate()
@@ -132,8 +133,8 @@ fn legacy_terms() -> Vec<WireHudTerm> {
 
 #[test]
 fn constants_match_the_brief() {
-    assert_eq!(HUD_TERM_COUNT, 23);
-    assert_eq!(MAX_HUD_TERMS, 23);
+    assert_eq!(HUD_TERM_COUNT, 30);
+    assert_eq!(MAX_HUD_TERMS, 30);
     assert_eq!(MAX_SCALING_ROWS, 32);
     assert_eq!(SCALING_ROW_LEN, 34);
     assert_eq!(HUD_TERM_ROW_LEN, 9);
@@ -142,7 +143,7 @@ fn constants_match_the_brief() {
     assert_eq!(HudTerm::TrialExitStunMs as u8, 8);
     assert_eq!(HudTerm::BlazeMaxDist as u8, 14);
     assert_eq!(HudTerm::LastStandFloorHp as u8, 18);
-    assert_eq!(HudTerm::FireRoamBurstAdShare as u8, HUD_TERM_COUNT - 1);
+    assert_eq!(HudTerm::FireRoamBurstAdShare as u8, 22);
 }
 
 /// An empty block is two zero bytes between the weapon table and the map; a filled one is exactly the brief's rows.
@@ -175,15 +176,15 @@ fn the_block_sits_between_the_weapon_table_and_the_map() {
     assert_eq!(bytes, frame_with(&want), "block bytes in place");
     assert_eq!(ServerMsg::decode(&bytes).as_ref(), Ok(&msg), "round trip");
 
-    // The largest block (Welcome size budget): 2 + 32 x 34 + 23 x 9 = 1297 bytes.
+    // The largest block (Welcome size budget): 2 + 32 x 34 + 30 x 9 = 1360 bytes.
     let max = WireHudContent {
         scaling: (0..32)
             .map(|id| sc(id, 1.0, 1.0, 1.0, 1.0, false))
             .collect(),
-        terms: (0..23).map(|c| term(c, MAX_HUD_VALUE)).collect(),
+        terms: (0..30).map(|c| term(c, MAX_HUD_VALUE)).collect(),
     };
     assert_eq!(content_fault(&max), None);
-    assert_eq!(content_len(&max), 1297);
+    assert_eq!(content_len(&max), 1360);
 }
 
 /// The pre-encoded server path writes the same bytes as `ServerMsg::encode`, block included, and the sample block is the
@@ -267,7 +268,7 @@ fn the_encoder_refuses_a_block_a_decoder_would_refuse() {
         ("scaling order", with_scaling(&|s| s.swap(0, 1))),
         ("scaling order", with_scaling(&|s| s[1].id = 0)),
         ("hud term count", with_terms(&|t| t.push(term(22, 1.0)))),
-        ("hud term code", with_terms(&|t| t[22].code = 23)),
+        ("hud term code", with_terms(&|t| t[29].code = 30)),
         ("hud term", with_terms(&|t| t[0].value = f64::NAN)),
         ("hud term", with_terms(&|t| t[5].value = -0.8)),
         (
@@ -292,7 +293,7 @@ fn the_encoder_refuses_a_block_a_decoder_would_refuse() {
             "hud term code",
             with_terms(&|t| {
                 t[0].value = f64::NAN;
-                t[22].code = 23;
+                t[29].code = 30;
             }),
         ),
         (
@@ -394,17 +395,17 @@ fn the_decoder_refuses_each_fault_for_the_documented_reason() {
             BadField("scaling"),
         ),
         (
-            "term count 24",
+            "term count 31",
             {
                 let mut b = block(&[s0], &[]);
-                *b.last_mut().unwrap() = 24;
+                *b.last_mut().unwrap() = 31;
                 b
             },
             BadField("hud term count"),
         ),
         (
-            "term code 23",
-            block(&[s0], &[(0, 1250.0), (23, 1.0)]),
+            "term code 30",
+            block(&[s0], &[(0, 1250.0), (30, 1.0)]),
             BadField("hud term code"),
         ),
         (
@@ -467,7 +468,7 @@ fn the_golden_vectors_carry_the_block() {
     };
     assert_eq!(hud, sample_hud());
     assert_eq!(hud.scaling.len(), 6);
-    assert_eq!(hud.terms.len(), 23);
+    assert_eq!(hud.terms.len(), 30);
 
     use DecodeError::*;
     let wanted: [(&str, DecodeError); 11] = [

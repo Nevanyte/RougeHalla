@@ -49,7 +49,9 @@ use std::time::{Duration, Instant};
 /// times, the arena view the room's minimum players; bots do not decide on them.
 /// Version 23 (observation 29, P-WIRE17-MAP-2): the projected quest row carries the carrier's public actor id while the
 /// viewer is delivered that fighter; bots do not decide on it.
-pub const POLICY_CONTRACT_VERSION: u16 = 23;
+/// Version 24 (observation 30, P-FROST-WALL-2): the observation and the projected State key 3 carry a standing Frost
+/// Wall (field kind 3) with its tile list; bots do not decide on it.
+pub const POLICY_CONTRACT_VERSION: u16 = 24;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1895,7 +1897,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 23);
+        assert_eq!(POLICY_CONTRACT_VERSION, 24);
     }
 }
 

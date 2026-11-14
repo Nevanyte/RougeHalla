@@ -18,9 +18,19 @@ pub struct FieldView {
     pub vy: f64,
     pub started_at: f64,
     pub ends_at: f64,
+    /// P-FROST-WALL-2: a standing wall's tiles (row-major indices into the arena map, ascending: the barrier row the
+    /// sim blocks on); empty for every other kind, and then absent from the serialized form.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tiles: Vec<u32>,
 }
 impl FieldView {
-    fn from_field(f: &Field, seen: impl Fn(PlayerId) -> bool) -> Self {
+    /// `barriers`: the standing walls' tile rows; a `Wall` field takes its own row's tiles (P-FROST-WALL-2). Every
+    /// other kind gets an empty list, which allocates nothing.
+    fn from_field(
+        f: &Field,
+        barriers: &crate::barriers::Barriers,
+        seen: impl Fn(PlayerId) -> bool,
+    ) -> Self {
         Self {
             kind: f.kind,
             ability: f.ability,
@@ -35,6 +45,16 @@ impl FieldView {
             vy: f.vy,
             started_at: f.started_at,
             ends_at: f.ends_at,
+            tiles: if f.kind == FieldKind::Wall {
+                barriers
+                    .0
+                    .iter()
+                    .find(|b| b.field == f.id)
+                    .map(|b| b.cells.clone())
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            },
         }
     }
     pub(crate) fn cmp(&self, b: &Self) -> std::cmp::Ordering {
@@ -83,17 +103,15 @@ pub(crate) fn project(
     let map = sim.collision_view();
     let wards = crate::vision::WardSight::of_sim(sim);
     for f in &a.fields {
-        // P-FROST-WALL-1: a wall is not projected until clients can draw it (P-FROST-WALL-2).
-        if f.kind == FieldKind::Wall {
-            continue;
-        }
+        // P-FROST-WALL-2: a wall follows the non-trail rule (legacy 78dd8bd4 FieldView.ts `update`): shown when its
+        // first end `(x, y)` is visible, whatever its other tiles.
         if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick, wards)
             || (f.kind == FieldKind::Trail
                 && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick, wards))
         {
             continue;
         }
-        out.push(FieldView::from_field(f, |id| {
+        out.push(FieldView::from_field(f, &a.barriers, |id| {
             id == viewer || actors.binary_search_by_key(&id, |a| a.id).is_ok()
         }));
     }
@@ -107,8 +125,7 @@ pub(crate) fn public(sim: &Sim) -> Vec<FieldView> {
         .map(|a| {
             a.fields
                 .iter()
-                .filter(|f| f.kind != FieldKind::Wall)
-                .map(|f| FieldView::from_field(f, |id| sim.player(id).is_some()))
+                .map(|f| FieldView::from_field(f, &a.barriers, |id| sim.player(id).is_some()))
                 .collect()
         })
         .unwrap_or_default();

@@ -131,7 +131,8 @@
 //! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
 //! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles, 8 the viewer's own plan, 9 the public arena
-//! lifecycle, 10 the viewer's quest view (explicitly unavailable when disabled).
+//! lifecycle, 10 the viewer's quest view (explicitly unavailable when disabled). A key 3 row of field kind 3 (a standing
+//! Frost Wall, P-FROST-WALL-2) alone continues with its tile list (`count u8`, then that many u32 tile indices).
 //! Each is a complete replacement; missing keys retain their last value. Module [`state`]
 //! defines strict bounds and record layouts. Welcome (join and resume) is followed by all eleven keys, even empty,
 //! so a resumed or recovered client never depends on an

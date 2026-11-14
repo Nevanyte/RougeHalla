@@ -550,11 +550,11 @@ fn a_map_without_dressing_keeps_today_s_bytes() {
     }
 }
 
-const WELCOME_LEN: usize = 1706;
-const WELCOME_DIGEST: u64 = 0xc6e0_6dec_76a4_a51a;
-const SHIPPED_LEN: usize = 2198;
-const SHIPPED_DIGEST: u64 = 0xcaaf_21dd_5f83_be24;
-const ALL_LEN: usize = 2298;
-const ALL_DIGEST: u64 = 0x2d64_2e49_9046_c2d5;
-const GROUND_BOTH_LEN: usize = 1742;
-const GROUND_BOTH_DIGEST: u64 = 0x1c7e_8af4_9873_2905;
+const WELCOME_LEN: usize = 1832;
+const WELCOME_DIGEST: u64 = 0x89dd_d0e8_0091_a9e3;
+const SHIPPED_LEN: usize = 2324;
+const SHIPPED_DIGEST: u64 = 0x2051_5c5f_84b2_fcfd;
+const ALL_LEN: usize = 2424;
+const ALL_DIGEST: u64 = 0x87d1_5349_fd31_3200;
+const GROUND_BOTH_LEN: usize = 1868;
+const GROUND_BOTH_DIGEST: u64 = 0xde92_67e5_5deb_57e8;

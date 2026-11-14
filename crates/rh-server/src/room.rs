@@ -314,10 +314,22 @@ pub fn weapon_table() -> &'static [rh_protocol::WireWeapon] {
     TABLE.get_or_init(rh_policy::delivery::projection::wire_weapons)
 }
 
-/// The HUD content block every Welcome carries (protocol 17, P-WIRE17-HUD-2b): built once from the sim content.
+/// The HUD content block of a room with the default Frost Wish (Freeze): [`hud_content_for`]`(FrostWish::Freeze)`.
 pub fn hud_content() -> &'static rh_protocol::WireHudContent {
-    static TABLE: std::sync::OnceLock<rh_protocol::WireHudContent> = std::sync::OnceLock::new();
-    TABLE.get_or_init(rh_policy::delivery::projection::wire_hud)
+    hud_content_for(rh_sim::FrostWish::Freeze)
+}
+
+/// The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b), for a room whose Frost Wish is `frost_wish`
+/// (P-FROST-WALL-2: HUD term 23 names it): built once per value from the sim content.
+pub fn hud_content_for(frost_wish: rh_sim::FrostWish) -> &'static rh_protocol::WireHudContent {
+    use rh_policy::delivery::projection::wire_hud_for;
+    use rh_sim::FrostWish;
+    static FREEZE: std::sync::OnceLock<rh_protocol::WireHudContent> = std::sync::OnceLock::new();
+    static WALL: std::sync::OnceLock<rh_protocol::WireHudContent> = std::sync::OnceLock::new();
+    match frost_wish {
+        FrostWish::Freeze => FREEZE.get_or_init(|| wire_hud_for(FrostWish::Freeze)),
+        FrostWish::Wall => WALL.get_or_init(|| wire_hud_for(FrostWish::Wall)),
+    }
 }
 
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
@@ -641,7 +653,7 @@ impl Room {
             archetype_table(),
             &rh_policy::delivery::projection::wire_vision(&self.sim.arena().map),
             weapon_table(),
-            hud_content(),
+            hud_content_for(self.sim.config().frost_wish),
             &self.welcome_map,
             crate::public_ground::mode(self.sim.config().hazards),
         )

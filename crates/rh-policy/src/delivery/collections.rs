@@ -349,6 +349,8 @@ fn fields(observation: &Observation) -> Vec<WireField> {
             vy: f.vy as f32,
             started_at: f.started_at,
             ends_at: f.ends_at,
+            // P-FROST-WALL-2: a wall's tiles (the sim's barrier row); empty, so no allocation, for every other kind.
+            tiles: f.tiles.clone(),
         })
         .collect()
 }

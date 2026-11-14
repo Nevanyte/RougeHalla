@@ -14,6 +14,18 @@ pub const ROSTER_FLAG_BOT: u8 = 1;
 pub const MAX_MIN_PLAYERS: u8 = MAX_ROSTER as u8;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
+/// P-FROST-WALL-2: State key 3 field kind codes (`rh_sim::status_runtime::FieldKind` order). A code at or above
+/// [`FIELD_KIND_COUNT`] is refused ("field").
+pub const FIELD_KIND_ZONE: u8 = 0;
+pub const FIELD_KIND_CLOUD: u8 = 1;
+pub const FIELD_KIND_TRAIL: u8 = 2;
+/// A standing Frost Wall: the only kind whose row carries a tile list.
+pub const FIELD_KIND_WALL: u8 = 3;
+/// Number of field kind codes: zone, cloud, trail, wall.
+pub const FIELD_KIND_COUNT: u8 = 4;
+/// Most tiles one wall row may carry (P-FROST-WALL-2): a wall takes at most 17 tiles with the legacy numbers (length
+/// 224, reach 24, end slack 8, any angle); 64 leaves room for a retune. A count of 0 or above this is "wall tiles".
+pub const MAX_WALL_TILES: usize = 64;
 pub const MAX_REWARD_CHESTS: usize = 512;
 pub const MAX_QUEST_ROWS: usize = 20;
 pub const MAX_QUEST_ROSTER: usize = 8;
@@ -325,7 +337,7 @@ pub struct WireProps {
 }
 
 /// Public geometry and already-redacted actors only. No runtime field ID or private source record.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct WireField {
     pub kind: u8,
     pub ability: u8,
@@ -340,6 +352,10 @@ pub struct WireField {
     pub vy: f32,
     pub started_at: f64,
     pub ends_at: f64,
+    /// P-FROST-WALL-2: a wall's tiles (kind [`FIELD_KIND_WALL`] only): row-major tile indices into the Welcome map,
+    /// strictly ascending, 1..=[`MAX_WALL_TILES`] of them, each below `map::MAX_MAP_TILES`. Empty for every other kind.
+    /// On the wire only for a wall row, after `ends_at`: `count u8 | count x tile u32 LE`.
+    pub tiles: Vec<u32>,
 }
 
 /// The viewer's own private planning deal (key 8). Never another player's options; the server resolves every fact so a
@@ -1899,8 +1915,37 @@ pub fn validate_quest_props(
 }
 
 impl WireField {
+    /// The row's checks in the decoders' order (docs/backlog/packets/P-FROST-WALL-2.md F4), as the refusal reason: an
+    /// unknown kind or tiles on a row that is not a wall "field"; a wall's tile count "wall tiles", a tile off every map
+    /// "wall tile", tiles not strictly ascending "wall order"; then the common checks "field".
+    fn check(&self) -> Result<(), &'static str> {
+        if self.kind >= FIELD_KIND_COUNT || (self.kind != FIELD_KIND_WALL && !self.tiles.is_empty())
+        {
+            return Err("field");
+        }
+        if self.kind == FIELD_KIND_WALL {
+            if self.tiles.is_empty() || self.tiles.len() > MAX_WALL_TILES {
+                return Err("wall tiles");
+            }
+            if self
+                .tiles
+                .iter()
+                .any(|&t| t as usize >= crate::map::MAX_MAP_TILES)
+            {
+                return Err("wall tile");
+            }
+            if !self.tiles.windows(2).all(|p| p[0] < p[1]) {
+                return Err("wall order");
+            }
+        }
+        if self.valid() {
+            Ok(())
+        } else {
+            Err("field")
+        }
+    }
     fn valid(&self) -> bool {
-        self.kind < 3
+        self.kind < FIELD_KIND_COUNT
             && self.ability < 5
             && self.owner != Some(0)
             && self.subject != Some(0)
@@ -1913,7 +1958,13 @@ impl WireField {
             && self.ends_at >= self.started_at
     }
     fn len(&self) -> usize {
-        48 + self.owner.map_or(0, varint_len) + self.subject.map_or(0, varint_len)
+        48 + self.owner.map_or(0, varint_len)
+            + self.subject.map_or(0, varint_len)
+            + if self.kind == FIELD_KIND_WALL {
+                1 + 4 * self.tiles.len()
+            } else {
+                0
+            }
     }
     fn write(&self, w: &mut Writer) {
         w.u8(self.kind);
@@ -1925,9 +1976,16 @@ impl WireField {
         }
         w.f64(self.started_at);
         w.f64(self.ends_at);
+        // A wall row only: its tile list (checked before writing, so the count fits a u8).
+        if self.kind == FIELD_KIND_WALL {
+            w.u8(self.tiles.len() as u8);
+            for &tile in &self.tiles {
+                w.u32(tile);
+            }
+        }
     }
     fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
-        let result = Self {
+        let mut result = Self {
             kind: r.u8()?,
             ability: r.u8()?,
             owner: r.opt(Reader::varint)?,
@@ -1941,12 +1999,30 @@ impl WireField {
             vy: r.f32()?,
             started_at: r.f64()?,
             ends_at: r.f64()?,
+            tiles: Vec::new(),
         };
-        if result.valid() {
-            Ok(result)
-        } else {
-            Err(DecodeError::BadField("field"))
+        // The row is read whole first: an unknown kind is refused before any tile list would be read.
+        if result.kind >= FIELD_KIND_COUNT {
+            return Err(DecodeError::BadField("field"));
         }
+        if result.kind == FIELD_KIND_WALL {
+            // Count before tiles, and the whole list against what the frame still holds before reading any tile.
+            let count = r.u8()? as usize;
+            if count == 0 || count > MAX_WALL_TILES {
+                return Err(DecodeError::BadField("wall tiles"));
+            }
+            if count * 4 > r.remaining() {
+                return Err(DecodeError::Truncated);
+            }
+            result.tiles.reserve_exact(count);
+            for _ in 0..count {
+                result.tiles.push(r.u32()?);
+            }
+        }
+        result
+            .check()
+            .map(|()| result)
+            .map_err(DecodeError::BadField)
     }
 }
 
@@ -2038,8 +2114,8 @@ impl StateItem {
                         max: MAX_VISIBLE_FIELDS,
                     });
                 }
-                if !value.iter().all(WireField::valid) {
-                    return Err(EncodeError::BadValue("field"));
+                for field in value {
+                    field.check().map_err(EncodeError::BadValue)?;
                 }
             }
             Self::RewardChests(value) => {

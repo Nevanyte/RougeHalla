@@ -10,7 +10,8 @@ pub enum FieldKind {
     Cloud,
     Trail,
     /// A placed barrier (Frost Wall, P-FROST-WALL-1): its tiles live in `AbilityRuntime::barriers`. Only under
-    /// `SimConfig::frost_wish = Wall`; never projected to clients until P-FROST-WALL-2.
+    /// `SimConfig::frost_wish = Wall`; projected by the non-trail field rule (its first end visible), its tiles copied
+    /// into `FieldView::tiles` (P-FROST-WALL-2).
     Wall,
 }
 

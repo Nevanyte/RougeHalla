@@ -61,12 +61,12 @@ fn items(frame: &[u8]) -> Vec<StateItem> {
 fn identities_move_for_the_carrier_actor() {
     assert_eq!(
         rh_sim::OBSERVATION_VERSION,
-        29,
+        30,
         "the observed quest row gains the carrier's actor id (P-WIRE17-MAP-2)"
     );
     assert_eq!(
         rh_policy::POLICY_CONTRACT_VERSION,
-        23,
+        24,
         "the projected quest row carries it (P-WIRE17-MAP-2)"
     );
 }

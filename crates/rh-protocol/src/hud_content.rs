@@ -1,6 +1,8 @@
 //! The HUD content block a Welcome carries (protocol 17, P-WIRE17-HUD-2b): public content numbers the legacy champion
 //! panel and weapon slots print, sent once per connection from the server's Rust content (never a hand-kept client copy).
-//! Every value is a public content constant, the same for every viewer, so the block raises no C-OBS concern.
+//! Every value is a public content constant or, since P-FROST-WALL-2, a room setting ([`HudTerm::FrostWish`]: which Wish
+//! Frost has in this room); each is the same for every viewer of the room, so the block raises no C-OBS concern. The
+//! server builds the block per room from that room's own setting.
 //!
 //! Wire layout, right after the weapon table and before the map (all integers little-endian, f64 IEEE-754 LE):
 //!
@@ -84,10 +86,32 @@ pub enum HudTerm {
     FireRoamBurstBase = 21,
     /// P-WIRE17-HUD-2c: Fire roam burst damage per bonus Offense (`FIRE_ROAM_BURST_AD_SHARE`, fireRoam.ts:7; :116).
     FireRoamBurstAdShare = 22,
+    /// P-FROST-WALL-2: which Wish Frost has in this room (`rh_sim::SimConfig::frost_wish`): 0 Freeze, 1 Frost Wall
+    /// ([`FROST_WISH_FREEZE`], [`FROST_WISH_WALL`]). A room setting, the same for every viewer of the room.
+    FrostWish = 23,
+    /// P-FROST-WALL-2: Frost Wall's reach, world units (legacy `FROST_WALL_RANGE`, 78dd8bd4 constants.ts): the aim
+    /// preview clamps the cursor to it.
+    FrostWallRange = 24,
+    /// P-FROST-WALL-2: the closest a wall stands, world units (`FROST_WALL_MIN_RANGE`).
+    FrostWallMinRange = 25,
+    /// P-FROST-WALL-2: the wall's length, world units (`FROST_WALL_LENGTH`).
+    FrostWallLength = 26,
+    /// P-FROST-WALL-2: how long a wall stands, ms (`FROST_WALL_MS`).
+    FrostWallMs = 27,
+    /// P-FROST-WALL-2: a tile is under the wall when its centre is this close to the line, world units
+    /// (`WALL_CELL_REACH`, barriers.ts).
+    FrostWallCellReach = 28,
+    /// P-FROST-WALL-2: how far past either end a tile centre may lie, world units (`WALL_END_SLACK`, barriers.ts).
+    FrostWallEndSlack = 29,
 }
 
+/// [`HudTerm::FrostWish`] value: Frost's Wish is Freeze.
+pub const FROST_WISH_FREEZE: f64 = 0.0;
+/// [`HudTerm::FrostWish`] value: Frost's Wish is Frost Wall.
+pub const FROST_WISH_WALL: f64 = 1.0;
+
 /// Number of [`HudTerm`] codes: a code at or above it is refused.
-pub const HUD_TERM_COUNT: u8 = 23;
+pub const HUD_TERM_COUNT: u8 = 30;
 /// Most term rows a block may carry (each code at most once).
 pub const MAX_HUD_TERMS: usize = HUD_TERM_COUNT as usize;
 
