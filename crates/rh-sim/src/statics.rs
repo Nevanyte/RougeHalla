@@ -411,15 +411,18 @@ fn default_consumables() -> bool {
     true
 }
 
-/// The hitbox mode of the live content world ([`SimConfig::live_content`]), re-exported by the server as
-/// `rh_server::runtime::LIVE_DEFAULT_HITBOXES`: the default of `--runtime source-arena`, `--runtime training` and
-/// `--first-playable` when `--hitboxes` is absent (`--hitboxes legacy` overrides). The ONE line to change to flip the
-/// live default (owner sign-off 2026-11-10, ADR 0024, DEVIATIONS DEV-009/DEV-010); the server's
-/// `runtime::tests::which_runtimes_default_to_which_hitbox_mode` pins it, so a flip is a deliberate two-line change.
-pub const LIVE_DEFAULT_HITBOXES: crate::archetype::HitboxMode =
-    crate::archetype::HitboxMode::Archetypes;
-
 impl SimConfig {
+    /// The hitbox mode of the live content world ([`SimConfig::live_content`]), which the server names as
+    /// `rh_server::runtime::LIVE_DEFAULT_HITBOXES`: the default of `--runtime source-arena`, `--runtime training` and
+    /// `--first-playable` when `--hitboxes` is absent (`--hitboxes legacy` overrides). The ONE line to change to flip
+    /// the live default (owner sign-off 2026-11-10, ADR 0024, DEVIATIONS DEV-009/DEV-010); the server's
+    /// `runtime::tests::which_runtimes_default_to_which_hitbox_mode` pins it, so a flip is a deliberate two-line change.
+    /// A `const fn` (not a `const` item) so the server can hold it as a constant; like every other value
+    /// `live_content()` writes, it is match configuration (in the state hash), not a content number.
+    pub const fn live_hitboxes() -> crate::archetype::HitboxMode {
+        crate::archetype::HitboxMode::Archetypes
+    }
+
     /// P-SIM-LIVE-CONTENT-1: the content world the live server plays (`--runtime source-arena`), every content field
     /// including the live hitbox mode. The ONE definition: the server's `Settings::sim` (and its practice room), the
     /// Brain tournament world and the tuner build on it and set only their own fields (lobby timers, lifecycle, the
@@ -442,7 +445,7 @@ impl SimConfig {
             regen: true,
             quests: true,
             walk_hints: Some(true),
-            hitboxes: LIVE_DEFAULT_HITBOXES,
+            hitboxes: Self::live_hitboxes(),
             // Owner decision 2026-11-10 (legacy f8cd956e): passive regeneration out of combat only (P-REGEN-COMBAT-1).
             regen_in_combat: RegenInCombat::Off,
             // Owner decision 2026-11-10 (legacy a7b5c4ce): each zone's camps pay a themed stat, spread evenly and within

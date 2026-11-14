@@ -45,12 +45,12 @@ pub fn lobby_timing_flag(args: &[String]) -> Result<crate::bot_fill::LobbyTiming
 
 /// The hitbox mode of the LIVE runtimes (`--runtime source-arena`, `--runtime training` and `--first-playable`, the
 /// profiles players join) when `--hitboxes` is absent: the live content world's ([`SimConfig::live_content`]), defined
-/// beside it in `rh_sim::statics` (P-SIM-LIVE-CONTENT-1) so headless tools can name it too; flipping it is a line there
-/// (owner sign-off 2026-11-10, DEVIATIONS DEV-009/DEV-010). `--hitboxes legacy` stays the override. The bare core binary
-/// (no `--runtime`, `--runtime core`) is a development profile and stays `LegacyCircle` whatever this says.
+/// beside it as [`SimConfig::live_hitboxes`] (P-SIM-LIVE-CONTENT-1) so headless tools play it too; flipping it is a line
+/// there (owner sign-off 2026-11-10, DEVIATIONS DEV-009/DEV-010). `--hitboxes legacy` stays the override. The bare core
+/// binary (no `--runtime`, `--runtime core`) is a development profile and stays `LegacyCircle` whatever this says.
 /// `tests::which_runtimes_default_to_which_hitbox_mode` pins both, so the flip is a deliberate two-line change (the
-/// constant and the pinned expectation).
-pub use rh_sim::statics::LIVE_DEFAULT_HITBOXES;
+/// definition and the pinned expectation).
+pub const LIVE_DEFAULT_HITBOXES: rh_sim::archetype::HitboxMode = SimConfig::live_hitboxes();
 
 /// `--hitboxes legacy|archetypes`, else `default`.
 pub fn hitboxes_flag(
