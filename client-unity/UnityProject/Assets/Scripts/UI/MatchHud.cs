@@ -335,11 +335,12 @@ namespace Roguehalla.Client
             if (wishChanged || serverTimeMs != _lastServerTime)
             {
                 // Rebuild the texts only when a value they show changed (stock, ability, or a timer's shown whole second).
-                var key = WishTextKey.Of(me.Wish, serverTimeMs);
+                var block = HudContent;
+                var key = WishTextKey.Of(me.Wish, serverTimeMs, block, me.Faction);
                 if (!_wishKeyValid || !key.Equals(_wishKey))
                 {
                     _wishKey = key; _wishKeyValid = true;
-                    _wishCardText = FormatWishCard(me.Wish, serverTimeMs);
+                    _wishCardText = FormatWishCard(me.Wish, serverTimeMs, block, me.Faction);
                     Set(_wishCard, _wishCardText);
                     Set(_wishSummary, WishIconText(me.Wish, serverTimeMs));
                     if (_wishHint != null) _wishHint.Text = _wishCardText;
@@ -364,11 +365,11 @@ namespace Roguehalla.Client
             if (_barrierBarFill != null) { _barrierBarFill.anchorMin = Vector2.zero; _barrierBarFill.anchorMax = Vector2.zero; }
         }
 
-        internal static string FormatWishCard(WishView? wish, double serverTimeMs)
+        internal static string FormatWishCard(WishView? wish, double serverTimeMs, Roguehalla.Net.Protocol.WireHudContent block = null, FactionId faction = default(FactionId))
         {
             if (!wish.HasValue) return "R · WISH\nNone delivered";
             var w = wish.Value;
-            var text = new StringBuilder("R · ").Append(w.Ability).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
+            var text = new StringBuilder("R · ").Append(HudContentText.WishName(block, w.Ability)).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
             // P-UNITY-HUD-STATUS-1: legacy abilitySlot.ts texts ("Ready in 9", "2:05"); a line whose time has run out reads nothing.
             var readyIn = SlotText.ReadyIn(w.ReadyAt - serverTimeMs);
             text.Append(" charges\n").Append(readyIn.Length > 0 ? readyIn : "Ready");
@@ -380,19 +381,22 @@ namespace Roguehalla.Client
             {
                 var cast = w.Cast.Value;
                 var landsIn = SlotText.Cooldown(cast.LandsAt - serverTimeMs);
-                text.Append("\nCasting ").Append(cast.Ability);
+                text.Append("\nCasting ").Append(HudContentText.WishName(block, cast.Ability));
                 if (landsIn.Length > 0) text.Append(" · ").Append(landsIn);
             }
+            var tip = HudContentText.WishTip(block, faction);
+            if (tip.Length > 0) text.Append('\n').Append(tip);
             return text.ToString();
         }
 
         struct WishTextKey
         {
+            public Roguehalla.Net.Protocol.WireHudContent Block; public FactionId Faction;
             public bool Has, HasCast; public AbilityId Ability, CastAbility; public int Charges, MaxCharges, Recharge, Ready, Next, Full, Lands;
             static int Sec(double ms) { return ms > 0d ? (int)Math.Ceiling(ms / 1000d) : 0; }
-            public static WishTextKey Of(WishView? wish, double now)
+            public static WishTextKey Of(WishView? wish, double now, Roguehalla.Net.Protocol.WireHudContent block, FactionId faction)
             {
-                var k = new WishTextKey();
+                var k = new WishTextKey(); k.Block = block; k.Faction = faction;
                 if (!wish.HasValue) return k;
                 var w = wish.Value; k.Has = true; k.Ability = w.Ability; k.Charges = w.Charges; k.MaxCharges = w.MaxCharges;
                 k.Recharge = Sec(w.RechargeMs); k.Ready = Sec(w.ReadyAt - now);
@@ -402,7 +406,7 @@ namespace Roguehalla.Client
             }
             public bool Equals(WishTextKey o)
             {
-                return Has == o.Has && HasCast == o.HasCast && Ability == o.Ability && CastAbility == o.CastAbility && Charges == o.Charges && MaxCharges == o.MaxCharges
+                return ReferenceEquals(Block, o.Block) && Faction == o.Faction && Has == o.Has && HasCast == o.HasCast && Ability == o.Ability && CastAbility == o.CastAbility && Charges == o.Charges && MaxCharges == o.MaxCharges
                     && Recharge == o.Recharge && Ready == o.Ready && Next == o.Next && Full == o.Full && Lands == o.Lands;
             }
         }
