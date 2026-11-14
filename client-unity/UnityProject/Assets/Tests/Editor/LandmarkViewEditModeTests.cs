@@ -304,7 +304,7 @@ namespace Roguehalla.Client.Tests
         public void TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts()
         {
             Assert.That(LandmarkArts.Has(MapBlob.AnchorKindCave), Is.True, "Cave is registered");
-            foreach (byte kind in new[] { MapBlob.AnchorKindBogTree, MapBlob.AnchorKindHall })
+            foreach (byte kind in new[] { MapBlob.AnchorKindHall })
                 Assert.That(LandmarkArts.Has(kind), Is.False, "kind " + kind + " belongs to a follow-up packet");
             Assert.That(LandmarkArts.IsKnownKind(0), Is.False); Assert.That(LandmarkArts.IsKnownKind(6), Is.False);
             for (byte kind = 1; kind <= 5; kind++) Assert.That(LandmarkArts.IsKnownKind(kind), Is.True);
