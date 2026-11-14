@@ -1136,9 +1136,10 @@ fn camp_halo(frame: &AttemptFrame) -> Vec<u8> {
 ///
 /// The anchor: centre `t`, footprint the landing's box, front `front(t)`, entrance the entry's entrance rule landed,
 /// row-major (by y, then x) without repeats. The volcano's centre is the site's centre tile: one of the drawing's four
-/// middle crater-lake tiles (14|15, 14|15), which one depending on the orientation, so `front == front(centre)` holds
-/// for it as for every anchor (P-MAPGEN-SIG-SCALE-4); `FeatureAnchor::EntranceMiddle` reads the landed entrance in the drawing's
-/// grid order (index `len / 2`), as before the sort. Pure but for the one draw.
+/// middle crater-lake tiles (10|11, 10|11) of the 22 x 22 drawing centred in the 30 x 30 inner rect, which one depending
+/// on the orientation, so `front == front(centre)` holds for it as for every anchor (P-MAPGEN-SIG-SCALE-4);
+/// `FeatureAnchor::EntranceMiddle` reads the landed entrance in the drawing's grid order (index `len / 2`), as before the
+/// sort. Pure but for the one draw.
 fn stamp(
     s: &Site<'_>,
     rng: &mut Mulberry32,
