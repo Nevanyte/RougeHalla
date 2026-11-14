@@ -50,7 +50,7 @@ namespace Roguehalla.Net.Protocol
     public sealed class WireHudContent
     {
         public const int MaxScalingRows = 32, ScalingRowLength = 1 + 8 * 4 + 1, TermRowLength = 1 + 8;
-        public const byte TermCount = 23;
+        public const byte TermCount = 30;
         public const int MaxTerms = TermCount;
         public const double MaxValue = 1e6;
 

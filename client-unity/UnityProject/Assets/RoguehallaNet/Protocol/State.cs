@@ -78,7 +78,7 @@ namespace Roguehalla.Net.Protocol
         public double StartedAt, EndsAt;
         /// <summary>P-FROST-WALL-2: a wall's tiles (Kind <see cref="FieldsState.KindWall"/> only): row-major tile indices into the
         /// Welcome map, strictly ascending, 1..<see cref="FieldsState.MaxWallTiles"/>, each below MapBlob's tile cap. Null or
-        /// empty for every other kind. STUB: neither written, read nor checked yet.</summary>
+        /// empty for every other kind. On the wire only for a wall row, after EndsAt: <c>count u8 | count x tile u32 LE</c>.</summary>
         public uint[] Tiles;
     }
     /// <summary>Legacy Trophy stat keys in source declaration order (rh-sim TrophyStatKey).</summary>
@@ -514,12 +514,7 @@ namespace Roguehalla.Net.Protocol
                         item = props; break;
                     case 3:
                         var fields = new FieldsState { Rows = new WireField[Count(ref r, MaxRows)] };
-                        for (int j = 0; j < fields.Rows.Length; j++) fields.Rows[j] = new WireField
-                        {
-                            Kind = r.U8(), Ability = r.U8(), Owner = ReadActor(ref r), Subject = ReadActor(ref r),
-                            X = r.F32(), Y = r.F32(), X2 = r.F32(), Y2 = r.F32(), Radius = r.F32(), Vx = r.F32(), Vy = r.F32(),
-                            StartedAt = r.F64(), EndsAt = r.F64()
-                        };
+                        for (int j = 0; j < fields.Rows.Length; j++) fields.Rows[j] = FieldsState.ReadRow(ref r);
                         item = fields; break;
                     case 4:
                         var chests = new RewardChestsState { Rows = new WireRewardChest[Count(ref r, MaxRows)] };
@@ -722,17 +717,60 @@ namespace Roguehalla.Net.Protocol
         public override uint Key { get { return 3; } }
         /// <summary>P-FROST-WALL-2: field kind codes (rh-protocol <c>FIELD_KIND_*</c>); a wall row carries a tile list.</summary>
         public const byte KindZone = 0, KindCloud = 1, KindTrail = 2, KindWall = 3;
-        /// <summary>Kinds at or above this are refused ("field"). STUB: becomes 4 with the wall row.</summary>
-        public const byte KindCount = 3;
+        /// <summary>Kinds at or above this are refused ("field").</summary>
+        public const byte KindCount = 4;
         /// <summary>Most tiles one wall row may carry (rh-protocol <c>MAX_WALL_TILES</c>).</summary>
         public const int MaxWallTiles = 64;
         public WireField[] Rows = Array.Empty<WireField>();
+
+        /// <summary>The row's first fault in the Rust decoder's order (rh-protocol <c>WireField::check</c>): an unknown kind or
+        /// tiles on a row that is not a wall "field"; a wall's tile count "wall tiles", a tile at or above the map tile cap
+        /// "wall tile", tiles not strictly ascending "wall order"; then the common checks "field". Null when the row is valid.</summary>
+        static string RowFault(WireField f)
+        {
+            int n = f.Tiles == null ? 0 : f.Tiles.Length;
+            if (f.Kind >= KindCount || (f.Kind != KindWall && n != 0)) return "field";
+            if (f.Kind == KindWall)
+            {
+                if (n == 0 || n > MaxWallTiles) return "wall tiles";
+                foreach (var t in f.Tiles) if (t >= (uint)Wire.MaxMapTiles) return "wall tile";
+                for (int i = 1; i < n; i++) if (f.Tiles[i - 1] >= f.Tiles[i]) return "wall order";
+            }
+            bool valid = f.Ability < 5 && f.Owner != 0 && f.Subject != 0
+                && Finite(f.X) && Finite(f.Y) && Finite(f.X2) && Finite(f.Y2) && Finite(f.Radius) && Finite(f.Vx) && Finite(f.Vy)
+                && f.Radius >= 0 && Finite(f.StartedAt) && Finite(f.EndsAt) && f.EndsAt >= f.StartedAt;
+            return valid ? null : "field";
+        }
+
+        /// <summary>One key 3 row, refused as the Rust decoder refuses it, row by row: the common part is read whole; an
+        /// unknown kind is refused before any tile list; a wall's count before its tiles, the whole list against what the
+        /// frame still holds (Truncated) before any tile is read; then the row's checks.</summary>
+        internal static WireField ReadRow(ref Reader r)
+        {
+            var f = new WireField
+            {
+                Kind = r.U8(), Ability = r.U8(), Owner = ReadActor(ref r), Subject = ReadActor(ref r),
+                X = r.F32(), Y = r.F32(), X2 = r.F32(), Y2 = r.F32(), Radius = r.F32(), Vx = r.F32(), Vy = r.F32(),
+                StartedAt = r.F64(), EndsAt = r.F64()
+            };
+            if (f.Kind >= KindCount) throw new DecodeException(DecodeError.BadField, "field");
+            if (f.Kind == KindWall)
+            {
+                int count = r.U8();
+                if (count == 0 || count > MaxWallTiles) throw new DecodeException(DecodeError.BadField, "wall tiles");
+                if (r.Remaining < count * 4) throw new DecodeException(DecodeError.Truncated);
+                f.Tiles = new uint[count];
+                for (int i = 0; i < count; i++) f.Tiles[i] = r.U32();
+            }
+            string fault = RowFault(f);
+            if (fault != null) throw new DecodeException(DecodeError.BadField, fault);
+            return f;
+        }
+
         internal override void Check()
         {
             Require(Rows != null && Rows.Length <= MaxRows, "fields");
-            foreach (var f in Rows) Require(f.Kind < 3 && f.Ability < 5 && f.Owner != 0 && f.Subject != 0
-                && Finite(f.X) && Finite(f.Y) && Finite(f.X2) && Finite(f.Y2) && Finite(f.Radius) && Finite(f.Vx) && Finite(f.Vy)
-                && f.Radius >= 0 && Finite(f.StartedAt) && Finite(f.EndsAt) && f.EndsAt >= f.StartedAt, "field");
+            foreach (var f in Rows) { string fault = RowFault(f); Require(fault == null, fault); }
         }
         internal override void Write(Writer w)
         {
@@ -741,6 +779,8 @@ namespace Roguehalla.Net.Protocol
             {
                 w.U8(f.Kind); w.U8(f.Ability); WriteActor(w, f.Owner); WriteActor(w, f.Subject);
                 w.F32(f.X); w.F32(f.Y); w.F32(f.X2); w.F32(f.Y2); w.F32(f.Radius); w.F32(f.Vx); w.F32(f.Vy); w.F64(f.StartedAt); w.F64(f.EndsAt);
+                // A wall row only: its tile list (checked before writing, so the count fits a byte).
+                if (f.Kind == KindWall) { w.U8((byte)f.Tiles.Length); foreach (var t in f.Tiles) w.U32(t); }
             }
         }
     }

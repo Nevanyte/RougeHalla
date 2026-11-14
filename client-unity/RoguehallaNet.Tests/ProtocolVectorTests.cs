@@ -1111,6 +1111,10 @@ namespace Roguehalla.Net.Tests
                 case "state_inventory_healing_nan": case "state_inventory_healing_negative": case "state_inventory_boost_infinite":
                 case "state_arena_min_players_over": want = DecodeError.BadField; break;
                 case "state_inventory_clock_truncated": case "state_arena_min_players_missing": want = DecodeError.Truncated; break;
+                // P-FROST-WALL-2: the State key 3 wall row.
+                case "state_field_kind_unknown": case "state_wall_tiles_zero": case "state_wall_tiles_over":
+                case "state_wall_tile_off_map": case "state_wall_tile_order": want = DecodeError.BadField; break;
+                case "state_wall_tiles_truncated": want = DecodeError.Truncated; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

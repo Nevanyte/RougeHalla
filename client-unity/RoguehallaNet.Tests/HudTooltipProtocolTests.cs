@@ -49,8 +49,8 @@ namespace Roguehalla.Net.Tests
         {
             Assert.AreEqual(28, Hud.PanelCodeCount);
             Assert.AreEqual(28, Hud.MaxPanelValues);
-            Assert.AreEqual(23, WireHudContent.TermCount);
-            Assert.AreEqual(23, WireHudContent.MaxTerms);
+            Assert.AreEqual(30, WireHudContent.TermCount);
+            Assert.AreEqual(30, WireHudContent.MaxTerms);
             Assert.AreEqual(19, (byte)HudTerm.FireRoamRampMs);
             Assert.AreEqual(20, (byte)HudTerm.FireRoamChargeMax);
             Assert.AreEqual(21, (byte)HudTerm.FireRoamBurstBase);
@@ -98,7 +98,7 @@ namespace Roguehalla.Net.Tests
         public void TheWelcomeVectorCarriesTheFireRoamTerms()
         {
             var w = (ServerMsg.Welcome)ServerMsg.Decode(Util.FromHex(Hex("server", "welcome")));
-            Assert.AreEqual(23, w.Hud.Terms.Length, "every code once");
+            Assert.AreEqual(30, w.Hud.Terms.Length, "every code once");
             Assert.AreEqual(20000.0, w.Hud.Term(HudTerm.FireRoamRampMs));
             Assert.AreEqual(1000.0, w.Hud.Term(HudTerm.FireRoamChargeMax));
             Assert.AreEqual(50.0, w.Hud.Term(HudTerm.FireRoamBurstBase));
