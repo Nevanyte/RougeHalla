@@ -4,6 +4,42 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Final combined review (2026-11-14): fit with notes; current checkpoint
+
+Integration branch `feature/unity-rework` @ `fffbad5c6` on origin: integrations 43, 44 and 45 gated as one tree (full
+gate with Postgres and the release-only step, 22 steps green, about 45 minutes under the new dev profile).
+**Identities:** protocol 17 (18 is being stamped: P-PROTOCOL-18-STAMP-1), observation 30, policy contract 25,
+checkpoint 32, replay 25, content hash `7a542a13187f034c`.
+
+**reviewer-opus on the combined tree: FIT WITH NOTES, no code blocker** (read-only; it ran nothing). The last deployed
+beta was `157c9eb5` (protocol 16, content `7d2d84b827af3ddc`); 1,191 commits since; nothing under `packages/` changed,
+no merged migration edited; `main` is an ancestor of the tip, so the pull request is a fast-forward.
+- **Nine incompatible wire changes were made under protocol 17** (key 13 build summary and champion panel, the Welcome
+  HUD block and its later codes, key 1 clocks and key 9 minimum players, the map section's patience plane and quest
+  carrier flag, the anchors section, key 3 wall rows and HUD terms 23 to 29). The stamp to 18 covers them all.
+- **For the deploy step:** (1) `BakedContent.cs` still holds the deployed beta's content hash; `build-web.sh` rewrites it
+  from whatever server answers on port 7777, so the Web build must run against a server of the stamped commit, the hash
+  checked against its `/info`, and the file committed. (2) The host's three launch settings (`map_pool`,
+  `signature_landmarks`, `lobby_timing`) have no recorded choice: queue Q22. (3) `hosting/technical-demo/README.md`
+  lines 154 to 158, 189 and 196 to 199 are stale (owner-deferred, Q16). (4) The stamp has more pins than the record
+  listed, two of them Unity EditMode tests that open `v17.json` by name.
+- **Walking into a Frost Wall rubber-bands** (client walk prediction reads only the map's tiles): queue Q23;
+  P-FROST-WALL-PREDICT-1 is being briefed. Not exploitable: the server is the authority.
+- **C-OBS, across packets:** a wall cut with a gap round a boxed-in fighter shows every viewer where that fighter stood
+  (now in DEV-036's text). No seed, state hash or admin value reaches a client path.
+- **Live world:** the Source room, the practice room, the Brain tournament and the soaks all build on
+  `live_content()`; parity, the sweep and the headless defaults stay Freeze and legacy circle. The bare core path of
+  `rh-server` (no `--runtime`) is Freeze on purpose; the host always passes `--runtime`. Live fill bots are `HumanBot`;
+  the learner store and the tuner table are read by nothing live.
+- **Determinism coverage gap, recorded:** the cross-platform sweep never plays the live world (Frost Wall, Archetype
+  hitboxes, abilities). A one-host beta runs one binary, so it does not bear on this release.
+- **Records:** DEV-001 to DEV-006, DEV-008 and DEV-011 pending, DEV-007 "confirm": queue Q24. The committed
+  `.claude/settings.json` would reach `main`: queue Q25.
+
+**Map generator session:** the owner asked it in its chat to build the rest ("Please build those": the Holy hall, the
+Frost lake at the cave's mouth, the Fire crater rule; relayed, not confirmed here). P-LAND-FROST-1, P-LAND-FIRE-1 and
+P-MAPGEN-SIG-HOLY-1 land after the finish steps, one at a time, each through the coordinator's review.
+
 ## Integration 45 (2026-11-14): the volcano
 
 **Gate of 43+44 (`a9fc14972`, 50 minutes, the first with the dev `opt-level = 2` profile):** 21 of 22 steps green
