@@ -94,3 +94,34 @@ RISKS:           stale doc comments outside this scope (below); `Blueprint::glyp
  6 files changed, 506 insertions(+), 624 deletions(-)
 (before this hand-off file; net -118 lines; cave.rs, church.rs, bog_tree.rs each a net reduction)
 ```
+
+## Review (reviewer-opus, 2026-11-14): LAND, no notes
+Read-only, by tracing `stamp`, `Blueprint::land` and `Orientation::turn` and the table line by line against the three
+old functions on `packet/P-MAPGEN-SIG-BLUEPRINT-1`, the refusal paths no pinned seed reaches included. Same on every
+path: the one draw first; centre, front and landing (the tree's box rule equals the old centre pivot for any site
+width, not only 34); per-tile legality; the doorway check (cave and church only, along the front); the wall-piece
+minimum on walls only; the floor split on walls plus LOW; nothing written before a refusal; feature, cell and entrance
+order. The hand-off's claim that a reserved Sentenced or Frost site always has its camp holds (`reserve` skips a square
+without `inside_camp`). One accepted difference in a non-default case: the generic reader no longer checks a drawing's
+content, so a non-default `Definition` (another `mouth`, a malformed cave drawing) that the old code refused is now
+stamped; the default definition is unaffected and Part 2 deletes `mouth`.
+
+The lane's own re-run on this branch (2026-11-14): `mapgen_signature_blueprint` 10 passed; `mapgen_signature_scale`,
+`_church`, `_bog_tree`, `mapgen_land_sentenced`, `mapgen_land_plague` and `rh-mapdress` green; nothing re-pinned.
+
+Does the shape hold for the next packets: yes, every gap above is an addition, none means a type here is wrong.
+Carried forward (not fix packets):
+- Part 2: a generic table test, "every writing glyph names a feature in the entry's `features`, every `Nothing` glyph
+  has none", since a release build refuses quietly on `cells[owner?]`; the stale `Definition::*_grid` doc comments.
+- Frame packet: `Landed.marks` is row-major on the map and so loses which grid tile each mark came from; anything
+  needing mark identity (which outlet, which camp) reads `blueprint.tiles_of(ch)` through `landing.tile(g)`, or `Landed`
+  gains grid-to-map pairs as a new field.
+- SCALE-4: `t` in `stamp` does three jobs (the tile the front is read from, the anchor centre, `FeatureAnchor::Centre`):
+  split into a facing tile plus a centre rule (`Centre::Facing | Centre::Mark(u8)`); a grid-heading-to-DIR16 helper;
+  the streams hook goes in `apply` between `stamp` and the write loop (after the write, `near1` would block the streams
+  with the cone's own apron) and re-runs the floor-split check with the streams added.
+- HOLY-1: pull the facing-tile rule (`t`, then `axis(front(t))`) into one function that `reserve` and `stamp` both
+  call; the hall's camps can go down in the Prefix only because `E` lies on the mirror axis (column 18 of 37): the
+  oracle pins that symmetry.
+- Minor, left: `Blueprint` keeps a clone of the legend; `Legality` docs say "inside the inner rect" (Fire has none);
+  `axis`'s doc; `FeatureAnchor::EntranceMiddle` equals the old graveyard rule only on the approved drawing.
