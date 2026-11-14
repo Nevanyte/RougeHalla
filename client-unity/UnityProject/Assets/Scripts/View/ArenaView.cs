@@ -71,6 +71,7 @@ namespace Roguehalla.Client
         CombatSparks _sparks; uint _sparkRng = 2463534242u; float _nextTrail; Vector3 _camCenter; Vector2 _camHalf = new Vector2(12, 9);     // render pass: trails, impact sparks, hit lights
         ConfirmedWishPresenter _wishes;
         WishFxPresenter _wishFx;
+        FrostWallPresenter _frostWall; FrostWishKind _frostWish; Color32 _frostTint;
         bool _collectWishNotes;
         double _sourceTimeMs;
         ShowcaseCatalog _catalog;
@@ -145,6 +146,7 @@ namespace Roguehalla.Client
             _carrierActorPoint = (uint id, out float x, out float y) => { if (_actors.TryPosition(id, out var w)) { x = w.x / Scale; y = -w.y / (Scale * GroundSquash); return true; } x = y = 0; return false; };
             _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             _wishFx = new WishFxPresenter(Child("Wish effects"), _actors);
+            _frostWall = new FrostWallPresenter(Child("Frost walls")); _frostTint = ShowcasePalette.Faction(WishFxModel.FactionIndex(AbilityId.Freeze));
             _sparks = new CombatSparks(Child("Combat sparks"));
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
@@ -337,6 +339,7 @@ namespace Roguehalla.Client
             PerfMarks.End(PerfMarks.Sec.Effects, pm); pm = PerfMarks.Begin();
             _wishes.Tick(_sourceTimeMs);
             _wishFx.Tick(_sourceTimeMs, Time.unscaledDeltaTime);
+            _frostWall.Tick(_sourceTimeMs, Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
             PerfMarks.End(PerfMarks.Sec.WishFx, pm);
             _hitZones?.Tick(Time.unscaledTime, ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion);
             TickWeaponRange(me, motion, aimAngle);
@@ -366,6 +369,7 @@ namespace Roguehalla.Client
         public void RefreshVisibility(Session session, bool presentFollows = false)
         {
             _archetypes = session != null ? session.Archetypes : System.Array.Empty<WireArchetype>();
+            _frostWish = session != null && session.Welcome != null ? session.Welcome.Hud.FrostWish : FrostWishKind.Freeze; _wishFx.FrostWish = _frostWish;
             _hitZones?.SetTable(_archetypes); LegacyFacts.SyncWeapons(session != null ? session.Weapons : null);
             if (_atmos != null) _atmos.SetMatchActive(session != null && session.Phase == MatchPhase.Active);
             _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
@@ -498,6 +502,7 @@ namespace Roguehalla.Client
         {
             var pmCollections = PerfMarks.Begin();
             _used = 0; _inventory = collections != null ? collections.Inventory : null;
+            _frostWall.PresentWalls(collections != null ? collections.Fields : null, _sourceTimeMs);
             if (collections == null) _wishFx.PresentAreas(null);
             if (collections != null)
             {
@@ -627,6 +632,13 @@ namespace Roguehalla.Client
         }
         /// <summary>Presentation-only swing at the owner's click; see <see cref="SpriteActorPresenter.LocalAttackCue"/>.</summary>
         public void LocalAttackCue(uint id) { _actors.LocalAttackCue(id); }
+        float _frostLength = 224;
+        /// <summary>Draws or puts away the Frost Wall aim preview (display only; WishAim sends the cast).</summary>
+        public void TickFrostWallAim(Session session, bool aiming, in WishAimFrame f)
+        {
+            if (f.Numbers.HasValue) _frostLength = (float)f.Numbers.Value.Length;
+            _frostWall.Aim(session, aiming, f, _frostTint);
+        }
         public void ConfirmedFx(ServerMsg.Fx fx) { ConfirmedFx(fx, 0, double.NaN); }
         /// <summary>
         /// Cues on a remote player drawn by interpolation wait until render time reaches <paramref name="dueMs"/> (source ms
@@ -642,6 +654,8 @@ namespace Roguehalla.Client
                 {
                     _wishes.Accept(f);
                     _wishFx.Accept(f);
+                    if (f.Kind == FxKind.WishStarted && f.Ability == (byte)AbilityId.Freeze && _frostWish == FrostWishKind.Wall && f.HasAnchor && f.Caster.HasValue && _actors.TryPosition(f.Caster.Value, out var cw))
+                        _frostWall.Telegraph(cw.x / Scale, -cw.y / (Scale * GroundSquash), f.AnchorX, f.AnchorY, _frostLength, f.EventTime, f.Duration);
                     continue;
                 }
                 // Protocol 16 fx (ADR0026): the wind-up telegraph and its end; the rest are numbers drawn by PresentFx.
@@ -866,6 +880,7 @@ namespace Roguehalla.Client
         {
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality;
             if (_visionSession != null) _visionSession.EventsReceived -= OnVisionEvents;
+            if (_frostWall != null) _frostWall.Dispose();
             if (_vignette != null) _vignette.Dispose();
             if (_visionFog != null) _visionFog.Dispose();
             if (_regionGround != null) _regionGround.Dispose();

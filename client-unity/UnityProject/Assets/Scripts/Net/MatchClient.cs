@@ -317,6 +317,8 @@ namespace Roguehalla.Client
             if (Session.State == SessionState.InMatch)
             {
                 ReadInput();
+                _wishAim.Frame(Session, _wishFrame);
+                Arena?.TickFrostWallAim(Session, _wishAim.Aiming, _wishFrame);
                 Session.FlushInput();
             }
             var pmPresent = PerfMarks.Begin(); Present(); PerfMarks.End(PerfMarks.Sec.Present, pmPresent);
@@ -334,6 +336,17 @@ namespace Roguehalla.Client
                 }
             }
             if (probe) InputLatencyProbe.EndFrame(NowMs(), Session.Motion.DrawnX, Session.Motion.DrawnY, Session.Me.X, Session.Me.Y);
+        }
+
+        // P-UNITY-FROST-WALL-1: the Wish key, left click, right click and Esc go through WishAim; it sends every cast through Session.CollectWishInput.
+        readonly WishAim _wishAim = new WishAim();
+        WishAimFrame _wishFrame;
+        WishAimFrame MakeWishFrame(float myX, float myY, bool blocked, bool haveCursor, float sx, float sy, uint? actor)
+        {
+            var hud = Session.Welcome != null ? Session.Welcome.Hud : null;
+            return new WishAimFrame { Wish = hud != null ? hud.FrostWish : FrostWishKind.Freeze, QuickCast = UiDisplayPreferences.QuickCastStored, UiOwnsInput = blocked,
+                HasGroundPoint = haveCursor, CursorX = sx, CursorY = sy, ActorRef = actor, CasterX = myX, CasterY = myY, Facing = _aimAngle,
+                Numbers = hud != null ? hud.FrostWall : null };
         }
 
         void ReadInput()
@@ -366,6 +379,7 @@ namespace Roguehalla.Client
             }
             float sx = myX, sy = myY;
             bool haveCursor = !blocked && mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
+            _wishFrame = MakeWishFrame(myX, myY, blocked, haveCursor, sx, sy, null);
             if (haveCursor)
             {
                 // Projectiles are simulated on the ground and drawn raised by the shooter's chest: aim at the cursor's ground point
@@ -375,7 +389,13 @@ namespace Roguehalla.Client
                     Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[aim] t={0:F1} from={1:F2},{2:F2} cursor={3:F2},{4:F2} chest={5} angle={6:F5}",
                         Time.realtimeSinceStartup * 1000f, myX, myY, sx, sy, Session.OwnChest, _aimAngle));
                 Session.Input.Aim(_aimAngle);
+                bool aimClick = false;
                 if (mouse.leftButton.wasPressedThisFrame)
+                {
+                    byte aimSeq = _wishAim.Click(Session, _wishFrame, out aimClick);
+                    if (_traceLatency && aimSeq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, aimSeq, sx, sy);
+                }
+                if (mouse.leftButton.wasPressedThisFrame && !aimClick)
                 {
                     // The wand locks the nearest candidate within the legacy snap radius (world units) and never fires an unlocked
                     // shot; a miss sends nothing. The server still decides the lock (range, sight, hostility).
@@ -399,6 +419,7 @@ namespace Roguehalla.Client
                 }
                 if (mouse.rightButton.wasPressedThisFrame)
                 {
+                    _wishAim.RightClick();
                     if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) { Session.Input.AttackMove(sx, sy); _orderBudget.Spend(now); _stopRetry.Cancel(); }
                     else
                     {
@@ -416,10 +437,12 @@ namespace Roguehalla.Client
             }
             var kb = Keyboard.current;
             if (kb == null) return;
+            if (kb.escapeKey.wasPressedThisFrame) _wishAim.Escape();
             if (kb.rKey.wasPressedThisFrame)
             {
                 uint target = haveCursor && mouse != null ? VisibleActorAt(mouse.position.ReadValue()) : 0;
-                byte seq = Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
+                _wishFrame.ActorRef = target == 0 ? (uint?)null : target;
+                byte seq = _wishAim.Key(Session, _wishFrame);
                 if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, seq, sx, sy);
             }
             if (Hud == null || !Hud.ChestOwnsDigits)

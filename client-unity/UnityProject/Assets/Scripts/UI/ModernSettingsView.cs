@@ -22,7 +22,7 @@ namespace Roguehalla.Client
         RectTransform _root, _content;
         ScrollRect _scroll;
         Button _quality, _closeButton, _reset, _leaveButton;
-        Switch _fullscreen, _motion, _fps, _ping, _route, _mapMode;
+        Switch _fullscreen, _motion, _fps, _ping, _route, _mapMode, _quickCast;
         Slider _textScale, _music, _ambience, _sfx;
         TMP_Text _textScaleValue, _musicValue, _ambienceValue, _sfxValue, _qualityValue;
         readonly List<Button> _minimapSizes = new List<Button>();
@@ -83,6 +83,8 @@ namespace Roguehalla.Client
             _route = SwitchRow("Show route", ToggleRoute);
             _mapMode = SwitchRow("Tab toggles map", ToggleMapMode, "Off: hold Tab to look.");
             SegmentedRow("Minimap size");
+            Heading("Controls");
+            _quickCast = SwitchRow("Quick cast", () => _prefs.SetQuickCast(!_prefs.QuickCast), "Abilities you aim (Frost Wall) cast at the cursor the moment you press the key. Off: the key shows where it lands and a click places it.");
             FooterRow();
 
             _source.Changed += Refresh;
@@ -306,6 +308,7 @@ namespace Roguehalla.Client
             SetSwitch(_ping, _prefs.ShowPing);
             SetSwitch(_route, _prefs.ShowRoute);
             SetSwitch(_mapMode, _prefs.MapToggle);
+            SetSwitch(_quickCast, _prefs.QuickCast);
             if (_qualityValue != null) _qualityValue.text = QualityLabel();
             for (int i = 0; i < _minimapSizes.Count; i++)
             {
