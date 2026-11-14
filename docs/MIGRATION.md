@@ -21,6 +21,13 @@ recommendations"**. The coordinator had stated a recommendation on these, and ac
   will say.
 - **Tuner and learner:** adopt nothing.
 
+**Integrations 43 and 44 are gated as one tree.** Integration 43's full gate (`8143228a1`, 21 steps under
+`--keep-going`) was green except one step: the docs test "DIALS.md: every row of the Scene column names only scenes",
+on the new `camp-attack-linger` row. The same class of failure as integration 40 and the retrospective's issue 1: the
+implementer's quick gate does not run the docs tests when only `docs/unity/` changes. Fixed at the root under the
+owner's approval for that issue (P-ENV-RETRO-1): quick mode now runs the Unity tool tests when `docs/unity/` or the
+look scene list changes, with a self-test. `coord/int-44` = 43 plus that fix, P-AGENT-RETRO-1 and the records.
+
 **Not covered, because the coordinator had given no recommendation when he wrote it:** Q20 (the oracle-guard hook in
 sibling worktrees). The recommendation is now in the queue; the hook is unchanged.
 
