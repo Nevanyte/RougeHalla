@@ -282,6 +282,11 @@ Rust/C#/WSS and source checks. Full-game, AWS, browser-matrix and release gates 
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
   seats through reusable `ItemObserver`s; raw IDs and concealed contents never appear. Independent review verified
   corrections for collocated hints, same-tick departure, immutable observer identity and async fallback/deadlines.
+- C-OBS, Frost Wall (owner decision 2026-11-14, DEV-036): a standing Frost Wall (`FieldKind::Wall`) is temporary
+  terrain, public like the map: every seated viewer's observation carries every standing wall whole (both ends, and so
+  its centre and aim line; its tiles; its start and end times; its ability), whatever it sees; its owner and subject
+  are named only to the owner and to a viewer whose observation carries them, and zone, cloud and trail fields keep
+  their sight rules. The frozen row below is unchanged: this states which of its three views a wall belongs to.
   Live item State/client integration is still open (P-NET-ITEMS-1).
   The actual 30-second private trail, bushes and attack exposure now govern all point/actor/prop/event projections;
   reads do not mutate authoritative memory. Independent point-query, reconnect and restore checks passed. Retained

@@ -4,6 +4,47 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integration 43 (2026-11-14): the owner's answers built; learner and tuner runs; current checkpoint
+
+Integration branch `feature/unity-rework` @ `dcdc66584` on origin (integration 42: full gate with Postgres and the
+release-only step green, the first run of `--keep-going`; about 100 minutes with three agents building beside it).
+Staged as `coord/int-43` and under gate. **Identities, unchanged by 43:** protocol 17 (18 at the next deploy),
+observation 30, policy contract 25, checkpoint 32, replay 25, content hash `7a542a13187f034c`.
+
+In integration 43, each reviewed before the merge:
+- **P-FROST-WALL-PUBLIC-1** (Q7): every standing wall, whole, to every seated viewer. DEV-036 rewritten and signed by
+  the owner's words; C-OBS gains a note classifying a standing wall as temporary terrain. Observation and policy
+  versions stay (format unchanged; reviewer-opus agrees, with the two older precedents that did bump set out in the
+  brief). What a far viewer can now derive: the wall's centre and aim line, so roughly where the caster stood. The
+  Brain may be told of a wall it never saw (legacy bots use a 30 s sight memory); nothing decides on fields today, so
+  it is a backlog row, not a packet. Not seen: a wall under fog in the running client.
+- **P-UNITY-CAMP-PATIENCE-SHOW-1** (Q6): patience zones only while the local player trades damage with one of the
+  camp's mobs (2.5 s linger, a dial; a mob keeps the camp whose tiles it last stood on). DEV-037 signed. The client is
+  not sent a mob's target or the patience clock, so a mob that has not hit yet shows nothing. The join in `ArenaView`
+  is read, not tested.
+- **P-TEST-HARDEN-1** (Q10 to Q13): allocation tests count on the measuring thread: new dev-only crate
+  `crates/rh-alloc-count` (the workspace's only `unsafe`; `rh-sim` keeps `unsafe_code = "forbid"`; one `Cargo.lock`
+  entry) and C# `AllocationProbe`; `terrain_no_alloc` migrated; `Wire.MaxMapDecodedBytes` is the plane count times the
+  tile cap and the C# map decoder reads it (accepted inputs unchanged). The oracle author's first version loosened
+  `rh-sim`'s lint; refused by the coordinator. P-TEST-HARDEN-2 (the other 28 Rust files, the C# cases) is listed.
+- **P-MAPGEN-GUARANTEES-1** (map generator session): reviewed LAND.
+- Test amendments, owner-directed: `barriers_observe_tests.rs` and `tests/frost_wall_observe.rs` (a viewer out of
+  sight now receives the wall), `WorldMarks2EditModeTests.cs` (a new argument, no assertion changed),
+  `MapBlobGroundTests.cs` (the expectation derived from the plane count), `tests/content.rs` (six `cfg(test)` rows).
+
+**Q15 result:** of the fourteen older worktrees only `server-perf` had all its work committed; removed, branch kept.
+The other thirteen hold uncommitted files (scratch tests, evidence folders, modified source; about 24 GiB) and stay.
+
+**Tuner, first full run** (`tune`, commit `dcdc66584`, seed 1, 10 generations x 4 proposals x 24 games, tournament
+seed 2, held-out seed 3, Brain, Frost Wall on): 40 proposals scored; in-sample objective baseline -0.0083, best 0.1000.
+On the held-out seed the best table is **not distinguishable** from the shipped one in any tier (easy 1/48 against
+4/48 wins, normal 9/48 against 7/48, hard 14/48 against 13/48). Nothing is adopted. The search file is in the session
+scratchpad (`bots/brain-search-dcdc66584.json`).
+
+**Open with the owner:** Q18 (P-AGENT-RETRO-1 of the map generator session, re-reviewed LAND WITH NOTES at
+`713330056`, tidied at `7c3e104c0`, not merged), Q19 (the volcano decisions taken in that session's chat), Q20 (the
+oracle-guard hook does not cover sibling worktrees).
+
 ## Owner answers 2026-11-14 (chat): the queue, Q1 to Q17
 
 The owner answered the open queue in one message. His words, and what follows from each:
