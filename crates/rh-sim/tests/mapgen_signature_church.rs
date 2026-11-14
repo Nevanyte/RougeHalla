@@ -35,10 +35,12 @@ use rh_sim::mapgen::certify::rules::R;
 use rh_sim::mapgen::coliseum::{CX, CY};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{
-    relabelled_zones, SignatureContext, DEFAULT_DEFINITION,
+    relabel_sites, relabelled_zones, ReservedSite, SignatureContext, DEFAULT_DEFINITION,
 };
 use rh_sim::mapgen::landmarks::{recipes, stage};
+use rh_sim::mapgen::zones::camps::CampSite;
 use rh_sim::mapgen::{attempt, certify, coliseum, map_hash, pipeline, style_gallows};
+use rh_sim::rng::Mulberry32;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
@@ -795,6 +797,55 @@ fn the_sentenced_site_is_relabelled_with_the_frost_site() {
         zones.contains(&Zone::Frost) && zones.contains(&Zone::Sentenced) && zones.len() == 2,
         "relabelled zones {zones:?}: want the Sentenced and the Frost sites"
     );
+}
+
+/// Moved here from the unit test `signature::tests::only_the_frost_sites_tiles_take_its_camps_label` (amended, approved
+/// by the landmark lane 2026-11-13): `relabel_sites` gives every tile of a Frost or Sentenced site with an inside camp
+/// that camp's label (its index + 1), the whole rect; a Plague site, a site without a camp and no sites at all leave
+/// the grid as it was. Red today: the Sentenced site is not relabelled.
+#[test]
+fn relabel_sites_labels_the_frost_and_the_sentenced_sites() {
+    let w = coliseum::W;
+    let camp = |zone: u8, x: usize, y: usize| CampSite {
+        zone,
+        site: y * w + x,
+        elite: true,
+        spots: Vec::new(),
+    };
+    let site = |zone: Zone, x: i32, y: i32, camp: Option<usize>| ReservedSite {
+        zone,
+        rect: TileRect { x, y, w: 4, h: 3 },
+        camp,
+        stream: Mulberry32::new(1),
+    };
+    let camps = vec![camp(1, 5, 5), camp(2, 30, 31), camp(3, 61, 61)];
+    let before = vec![7u8; w * coliseum::H];
+    let mut grid = before.clone();
+    relabel_sites(&[], &camps, &mut grid);
+    assert_eq!(grid, before, "no sites");
+    let others = [
+        site(Zone::Plague, 10, 10, None),
+        site(Zone::Frost, 40, 40, None),
+        site(Zone::Sentenced, 80, 80, None),
+    ];
+    relabel_sites(&others, &camps, &mut grid);
+    assert_eq!(grid, before, "no site with a camp");
+    let sites = [
+        site(Zone::Sentenced, 29, 30, Some(camps[1].site)),
+        site(Zone::Frost, 60, 60, Some(camps[2].site)),
+    ];
+    relabel_sites(&sites, &camps, &mut grid);
+    for (i, &label) in grid.iter().enumerate() {
+        let (x, y) = ((i % w) as i32, (i / w) as i32);
+        let want = if (60..64).contains(&x) && (60..63).contains(&y) {
+            3
+        } else if (29..33).contains(&x) && (30..33).contains(&y) {
+            2
+        } else {
+            7
+        };
+        assert_eq!(label, want, "({x}, {y})");
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

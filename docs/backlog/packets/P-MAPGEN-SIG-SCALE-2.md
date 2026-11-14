@@ -6,13 +6,13 @@
   (P-MAPGEN-SIG-SCALE-1, the cave, is the worked example).
 - **Implementer tier:** implementer-opus (rh-sim mapgen: the Landmarks phase, the certifier's signature row)
 - **Reviewer:** reviewer-opus
-- **Integration base:** `feature/unity-rework` @ 2e51457dd (SCALE-1 and RESERVE-1 merged). **Rebased once
-  P-MAPGEN-STYLE-REFUSE-1 merges** (it lands before this implementation; see section 2).
+- **Integration base:** `feature/unity-rework` @ 2b1fcb638 (SCALE-1, RESERVE-1, STYLE-REFUSE-1, the wire's anchors
+  merged; rebased by the coordinator). Rebased again onto P-MAPGEN-SIG-SCALE-3 when that lands.
 - **D-rules touched:** D1: option off byte- and draw-identical (G8); no legacy counterpart (DEV-020) · D2 n/a · no sim
   tick, wire or content-hash change (the drawing is a `signature::Definition` field; `SIGNATURE_KINDS` and
   `DEFAULT_DEFINITION` are `NON_GAMEPLAY` rows of `tests/content.rs`) · D5/D6/D9 untouched.
-- **Status:** oracle written (2026-11-13, oracle author, Opus). **Two owner decisions are open before the full gate can
-  be green** ("What the owner must decide").
+- **Status:** oracle written and the five old-church tests amended (2026-11-13, oracle author, Opus). **One owner
+  decision is open before the full gate can be green**: the lane fence share ("What the owner must decide", 1).
 
 ## What the owner must decide (oracle author, 2026-11-13; measured with a throwaway prototype on this branch's base)
 
@@ -24,23 +24,29 @@
    about 0.55: the drop is the box, not a lanes fault. Every other test of that file stays green
    (`every_seed_keeps_its_lanes`, floor 0.3, included). The bound is the owner's: lower it, count the churchyard
    fence in the share, or accept the test red. This oracle does not change it.
-2. **Five existing tests pin the old church and must be amended** (owner/coordinator approval; not edited here). Under
-   the prototype exactly these fail, everything else in the nine `mapgen_signature_*`/`mapgen_land_sentenced` targets
-   passes:
-   - `crates/rh-sim/tests/mapgen_signature_core.rs` `shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front`
-     ("seed 1: footprint is not the church's box": it pins footprint == `Church` box, door on the footprint edge and
-     "door shut seals the camp"). Proposed: drop it; the new oracle's tests (i)-(iv) cover the church.
-   - same file, `shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap` ("seed 1: stone tile (5, 16) is
-     not wall": the churchyard fence is LOW). Proposed: drop it; blueprint equality covers the graveyard.
-   - same file, `g3_the_finished_map_carries_the_zone_anchors` ("seed 1: Sentenced footprint": it asserts
-     `footprint == Church bbox`). Proposed: for the Sentenced anchor compare with the union of the `Church` and
-     `Graveyard` boxes (agreed guard (iii)); the rest unchanged.
-   - `crates/rh-sim/tests/mapgen_signature_scale.rs` `the_other_three_landmarks_are_unchanged` (its digest includes the
-     church). Proposed: drop the church from that digest, or retire it in favour of this oracle's
-     `the_other_three_landmarks_are_unchanged` (volcano, tree, cave), which the prototype keeps green.
-   - `crates/rh-sim/src/mapgen/landmarks/signature/mod.rs` unit test `only_the_frost_sites_tiles_take_its_camps_label`
-     (it asserts a Sentenced site is NOT relabelled). It is in this packet's write scope; the implementer amends it to
-     "the Frost and the Sentenced sites take their camps' labels" (approval asked here because it is an existing test).
+2. **Five existing tests pinned the old church: amended** (approved by the landmark lane through the coordinator,
+   2026-11-13; commits `stub: ... relabel_sites public` and `oracle: ... amend the tests that pin the rule-drawn
+   church`). Each now holds what is still true and not already in `mapgen_signature_church.rs`; all five are green on
+   the stub AND under the prototype (re-measured on base `2b1fcb638`):
+   - `mapgen_signature_core.rs` `shape_church_encloses_the_far_elite_camp_with_a_door_to_the_front`: the box is the
+     `Church` feature's (no longer the footprint) and the door is read as the lanes read it (new helper `church_door`:
+     unowned floor on the `Church` box's door-side edge, exactly 3, one run), not from the entrance. Kept: church tiles
+     wall, the camp's clearing strictly inside, the front, the door joins the first spawn, the door shut seals the camp.
+   - same file, `shape_graveyard_headstones_are_mirrored_about_the_door_at_one_gap`: the graveyard's tiles are wall
+     (headstones) or LOW (fence); the stone checks run on its wall tiles; the door frame comes from `church_door`.
+     (`door_frame`, which read the entrance, is replaced by `church_door`.) The one gap is 5 with the blueprint.
+   - same file, `g3_the_finished_map_carries_the_zone_anchors`: for the church only, the footprint must hold the
+     `Church` box (the exact union is guard (iii) here); the tree and the hall lines are untouched.
+   - `mapgen_signature_scale.rs` `the_other_three_landmarks_are_unchanged`: the church and its graveyard (and the
+     Sentenced anchor) left `others_digest`; the 16 digests re-pinned on the stub (the volcano and the tree; equal
+     under the prototype). Name kept to keep SCALE-3's rebase small.
+   - `signature/mod.rs` unit test `only_the_frost_sites_tiles_take_its_camps_label`: moved. Its labelling part is now
+     `relabel_sites_labels_the_frost_and_the_sentenced_sites` in this oracle (red on the stub); `relabel_sites` was
+     made public for it (stub commit). The unit test keeps only the `stray_camp` predicate, renamed
+     `stray_camp_finds_a_second_camp_in_the_site`; the implementer need not touch it.
+   - **Rebase note for SCALE-3 (bog tree):** both branches re-pin `pinned_others` in `mapgen_signature_scale.rs` and
+     the tree moves under SCALE-3, so after the rebase re-measure both that table and this file's `pinned_others`
+     (volcano, tree, cave) on the rebased stub.
 
 ## 1. ID and outcome
 
@@ -82,19 +88,20 @@ front (toward the coliseum) at the bottom. Character by character:
 
 ## 2. Dependencies
 
-- P-MAPGEN-SIG-RESERVE-1, P-MAPGEN-SIG-SCALE-1: merged (in the base).
-- P-MAPGEN-STYLE-REFUSE-1 (unmerged; `packet/P-MAPGEN-STYLE-REFUSE-1`): lands first. It turns the lanes' unreadable
-  door into a refused attempt and adds `tests/mapgen_style_refusal.rs`, whose guard pins that today's landmarks are
-  never refused round on seeds 1-32. This branch is rebased on it once it merges; this packet touches
-  `pipeline/mod.rs` not at all (the relabel call is already there, `pipeline/mod.rs:363`), so the rebase is clean.
-  Re-run that guard after the rebase: with the blueprint the lanes' door read must still never fail (guards (i)-(ii)).
+- P-MAPGEN-SIG-RESERVE-1, P-MAPGEN-SIG-SCALE-1, P-MAPGEN-STYLE-REFUSE-1: merged (in the base). This packet touches
+  `pipeline/mod.rs` not at all (the relabel call is already there, `pipeline/mod.rs:363`).
+- P-MAPGEN-SIG-SCALE-3 (bog tree) lands first; see the rebase note under "What the owner must decide", 2.
+- Guards from the base that must stay green as written (all green under the prototype on `2b1fcb638`):
+  `mapgen_style_refusal.rs` `todays_landmarks_are_never_refused_round_on_seeds_1_to_32` (prototype: 28 refusals, 0
+  `StyleLandmark`, with decor off and on); `crates/rh-server/tests/map_anchor_seeds.rs`
+  `every_landmark_anchor_on_seeds_1_to_8_is_one_the_wire_accepts`.
 
 ## 3. Relevant legacy paths
 
 None: no legacy counterpart (DEV-020; legacy has no church). The code this packet changes:
 `signature/church.rs:33-228` (`place`, today's rule-drawn church; with `camp` it becomes the blueprint),
 `signature/mod.rs:134,194` (`church_grid`), `:220` (`relabelled_zones`), `:670-683` (`finish`), `:722` (`intact`),
-`:1048` (the relabel unit test); `certify/rules.rs:196` (`Graveyard` row). Read, not changed:
+`certify/rules.rs:196` (`Graveyard` row). Read, not changed:
 `style_gallows/lanes.rs:73-125` (`frame`), `signature/cave.rs:89-228` (the cave's `Blueprint` and placement, the
 pattern to copy or share).
 
@@ -107,7 +114,7 @@ pattern to copy or share).
 
 - `crates/rh-sim/src/mapgen/landmarks/signature/church.rs` (the blueprint placement)
 - `crates/rh-sim/src/mapgen/landmarks/signature/mod.rs` (`church_grid = include_str!("church.txt")`, parsing, the
-  relabel list, `finish`, `intact`, the unit test above)
+  relabel list, `finish`, `intact`)
 - `crates/rh-sim/src/mapgen/landmarks/signature/cave.rs` only to share the cave's `Blueprint` parser/`land`
   (optional; the cave's behaviour must not move)
 - `crates/rh-sim/src/mapgen/certify/rules.rs`: the `Graveyard` row of `SIGNATURE_KINDS` only
@@ -115,8 +122,7 @@ pattern to copy or share).
 - `docs/adr/0028-signature-landmarks.md` (decision 5 rewritten for the blueprint; G9's "not yet built" note; decision
   12's relabel sentence)
 - Not in scope: `style_gallows/` (the lanes need no change: under the prototype they read the door on every seed),
-  `pipeline/mod.rs`, `crates/rh-mapdress/**` (the coordinator re-pins its digests at merge), every test file except
-  the unit test named above.
+  `pipeline/mod.rs`, `crates/rh-mapdress/**` (the coordinator re-pins its digests at merge), every test file.
 
 ## 6. Contracts and references
 
@@ -133,20 +139,23 @@ collections; the signature stream only); `tests/content.rs` (no new `const`; the
 
 ## 8. Acceptance checks
 
-- `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_church` green (6 tests red on the
-  oracle commit).
-- Every other `mapgen_signature_*` target and `mapgen_land_sentenced` green, except the tests listed under "What the
-  owner must decide" until the owner rules.
+- `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_church` green (7 tests red on the
+  oracle commits).
+- Every other `mapgen_signature_*` target, `mapgen_style_refusal`, `rh-server --test map_anchor_seeds` and
+  `mapgen_land_sentenced` green, except `lane_fence_share_stays_near_option_off` until the owner rules.
 - `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-SCALE-2`.
 - The ignored `report_seeds_1_to_64` quoted in the hand-off.
 
 ## Oracle files (read-only for implementers)
 
 - `crates/rh-sim/tests/mapgen_signature_church.rs`
+- `crates/rh-sim/tests/mapgen_signature_core.rs` (three tests amended, `church_door` replaces `door_frame`)
+- `crates/rh-sim/tests/mapgen_signature_scale.rs` (`the_other_three_landmarks_are_unchanged` and its digest amended)
 - `docs/backlog/packets/P-MAPGEN-SIG-SCALE-2.md`
-- The stub commit's files are the implementer's: `signature/mod.rs` (the empty `church_grid` must become
-  `include_str!("church.txt")`; `relabelled_zones` is public so the oracle can read it) and `signature/church.txt`
-  (must stay byte-equal to the docs).
+- The stub commits' files are the implementer's: `signature/mod.rs` (the empty `church_grid` must become
+  `include_str!("church.txt")`; `relabelled_zones` and `relabel_sites` are public so the oracle can call them; the
+  unit test `stray_camp_finds_a_second_camp_in_the_site` stays as it is) and `signature/church.txt` (must stay
+  byte-equal to the docs).
 
 ## The oracle (`crates/rh-sim/tests/mapgen_signature_church.rs`, seeds 1-32, first accepted attempt)
 
@@ -160,6 +169,8 @@ Red on the oracle commit (assertions):
   box inside the inner rect, front.
 - `every_front_direction_occurs`: the directions used are the sites' front axes (at least two).
 - `the_sentenced_site_is_relabelled_with_the_frost_site`: `relabelled_zones()` is the Sentenced and Frost sites.
+- `relabel_sites_labels_the_frost_and_the_sentenced_sites` (moved from the unit test): on synthetic sites, every tile of
+  a Frost or Sentenced site with a camp takes that camp's label; nothing else moves.
 
 Guards (green on the oracle commit and under the prototype): `the_elite_camp_stands_at_the_anchor_and_its_halo_is_free`,
 `every_zone_keeps_its_landmark_and_every_map_certifies_clean`, `no_landmark_stands_in_another_landmarks_apron`,
@@ -175,14 +186,25 @@ lanes' share (owner decision 1).
 The prototype (about 180 changed lines): `church::place` with `camp` placed the drawing as in section 1 (its own
 parser; main-gate doorway checked with `Site::open`), `finish` took the union of the `Church` and `Graveyard` boxes,
 `intact` and the `Graveyard` certifier row accepted LOW fence, `relabelled_zones` = Sentenced and Frost. The oracle
-file passed in full under it (13 tests).
+file passed in full under it (13 tests; 14 with the moved relabel test, re-run on `2b1fcb638`).
 
 | run | attempts 1-32 | worst 1-32 | attempts 1-64 | worst 1-64 | seeds without a map |
 |---|---|---|---|---|---|
 | today (cave + lanes merged; hand-over) | 59 | 4 | 132 | 9 | 0 |
 | **blueprint church + Sentenced relabel (prototype)** | **60** | **5** (seed 32) | **140** | **7** (seed 33) | 0 |
+| stub on base `2b1fcb638` (re-measured) | 59 | 4 (seed 14) | 132 | 9 (seed 33) | 0 |
+| prototype on base `2b1fcb638` (re-applied) | 60 | 5 (seed 32) | 140 | 7 (seed 33) | 0 |
 
-- Refusals (1-64): `SignatureDiscarded` 50, `Prefix` 12, `Repair(RadiusPost)` 9, `SpawnRatio` 5, `Signature` 0.
+The base moved nothing: the bounds (70, 7) stand.
+
+- Refusals (1-64): `SignatureDiscarded` 50, `Prefix` 12, `Repair(RadiusPost)` 9, `SpawnRatio` 5, `Signature` 0
+  (stub: `SignatureDiscarded` 48, `Prefix` 12, `Repair(RadiusPost)` 8).
+- **The Unity art's reading, checked on seeds 1-32 under the prototype** (a throwaway probe): in every footprint the
+  largest 8-connected wall group is the building (91 tiles) and its box is the `Church` box; its border's only non-wall
+  tiles are the three door tiles, off the corners; the other wall groups are eight of 6 tiles. **Correction to the
+  coordinator's note:** those eight are the four headstones and only four of the eight pillar blocks (columns 8-9 and
+  19-20). The pillar blocks at columns 4-5 and 23-24 touch the side walls (rows 6-8 and 11-13) and are part of the
+  building's group (67 wall + 24 pillar tiles = 91). The art must not expect eight separate pillar groups.
 - Box 29 x 29 on every seed, offsets as section 1. Fronts seen: all four directions.
 - Lanes: see owner decision 1 (0.529 against 0.6; 23.4 % of today's lane fence lies in the box plus apron).
 - The relabel alone was not measured without the church (the cave's history says it is needed: 396 to 132 attempts).
@@ -219,6 +241,8 @@ file passed in full under it (13 tests).
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_church`
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_land_sentenced --test mapgen_signature_core --test mapgen_signature_scale --test mapgen_signature_aprons --test mapgen_signature_reserve --test mapgen_signature_frost --test mapgen_signature_frost_lake --test mapgen_signature_fire --test mapgen_signature_fire_bands`
 - `cargo test -p rh-sim --features trusted-status-probes --lib signature`
+- `cargo test -p rh-sim --features trusted-status-probes --test mapgen_style_refusal -- --nocapture`
+- `cargo test -p rh-server --test map_anchor_seeds`
 - `cargo test -p rh-sim --features trusted-status-probes --test mapgen_signature_church -- --ignored --nocapture report_seeds_1_to_64`
 - `cargo test -p rh-sim --test content`
 - `scripts/gate.sh --quick --oracle packet/P-MAPGEN-SIG-SCALE-2`
