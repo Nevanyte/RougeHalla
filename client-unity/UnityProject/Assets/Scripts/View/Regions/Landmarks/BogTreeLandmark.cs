@@ -27,9 +27,21 @@ namespace Roguehalla.Client
         public const string CrownName = "Bog tree canopy";
         const int Ppt = 16;                                       // texture pixels per tile
         const float Sq = ArenaView.GroundSquash;
-        const float RootH = .72f, BoleH = 1.75f;                   // world units; RootH clears the wall blocks (face .67)
+        const float RootH = .72f, BoleH = 3.3f;                    // world units; RootH clears the wall blocks (face .67); the bole stands 3.3 tall
+        const float BoleRise = 1.15f;                               // tiles of depth over which the flared root skirt turns into the steep column
+        const float BoleTilt = .22f;                                // how much higher the bole's top is on its north west side (units)
         const float Dz = .055f;
-        const int CanopyPpt = 8;                                  // the canopy is soft foliage: half the bark's resolution, bilinear
+        const int CanopyPpt = 12;                                 // the crown is soft foliage: bilinear, a little under the bark's resolution
+        const int ShadowPpt = 6;                                  // the ground shadow under the crown is soft: low resolution, bilinear
+        const string ShadowName = "Bog tree crown shadow";
+        // Looks-only numbers of the crown (docs/unity/DIALS.md rows bog-tree-*).
+        const float CrownLiftMargin = .35f;                       // the crown's bottom edge (moss included) above the trunk bounds' midpoint, units (test floor .25)
+        const float CrownTopGap = .6f;                            // the crown's top edge below the footprint's top edge, units
+        const float CrownMossLength = 1.1f;                       // longest hanging moss strand, units
+        const float CrownShape = 2.6f;                            // superellipse exponent of the crown's outline (2 = ellipse, higher = boxier)
+        const float CrownGapAmount = .58f;                        // the noise level above which the crown has a gap (lower = more sky); range .5 to .68
+        const float ShadowAlpha = .36f;                           // darkest the ground shadow gets under the crown; range .2 to .5
+        const float KneeRise = .75f;                              // how far a cypress knee stands above the root height, units
         const int CoverRadiusSquared = 9;
         static readonly Color Ink = new Color(.05f, .05f, .04f);
 
@@ -42,8 +54,13 @@ namespace Roguehalla.Client
             var tiles = new List<MapTile>();
             for (int y = 0; y < g.H; y++) for (int x = 0; x < g.W; x++) if (cover[y * g.W + x]) tiles.Add(new MapTile((ushort)(lm.FootX + x), (ushort)(lm.FootY + y)));
             lm.SetCover(tiles);
-            for (int k = 0; k < g.Groups; k++) PaintBark(lm, g, new Field(g, k), k == 0 ? TrunkName : StumpName, k != 0);
-            PaintCanopy(lm, g, cover);
+            var trunk = Vector2.zero;
+            for (int k = 0; k < g.Groups; k++)
+            {
+                var span = PaintBark(lm, g, new Field(g, k), k == 0 ? TrunkName : StumpName, k != 0);
+                if (k == 0) trunk = span;
+            }
+            PaintCanopy(lm, g, cover, tiles, trunk);
         }
 
         // ---- the tiles of the footprint, read once --------------------------------------------------------------------------------
@@ -144,11 +161,15 @@ namespace Roguehalla.Client
 
             float TileHeight(int x, int y, float d)
             {
-                if (Stump)                                       // a broken stump: low, the top uneven
-                    return RootH + .06f + .26f * RegionNoise.Hash01(x + 31 * Id, y, 41);
-                float s0 = Smooth((d - 1.2f) / Mathf.Max(.5f, MaxDepth - 2.4f));
+                if (Stump)                                       // a cypress knee: a rounded cone, the middle of the clump highest
+                {
+                    float core = Smooth((d - 1f) / Mathf.Max(1f, MaxDepth - 1f));
+                    return RootH + .08f + KneeRise * (.35f + .65f * core) * (.7f + .5f * RegionNoise.Hash01(x + 31 * Id, y, 41));
+                }
+                // the root skirt (the flare) first, then a steep fluted column that stands BoleH tall, a little higher to the north west
+                float s0 = Smooth((d - 1.2f) / BoleRise);
                 float nw = Mathf.Clamp(((Cu - (x + .5f)) + (Cv - (y + .5f))) / Mathf.Max(1f, MaxDepth), -1f, 1f);
-                float h = RootH + .12f * Mathf.Clamp01((d - 1f) / 1.5f) + (BoleH - RootH - .12f) * Mathf.Pow(s0, .6f) + .3f * s0 * nw;
+                float h = RootH + .16f * Mathf.Clamp01((d - 1f) / 1.2f) + (BoleH - RootH - .16f - BoleTilt) * Mathf.Pow(s0, .75f) + BoleTilt * s0 * (.5f + .5f * nw);
                 return Mathf.Max(RootH, h);
             }
 
@@ -207,7 +228,8 @@ namespace Roguehalla.Client
 
         // ---- the bark: one height field, marched pixel by pixel ----------------------------------------------------------------------------
 
-        static void PaintBark(Landmark lm, Grid g, Field f, string name, bool stump)
+        /// <summary>Paints one group's bark strips; returns the lowest and highest screen height (footprint-local, 0 = the footprint's top edge) any strip covers.</summary>
+        static Vector2 PaintBark(Landmark lm, Grid g, Field f, string name, bool stump)
         {
             var theme = RegionThemes.Get(RegionId.Plague);
             var pal = new Palette(theme);
@@ -262,6 +284,7 @@ namespace Roguehalla.Client
                 int r = rowOf[j * W + i] - r0; if (r < 0 || r >= rows) continue;
                 bia[r] = Mathf.Min(bia[r], i); bib[r] = Mathf.Max(bib[r], i); bja[r] = Mathf.Min(bja[r], j); bjb[r] = Mathf.Max(bjb[r], j);
             }
+            float lowS = float.MaxValue, highS = float.MinValue;
             for (int rr = 0; rr < rows; rr++)
             {
                 if (bib[rr] < 0) continue;
@@ -271,7 +294,9 @@ namespace Roguehalla.Client
                 var tex = NewTexture(lm, sw, sh, name + " row " + r); tex.SetPixels32(sp); tex.Apply(false, false);   // readable: the marsh test samples the bark
                 NewSprite(lm, parent.transform, tex, name + " strip", new Vector3(lm.FootX + c0 + ia / (float)Ppt, -lm.FootY * Sq + sBottom + ja / (float)Ppt, 0),
                     2000 + 16 * (lm.FootY + r) + 1);
+                lowS = Mathf.Min(lowS, sBottom + ja / (float)Ppt); highS = Mathf.Max(highS, sBottom + (jb + 1) / (float)Ppt);
             }
+            return new Vector2(lowS, highS);
         }
 
         /// <summary>Whether pixel (i, j) belongs to the strip of tile row r: its own pixels, and one pixel of the strips next to it so no hairline shows.</summary>
@@ -288,11 +313,11 @@ namespace Roguehalla.Client
             public readonly Color Dark, Mid, Light, Moss, MossLit, Wood, WoodDark;
             public Palette(RegionTheme theme)
             {
-                Dark = Color.Lerp(new Color(.09f, .07f, .06f), theme.WallFace, .12f);
-                Mid = Color.Lerp(new Color(.27f, .21f, .15f), theme.WallFace, .12f);
-                Light = Color.Lerp(new Color(.46f, .39f, .28f), theme.WallTop, .12f);
-                Moss = new Color(.22f, .34f, .12f); MossLit = new Color(.42f, .52f, .20f);
-                Wood = new Color(.60f, .48f, .30f); WoodDark = new Color(.35f, .26f, .16f);
+                Dark = Color.Lerp(new Color(.16f, .14f, .12f), theme.WallFace, .1f);
+                Mid = Color.Lerp(new Color(.40f, .35f, .29f), theme.WallFace, .1f);
+                Light = Color.Lerp(new Color(.66f, .60f, .50f), theme.WallTop, .1f);
+                Moss = new Color(.30f, .38f, .20f); MossLit = new Color(.52f, .60f, .34f);
+                Wood = new Color(.66f, .56f, .40f); WoodDark = new Color(.40f, .32f, .22f);
             }
         }
 
@@ -319,94 +344,135 @@ namespace Roguehalla.Client
                 k *= .62f + .55f * SmoothStep(.1f, .65f, grain);
                 k += (RegionNoise.Periodic(u * 21f, s * 21f, 61, 5) - .5f) * .1f;
                 c = new Color(c.r * k, c.g * k, c.b * k);
-                if (stump)                                        // the broken top: pale wood with rings, bark kept at the rim
+                if (stump)                                        // a knee's tip: weathered pale wood, bark kept lower down
                 {
-                    float cu = u - (f.MinX + f.MaxX + 1) * .5f, cv = v - (f.MinY + f.MaxY + 1) * .5f, r = Mathf.Sqrt(cu * cu + cv * cv * 1.2f);
-                    float ring = .5f + .5f * Mathf.Sin(r * 13f + RegionNoise.Periodic(u * 2f, v * 2f, 61, 3) * 3f);
-                    Color wood = Color.Lerp(pal.WoodDark, pal.Wood, .45f + .45f * ring) * (.8f + .35f * lit + .15f * (RegionNoise.Periodic(u * 9f, v * 9f, 61, 8) - .5f));
-                    float rim = SmoothStep(.12f, .26f, f.EdgeDist(u, v)); wood.a = 1f;
-                    c = Color.Lerp(c, wood, rim * .9f);
+                    Color wood = Color.Lerp(pal.WoodDark, pal.Wood, .5f + .5f * lit) * (.85f + .3f * (RegionNoise.Periodic(u * 9f, v * 9f, 61, 8) - .5f)); wood.a = 1f;
+                    c = Color.Lerp(c, wood, SmoothStep(.45f, .9f, (h - RootH) / KneeRise) * .75f);
                 }
                 float moss = SmoothStep(.66f, .84f, RegionNoise.Periodic(u * 1.3f, v * 1.3f, 61, 13) * .6f + RegionNoise.Periodic(u * 3.3f, v * 3.3f, 61, 17) * .4f
                     + .1f + (1f - sb) * .14f - (stump ? .12f : 0f));
                 if (moss > 0f) c = Color.Lerp(c, Color.Lerp(pal.Moss, pal.MossLit, Mathf.Clamp01(.3f + lit * .5f)) * (.75f + .35f * k), moss * .8f);
                 float ed = f.EdgeDist(u, v); if (ed < .07f) c = Color.Lerp(Ink, c, ed / .07f);
             }
-            else                                                  // the south face: darker, wet, mossy at the foot
+            else                                                  // the south face: fluted, lit on its west side, wet and mossy at the foot
             {
                 float zk = Mathf.Clamp01(z / Mathf.Max(.3f, h));
-                float grain = RegionNoise.PeriodicXY(u * 9f, z * .9f, 61, 61, 21);
-                float k = (.36f + .45f * zk) * (.65f + .5f * SmoothStep(.1f, .7f, grain));
-                c = Color.Lerp(pal.Dark, pal.Mid, Mathf.Clamp01(k * 1.4f)); c = new Color(c.r * (.7f + k), c.g * (.7f + k), c.b * (.7f + k));
+                float side = stump ? 0f : Mathf.Clamp((f.Cu - u) / Mathf.Max(2f, f.MaxDepth - 1f), -1f, 1f);          // + on the west flank
+                float warp = (RegionNoise.Periodic(u * 1.1f, z * .5f, 61, 27) - .5f) * .9f;
+                float grain = RegionNoise.PeriodicXY(u * 4.2f + warp, z * .45f, 61, 61, 21);
+                float rough = RegionNoise.PeriodicXY(u * 13f, z * 3.2f, 61, 61, 22);
+                float k = (.42f + .5f * zk + .3f * side) * (.62f + .55f * SmoothStep(.15f, .75f, grain)) * (.9f + .2f * rough);
+                c = Color.Lerp(pal.Dark, pal.Light, Mathf.Clamp01(k * .95f)); c = new Color(c.r * (.75f + k * .5f), c.g * (.75f + k * .5f), c.b * (.75f + k * .5f));
                 float foot = Mathf.Clamp01(1f - z / .28f) * (.55f + .6f * RegionNoise.Periodic(u * 4f, z * 4f, 61, 23));
                 c = Color.Lerp(c, pal.Moss * .9f, Mathf.Clamp01(foot) * .85f);
+                float patch = SmoothStep(.7f, .88f, RegionNoise.Periodic(u * 2.4f, z * 1.2f, 61, 29));          // a few mossy patches up the column
+                c = Color.Lerp(c, pal.Moss * (.8f + .3f * k), patch * .55f * (1f - zk * .5f));
                 if (z < .035f) c = Color.Lerp(c, Ink, .5f);
-                float fu = u - Mathf.Floor(u); if (fu < .04f || fu > .96f) c = Color.Lerp(c, Ink, .35f);
+                float fu = u - Mathf.Floor(u); if (fu < .04f || fu > .96f) c = Color.Lerp(c, Ink, .2f);
             }
             Color32 o = c; o.a = 255; return o;
         }
 
-        // ---- the canopy -------------------------------------------------------------------------------------------------------------------------
+        // ---- the crown (lifted, with gaps) and the shadow it throws on the ground -----------------------------------------------------------
 
-        static void PaintCanopy(Landmark lm, Grid g, bool[] cover)
+        /// <summary>The crown is one sprite in screen space, not on the ground: a flat topped cypress cloud above the bole, its bottom edge (moss included)
+        /// above the middle of the trunk's drawn height, its top just under the footprint's top edge. It spans the cover's width. Gaps (the sky-lit ground
+        /// shows through) are transparent and enclosed. It fades for every tile it paints over (Landmark.SetFadeTiles, the cover included); a soft shadow on
+        /// the cover tiles (a second roof piece) keeps the roof layer reaching the whole cover.</summary>
+        static void PaintCanopy(Landmark lm, Grid g, bool[] cover, List<MapTile> coverTiles, Vector2 trunk)
         {
             int minX = g.W, maxX = -1, minY = g.H, maxY = -1;
             for (int y = 0; y < g.H; y++) for (int x = 0; x < g.W; x++) if (cover[y * g.W + x]) { minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x); minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y); }
             if (maxX < 0) return;
-            const float Thick = .4f, North = .45f, Side = .33f;   // the crown reaches the cover's outline and no further: .35 units north, a third of a tile east and west
-            const float lift = 0f;
-            float u0 = Mathf.Max(0f, minX - .5f), u1 = Mathf.Min(g.W, maxX + 1.5f);
-            float sB = Mathf.Max(-g.H * Sq, -(maxY + 1) * Sq), sT = Mathf.Min(0f, -minY * Sq + lift + Thick + .5f);
+            float u0 = minX, u1 = maxX + 1f, uc = (u0 + u1) * .5f, halfW = (u1 - u0) * .5f;
+            float sT = -CrownTopGap, sB = (trunk.x + trunk.y) * .5f + CrownLiftMargin;
+            float sR = Mathf.Min(sB + CrownMossLength, sT - 2.5f);          // the body's lowest edge; the moss hangs from it down to sB
+            float sMid = (sR + sT) * .5f, halfH = (sT - sR) * .5f;
             int W = Mathf.CeilToInt((u1 - u0) * CanopyPpt), H = Mathf.CeilToInt((sT - sB) * CanopyPpt);
-            var px = new Color32[W * H]; Color32 clear = new Color32(30, 50, 24, 0);
-            var alpha = new bool[W * H];
-            Color gap = new Color(.06f, .12f, .06f), dark = new Color(.13f, .23f, .09f), mid = new Color(.26f, .40f, .13f), light = new Color(.50f, .61f, .24f), sick = new Color(.56f, .56f, .20f);
+            var px = new Color32[W * H]; Color32 clear = new Color32(60, 90, 30, 0);
+            var body = new bool[W * H];
+            Color dark = new Color(.27f, .44f, .15f), mid = new Color(.50f, .70f, .22f), light = new Color(.72f, .90f, .36f), sun = new Color(.86f, .96f, .52f), under = new Color(.17f, .30f, .12f);
             for (int j = 0; j < H; j++)
             {
                 float s = sB + (j + .5f) / CanopyPpt;
                 for (int i = 0; i < W; i++)
                 {
-                    float u = u0 + (i + .5f) / CanopyPpt;
-                    float su = u, sv = -s / Sq;
-                    if (!(Cov(g, cover, u, sv) || Cov(g, cover, u - Side, sv) || Cov(g, cover, u + Side, sv) || Cov(g, cover, u, sv + North))) { px[j * W + i] = clear; continue; }
-                    float wx = (RegionNoise.Periodic(su * 1.3f, sv * 1.3f, 61, 51) - .5f) * .9f, wy = (RegionNoise.Periodic(su * 1.3f, sv * 1.3f, 61, 52) - .5f) * .9f;
-                    float qx = (su + wx) * .62f, qy = (sv + wy) * .62f, f1, edge, id;
-                    RegionNoise.Worley(Mathf.Repeat(qx, 64f) / 64f, Mathf.Repeat(qy, 64f) / 64f, 64, 3, out f1, out edge, out id);
-                    float wob = RegionNoise.Periodic(u * 1.7f, -s / Sq * 1.7f, 61, 77);
-                    float clump = (id - .5f) * .5f + (wob - .5f) * .6f + (RegionNoise.Periodic(u * 5f, sv * 5f, 61, 78) - .5f) * .16f;
-                    bool upper = Density(g, cover, u, (lift + Thick - s) / Sq) + clump > .46f, lower = upper || Density(g, cover, u, (lift - s) / Sq) + clump > .46f;
-                    if (!lower) { px[j * W + i] = clear; continue; }
-                    float f1b, e2, i2; RegionNoise.Worley(Mathf.Repeat(qx + .1f, 64f) / 64f, Mathf.Repeat(qy + .1f, 64f) / 64f, 64, 3, out f1b, out e2, out i2);
-                    float lt = Mathf.Clamp((f1 - f1b) * 7f, -1f, 1f);
-                    float f2, ed2, id2; RegionNoise.Worley(Mathf.Repeat(su * 2.3f, 64f) / 64f, Mathf.Repeat(sv * 2.3f, 64f) / 64f, 64, 9, out f2, out ed2, out id2);
-                    float leaf = RegionNoise.Periodic(u * 14f, sv * 14f, 61, 19);
-                    Color c = Color.Lerp(dark, mid, Smooth(1.15f - f1 * 1.5f));
-                    c = Color.Lerp(c, light, Mathf.Clamp01(lt * .9f + (.6f - f1) * .45f) * .8f);
-                    c = Color.Lerp(c, c * .72f, SmoothStep(.12f, .0f, ed2) * .7f);                    // sub-clump creases
-                    c = Color.Lerp(c, light, SmoothStep(.62f, .82f, leaf) * .22f);                    // leaf flecks
-                    c = Color.Lerp(c, sick, SmoothStep(.55f, .8f, RegionNoise.Periodic(u * .9f, -s / Sq * .9f, 61, 91)) * .5f);
-                    c = Color.Lerp(gap, c, SmoothStep(.0f, .1f, edge) * .8f + .2f * SmoothStep(.0f, .2f, edge));
-                    if (!upper) c = Color.Lerp(gap, c * .8f, .45f);         // the crown's underside, darker along its south rim
-                    Color32 o = c; o.a = 255; px[j * W + i] = o; alpha[j * W + i] = true;
+                    px[j * W + i] = clear;
+                    if (s < sR) continue;
+                    float u = u0 + (i + .5f) / CanopyPpt, x = (u - uc) / halfW, y = (s - sMid) / halfH;
+                    float r = Mathf.Pow(Mathf.Pow(Mathf.Abs(x), CrownShape) + Mathf.Pow(Mathf.Abs(y), CrownShape), 1f / CrownShape);
+                    r += (RegionNoise.Periodic(u * 2.1f, s * 4.4f, 61, 31) - .5f) * .2f + (RegionNoise.Periodic(u * 9f, s * 21f, 61, 32) - .5f) * .1f;   // lobes, then feathers
+                    if (r >= 1f) continue;
+                    float hn = RegionNoise.Periodic(u * .8f, s * 1.9f, 61, 41) * .62f + RegionNoise.Periodic(u * 2.4f, s * 5.4f, 61, 42) * .38f;
+                    if (hn > CrownGapAmount && r < .82f && r > .1f) continue;     // a gap: enclosed, so the rim stays whole
+                    float t = Mathf.Clamp01((s - sR) / (sT - sR));              // 0 at the crown's bottom, 1 at its top
+                    float f1, edge, id; RegionNoise.Worley(Mathf.Repeat(u * .55f, 64f) / 64f, Mathf.Repeat(s * .75f, 64f) / 64f, 64, 3, out f1, out edge, out id);
+                    float f1b, e2, i2; RegionNoise.Worley(Mathf.Repeat(u * .55f - .09f, 64f) / 64f, Mathf.Repeat(s * .75f + .09f, 64f) / 64f, 64, 3, out f1b, out e2, out i2);
+                    float lt = Mathf.Clamp((f1b - f1) * 6f, -1f, 1f);           // lit on the clump's north west side
+                    float frond = RegionNoise.PeriodicXY(u * 7f, s * 26f, 61, 61, 19);   // horizontal sprays, the cypress's feathers
+                    Color c = Color.Lerp(dark, mid, Smooth(.5f + (id - .5f) * .7f + lt * .3f));
+                    c = Color.Lerp(c, light, Mathf.Clamp01(.15f + lt * .45f + (t - .35f) * .9f + (frond - .5f) * .5f));
+                    c = Color.Lerp(c, sun, SmoothStep(.62f, .86f, frond + (t - .5f) * .25f + lt * .1f) * .55f);
+                    c *= .92f + .16f * SmoothStep(.1f, .6f, edge);
+                    c = Color.Lerp(c, under, SmoothStep(.32f, .0f, t - .3f * (1f - Mathf.Clamp01(r * 1.2f))) * .55f);     // the underside of the cloud
+                    Color32 o = c; o.a = 255; px[j * W + i] = o; body[j * W + i] = true;
                 }
             }
-            for (int i = 0; i < W; i++)                                // hanging moss under the rim
+            for (int i = 0; i < W; i++)                                // grey-green Spanish moss hangs from every lower edge
             {
-                float lenKey = RegionNoise.Hash01(i / 2, 5, 33); if (lenKey < .5f) continue;
-                int len = 1 + Mathf.RoundToInt(lenKey * 2f), since = int.MaxValue;   // at most .4 units below the rim
-                for (int j = H - 1; j >= 0; j--)
+                float key = RegionNoise.Hash01(i / 2, 5, 33); if (key < .38f) continue;
+                for (int j = 1; j < H; j++)
                 {
-                    if (alpha[j * W + i]) { since = 0; continue; }
-                    if (since == int.MaxValue) continue;
-                    if (!Cov(g, cover, u0 + (i + .5f) / CanopyPpt, -(sB + (j + .5f) / CanopyPpt) / Sq)) { since = int.MaxValue; continue; }   // inside the cover's south edge
-                    since++; if (since > len) { since = int.MaxValue; continue; }
-                    Color m = Color.Lerp(new Color(.45f, .52f, .34f), new Color(.30f, .38f, .22f), since / (float)len); m.a = .95f - .4f * since / len;
-                    px[j * W + i] = m;
+                    if (!(body[j * W + i] && !body[(j - 1) * W + i])) continue;      // a pixel of the body with air below it
+                    float s = sB + (j + .5f) / CanopyPpt; if (s > sMid + .2f * halfH) continue;
+                    bool rim = j < (int)((sR - sB) * CanopyPpt) + 3;
+                    int len = Mathf.RoundToInt(CanopyPpt * CrownMossLength * (rim ? 1f : .4f) * (.2f + .8f * key)), n = 0;
+                    for (int k = j - 1; k >= 0 && n < len && !body[k * W + i]; k--, n++)
+                    {
+                        float f = n / (float)len;
+                        Color m = Color.Lerp(new Color(.64f, .70f, .55f), new Color(.46f, .55f, .40f), f); m.a = .96f - .45f * f;
+                        px[k * W + i] = m;
+                    }
                 }
             }
             var tex = NewTexture(lm, W, H, CrownName); tex.SetPixels32(px); tex.Apply(false, false);
             var sr = NewSprite(lm, lm.Root.transform, tex, CrownName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, CanopyPpt);
             lm.AddRoofRenderer(sr);
+            var fade = new HashSet<(int x, int y)>();                  // every tile the crown paints over: an actor there is hidden by it
+            for (int j = 0; j < H; j++) for (int i = 0; i < W; i++)
+            {
+                if (px[j * W + i].a < 100) continue;
+                fade.Add((Mathf.FloorToInt(u0 + (i + .5f) / CanopyPpt), Mathf.FloorToInt(-(sB + (j + .5f) / CanopyPpt) / Sq)));
+            }
+            var all = new List<MapTile>(coverTiles);
+            foreach (var t in fade) all.Add(new MapTile((ushort)(lm.FootX + t.x), (ushort)(lm.FootY + t.y)));
+            lm.SetFadeTiles(all);
+            PaintShadow(lm, g, cover, minX, maxX, minY, maxY);
+        }
+
+        /// <summary>The crown's shadow on the ground it hangs over: soft, dappled, only on cover tiles that are not the trunk's own. A second roof piece
+        /// (so it fades with the crown) that spans the whole cover, which keeps the roof layer reaching every cover tile.</summary>
+        static void PaintShadow(Landmark lm, Grid g, bool[] cover, int minX, int maxX, int minY, int maxY)
+        {
+            float u0 = minX, u1 = maxX + 1f, sB = -(maxY + 1) * Sq, sT = -minY * Sq;
+            int W = Mathf.CeilToInt((u1 - u0) * ShadowPpt), H = Mathf.CeilToInt((sT - sB) * ShadowPpt);
+            var px = new Color32[W * H]; Color32 clear = new Color32(10, 24, 12, 0);
+            for (int j = 0; j < H; j++)
+            {
+                float s = sB + (j + .5f) / ShadowPpt, v = -s / Sq;
+                for (int i = 0; i < W; i++)
+                {
+                    float u = u0 + (i + .5f) / ShadowPpt; px[j * W + i] = clear;
+                    float d = Density(g, cover, u, v);
+                    if (d <= .5f) continue;
+                    int tx = Mathf.FloorToInt(u), ty = Mathf.FloorToInt(v);
+                    if (tx >= 0 && ty >= 0 && tx < g.W && ty < g.H && g.Group[ty * g.W + tx] == 0) continue;     // never over the bark
+                    float a = ShadowAlpha * SmoothStep(.5f, .95f, d) * (1f - .85f * SmoothStep(.6f, .8f, RegionNoise.Periodic(u * 2.1f, v * 2.1f, 61, 47)));   // dappled
+                    Color32 o = new Color(.03f, .08f, .05f); o.a = (byte)Mathf.RoundToInt(255f * a); px[j * W + i] = o;
+                }
+            }
+            var tex = NewTexture(lm, W, H, ShadowName); tex.SetPixels32(px); tex.Apply(false, false);
+            lm.AddRoofRenderer(NewSprite(lm, lm.Root.transform, tex, ShadowName, new Vector3(lm.FootX + u0, -lm.FootY * Sq + sB, 0), 0, ShadowPpt));
         }
 
         /// <summary>The cover, smoothed between tile centres (0..1): about one half at a cover tile's edge.</summary>
