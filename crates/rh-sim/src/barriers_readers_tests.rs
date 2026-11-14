@@ -2,7 +2,8 @@
 //! zombie placement and hit line, the Frost bruiser passive's reach, Wind emblem spawns and pick-ups). Legacy: unreleased
 //! patch 78dd8bd4 makes `collisionMap(world)` (`packages/server/src/sim/world.ts:1079` there) carry the wall's tiles LOW, and
 //! these in-repo readers call it: `consumables.ts:107` (`useCannon`), `:159` and `:172` (`updateWindEmblems`),
-//! `plagueZombies.ts:25` (placement beside the owner) and `:138` (`canHit`), `bruiserPassives.ts:48` (`lockedElite`).
+//! `plagueZombies.ts:25` (placement beside the owner) and `:138` (`canHit`), `bruiserPassives.ts:48` (`lockedElite`),
+//! `factions.ts:424,437` (the signature's `inReach`) and `melee.ts:107` (a swing meeting a ball, `crossesArc`).
 //! A loose proof (owner direction 2026-11-10): one test per reader with the wall standing, and one guard per reader with
 //! the switch off (`FrostWish::Freeze`) pinning today's exact result.
 use super::*;
@@ -709,4 +710,168 @@ fn guard_switch_off_a_wind_emblem_in_reach_is_picked_up() {
     }
     assert!(emblems(&s).is_empty(), "today: taken");
     assert!(s.w.players[1].speed_boost_until > 0., "boosted");
+}
+
+// ---- 5. faction signature reach (legacy factions.ts:424,437: `inReach = d <= engageRange(weapon) &&
+// hasLineOfSight(collisionMap(world), c, t, reachMask(weapon))`) ----
+
+/// The Frost caster at (10, 10) with `weapon` and a Fire player at (440, 336), 104 u east (an axe's reach is
+/// 112 + 12); with `wish = Wall` the wall stands on column 12 between them. The caster's signature is set on the Fire
+/// player with a fresh contact, then one step runs (`signatures::before_damage` computes `in_reach`).
+fn signature_rig(wish: FrostWish, weapon: WeaponId) -> Sim {
+    let mut s = rig(
+        plague_config(wish),
+        open_room(),
+        &[
+            Seat {
+                faction: FactionId::Frost,
+                at: Vec2::new(tc(10), tc(10)),
+                weapon: Some(weapon),
+            },
+            seat(FactionId::Fire, Vec2::new(440., tc(10))),
+        ],
+    );
+    if wish == FrostWish::Wall {
+        raise_wall_at_column_12(&mut s, 0);
+    }
+    assert_eq!(pos(&s, 1), Vec2::new(440., tc(10)), "premise: not moved");
+    let target = id(&s, 1);
+    let now = s.server_time();
+    let sig = &mut s.w.players[0].core.signature;
+    sig.target = Some(target);
+    sig.contact_at = Some(now);
+    s.step();
+    assert_eq!(
+        s.w.players[0].core.signature.target,
+        Some(target),
+        "premise: the signature keeps its target"
+    );
+    s
+}
+
+#[test]
+fn a_melee_signature_is_not_in_reach_across_the_wall() {
+    let s = signature_rig(FrostWish::Wall, WeaponId::Axe);
+    let (from, to) = (pos(&s, 0), pos(&s, 1));
+    assert!(
+        with_body_map(&s, |m| !has_line_of_sight(m, from, to, MASK_MELEE)),
+        "premise: an axe swing does not cross the standing wall"
+    );
+    assert!(
+        !s.w.players[0].core.signature.in_reach,
+        "the signature's reach reads the wall as the swing does"
+    );
+}
+
+#[test]
+fn a_ranged_signature_still_reaches_over_the_wall() {
+    // reachMask(bow) is MASK_SIGHT: the wall does not stop it (legacy and today alike).
+    let s = signature_rig(FrostWish::Wall, WeaponId::Bow);
+    assert!(
+        s.w.players[0].core.signature.in_reach,
+        "a bow's reach passes over the ice"
+    );
+}
+
+#[test]
+fn guard_switch_off_a_melee_signature_is_in_reach() {
+    let s = signature_rig(FrostWish::Freeze, WeaponId::Axe);
+    assert!(
+        s.w.players[0].core.signature.in_reach,
+        "today: in reach and in line"
+    );
+}
+
+// ---- 6. a swing meeting a ball (legacy melee.ts:107 `crossesArc(collisionMap(world), ...)`: the raycast from the
+// swing's origin to each sample of the ball's sweep uses reachMask(weapon), MASK_MELEE for the axe and sword) ----
+
+/// The Frost caster at (10, 10) holds an axe swing east from the first step; a Fire wand at (24, 10) shoots west at it
+/// five steps later. Returns where and why the ball ended. With that timing (seeded and deterministic: the swing
+/// cadence and the ball's speed decide it) today's axe meets the ball at x 442, east of column 12 (x 384..416).
+fn ball_ends(wish: FrostWish) -> Vec<(Vec2, crate::ProjectileEnd)> {
+    let mut s = rig(
+        plague_config(wish),
+        open_room(),
+        &[
+            Seat {
+                faction: FactionId::Frost,
+                at: Vec2::new(tc(10), tc(10)),
+                weapon: Some(WeaponId::Axe),
+            },
+            Seat {
+                faction: FactionId::Fire,
+                at: Vec2::new(tc(24), tc(10)),
+                weapon: Some(WeaponId::Wand),
+            },
+        ],
+    );
+    if wish == FrostWish::Wall {
+        raise_wall_at_column_12(&mut s, 0);
+    }
+    submit(&mut s, 0, RawCommand::Attack { a: 0., t: None });
+    for _ in 0..5 {
+        s.step();
+    }
+    submit(
+        &mut s,
+        1,
+        RawCommand::Attack {
+            a: std::f64::consts::PI,
+            t: None,
+        },
+    );
+    let mut ev = Vec::new();
+    for _ in 0..40 {
+        s.step_into(&mut ev);
+    }
+    if wish == FrostWish::Wall {
+        assert_eq!(walls(&s), 1, "premise: the wall stood throughout");
+    }
+    ev.iter()
+        .filter_map(|e| match e {
+            Event::ProjectileEnded { at, reason, .. } => Some((*at, *reason)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_swing_does_not_meet_a_ball_across_the_wall() {
+    let ends = ball_ends(FrostWish::Wall);
+    assert_eq!(ends.len(), 1, "premise: one ball, ended: {ends:?}");
+    let (at, reason) = ends[0];
+    // Legacy: a sample of the sweep counts only if the ray from the swing's origin (x 336) to it is clear on
+    // collisionMap with MASK_MELEE; every point at x >= 384 is behind the wall's tile.
+    assert!(
+        !(reason == crate::ProjectileEnd::Destroyed && at.x >= 12. * TILE),
+        "the axe destroyed the ball across the ice at {at:?}"
+    );
+}
+
+#[test]
+fn guard_switch_off_a_swing_meets_the_ball_in_reach() {
+    let ends = ball_ends(FrostWish::Freeze);
+    assert_eq!(ends.len(), 1, "one ball: {ends:?}");
+    let (at, reason) = ends[0];
+    assert_eq!(
+        reason,
+        crate::ProjectileEnd::Destroyed,
+        "today: the axe meets it"
+    );
+    assert!(
+        (at.x - 442.).abs() < 1e-6 && at.y == tc(10),
+        "where today's swing meets it: {at:?}"
+    );
+}
+
+// ---- identities: this packet moves none (owner decision 2026-11-12: the wall's numbers enter content with the wire,
+// in P-FROST-WALL-2) ----
+
+#[test]
+fn guard_the_content_hash_does_not_move_in_this_packet() {
+    assert_eq!(
+        crate::content::content_hash(),
+        0x4674_a176_a28e_3c7a,
+        "P-FROST-WALL-1c moves no identity: the wall's numbers stay out of content until P-FROST-WALL-2"
+    );
 }
