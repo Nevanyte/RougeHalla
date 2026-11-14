@@ -453,7 +453,30 @@ fn mismatches(l: &Landed, o: Orientation) -> (usize, Option<String>, usize) {
     (bad, first, extra)
 }
 
-/// The one orientation under which the volcano equals the drawing, or a failed assertion naming the closest.
+/// The map tile and glyph every drawn (non-`.`) grid tile lands on under `o`, sorted: what "the landed tiles" of an
+/// orientation are.
+fn landed_tiles(l: &Landed, o: Orientation) -> Vec<(Cell, u8)> {
+    let (corner, _) = fire_site(l);
+    let mut out = Vec::new();
+    for (gy, row) in grid().iter().enumerate() {
+        for (gx, &ch) in row.iter().enumerate() {
+            if ch != b'.' {
+                let ch = if ch == b'O' || ch == b'~' { b'~' } else { b'#' };
+                out.push((place(o, corner, (gx as i32, gy as i32)), ch));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// The orientation the volcano was drawn under, or a failed assertion naming the closest. The volcano must equal the
+/// drawing under at least one of the eight orientations. The owner's 22 x 22 drawing is mirror-symmetric (every row
+/// reads the same reversed; the outlet runs mirror onto each other), so a faithful stamp equals it under both mirror
+/// states of its front: every orientation it equals must land the same tiles (wall glyphs on the same map tiles, lava
+/// glyphs on the same map tiles), and which one was used (the outlet order, the side of each stream, the fan) is read
+/// from the Fire frame's landing, which must be one of them. A single exact orientation is returned as is (the frame
+/// test compares the landing with it).
 fn orientation(l: &Landed) -> Orientation {
     let mut exact = Vec::new();
     let mut closest: Option<(usize, Orientation, Option<String>, usize)> = None;
@@ -468,15 +491,45 @@ fn orientation(l: &Landed) -> Orientation {
     }
     let (bad, o, first, extra) = closest.unwrap();
     assert!(
-        exact.len() == 1,
-        "seed {} (attempt {}): the volcano equals the drawing under {} orientations; closest {o:?}: {bad} of {} tiles \
+        !exact.is_empty(),
+        "seed {} (attempt {}): the volcano equals the drawing under no orientation; closest {o:?}: {bad} of {} tiles \
          differ (first: {first:?}), {extra} volcano tiles outside the drawing",
         l.seed,
         l.map.attempt,
-        exact.len(),
         side() * side()
     );
-    exact[0]
+    let tiles = landed_tiles(l, exact[0]);
+    for &o in &exact[1..] {
+        assert!(
+            landed_tiles(l, o) == tiles,
+            "seed {} (attempt {}): the volcano equals the drawing under {:?} and {o:?}, which land different tiles",
+            l.seed,
+            l.map.attempt,
+            exact[0]
+        );
+    }
+    if exact.len() == 1 {
+        return exact[0];
+    }
+    let landing = l
+        .placed
+        .frames
+        .iter()
+        .find(|f| f.anchor.zone == Zone::Fire)
+        .and_then(|f| f.landing);
+    assert!(
+        landing.is_some(),
+        "seed {}: the volcano equals the drawing under {exact:?} and the Fire frame has no landing to choose",
+        l.seed
+    );
+    let landing = landing.unwrap();
+    let used = (landing.orientation.front, landing.orientation.mirrored);
+    assert!(
+        exact.contains(&used),
+        "seed {}: the Fire frame landed under {used:?}, not one of the orientations the volcano equals {exact:?}",
+        l.seed
+    );
+    used
 }
 
 /// The tiles of `cells` that break the two-wide rule (header definition).
@@ -754,7 +807,9 @@ fn the_heading_helper_turns_the_outlet_headings_into_dir16() {
 // The cone is the drawing.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// Seeds 1-32: the volcano equals the drawing under exactly one of the eight orientations, its box the 22 x 22 square
+/// Seeds 1-32: the volcano equals the drawing under one of the eight orientations (both mirror states of one front
+/// when, as the owner's drawing is, it is mirror-symmetric: they land the same tiles, and the Fire frame's landing is
+/// one of them), its box the 22 x 22 square
 /// centred in the Fire site's 30 x 30 inner rect; it owns nothing else. Red on the stub: the cone is a disc of about 5
 /// tiles.
 #[test]
@@ -1706,13 +1761,14 @@ fn report_seeds_1_to_64() {
             stage,
             placed,
         };
-        let drawn = orientations()
-            .into_iter()
-            .filter(|&o| {
-                let (bad, _, extra) = mismatches(&l, o);
-                bad == 0 && extra == 0
-            })
-            .collect::<Vec<_>>();
+        let drawn = if orientations().into_iter().any(|o| {
+            let (bad, _, extra) = mismatches(&l, o);
+            bad == 0 && extra == 0
+        }) {
+            vec![orientation(&l)]
+        } else {
+            Vec::new()
+        };
         let lens = match drawn[..] {
             [o] if of_kind(&l.map, FeatureKind::LavaStream).len() == 3 => {
                 format!(
