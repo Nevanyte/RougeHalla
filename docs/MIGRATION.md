@@ -4,6 +4,40 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Owner decision 2026-11-14 (chat): go with the recommendations
+
+After the coordinator set out Q18, Q20 and Q21 with its recommendations, the owner wrote: **"Please go with your
+recommendations"**. The coordinator had stated a recommendation on these, and acts on exactly those:
+
+- **Q18, P-AGENT-RETRO-1** ("I recommend yes", with the list of what it changes): approved. Merged on `coord/int-44`
+  at `7c3e104c0` (reviewer-opus LAND WITH NOTES at `713330056`; the three script self-tests 35, 11 and 43 green on the
+  merged tree; `.claude/settings.json` untouched). Integration 44's full gate is the first with the dev-profile
+  `opt-level = 2` for `rh-sim` and `rh-mapdress`, and with the exact-count allocation tests under it.
+  `.claude/hooks/session-env.sh` is in the tree and registered nowhere: the owner's to add to his own settings.
+- **Q21 and Q19, the volcano:** it lands ("either way, my recommendation is that the volcano lands"), once its two
+  review notes are fixed and the Plague gap is pinned by a test. This also confirms here the three decisions first
+  given in the map generator session's chat. No Plague rule change is started: large pools near the tree are not
+  delivered (2 maps of 96 before the volcano, 0 after, that session's measurement, not re-run here), which DEV-034
+  will say.
+- **Tuner and learner:** adopt nothing.
+
+**Not covered, because the coordinator had given no recommendation when he wrote it:** Q20 (the oracle-guard hook in
+sibling worktrees). The recommendation is now in the queue; the hook is unchanged.
+
+**The volcano's first review, for the record:** REJECT, on two loosened Plague tests. The coordinator told the owner
+the volcano removed Plague's large and near-tree pools; the map generator session then measured before and after and
+showed the gap predates it (the pool rule and the 29 x 29 tree of P-MAPGEN-SIG-SCALE-3). The owner was told the
+correction in the next message. Lesson for both lanes: a test that passes on a knife-edge is put to the owner when it
+is noticed, not left in a brief.
+
+**Learner, first full run** (`tournament --policy brain --learn on`, commit `dcdc66584`, 400 games, seed 1, lineup
+E,E,N,N,H,H, Frost Wall on; 76 minutes; no draw, no game at the cap, no refused command, no Brain error). Win share
+per bot: easy 9.4% [7.5, 11.6] (band 4 to 10), normal 16.9% [14.4, 19.6] (13 to 20), hard 23.8% [20.9, 26.8] (25 to
+35: just under). **By faction** (even would be 16.7%): Plague 29.8%, Holy 27.7%, Fire 10.2%, Frost 9.6%, Sentenced
+6.0%; the intervals of the top two and the bottom three do not overlap. By persona: cautious 24.3%, the other three
+12.7 to 16.5%. Easy reaction mean 509 ms against the table's 450 (ratio 1.13, tolerance 1.10). The store holds 68
+choice keys (faction per persona, openers); nothing reads it live. Files in the session scratchpad under `bots/`.
+
 ## Integration 43 (2026-11-14): the owner's answers built; learner and tuner runs; current checkpoint
 
 Integration branch `feature/unity-rework` @ `dcdc66584` on origin (integration 42: full gate with Postgres and the
@@ -41,9 +75,8 @@ On the held-out seed the best table is **not distinguishable** from the shipped 
 4/48 wins, normal 9/48 against 7/48, hard 14/48 against 13/48). Nothing is adopted. The search file is in the session
 scratchpad (`bots/brain-search-dcdc66584.json`).
 
-**Open with the owner:** Q18 (P-AGENT-RETRO-1 of the map generator session, re-reviewed LAND WITH NOTES at
-`713330056`, tidied at `7c3e104c0`, not merged), Q19 (the volcano decisions taken in that session's chat), Q20 (the
-oracle-guard hook does not cover sibling worktrees).
+**Open with the owner when this was written:** Q18, Q19 and Q20; Q18 and Q19 were answered later the same day (the
+section above).
 
 ## Owner answers 2026-11-14 (chat): the queue, Q1 to Q17
 
