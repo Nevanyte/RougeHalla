@@ -1960,7 +1960,7 @@ fn parse_strategy_percept(input: &SVal, _cfg: &SourceConfig) -> R<StrategyPercep
                 views.push(super::types::CampView {
                     index: uint(c, "index", u64::from(u32::MAX))? as usize,
                     type_: opt_text(c, "type")?,
-                    // Frozen corpus: legacy's CampState.reward is the clear-reward kind (always "" here), not a stat.
+                    // Frozen corpus: legacy's CampState.reward is the clear-reward kind ("weapon", "known"), not a stat.
                     reward: String::new(),
                     alive: uint(c, "alive", u64::from(u32::MAX))? as u32,
                     state: uint(c, "state", 2)? as u8,
