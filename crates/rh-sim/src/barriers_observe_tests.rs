@@ -1,5 +1,5 @@
-//! P-FROST-WALL-NOWALL-1 oracle (brief `docs/backlog/packets/P-FROST-WALL-NOWALL-1.md`): a Frost Wall's caster is always
-//! sent its own standing wall, with its tiles.
+//! P-FROST-WALL-NOWALL-1 oracle (brief `docs/backlog/packets/P-FROST-WALL-NOWALL-1.md`): a standing Frost Wall is sent,
+//! with all its tiles, to its owner always, and to any other viewer who can see at least one of its tiles.
 //!
 //! Web round 13 (pooled seed 263678495, `--signature-landmarks`): a Frost player standing in the Plague bog beside the
 //! bog tree cast twice; each cast was accepted, spent the Wish and raised a wall (it blocks), but no wall reached the
@@ -10,8 +10,9 @@
 //! tiles (`client/src/scenes/RaidScene.ts:1012-1029`); the Rust observation is the only delivery, so the client neither
 //! draws nor predicts the wall.
 //!
-//! The rule pinned here (a proposed DEVIATIONS row, see the brief): the wall's owner receives it whatever the sight.
-//! Every other viewer keeps the first-end rule (`tests/frost_wall_observe.rs` pins it, unchanged).
+//! The rule pinned here (proposed DEV-036, see the brief): the wall's owner receives it whatever the sight; any other
+//! viewer receives the whole wall when one of its tiles is visible to it (`vision::point_visible` on a tile centre), and
+//! nothing when none is. `tests/frost_wall_observe.rs` is amended to the same rule (coordinator-approved).
 use super::*;
 use crate::{
     abilities::{self as a, Slot},
@@ -148,9 +149,23 @@ fn observed_walls(s: &Sim, viewer: PlayerId) -> Vec<FieldView> {
         .collect()
 }
 
-/// Does the caster at `from` have a clear line to `to` on the arena map (the observation's own sight test)?
+/// Does a viewer at `from` have a clear line to `to` on the arena map (the observation's own sight test, without the
+/// radius)?
 fn in_sight(s: &Sim, from: Vec2, to: Vec2) -> bool {
     !crate::vision::scene_line_blocked(&s.k.arena.map, from.x, from.y, to.x, to.y)
+}
+
+/// Is `to` within the vision radius of `from` and in its line of sight (what `point_visible` grants from where the
+/// viewer stands, before memory and wards)?
+fn sees(s: &Sim, from: Vec2, to: Vec2) -> bool {
+    let (dx, dy) = (to.x - from.x, to.y - from.y);
+    let r = crate::constants::VISION_RADIUS;
+    dx * dx + dy * dy <= r * r && in_sight(s, from, to)
+}
+
+/// The centre of row-major tile `i` on a map `w` tiles wide.
+fn centre(i: u32, w: u32) -> Vec2 {
+    Vec2::new(tc(i % w), tc(i / w))
 }
 
 /// Column 12, rows 7..=13: the wall of a cast from (5, 10) aimed at (12, 10). Its first end is (400, 448), the bottom.
@@ -195,9 +210,9 @@ fn the_caster_receives_its_wall_when_a_rock_hides_the_first_end() {
     assert_eq!(seen[0].owner, Some(caster));
 }
 
-/// The rule is the owner's, not "some tile in sight": a rock column (8..=9, every row) hides the whole wall from its
-/// caster, who still receives it. The bystander on the caster's side, who is not its owner, sees none of it and is sent
-/// nothing (the first-end rule, unchanged).
+/// The owner's rule is not "some tile in sight": a rock column (8..=9, every row) hides the whole wall from its caster,
+/// who still receives it. The bystander on the caster's side, who is not its owner, sees none of it and is sent nothing
+/// (guard, green today and after).
 #[test]
 fn the_caster_receives_its_wall_even_when_none_of_it_is_in_sight() {
     let map = map_where(|x, _| (8..=9).contains(&x));
@@ -223,6 +238,45 @@ fn the_caster_receives_its_wall_even_when_none_of_it_is_in_sight() {
     let seen = observed_walls(&s, caster);
     assert_eq!(seen.len(), 1, "the owner is sent its wall whatever it sees");
     assert_eq!(seen[0].tiles, column_12());
+}
+
+/// A bystander east of the wall sees it only through a one-row gap in a rock screen (columns 15..=16, every row but
+/// 10): the middle tile (12, 10) is in its sight, the first end (400, 448) and the end tiles are not. It is not the
+/// owner, and today it is sent nothing; it must receive the whole wall.
+#[test]
+fn a_bystander_who_sees_a_middle_tile_but_not_the_first_end_receives_the_whole_wall() {
+    let map = map_where(|x, y| (15..=16).contains(&x) && y != 10);
+    let mut s = rig(map, Vec2::new(tc(20), tc(10)));
+    let other = id(&s, 1);
+    cast(&mut s, 0, Vec2::new(tc(12), tc(10)));
+    let up = standing(&s);
+    assert_eq!(up.len(), 1, "the cast raised one wall: {up:?}");
+    assert_eq!(up[0].2, column_12());
+    let from = s.players()[1].pos();
+    assert!(
+        !sees(&s, from, up[0].1),
+        "the screen hides the first end {:?} from the bystander",
+        up[0].1
+    );
+    assert!(
+        sees(&s, from, Vec2::new(tc(12), tc(10))),
+        "the bystander sees the middle tile (12, 10)"
+    );
+    assert!(
+        !sees(&s, from, Vec2::new(tc(12), tc(7))) && !sees(&s, from, Vec2::new(tc(12), tc(13))),
+        "but not the wall's end tiles"
+    );
+    let seen = observed_walls(&s, other);
+    assert_eq!(
+        seen.len(),
+        1,
+        "a viewer who sees one tile of a wall is sent it (else it walks into ice it was never shown)"
+    );
+    assert_eq!(seen[0].tiles, column_12(), "the whole wall, every tile");
+    assert_eq!(
+        seen[0].owner, None,
+        "the caster is out of its sight: no owner"
+    );
 }
 
 /// Guard (green today): on open floor the caster and a bystander in sight of the first end both receive the wall.
@@ -264,34 +318,42 @@ fn round13() -> (Arena, crate::mapdata::GameMapData) {
     (export.validate().unwrap().into_arena().unwrap(), m)
 }
 
-/// The live world on the round-13 map, Frost standing at `at` (the live content world; the default lifecycle, since a
-/// source arena starts from a lobby; no Wish lock).
-fn live_on(arena: &Arena, at: Vec2) -> Sim {
+/// The live world on the round-13 map, Frost standing at `at` and a Plague bystander at `other` (the live content world;
+/// the default lifecycle, since a source arena starts from a lobby; no Wish lock).
+fn live_on(arena: &Arena, at: Vec2, other: Vec2) -> Sim {
     let cfg = SimConfig {
         wish_lock_ms: 0.,
         lifecycle: SimConfig::default().lifecycle,
         ..SimConfig::live_content()
     };
-    let p = Placement {
-        profile: "s1".into(),
-        faction: FactionId::Frost,
+    let p = |profile: &str, faction, at| Placement {
+        profile: profile.into(),
+        faction,
         bot: false,
         at,
         hp: Some(1e9),
         weapon0: None,
         weapon1: None,
     };
-    let mut s = Sim::reset_active(cfg, arena.clone(), Secrets::from_seed(7), &[p]);
+    let seats = [
+        p("s1", FactionId::Frost, at),
+        p("s2", FactionId::Plague, other),
+    ];
+    let mut s = Sim::reset_active(cfg, arena.clone(), Secrets::from_seed(7), &seats);
     s.step();
     s
 }
 
 /// Round 13 in the sim: Frost standing on bog tiles in and round the bog tree's footprint casts its Wall in eight
-/// directions at 160 u and 300 u. Every accepted cast that raised a wall must reach its caster. Today about a third of
-/// them do not (the tree's trunk hides the first end); the test also requires that at least one raised wall had its
-/// first end out of the caster's sight, so it keeps testing the defect if the generator moves the tree.
+/// directions at 160 u and 300 u, with a Plague bystander three tiles away (the first floor tile east, west, south or
+/// north). Every accepted cast that raised a wall must reach its caster (today about a third do not: the tree's trunk
+/// hides the first end), and must reach the bystander whenever the bystander, from where it stands after the landing,
+/// sees one of its tiles but not its first end. The test also requires at least one raised wall with its first end out
+/// of the caster's sight, and at least one the bystander saw in part without its first end, so it keeps testing the
+/// defect if the generator moves the tree.
 #[test]
-fn round13_every_wall_cast_from_the_bog_by_the_tree_reaches_its_caster() {
+fn round13_every_wall_cast_by_the_bog_tree_reaches_its_caster_and_the_bystanders_who_see_part_of_it(
+) {
     let (arena, m) = round13();
     let tree = m
         .anchors
@@ -303,6 +365,7 @@ fn round13_every_wall_cast_from_the_bog_by_the_tree_reaches_its_caster() {
     let w = i64::from(m.w);
     let bog = crate::mapgen::landmarks::signature::DEFAULT_DEFINITION.bog;
     let (mut raised, mut hidden_end, mut missing) = (0, 0, Vec::new());
+    let (mut partly, mut unsent) = (0, Vec::new());
     for ty in (fy - 2).max(1)..(fy + fh + 2).min(i64::from(m.h) - 1) {
         for tx in (fx - 2).max(1)..(fx + fw + 2).min(w - 1) {
             let i = (ty * w + tx) as usize;
@@ -311,8 +374,20 @@ fn round13_every_wall_cast_from_the_bog_by_the_tree_reaches_its_caster() {
                 continue;
             }
             let at = Vec2::new(tc(tx as u32), tc(ty as u32));
-            let base = live_on(&arena, at);
-            let caster = base.players()[0].id;
+            let floor = |x: i64, y: i64| {
+                (0..w).contains(&x)
+                    && (0..i64::from(m.h)).contains(&y)
+                    && m.tiles[(y * w + x) as usize] == TILE_FLOOR
+            };
+            let Some((ox, oy)) = [(3, 0), (-3, 0), (0, 3), (0, -3)]
+                .into_iter()
+                .map(|(dx, dy)| (tx + dx, ty + dy))
+                .find(|&(x, y)| floor(x, y))
+            else {
+                continue;
+            };
+            let base = live_on(&arena, at, Vec2::new(tc(ox as u32), tc(oy as u32)));
+            let (caster, other) = (base.players()[0].id, base.players()[1].id);
             for k in 0..8 {
                 for dist in [160., 300.] {
                     let angle = f64::from(k) * std::f64::consts::FRAC_PI_4;
@@ -340,6 +415,22 @@ fn round13_every_wall_cast_from_the_bog_by_the_tree_reaches_its_caster() {
                             seen.len()
                         ));
                     }
+                    let by = s.players()[1].pos();
+                    if !sees(&s, by, *first) && cells.iter().any(|&c| sees(&s, by, centre(c, m.w)))
+                    {
+                        partly += 1;
+                        let got = observed_walls(&s, other);
+                        if got.len() != 1 || &got[0].tiles != cells {
+                            unsent.push(format!(
+                                "caster ({tx},{ty}) aiming {k}/8 turn at {dist} u, bystander at ({:.0},{:.0}): sees part of a {}-tile wall, not its first end {:?}; sent {} wall(s)",
+                                by.x,
+                                by.y,
+                                cells.len(),
+                                first,
+                                got.len()
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -349,9 +440,15 @@ fn round13_every_wall_cast_from_the_bog_by_the_tree_reaches_its_caster() {
         "the scene must include walls whose first end the caster cannot see ({raised} raised, {hidden_end} with a hidden first end)"
     );
     assert!(
-        missing.is_empty(),
-        "{} of {raised} raised walls never reached their caster, e.g.\n{}",
+        partly > 0,
+        "the scene must include walls a bystander sees in part but not by their first end ({partly})"
+    );
+    assert!(
+        missing.is_empty() && unsent.is_empty(),
+        "{} of {raised} raised walls never reached their caster, e.g.\n{}\n{} of {partly} walls a bystander saw in part, not by their first end, never reached it, e.g.\n{}",
         missing.len(),
-        missing[..missing.len().min(8)].join("\n")
+        missing[..missing.len().min(6)].join("\n"),
+        unsent.len(),
+        unsent[..unsent.len().min(6)].join("\n")
     );
 }
