@@ -1,7 +1,7 @@
 {
   "name": "Roguehalla.Editor",
   "rootNamespace": "Roguehalla.Editor",
-  "references": ["Roguehalla.Client", "Unity.TextMeshPro", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Universal.2D.Runtime", "Unity.RenderPipelines.Core.Editor", "Unity.RenderPipelines.Universal.Editor"],
+  "references": ["Roguehalla.Client", "RoguehallaNet","Unity.TextMeshPro", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Universal.2D.Runtime", "Unity.RenderPipelines.Core.Editor", "Unity.RenderPipelines.Universal.Editor"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": []
 }
