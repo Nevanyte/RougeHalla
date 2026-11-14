@@ -79,3 +79,61 @@ Sonnet. Only structure can be tested; the look is judged at the screenshot round
 - An EditMode run modifies `NunitoRegular.asset`: never commit it.
 
 ## Notes from previous attempts
+
+## Established facts (oracle author, 2026-11-13; read from `docs/landmarks/blueprints/bog.txt` and the framework at `coord/int-27`)
+
+No legacy counterpart (DEV-020); `packages/` not consulted.
+
+- **Routing:** serves owner decision 4 and the 2026-11-13 direction; tier implementer-sonnet; reviewer `reviewer`; D1 n/a, no wire change; write scope
+  as section 5 (`BogTreeLandmark.cs` + one `case` line in `LandmarkArts.cs`).
+- **Terrain:** `TerrainKind.Bog` = 5 (`RegionThemes.cs:11`); the bog is `MapBlob.Floor` (0) with terrain 5, so `Landmark.IsWall`/`IsLow` are false there and
+  `Landmark.Terrain(x, y)` is 5. The art needs no copy of the drawing.
+- **Counts** (29 x 29): `T` 93, `r` 62, `%` 213, `:` 62, `.` 411; no `E`, door or fence. `Landmark.WallCount` = 155, `InteriorCount` = 0 (no enclosed floor; guarded
+  with the entrance given, via `LandmarkInterior.Find`). 8-connected wall groups: the **trunk group = 137 tiles** (93 `T` + 44 `r`: the roots that touch the
+  trunk are part of it) and **three free stumps of 6 `r` tiles** each (same in all eight orientations).
+- **Anchor** (agreed with the map generator session, built by the oracle): footprint = the box, centre = drawing tile (14, 14) (a trunk tile), entrance =
+  drawing tiles (12,0) (13,0) (0,11) (0,12) (13,28) (14,28), all `:` causeway tiles on the box edge (verified), turned with the box. Pinned:
+  `Landmark.ArchTiles` equals those six tiles; nothing else about them (the art draws no arch or gate).
+- **THE COVER RULE (the one pinned):** cover = the trunk group's own tiles + every floor tile of the footprint that is not bog and whose centre is within
+  **Euclidean distance 3** (dx*dx + dy*dy <= 9) of the centre of some trunk-group tile. **275 tiles in every orientation**: 137 trunk-group + 120 dry `.` + 18
+  `:` (the causeways' stretches inside the ring); the other 44 causeway tiles, all 213 bog tiles, the 18 stump tiles and the dry ground beyond the ring
+  are not covered. Why Euclidean 3: Chebyshev 3 (178 floor tiles) squares the corners and takes more dry ground far from the ring; Euclidean 3 reads as a
+  round crown. Known look: it covers a little dry ground round root tips that stand in the marsh, and the dry ring is up to 5 wide on one side, so not all
+  of it is covered. The art hands this to `Landmark.SetCover`; `RoofCovers` equals it (probed 3 tiles beyond the box too).
+- **Canopy** = the roof (`AddRoofRenderer`): its bounds reach every cover tile (half-tile tolerance) and no tile centre outside the footprint (exact);
+  sorts at the footprint's south edge, under `VisionFog.SortingOrder`. Fades for an actor on a dry or causeway cover tile; not for one on bog, on a causeway
+  beyond the ring, or on dry ground beyond the ring.
+- **Names** (descendants of `Landmark.Root`, found by `Transform.name`, each with a renderer): exactly one `Bog tree trunk` whose bounds reach all 137 trunk-group
+  tiles and none of the free stumps' tiles (half-tile tolerance), not itself part of the canopy; exactly three `Bog tree stump`, one with its centre in each
+  free stump's box (+-.5 tile), reaching that stump's six tiles.
+- **The marsh stays readable (pinned by pixels):** every non-canopy `SpriteRenderer` under the root has alpha < .5 at the centre of every floor tile that is not
+  in the cover and has no wall tile within 2 tiles (Chebyshev): the open bog and the far causeways. Needs readable procedural `Texture2D`s (as the volcano
+  and church) and plain (unflipped) sprites; a green sampler guard test checks the test's own helper (pivot, ppu, scale). Bark may stand over bog beside the
+  wall (the test does not look there).
+- **Not pinned:** colours, shapes, roots lower than the trunk, tapering, the canopy being above actors beyond its sort order, the soft edge over `RegionWalls`
+  blocks (decide and say). **Unverified:** the EditMode tests past the first assertion have not run against an implementation (every one is red at "one
+  landmark for the BogTree anchor"), so the sampler and bounds tolerances are untested on real art; an implementer who finds one wrong reports it to the
+  coordinator rather than editing the oracle.
+- **Existing test edit** (coordinator-approved, mechanical, in the stub commit): in `LandmarkViewEditModeTests.TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts`
+  the list `{ BogTree, Hall }` becomes `{ Hall }`. `LandmarkSeamsEditModeTests.ACoverSetHandedOverIsExactlyWhatRoofCoversAndTheFadeReads` overrides the BogTree
+  kind: `LandmarkArts.TryGet` consults the overrides before the production switch, so the override still wins over the new registered art (no edit needed).
+
+## Oracle files (read-only for implementers)
+- `client-unity/UnityProject/Assets/Tests/Editor/BogTreeLandmarkEditModeTests.cs` + `.meta` (new)
+- `client-unity/RoguehallaNet.Tests/BogTreeLandmarkDrawingTests.cs` (new; guards, green today)
+- `client-unity/UnityProject/Assets/Tests/Editor/LandmarkViewEditModeTests.cs` (the one-token edit above; in the stub commit)
+- `docs/landmarks/blueprints/bog.txt` (approved drawing, never edited)
+- Stub commit, replaced by the implementer: `Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` + `.meta` (`public static void Build(Landmark)`, empty, unregistered);
+  the implementer adds `case MapBlob.AnchorKindBogTree: builder = BogTreeLandmark.Build; return true;` to `LandmarkArts.cs`.
+
+Test map (EditMode; x8 orientations where marked; all red on an assertion today): `ABogTreeAnchorBuildsOneLandmarkClassifiedFromTheTilesInEveryOrientation` x8,
+`TheCanopysCoverIsExactlyTheTrunkGroupAndTheDryGroundWithinThreeTilesOfIt` x8, `TheCanopyIsDrawnOverEveryCoverTileAndNoTileOutsideTheFootprintAndSortsUnderTheFog` x8,
+`TheCanopyFadesForAnActorOnTheDryGroundRoundTheTrunkAndNotOnACausewayBeyondItOrInTheBog` x8, `OneTrunkObjectSpansEveryTileOfTheTrunkGroupAndNotTheFreeStumps` x8,
+`EveryFreeRootStumpHasExactlyOneStumpObject` x8, `NothingButTheCanopyPaintsOpaquelyOnTheMarshOrTheGroundFarFromTheTreesWood` x8,
+`AFrameWhereNothingChangedCreatesAndAllocatesNothing`, `DisposingTheViewRemovesEverythingTheBogTreeDrew`. Green: `TheAlphaSamplerTheMarshTestUsesReadsTheSpritePixelUnderAWorldPoint`.
+Engine-free guards (green): `TheDrawingIs29SquareWithTheTileCountsTheOracleExpects`, `TheTrunkIsTheLargestWallGroupWithItsRootsAndThreeFreeStumpsOfSixTilesStandAlone` x8,
+`TheCoverIsTheTrunkGroupPlusTheDryFloorWithinThreeTilesAndHasTheSameCountInEveryOrientation` x8, `TheBogTreeHasNoInteriorInAnyOrientationSoTheCoverMustBeHandedOverByTheArt` x8.
+
+## Baseline (at the oracle commit)
+EditMode: 1179 tests, 1121 pass, **58 fail, all new bog tests** (7 x 8 + 2): 8 on "BogTree is registered in LandmarkArts", 50 on "orientation N: one landmark for the
+BogTree anchor: expected 1, was 0"; no existing test is red. `dotnet test client-unity/RoguehallaNet.Tests --filter BogTreeLandmarkDrawing`: 25 of 25 pass.
