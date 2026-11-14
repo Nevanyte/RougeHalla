@@ -10,15 +10,15 @@
 //! within `stream_bend` of its own heading and `front_max` of the drawing's front, or ends sooner. Its length, measured
 //! as the oracle measures it (`length`), lies in its run's `outlet_len` range, and the middle stream is strictly the
 //! longest: it is laid first, and the side streams are held below it. An attempt whose three streams cannot all be laid
-//! (a stream short of its range, no pool, a ford, the fan broken, two bodies touching, lava outside `lava_budget`, or a
-//! split of the zone's floor) is refused: never two streams. Integer geometry: directions are `DIR16` vectors (length
+//! (a stream short of its range, no pool, a ford, the spread broken, a stream not running toward the coliseum, two
+//! bodies touching, lava outside `lava_budget`, or a split of the zone's floor) is refused: never two streams. Integer geometry: directions are `DIR16` vectors (length
 //! 1024) and positions are fixed point (1/1024 tile).
 use super::blueprint::{dir16, Blueprint, Cell, Landing};
 use super::spec::Spec;
 use super::{at, pick, Built, Owned, Piece, Site, TerrainCodes};
 use crate::map::{TILE_FLOOR, TILE_LOW};
 use crate::mapdata::{FeatureJob, FeatureKind};
-use crate::mapgen::coliseum::{H, W};
+use crate::mapgen::coliseum::{CX, CY, H, W};
 use crate::rng::Mulberry32;
 
 use super::super::recipe_support::DIR16;
@@ -33,11 +33,12 @@ struct Body {
 }
 
 /// What one stream is laid from: its outlet run's map tiles, the drawing's front (map axis and its DIR16 index), the
-/// stream's heading (DIR16), and its length window (path tiles, inclusive; the upper end is the drawn target).
+/// cone's centre tile (the anchor's), the stream's heading (DIR16), and its length window (path tiles, inclusive; the upper end is the drawn target).
 struct Lay {
     run: Vec<Cell>,
     u: Cell,
     f: i32,
+    centre: Cell,
     h0: i32,
     lo: i32,
     target: i32,
@@ -50,7 +51,8 @@ struct Lay {
 /// middle run is laid first, up to its drawn length; each side run then up to its own, held below the middle's
 /// measured length. Then: no stream or pool touches another's lava, each stream touches its own run only, the pools
 /// fan out (in grid terms: beyond the front row; the left one left of its run, the right one right, the middle one
-/// within 45 degrees of straight ahead; their columns ascending), the zone's lava lies in `lava_budget`, and the cone
+/// within 45 degrees of straight ahead; their columns ascending), each stream's farthest lava from the cone's centre is
+/// nearer the coliseum centre tile than that centre is, the zone's lava lies in `lava_budget`, and the cone
 /// with every stream and pool does not split the zone's floor. `s` must be unconfined (`Site::inner` `None`): the
 /// streams leave the site.
 pub(super) fn streams(
@@ -113,6 +115,7 @@ pub(super) fn streams(
             run: landed[k].clone(),
             u: o.front,
             f,
+            centre: (built.anchor.centre.x, built.anchor.centre.y),
             h0: i32::from(dir16(o.turn(d.outlet_heading[k]))),
             lo,
             target: want[k].min(hi),
@@ -266,8 +269,8 @@ fn turn(a: i32, b: i32) -> i32 {
 }
 
 /// One stream from outlet run `lay.run` with heading `lay.h0`, and its pool, or `None` when no stream of `lay.lo` to
-/// `lay.target` tiles (`length`) with a pool fits. The path is grown to two tiles past the target and shortened from
-/// its end until its length fits. Its first tile lies `stream_start` steps beyond the run, placed so that its pair of
+/// `lay.target` tiles (`length`) with a pool fits and runs toward the coliseum (`toward`). The path is grown to two
+/// tiles past the target and shortened from its end until both hold. Its first tile lies `stream_start` steps beyond the run, placed so that its pair of
 /// lava tiles continues the run's two outlets.
 fn stream(s: &Site<'_>, mark: &[u8], lay: &Lay) -> Option<Body> {
     let d = &s.ctx.rules;
@@ -385,7 +388,7 @@ fn stream(s: &Site<'_>, mark: &[u8], lay: &Lay) -> Option<Body> {
             match length(&cells, &lay.run, &pool) {
                 Some(len) if len > lay.target => {}
                 Some(len) if len < lay.lo => short = true,
-                Some(len) => {
+                Some(len) if toward(&cells, lay.centre) => {
                     return Some(Body {
                         lava: cells,
                         pool,
@@ -393,7 +396,8 @@ fn stream(s: &Site<'_>, mark: &[u8], lay: &Lay) -> Option<Body> {
                         len,
                     })
                 }
-                None => {}
+                // Too long, or not toward the coliseum: shorter.
+                _ => {}
             }
         }
         // Shortening only shortens: a stream already short of its range does not fit.
@@ -403,6 +407,19 @@ fn stream(s: &Site<'_>, mark: &[u8], lay: &Lay) -> Option<Body> {
         path.pop();
     }
     None
+}
+
+/// Whether a stream runs toward the coliseum, in map terms: its lava tiles farthest from the cone's centre `c` all lie
+/// nearer the coliseum centre tile than `c` does. The drawing's front is the dominant axis of the true direction, up to
+/// 45 degrees off it, so a side stream 45 degrees off the front can otherwise run across the way to the coliseum.
+fn toward(cells: &[usize], c: Cell) -> bool {
+    let xy = |i: usize| ((i % W) as i32, (i / W) as i32);
+    let d2 = |a: Cell, b: Cell| (a.0 - b.0).pow(2) + (a.1 - b.1).pow(2);
+    let far = cells.iter().map(|&i| d2(xy(i), c)).max().unwrap_or(0);
+    cells
+        .iter()
+        .filter(|&&i| d2(xy(i), c) == far)
+        .all(|&i| d2(xy(i), (CX, CY)) < d2(c, (CX, CY)))
 }
 
 /// The oracle's length of a stream (path tiles): 1 + the fewest 8-connected steps through its lava `cells` from a tile
