@@ -44,6 +44,7 @@ namespace Roguehalla.Client
         public bool WeaponRangeSuppressed;
         WorldMarks _worldMarks; CampRespawnLabels _campLabels; System.Func<float, float, bool> _markVisible;
         WorldIndicators _worldIndicators; HurtVignette _vignette;
+        readonly CampAttack _campAttack = new CampAttack();   // STUB (P-UNITY-CAMP-PATIENCE-SHOW-1): the implementer feeds it
         CampPatienceOutlines _patience; QuestCarrierFlags _carrierFlags; ActorPoint _carrierActorPoint; readonly List<CarrierFlagRow> _carrierRows = new List<CarrierFlagRow>();
         /// <summary>Read-only counters for the scenario probe (diagnostics): confirmed Hit fx seen, those on the local fighter, the last amount and passive flag.</summary>
         public static int DiagHitFx, DiagHitFxOnMe; public static float DiagLastAmountOnMe; public static bool DiagLastPassiveOnMe;
@@ -593,7 +594,7 @@ namespace Roguehalla.Client
             _worldMarks.Update(collections, _markVisible); _campLabels.Update(_visionSession, _markVisible);
             _worldIndicators.Update(collections, _sourceTimeMs, _haveLocal, _localX, _localY, Time.unscaledTime, MarkVisible);
             var vs = _visionSession;
-            _patience.Update(vs != null ? vs.Map : null, vs != null ? vs.Collections.Camps : null, vs != null ? vs.Phase : (MatchPhase?)null, vs != null && vs.Training);
+            _patience.Update(vs != null ? vs.Map : null, vs != null ? vs.Collections.Camps : null, vs != null ? vs.Phase : (MatchPhase?)null, vs != null && vs.Training, _campAttack);
             QuestCarrierFlag.Rows(vs != null ? vs.Collections.Quests : null, vs != null ? vs.ServerTimeMs : 0, _carrierRows);
             _carrierFlags.Update(_carrierRows, _carrierActorPoint, _markVisible);
             PerfMarks.End(PerfMarks.Sec.Collections, pmCollections);
@@ -704,7 +705,7 @@ namespace Roguehalla.Client
             _pendingFx.Clear();
             _scheduledFx.Clear();
             _wishes.Reset();
-            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear(); _patience?.Update(null, null, null, false); _carrierFlags?.Update(null, null, null);
+            _wishFx.Reset(); _hitZones?.Clear(); _worldIndicators?.Clear(); _vignette?.Clear(); _patience?.Update(null, null, null, false, null); _carrierFlags?.Update(null, null, null);
             _actors.CancelFades(); _visionFog.Reset();
             for (int i = _flashes.Count - 1; i >= 0; i--)
             {

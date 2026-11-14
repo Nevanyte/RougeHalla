@@ -31,7 +31,7 @@ namespace Roguehalla.Client
 
         /// <summary>Per frame. <paramref name="map"/> may be null or carry no patience plane (nothing is drawn). <paramref name="camps"/> are the live camp rows
         /// (index i is map camp i).</summary>
-        public void Update(MapBlob map, IReadOnlyList<CampView> camps, MatchPhase? phase, bool training)
+        public void Update(MapBlob map, IReadOnlyList<CampView> camps, MatchPhase? phase, bool training, ICampAttacked attacked)
         {
             if (!ReferenceEquals(map, _map)) { Reset(); _map = map; if (map != null && map.Patience != null) _camps = new Camp[map.Camps.Length]; }
             if (_map == null || _map.Patience == null || camps == null) { HideAll(); return; }
