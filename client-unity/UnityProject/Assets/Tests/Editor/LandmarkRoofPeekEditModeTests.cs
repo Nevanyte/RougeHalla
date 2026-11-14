@@ -102,7 +102,7 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void TheFadedAlphaIsMostlySeeThroughButStillThereAndThePeekAlphaIsAboutHalf()
         {
-            Assert.That(LandmarkView.RoofFadedAlpha, Is.GreaterThan(0f).And.LessThanOrEqualTo(.15f), "owner: about 10 percent, faintly there so the player knows they are under a roof");
+            Assert.That(LandmarkView.RoofFadedAlpha, Is.GreaterThan(0f).And.LessThanOrEqualTo(.3f), "owner: about 10 percent, faintly there so the player knows they are under a roof; widened to 0.3 on owner direction 2026-11-14: \"Maybe up it to 20% visibility it's barely visible\"");
             Assert.That(LandmarkView.RoofPeekAlpha, Is.InRange(.4f, .6f), "owner: about one half");
             Assert.That(LandmarkView.RoofFadedAlpha, Is.LessThan(LandmarkView.RoofPeekAlpha));
             Assert.That(LandmarkView.RoofPeekAlpha, Is.LessThan(LandmarkView.RoofOpaqueAlpha));

@@ -13,7 +13,7 @@ namespace Roguehalla.Client
     public sealed class LandmarkView : IDisposable
     {
         /// <summary>Roof alpha with nobody inside, and while an actor is inside (reached at LandmarkView's fade rate, PropFade.FadeRate).</summary>
-        public const float RoofOpaqueAlpha = 1f, RoofFadedAlpha = .1f;
+        public const float RoofOpaqueAlpha = 1f, RoofFadedAlpha = .2f;
         /// <summary>STUB (P-UNITY-LANDMARK-ROOF-RETURN-1): roof alpha while only another actor, not the local player, is inside.</summary>
         public const float RoofPeekAlpha = .5f;
 
