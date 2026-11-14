@@ -13,10 +13,12 @@ namespace Roguehalla.Client
     ///    on the walls' sorting rule. The bark is opaque over every wall tile of the group to its exact square and a little higher than the wall block,
     ///    so the blocks RegionWalls still draws never show at an edge (the cave's look note); a dark wet flare hugs the root bases on the ground;
     ///  - "Bog tree stump": each free group as a low broken stump with a pale split top;
-    ///  - the canopy (the roof, through Landmark.AddRoofRenderer): a crown of clumped leaves lifted above the cover, with darker gaps, an edge that
-    ///    follows the cover's outline and hanging moss at the rim. The cover (handed over with Landmark.SetCover) is the trunk group's tiles plus every
-    ///    dry floor tile (floor that is not Bog) whose centre is within Euclidean distance 3 of a trunk tile (dx*dx + dy*dy &lt;= 9). The crown is
-    ///    lifted, so its lower edge sits above the ground it covers and never hangs over the bog.
+    ///  - the crown (the roof, through Landmark.AddRoofRenderer): P-UNITY-BOG-TREE-2, a bald cypress. The bole is a tall fluted grey-brown column
+    ///    on a root skirt; the crown is a light green cloud lifted above it (drawn higher on screen, its lowest edge above the middle of the trunk's
+    ///    drawn height), with enclosed gaps and grey-green moss hanging at its lower edges. The cover (Landmark.SetCover) is the trunk group's tiles plus
+    ///    every dry floor tile (not Bog) whose centre is within Euclidean distance 3 of a trunk tile (dx*dx + dy*dy &lt;= 9). The fade set
+    ///    (Landmark.SetFadeTiles) is the cover plus every tile the crown paints over. A soft dappled shadow on the cover (a second roof piece) lies under it;
+    ///  - the stumps are cypress knees (rounded cones of bark with a pale tip).
     /// Nothing opaque is drawn on bog tiles away from the bark. Colours are sRGB from the Plague theme, as the region atlas.
     /// </summary>
     public static class BogTreeLandmark

@@ -18,6 +18,8 @@ A value that is not in this table is not a dial yet: adding one is a packet.
 | `bog-tree-shadow` | How dark the crown's shadow on the ground is at its darkest | `Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` `ShadowAlpha` | 0.36 | 0.2 to 0.5 | none (looks only; keep the shadow's alpha under 0.5) | `bog-wide`, `bog-close` |
 | `bog-tree-knee-height` | How far a cypress knee stands above the root height | `Assets/Scripts/View/Regions/Landmarks/BogTreeLandmark.cs` `KneeRise` | 0.75 (units) | 0.4 to 1.0 | `BogTreeLandmarkEditModeTests` marsh test | `bog-wide`, `bog-close` |
 
+The `bog-tree-*` ranges are reasoned from the tests' constraints and checked only at the shipped value (EditMode and two renders); the ends of a range were not swept.
+
 Paths are under `client-unity/UnityProject/` unless they start with `RoguehallaNet/` (then under `client-unity/`,
 with a synced copy made by `bash client-unity/sync-net.sh`).
 
