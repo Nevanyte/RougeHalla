@@ -121,7 +121,11 @@ namespace Roguehalla.Client.Tests
             Assert.AreEqual(early, edge, 1e-4f);
             Assert.AreEqual(FrostWallPresenter.TopAlpha - FrostWallPresenter.CrackFade * .5f, half, 1e-4f, "half cracked half a second before the end");
             Assert.Less(late, half);
-            Assert.AreEqual(half, _p.BlockTopAlpha(1), 1e-4f, "the whole wall cracks together");
+            // Legacy at End - 100: the top's 0.85 - 0.3 * 0.9 = 0.58, times FieldView's fade-out over the last
+            // FIELD_FADE_MS 300 (fieldAlpha = 100 / 300): 0.1933.
+            Assert.AreEqual((FrostWallPresenter.TopAlpha - FrostWallPresenter.CrackFade * .9f) * (100f / 300f), late, 1e-3f,
+                "cracked 0.9 and faded to a third 100 ms before the end");
+            Assert.AreEqual(late, _p.BlockTopAlpha(1), 1e-4f, "the whole wall cracks together");
         }
 
         [Test]

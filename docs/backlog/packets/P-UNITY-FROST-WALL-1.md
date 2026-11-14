@@ -61,6 +61,13 @@ and at the landing from the cast origin with `range + RANGE_SLACK` (32, `abiliti
 `systems/abilities/effects.rs:287-294`). The second is a no-op on an already clamped point, so the preview uses `Range`
 (as legacy `aimPlan` did: `t.range`, no slack).
 
+### F1b. The crack and the fade, worked (legacy `FieldView.ts` 78dd8bd4 `update` `:163` `fieldAlpha`, `:67-73`; `drawWall`)
+The wall's graphic carries `fieldAlpha(startedAt, endsAt, renderT)` (`FIELD_FADE_MS` 300: 1 until the last 300 ms, then
+`left / 300`) and each fill carries its own crack alpha. Top alpha seen = `(0.85 - 0.3 * crack) * fieldAlpha`:
+End - 2000 and End - 1000: 0.85; End - 500: 0.70 (crack 0.5, fade 1); End - 100: `0.58 * 100/300` = **0.1933** (crack 0.9,
+fade 1/3); End: 0 (face at End - 100: `0.51 * 1/3` = 0.17). `TheIceCracksPaleOnlyInItsLastSecond` pins these (0.1933 to
+1e-3), the same for every block of the wall.
+
 ### F2. The tiles (Rust `barriers.rs:93-126` `wall_cells`)
 Scan the tile box `floor((min(x1,x2) - reach) / 32) .. floor((max(x1,x2) + reach) / 32)` (same for y), clamped to
 `[0, w-1]` / `[0, h-1]` (the map edge: nothing off-map, no negative index), row by row (y outer, x inner), so the output
