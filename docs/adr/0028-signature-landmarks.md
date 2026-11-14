@@ -254,6 +254,24 @@ worst index 2 (seed 12; 4 before); 109 on seeds 1-64 (132 before), worst index 6
 on seeds 1-64: 10 `Prefix`, 6 `Repair(RadiusPost)`, 26 `SignatureDiscarded`, 3 `SpawnRatio` (new: every later step
 sees a different map; not traced), 0 `Signature`: the tree refused no attempt.
 
+**Spawn-pool refusals with the blueprint bog tree** (P-MAPGEN-SIG-SCALE-3 at `42ce9a72f`; `decor: false`, signature
+on, seeds 1-128, release build, traced 2026-11-13 with a temporary print in `spawn_gate`, since removed).
+`Refusal::SpawnRatio` ends 3 attempts on seeds 1-64 (seed 12 attempt 1, 46 attempt 5, 62 attempt 1) and 2 on seeds
+65-128 (88 attempt 0, 111 attempt 0); the parent commit `50f474eb7` gave 0 and 3 on the same seeds. Every one is
+refused by the last check of `gate_spawn_walks` (`spawns/mod.rs`): the hazard filter (`hazard_walk_max` 8) leaves
+22-23 spawns of a pool of 25-26, under `pool_min` 24; the walk ratio (1.11-1.14 against 1.2) and the zone count pass.
+The tree's marsh is not the cause: no refused attempt has a tree-owned bog tile on any spawn walk, and removing the
+tree's bog from the counts changes no outcome (turning hazards off passes all five). The dropped spawns are in Fire,
+Sentenced and Holy (seed 111 also drops two Plague spawns at 9 hazard tiles each, none of them the tree's). On
+accepted maps of seeds 1-64 no spawn that passes the hazard filter has tree bog on its walk (323 Plague spawns; worst
+0), and no spawn of any zone is in a tree box or its dry ring (nearest 3 tiles outside); the only two walks in 181
+attempts that cross the marsh (9 tiles; a Holy spawn on seed 14, a Frost spawn on seed 112, beside the Plague box)
+are dropped by the same hazard limit and their attempts were accepted. What changed is the margin: the mean pool at
+the gate is 27.1 (28.2 before) and pools of 25-26 occur in 35 of 92 attempts (4 of 111 before), while the share of
+attempts dropping 3 or more spawns is unchanged (5 of 92; 7 of 111). Not established: why the pool is smaller (the
+box's exclusion margin is a candidate, not shown, and every zone's mean fell), whether 5 refusals against 3 over 128
+seeds exceeds chance, and seeds beyond 128. No change made: total attempts still fell with the blueprint tree.
+
 ## Consequences
 
 - The Holy hall is an anchor only after step 3. Moving it into the Landmarks phase means porting the hall's placement
