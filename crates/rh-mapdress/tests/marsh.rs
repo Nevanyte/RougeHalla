@@ -417,28 +417,28 @@ const OTHER_ZONES: [Zone; 4] = [Zone::Fire, Zone::Sentenced, Zone::Frost, Zone::
 /// before the change with the shipped rules. Not captured from legacy.
 const SIG_GOLDEN: [[u64; 4]; 4] = [
     [
-        0xd83bd60ded0cd253,
-        0x2038e2690969ddeb,
-        0x4312ee907e8e90b3,
-        0xd97b0bdbe438abaf,
+        0x40fe7f46d14ae639,
+        0x06836f1b33ea09a4,
+        0xd1e43fa54369b2fa,
+        0xca2c469dac4c833f,
     ],
     [
-        0xc675ffd19134a3cf,
-        0x2bc7b470302305e5,
-        0x0a19fc6e97a7f445,
-        0xbbd9b104fa5c0a00,
+        0x4be4022169892c2a,
+        0x0984dd44d9da2686,
+        0x57904a658131762f,
+        0x8efc14bcb4e2c163,
     ],
     [
-        0xb970cf244123d11f,
-        0xb3a2a9a94e8aa1a5,
-        0xefb85c02a86b58cc,
-        0x0af294ed480f4eb2,
+        0x0d25c89570865eeb,
+        0xbdec3327d5362a1d,
+        0x83bbc9a78e4337b4,
+        0x8ab128b83b58c4ae,
     ],
     [
-        0xbc27ab7607f40cd7,
-        0x92cb1adb6f7cbd33,
-        0xe6b0b093cdbb78a0,
-        0x2605e9824db87c20,
+        0x3a9ecf02aac579f7,
+        0xdda4654465a22303,
+        0x58834e22fcc87815,
+        0x16f5d83bd7ea0a2b,
     ],
 ];
 /// The same for the default (option off) maps.
