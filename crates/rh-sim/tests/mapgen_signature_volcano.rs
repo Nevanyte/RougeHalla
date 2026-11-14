@@ -1,24 +1,29 @@
 //! Oracle of P-MAPGEN-SIG-SCALE-4: in signature mode the Fire volcano IS the owner-approved blueprint
-//! (`docs/landmarks/blueprints/volcano.txt`, owner decision 2026-11-13; requirements L1 and L4; ADR 0028 rule G9): one
-//! size (30 x 30), one layout, filling the Fire zone's reserved site's inner rect in one of eight orientations, its
-//! front toward the coliseum; and exactly three lava streams leave it, one from each outlet run, in a fan toward the
-//! coliseum: the middle one straight ahead, 14-18 path tiles and the longest, the side ones 45 degrees off it, 10-14;
-//! each two tiles wide, without a ford, ending in its own pool. Guarantees are hard (no tolerance); the lava window and
-//! the attempt bounds are provisional targets the implementer measures for the owner (the brief, "Numbers for the
-//! owner"). No legacy counterpart (DEV-020). Seeds 1-32, option on (no decor), `certified_styled`, generated once per
-//! test binary. Brief: `docs/backlog/packets/P-MAPGEN-SIG-SCALE-4.md`.
+//! (`docs/landmarks/blueprints/volcano.txt`; owner decision 2026-11-13, requirements L1 and L4, ADR 0028 rule G9;
+//! amended by the owner decisions of 2026-11-14): one size (22 x 22, "22 across"), one layout, centred in the Fire
+//! zone's reserved site's 30 x 30 inner rect in one of eight orientations, its front toward the coliseum; and exactly
+//! three lava streams leave it, one from each outlet run, in a fan toward the coliseum: the middle one straight ahead,
+//! 10-14 path tiles and the longest, the side ones 45 degrees off it, 7-10; each two tiles wide, without a ford, ending
+//! in its own pool. The two rule changes of 2026-11-14 are pinned here too: a signature landmark's own lava is exempt
+//! from terrain rule T5 (a LOW tile more than 4 tiles from floor), in the terrain gate and the certifier, and nothing
+//! else is; and the Fire fan (below) is kept clear of camp halos and legacy landmark buildings. The zone fairness rule
+//! (largest zone floor at most 1.15 times the smallest) is unchanged. Guarantees are hard (no tolerance); the lava
+//! window and the attempt bounds are PROVISIONAL targets the implementer measures for the owner (the brief, "Numbers to
+//! measure and report"). No legacy counterpart (DEV-020). Seeds 1-32, option on (no decor), `certified_styled`,
+//! generated once per test binary. Brief: `docs/backlog/packets/P-MAPGEN-SIG-SCALE-4.md`.
 //!
 //! Definitions (tile units; x to the right, y down, the map's tile index `y * w + x`):
 //! * the drawing: the lines of `volcano.txt` that do not start with `;` and are not empty; grid tile (gx, gy) is
 //!   character gx of line gy. `#`, `X`, `H` are walls (terrain 0); `~` and `O` lava (LOW, terrain lava); `.` plain floor.
-//!   Its front is the bottom, +gy. The outlet runs: the `O` tiles of the front row (gy = 29), in grid order left
-//!   (gx 7-8), middle (14-15), right (21-22).
+//!   Its front is the bottom, +gy. The outlet runs: the `O` tiles of the front row (gy = 21), in grid order left
+//!   (gx 3-4), middle (10-11), right (17-18).
 //! * the site: the Fire `ReservedSite` of the accepted attempt's prefix; its inner rect: the site shrunk by the core band
 //!   (`DEFAULT_DEFINITION.bands[0]`) on every side (30 x 30); its centre tile: (rect.x + rect.w / 2, rect.y + rect.h / 2).
+//!   The box: the inner rect shrunk by (30 - 22) / 2 = 4 on every side (22 x 22, centred).
 //! * an orientation: a front direction u (one of (1, 0), (-1, 0), (0, 1), (0, -1)) and a mirror flag; r = (u.1, -u.0)
 //!   unmirrored, -r mirrored. The drawing turned is g -> gx * r + gy * u; its box, translated so that its corner nearest
-//!   the map origin is the inner rect's, is the inner rect (30 in 30, no spare tile). `grid_of` is the inverse (r and u
-//!   are orthonormal), defined for every map tile, so a stream outside the box has grid coordinates too.
+//!   the map origin is the box's, is the box. `grid_of` is the inverse (r and u are orthonormal), defined for every map
+//!   tile, so a stream outside the box has grid coordinates too.
 //! * the volcano: the one `Volcano` feature (index k); it equals the drawing under an orientation when every grid tile's
 //!   map tile is: for a wall glyph a wall owned by the volcano with terrain 0; for `~` and `O` LOW with the lava terrain
 //!   owned by the volcano; for `.` floor not owned by the volcano; and the volcano owns no other tile.
@@ -29,12 +34,27 @@
 //! * no ford: the stream's lava is one 4-connected piece (a 4-connected band blocks 4- and 8-connected walkers alike).
 //! * a stream's length (path tiles): 1 + the fewest 8-connected steps through its own lava from a tile touching its run
 //!   to a tile touching its pool's lava. A straight stream n tiles long, two wide, measures n.
-//! * the fan: in grid coordinates (`grid_of`), the displacement from the run's centre (gx 7.5, 14.5 or 21.5; gy 29) to
-//!   the centroid of the stream's pool lava.
+//! * a stream's displacement: in grid coordinates (`grid_of`), from the run's centre (gx 4, 11 or 18; gy 21.5) to the
+//!   centroid of the stream's pool lava.
 //! * front toward the coliseum: f = the DIR16 index of the largest dot product with (CX - t.x, CY - t.y), first on a tie;
 //!   u is the dominant axis of `DIR16[f]` (x on a tie).
+//! * the Fire fan (owner decision 2026-11-14): with u the front axis read at the Fire site's centre tile (the dominant
+//!   axis of `front(t)`, x on a tie; on the built volcano t is the Fire anchor's centre and u the axis of the anchor's
+//!   `front`, the axis the drawing's front row faces) and the inner rect
+//!   (x0, y0)-(x1, y1) inclusive, the rectangle of the 14 (`fan_depth()`) tile rows or columns just beyond the inner
+//!   rect's side that faces u, as wide as that side plus 14 (`fan_side()`) tiles on each end; clipped to the map. For
+//!   u = (0, 1): x0 - 14 ..= x1 + 14 by y1 + 1 ..= y1 + 14; the other three by symmetry.
+//! * far from floor (terrain rule T5, `certify::rules::R.snap` = 4): a tile whose 4-connected step distance through any
+//!   tiles to the nearest floor tile exceeds 4 (the terrain gate's and the certifier's own measure).
+//! * a signature landmark feature: a feature of kind `Volcano`, `LavaStream`, `LavaPool`, `Church`, `Graveyard`,
+//!   `BogTree` or `Cave`.
+//! * a camp's halo: the certifier's (as `mapgen_signature_reserve.rs`): tiles camp tile + (dx, dy), |dx|, |dy| <=
+//!   `R.protection_span`, for which some |ox|, |oy| <= `R.halo` has (dx + ox)^2 + (dy + oy)^2 <= `R.clearing`^2.
+//! * a legacy landmark building's tile: a tile the feature grid gives to a feature of kind `Landmark` (the legacy
+//!   landmark stage's buildings).
 use rh_sim::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
 use rh_sim::mapdata::{FeatureJob, FeatureKind, GameMapData, TileRect, Zone};
+use rh_sim::mapgen::certify::rules::R;
 use rh_sim::mapgen::coliseum::{CX, CY};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::blueprint::{
@@ -44,7 +64,7 @@ use rh_sim::mapgen::landmarks::signature::spec::{specs, FeatureAnchor, FeatureSp
 use rh_sim::mapgen::landmarks::signature::{Placed, SignatureContext, DEFAULT_DEFINITION};
 use rh_sim::mapgen::landmarks::stage::LandmarkStage;
 use rh_sim::mapgen::landmarks::{recipes, stage};
-use rh_sim::mapgen::{attempt, certify, coliseum, pipeline};
+use rh_sim::mapgen::{attempt, certify, coliseum, pipeline, terrain_gate};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::OnceLock;
 
@@ -59,32 +79,46 @@ fn approved() -> &'static str {
     include_str!("../../../docs/landmarks/blueprints/volcano.txt")
 }
 
+/// The drawing's side (owner decision 2026-11-14: "22 across").
 fn side() -> i32 {
+    22
+}
+
+/// The side of the Fire site's inner rect the drawing is centred in (unchanged: the 34 site less the 2-tile apron).
+fn inner_side() -> i32 {
     30
 }
 
 /// The outlet runs, grid order: left, middle, right (header definition).
 fn runs() -> [[Cell; 2]; 3] {
     [
-        [(7, 29), (8, 29)],
-        [(14, 29), (15, 29)],
-        [(21, 29), (22, 29)],
+        [(3, 21), (4, 21)],
+        [(10, 21), (11, 21)],
+        [(17, 21), (18, 21)],
     ]
 }
 
-/// The owner's stream lengths (requirement L4), per run in grid order: hard ranges, inclusive.
+/// The owner's stream lengths (requirement L4, lengths by the owner decision of 2026-11-14), per run in grid order:
+/// hard ranges, inclusive.
 fn owner_len() -> [(i32, i32); 3] {
-    [(10, 14), (14, 18), (10, 14)]
+    [(7, 10), (10, 14), (7, 10)]
 }
 
-/// PROVISIONAL (a number for the owner, not a final figure): the Fire zone's lava per map, inclusive. Worked from the
-/// drawing and the stream rules, not measured: the cone holds 160 lava tiles (154 `~`: the crater lake 96 in rows
-/// 10-19, the three channels 58; and the 6 `O`); the streams 2 x (10..14 + 14..18 + 10..14) = 68-92; three pools of
-/// 9-13 tiles (today's squared radii 4 and 2) = 27-39; widening fills at bends a few more: about 255-295. The window
-/// round it: 240-310. Today's `lava_budget` (80, 150) cannot hold the cone's own 160. The implementer measures seeds
-/// 1-64, the coordinator takes the range to the owner, and this window is amended afterwards.
+/// The owner's Fire fan (decision 2026-11-14): depth and the tiles added on each side of the inner rect's width.
+fn fan_depth() -> i32 {
+    14
+}
+
+fn fan_side() -> i32 {
+    14
+}
+
+/// PROVISIONAL (not set by the owner; the implementer measures it and the coordinator finalises it): the Fire zone's
+/// lava per map, inclusive. The cone holds 136 lava tiles (130 `~`, 6 `O`); the measured prototype (the same lava
+/// layout, the same stream ranges) held 221-244 per map over seeds 1-64. The window round it: 200-270. Today's
+/// `lava_budget` (80, 150) is the rule-drawn cone's.
 fn provisional_lava_window() -> (usize, usize) {
-    (240, 310)
+    (200, 270)
 }
 
 /// The attempts `certified_styled` tries per seed.
@@ -92,17 +126,34 @@ fn attempt_limit() -> u64 {
     16
 }
 
-/// PROVISIONAL (a number for the owner): the worst attempt index over seeds 1-32, today's strictest bound on the same
-/// maps (`mapgen_signature_bog_tree.rs`, 4). If the 30-tile cone with three streams cannot keep it, the measurement goes
-/// to the owner; the bound is not raised quietly.
+/// PROVISIONAL (not set by the owner; the implementer measures it and the coordinator finalises it): the worst attempt
+/// index over seeds 1-32. The measured prototype's worst over seeds 1-64 was 10; 12 with headroom.
 fn worst_attempt_allowed() -> u64 {
-    4
+    12
 }
 
-/// PROVISIONAL (a number for the owner): the attempts seeds 1-32 use in all, today's strictest bound on the same maps
-/// (`mapgen_signature_church.rs`, 57).
+/// PROVISIONAL (not set by the owner; the implementer measures it and the coordinator finalises it): the attempts seeds
+/// 1-32 use in all. The measured prototype used 210 over seeds 1-64: 105 scaled to 32 seeds, plus about 30%: 137.
 fn attempts_allowed() -> u64 {
-    57
+    137
+}
+
+/// The certifier's zone fairness rule (`zone-floor-share`), unchanged by the owner decision of 2026-11-14.
+fn floor_share() -> f64 {
+    1.15
+}
+
+/// The signature landmark kinds (header definition).
+fn signature_kinds() -> [FeatureKind; 7] {
+    [
+        FeatureKind::Volcano,
+        FeatureKind::LavaStream,
+        FeatureKind::LavaPool,
+        FeatureKind::Church,
+        FeatureKind::Graveyard,
+        FeatureKind::BogTree,
+        FeatureKind::Cave,
+    ]
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -304,21 +355,33 @@ fn grow(r: TileRect, by: i32) -> (i32, i32, i32, i32) {
     )
 }
 
-/// The Fire site of the accepted attempt's prefix: (inner rect's corner, centre tile).
-fn fire_site(l: &Landed) -> (Cell, Cell) {
+/// The Fire site's inner rect of the accepted attempt's prefix, (x0, y0, x1, y1) inclusive, asserted 30 x 30.
+fn fire_inner(l: &Landed) -> (i32, i32, i32, i32) {
     let r = l
         .prefix
         .reserved
         .iter()
         .find(|r| r.zone == Zone::Fire)
         .unwrap_or_else(|| panic!("seed {}: no Fire site in the prefix", l.seed));
-    let b = DEFAULT_DEFINITION.bands[0];
+    let inner = grow(r.rect, -DEFAULT_DEFINITION.bands[0]);
+    assert_eq!(
+        (inner.2 - inner.0 + 1, inner.3 - inner.1 + 1),
+        (inner_side(), inner_side()),
+        "seed {}: the Fire site's inner rect {inner:?} is not {} a side",
+        l.seed,
+        inner_side()
+    );
+    inner
+}
+
+/// The Fire site of the accepted attempt's prefix: (the box's corner, the site's centre tile). The box is the 22 x 22
+/// square centred in the 30 x 30 inner rect (header definition).
+fn fire_site(l: &Landed) -> (Cell, Cell) {
+    let (x0, y0, _, _) = fire_inner(l);
+    let m = (inner_side() - side()) / 2;
     (
-        (r.rect.x + b, r.rect.y + b),
-        (
-            r.rect.x + r.rect.w as i32 / 2,
-            r.rect.y + r.rect.h as i32 / 2,
-        ),
+        (x0 + m, y0 + m),
+        (x0 + inner_side() / 2, y0 + inner_side() / 2),
     )
 }
 
@@ -691,8 +754,9 @@ fn the_heading_helper_turns_the_outlet_headings_into_dir16() {
 // The cone is the drawing.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// Seeds 1-32: the volcano equals the drawing under exactly one of the eight orientations, its box the Fire site's inner
-/// rect; it owns nothing else. Red on the stub: the cone is a disc of about 5 tiles.
+/// Seeds 1-32: the volcano equals the drawing under exactly one of the eight orientations, its box the 22 x 22 square
+/// centred in the Fire site's 30 x 30 inner rect; it owns nothing else. Red on the stub: the cone is a disc of about 5
+/// tiles.
 #[test]
 fn the_volcano_is_the_blueprint_under_one_of_eight_orientations() {
     for l in maps() {
@@ -700,10 +764,11 @@ fn the_volcano_is_the_blueprint_under_one_of_eight_orientations() {
     }
 }
 
-/// The Fire anchor is the blueprint's: footprint the 30 x 30 inner rect of the site (the drawing's box); centre the
-/// site's centre tile, which is a crater-lake tile (one of the four middle grid tiles (14|15, 14|15), all `~`, LOW lava
-/// owned by the volcano) under every orientation, and the volcano feature's anchor point; front the generator's rule
-/// from the centre, its axis the orientation's front; entrance the six outlet tiles, row-major. Red on the stub.
+/// The Fire anchor is the blueprint's: footprint the 22 x 22 box centred in the site's 30 x 30 inner rect (the
+/// landing's box); centre the site's centre tile, which is a crater-lake tile (one of the four middle grid tiles
+/// (10|11, 10|11), all `~`, LOW lava owned by the volcano) under every orientation, and the volcano feature's anchor
+/// point; front the generator's rule from the centre, its axis the orientation's front; entrance the six outlet tiles,
+/// row-major. Red on the stub.
 #[test]
 fn the_fire_anchor_is_the_box_the_crater_centre_and_the_six_outlets() {
     for l in maps() {
@@ -721,14 +786,14 @@ fn the_fire_anchor_is_the_box_the_crater_centre_and_the_six_outlets() {
                 corner.0 + side() - 1,
                 corner.1 + side() - 1
             ),
-            "seed {seed}: the Fire footprint is not the site's 30 x 30 inner rect"
+            "seed {seed}: the Fire footprint is not the 22 x 22 box centred in the site's inner rect"
         );
         assert_eq!((a.centre.x, a.centre.y), t, "seed {seed}: the Fire centre");
         let o = orientation(l);
         let g = grid_of(o, corner, (f64::from(t.0) + 0.5, f64::from(t.1) + 0.5));
         let g = (g.0.floor() as i32, g.1.floor() as i32);
         assert!(
-            [14, 15].contains(&g.0) && [14, 15].contains(&g.1),
+            [10, 11].contains(&g.0) && [10, 11].contains(&g.1),
             "seed {seed}: the centre is grid tile {g:?}, not one of the middle four"
         );
         let k = single(seed, m, FeatureKind::Volcano, Zone::Fire);
@@ -848,10 +913,10 @@ fn exactly_three_streams_one_per_outlet_each_ending_in_its_pool() {
     }
 }
 
-/// Seeds 1-32: each stream's length is in the owner's range for its run (left and right 10-14, middle 14-18), and the
-/// middle stream is strictly the longest. Red on the stub.
+/// Seeds 1-32: each stream's length is in the owner's range for its run (owner decision 2026-11-14: left and right 7-10,
+/// middle 10-14), and the middle stream is strictly the longest. Red on the stub.
 #[test]
-fn the_middle_stream_is_14_to_18_and_the_longest_the_sides_10_to_14() {
+fn the_middle_stream_is_10_to_14_and_the_longest_the_sides_7_to_10() {
     let mut bad = Vec::new();
     for l in maps() {
         let o = orientation(l);
@@ -893,7 +958,10 @@ fn the_streams_fan_toward_the_coliseum_each_on_its_own_side() {
                 let g = grid_of(o, corner, (f64::from(c.0) + 0.5, f64::from(c.1) + 0.5));
                 (acc.0 + g.0, acc.1 + g.1)
             });
-            let run_centre = (f64::from(runs()[s.run][0].0) + 1.0, 29.5);
+            let run_centre = (
+                f64::from(runs()[s.run][0].0) + 1.0,
+                f64::from(runs()[s.run][0].1) + 0.5,
+            );
             let (dx, dy) = (sx / n - run_centre.0, sy / n - run_centre.1);
             let ok = dy > 0.0
                 && match s.run {
@@ -1004,9 +1072,9 @@ fn the_fire_frame_lands_the_drawing_and_writes_the_streams_in_outlet_order() {
 // Lava.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/// The generator's lava budget is the provisional window, and every map's Fire lava (the cone's crater lake, channels
-/// and outlets, the streams and the pools) lies inside it. Red on the stub: today's budget (80, 150) and maps of about
-/// 100 lava tiles.
+/// PROVISIONAL window (not set by the owner; `provisional_lava_window`). The generator's lava budget is the window, and
+/// every map's Fire lava (the cone's crater lake, channels and outlets, the streams and the pools) lies inside it. Red
+/// on the stub: today's budget (80, 150) and maps of about 100 lava tiles.
 #[test]
 fn the_fire_lava_lies_in_the_provisional_window() {
     let w = provisional_lava_window();
@@ -1040,9 +1108,9 @@ fn the_fire_lava_lies_in_the_provisional_window() {
 // ---------------------------------------------------------------------------------------------------------------------
 
 /// Guard. The generator's copy of the drawing is byte-equal to the approved file, and the drawing is what this oracle
-/// reads: 30 x 30; 656 wall tiles (362 `#`, 214 `X`, 80 `H`), 154 `~`, 6 `O`, 84 `.`; the `O` tiles exactly the three
-/// runs of the front row; the outlet table of `Definition` is the owner's (headings 45 degrees left, straight, 45
-/// degrees right; lengths 10-14, 14-18, 10-14).
+/// reads: 22 x 22; 322 wall tiles (146 `#`, 96 `X`, 80 `H`), 130 `~`, 6 `O`, 26 `.` (the four cut corners); the `O`
+/// tiles exactly the three runs of the front row; the outlet table of `Definition` is the owner's (headings 45 degrees
+/// left, straight, 45 degrees right; lengths 7-10, 10-14, 7-10); the fan's depth and side are the owner's (14, 14).
 #[test]
 fn guard_the_drawing_and_the_outlet_table_are_the_owners() {
     let d = DEFAULT_DEFINITION;
@@ -1056,7 +1124,7 @@ fn guard_the_drawing_and_the_outlet_table_are_the_owners() {
     let count = |ch: u8| tiles_of(&[ch]).len();
     assert_eq!(
         b"#XH~O.".map(count),
-        [362, 214, 80, 154, 6, 84],
+        [146, 96, 80, 130, 6, 26],
         "glyph counts"
     );
     assert_eq!(tiles_of(b"O"), runs().concat(), "the outlet runs");
@@ -1066,6 +1134,11 @@ fn guard_the_drawing_and_the_outlet_table_are_the_owners() {
         "outlet headings"
     );
     assert_eq!(d.outlet_len, owner_len(), "outlet lengths");
+    assert_eq!(
+        (d.fan_depth, d.fan_side),
+        (fan_depth(), fan_side()),
+        "the fan's depth and side"
+    );
 }
 
 /// Guard. Every seed keeps all four signature landmarks and the Holy anchor and certifies with zero failures (every
@@ -1100,7 +1173,7 @@ fn guard_every_zone_keeps_its_landmark_and_every_map_certifies_clean() {
     }
 }
 
-/// Guard (PROVISIONAL bound, a number for the owner). The worst attempt index over seeds 1-32.
+/// Guard (PROVISIONAL bound, `worst_attempt_allowed`, not set by the owner). The worst attempt index over seeds 1-32.
 #[test]
 fn guard_the_worst_attempt_stays_within_the_provisional_bound() {
     let worst = maps()
@@ -1116,7 +1189,7 @@ fn guard_the_worst_attempt_stays_within_the_provisional_bound() {
     );
 }
 
-/// Guard (PROVISIONAL bound, a number for the owner). The attempts seeds 1-32 use in all.
+/// Guard (PROVISIONAL bound, `attempts_allowed`, not set by the owner). The attempts seeds 1-32 use in all.
 #[test]
 fn guard_the_attempts_used_stay_within_the_provisional_bound() {
     let used: u64 = maps().map(|l| l.map.attempt + 1).sum();
@@ -1125,6 +1198,430 @@ fn guard_the_attempts_used_stay_within_the_provisional_bound() {
         "{used} attempts over seeds 1-32 (provisional bound {})",
         attempts_allowed()
     );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The lava rule (owner decision 2026-11-14): a signature landmark's own lava is exempt from T5; nothing else is.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// Per tile, the 4-connected step distance through any tiles to the nearest floor tile, searched up to `cap` steps
+/// (`usize::MAX` beyond it): the terrain gate's and the certifier's T5 measure with `cap` = `R.snap`.
+fn floor_steps(m: &GameMapData, cap: usize) -> Vec<usize> {
+    let mut d = vec![usize::MAX; m.tiles.len()];
+    let mut queue = VecDeque::new();
+    for (i, step) in d.iter_mut().enumerate() {
+        if m.tiles[i] == TILE_FLOOR {
+            *step = 0;
+            queue.push_back(i);
+        }
+    }
+    while let Some(i) = queue.pop_front() {
+        if d[i] >= cap {
+            continue;
+        }
+        let c = cell(m, i);
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if let Some(j) = at(m, (c.0 + dx, c.1 + dy)) {
+                if d[j] == usize::MAX {
+                    d[j] = d[i] + 1;
+                    queue.push_back(j);
+                }
+            }
+        }
+    }
+    d
+}
+
+/// The LOW tiles far from floor (header definition), ascending.
+fn far_low(m: &GameMapData) -> Vec<usize> {
+    let d = floor_steps(m, R.snap);
+    (0..m.tiles.len())
+        .filter(|&i| m.tiles[i] == TILE_LOW && d[i] > R.snap)
+        .collect()
+}
+
+/// The kind of the feature owning tile `i`, if any.
+fn owner_kind(m: &GameMapData, i: usize) -> Option<FeatureKind> {
+    usize::from(m.feature_grid[i])
+        .checked_sub(1)
+        .map(|k| m.features[k].kind)
+}
+
+/// The terrain gate's T5 lines (`terrain_gate::validate`, styled, as the pipeline runs it) and whether the certifier
+/// (styled, every zone strict) fails its `terrain-validator` rule (the certifier's T2-T11, T5 among them).
+fn t5_verdicts(m: &GameMapData) -> (Vec<String>, bool) {
+    let gate = terrain_gate::validate(
+        m,
+        &terrain_gate::Options {
+            styled: true,
+            prop_kinds: None,
+        },
+    )
+    .expect("terrain gate input");
+    let t5 = gate.into_iter().filter(|s| s.starts_with("T5")).collect();
+    let c = certify::certify(
+        m,
+        &certify::Options {
+            styled: true,
+            zone: true,
+            strict: certify::Strict::All,
+        },
+    )
+    .expect("certifier input");
+    (t5, c.failures.iter().any(|f| f.rule == "terrain-validator"))
+}
+
+/// The first feature of `m` that is not a signature landmark's, preferring `kind`: (index, kind).
+fn non_signature_feature(m: &GameMapData, kind: FeatureKind) -> (usize, FeatureKind) {
+    let k = (0..m.features.len())
+        .find(|&k| m.features[k].kind == kind)
+        .or_else(|| {
+            (0..m.features.len()).find(|&k| !signature_kinds().contains(&m.features[k].kind))
+        })
+        .expect("a feature that is not a signature landmark's");
+    (k, m.features[k].kind)
+}
+
+/// Seeds 1-32, every finished option-on map (each certifies clean: `guard_every_zone_keeps_its_landmark_and_every_map_
+/// certifies_clean`): every LOW tile far from floor is lava owned by a signature landmark feature; every map has such
+/// tiles (the crater lake's middle, about 112 tiles on the measured prototype: the exemption is used, not idle); and the
+/// terrain gate reports no T5 line. Red on the stub: the small cone's crater lies within 4 tiles of floor.
+#[test]
+fn every_low_tile_far_from_floor_is_a_signature_landmarks_own_lava() {
+    let mut bad = Vec::new();
+    for l in maps() {
+        let m = &l.map;
+        let far = far_low(m);
+        if far.is_empty() {
+            bad.push(format!(
+                "seed {}: no LOW tile is far from floor (the crater lake's middle must be)",
+                l.seed
+            ));
+        }
+        let stray: Vec<(Cell, Option<FeatureKind>)> = far
+            .iter()
+            .filter(|&&i| {
+                !(is_lava(m, i) && owner_kind(m, i).is_some_and(|k| signature_kinds().contains(&k)))
+            })
+            .map(|&i| (cell(m, i), owner_kind(m, i)))
+            .collect();
+        if let Some(first) = stray.first() {
+            bad.push(format!(
+                "seed {}: {} far LOW tiles are not a signature landmark's lava, first {first:?}",
+                l.seed,
+                stray.len()
+            ));
+        }
+        let (t5, _) = t5_verdicts(m);
+        if !t5.is_empty() {
+            bad.push(format!("seed {}: the terrain gate says {t5:?}", l.seed));
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// Through the public surface, option on, seeds 1-8: the crater lake's far tiles pass the terrain gate and the
+/// certifier as built; with their feature-grid entry cleared (no owner), or given to a feature that is not a signature
+/// landmark's (a Fire crater where the map has one), the same map fails both: the terrain gate reports a T5 line and
+/// the certifier fails `terrain-validator`. The exemption is the owner's, by ownership, and nothing wider. Red on the
+/// stub: no far tile to doctor.
+#[test]
+fn far_lava_no_signature_landmark_owns_still_fails_t5_option_on() {
+    for l in maps().take(8) {
+        let (seed, m) = (l.seed, &l.map);
+        let far = far_low(m);
+        assert!(
+            !far.is_empty(),
+            "seed {seed}: no LOW tile far from floor to doctor (the crater lake's middle must be)"
+        );
+        let (t5, failed) = t5_verdicts(m);
+        assert!(
+            t5.is_empty() && !failed,
+            "seed {seed}: as built, the gate's T5 lines {t5:?}, the certifier's terrain-validator failed {failed}"
+        );
+        let (other, kind) = non_signature_feature(m, FeatureKind::Crater);
+        for (name, owner) in [
+            ("no owner".to_string(), 0u8),
+            (
+                format!("owner {kind:?}"),
+                u8::try_from(other + 1).expect("feature id"),
+            ),
+        ] {
+            let mut d = m.clone();
+            for &i in &far {
+                d.feature_grid[i] = owner;
+            }
+            let (t5, failed) = t5_verdicts(&d);
+            assert!(
+                !t5.is_empty(),
+                "seed {seed}: the crater lake's far lava with {name}: no T5 line from the terrain gate"
+            );
+            assert!(
+                failed,
+                "seed {seed}: the crater lake's far lava with {name}: the certifier's terrain-validator passes"
+            );
+        }
+    }
+}
+
+/// The option-off maps of seeds 1-4 (no decor), generated once per test binary.
+fn off_maps() -> &'static Vec<(i64, GameMapData)> {
+    static MAPS: OnceLock<Vec<(i64, GameMapData)>> = OnceLock::new();
+    MAPS.get_or_init(|| {
+        let fixed = coliseum::fixed_layout();
+        let generator = pipeline::Pipeline::new(&fixed);
+        (1..=4)
+            .map(|seed| {
+                let m = generator
+                    .certified_styled(
+                        seed,
+                        pipeline::Options {
+                            decor: false,
+                            ..pipeline::Options::default()
+                        },
+                    )
+                    .expect("generator error")
+                    .unwrap_or_else(|| panic!("seed {seed}: no map with the option off"));
+                (seed, m)
+            })
+            .collect()
+    })
+}
+
+/// A doctored copy of `m` with ground far from floor: centre tile `i` and every tile within 4 (`R.snap`) 4-connected
+/// steps of it turned to plain wall (terrain 0, no owner), so `i` is more than 4 steps from floor. The centre is the
+/// first wall tile, deepest first (largest floor distance, then index order), off the border by more than 4, for which
+/// the doctored map still passes the terrain gate with no line at all and the certifier's `terrain-validator`: the
+/// walls alone break no terrain rule there, so what a lava tile at `i` breaks is T5.
+fn far_ground(m: &GameMapData) -> (usize, GameMapData) {
+    let d = floor_steps(m, usize::MAX);
+    let (w, h, s) = (m.w as i32, m.h as i32, R.snap as i32);
+    let mut walls: Vec<usize> = (0..m.tiles.len())
+        .filter(|&i| {
+            let c = cell(m, i);
+            m.tiles[i] == TILE_WALL && c.0 > s && c.1 > s && c.0 < w - 1 - s && c.1 < h - 1 - s
+        })
+        .collect();
+    walls.sort_by_key(|&i| (std::cmp::Reverse(d[i]), i));
+    for &i in walls.iter().take(64) {
+        let c = cell(m, i);
+        let mut b = m.clone();
+        for dy in -s..=s {
+            for dx in -s..=s {
+                if dx.abs() + dy.abs() <= s {
+                    let j = at(m, (c.0 + dx, c.1 + dy)).expect("off the border");
+                    b.tiles[j] = TILE_WALL;
+                    b.terrain[j] = 0;
+                    b.feature_grid[j] = 0;
+                }
+            }
+        }
+        let gate = terrain_gate::validate(
+            &b,
+            &terrain_gate::Options {
+                styled: true,
+                prop_kinds: None,
+            },
+        )
+        .expect("terrain gate input");
+        if gate.is_empty() && !t5_verdicts(&b).1 {
+            return (i, b);
+        }
+    }
+    panic!("no wall tile among the 64 deepest takes a clean block of wall round it");
+}
+
+/// Through the public surface, option off and option on, seeds 1-4: on ground far from floor (`far_ground`, which
+/// passes the terrain gate and the certifier's `terrain-validator` as doctored), one lava tile (LOW, the lava terrain)
+/// with no owner, or owned by a feature that is not a signature landmark's (option off: the legacy `LavaRiver`), makes
+/// the terrain gate report a T5 line and the certifier fail `terrain-validator`. Green on the stub (T5 as today); it
+/// pins that the exemption stays a signature landmark's, on both option settings.
+#[test]
+fn far_lava_on_doctored_ground_still_fails_t5_option_on_and_off() {
+    let on = maps().take(4).map(|l| (l.seed, &l.map, "on"));
+    let off = off_maps().iter().map(|(s, m)| (*s, m, "off"));
+    for (seed, m, option) in on.chain(off) {
+        let (t5, failed) = t5_verdicts(m);
+        assert!(
+            t5.is_empty() && !failed,
+            "seed {seed} option {option}: as generated, the gate's T5 lines {t5:?}, terrain-validator failed {failed}"
+        );
+        let (i, ground) = far_ground(m);
+        let (other, kind) = non_signature_feature(m, FeatureKind::LavaRiver);
+        for (name, owner) in [
+            ("no owner".to_string(), 0u8),
+            (
+                format!("owner {kind:?}"),
+                u8::try_from(other + 1).expect("feature id"),
+            ),
+        ] {
+            let mut d = ground.clone();
+            d.tiles[i] = TILE_LOW;
+            d.terrain[i] = DEFAULT_DEFINITION.lava;
+            d.feature_grid[i] = owner;
+            let (t5, failed) = t5_verdicts(&d);
+            assert!(
+                !t5.is_empty(),
+                "seed {seed} option {option}: lava at {:?} with {name}: no T5 line from the terrain gate",
+                cell(m, i)
+            );
+            assert!(
+                failed,
+                "seed {seed} option {option}: lava at {:?} with {name}: the certifier's terrain-validator passes",
+                cell(m, i)
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The fan (owner decision 2026-11-14) and the streams' ground.
+// ---------------------------------------------------------------------------------------------------------------------
+
+fn world_cell(x: f64, y: f64) -> Cell {
+    ((x / R.tile).floor() as i32, (y / R.tile).floor() as i32)
+}
+
+/// The certifier's halo of the camp at tile `t` (header definition).
+fn halo_of(t: Cell) -> Vec<Cell> {
+    let s = R.protection_span;
+    let mut out = Vec::new();
+    for dy in -s..=s {
+        for dx in -s..=s {
+            let near = (-R.halo..=R.halo).any(|oy| {
+                (-R.halo..=R.halo).any(|ox| {
+                    f64::from((dx + ox).pow(2) + (dy + oy).pow(2)) <= R.clearing * R.clearing
+                })
+            });
+            if near {
+                out.push((t.0 + dx, t.1 + dy));
+            }
+        }
+    }
+    out
+}
+
+/// Every tile of the map in some camp's halo, with the camp's zone and tile.
+fn halo_tiles(m: &GameMapData) -> BTreeMap<Cell, (Zone, Cell)> {
+    let mut out = BTreeMap::new();
+    for c in &m.camps {
+        let t = world_cell(c.x, c.y);
+        for h in halo_of(t) {
+            out.entry(h).or_insert((c.zone, t));
+        }
+    }
+    out
+}
+
+/// The Fire fan of the map (header definition): its tiles on the map. How the front axis is taken: the generator's
+/// front rule (`front`: the DIR16 index toward the coliseum centre tile, largest dot product, first on a tie) read at
+/// the Fire site's centre tile, then its dominant axis (`axis`, x on a tie). On the built volcano that tile is the Fire
+/// anchor's centre and this axis is the anchor's front axis and the drawing's front row
+/// (`the_fire_anchor_is_the_box_the_crater_centre_and_the_six_outlets`); reading it from the site keeps the fan defined
+/// by the site alone, as the Prefix must place camps before any landmark exists.
+fn fan(l: &Landed) -> Vec<Cell> {
+    let m = &l.map;
+    let (_, t) = fire_site(l);
+    let (x0, y0, x1, y1) = fire_inner(l);
+    let (d, s) = (fan_depth(), fan_side());
+    let r = match axis(front(t)) {
+        (0, 1) => (x0 - s, y1 + 1, x1 + s, y1 + d),
+        (0, -1) => (x0 - s, y0 - d, x1 + s, y0 - 1),
+        (1, 0) => (x1 + 1, y0 - s, x1 + d, y1 + s),
+        _ => (x0 - d, y0 - s, x0 - 1, y1 + s),
+    };
+    let mut out = Vec::new();
+    for y in r.1..=r.3 {
+        for x in r.0..=r.2 {
+            if at(m, (x, y)).is_some() {
+                out.push((x, y));
+            }
+        }
+    }
+    out
+}
+
+/// Seeds 1-32, option on (owner decision 2026-11-14): no tile of the Fire fan lies in a camp's halo (every camp of the
+/// map, of every zone) or belongs to a legacy landmark building (a tile owned by a `Landmark` feature). Red on the stub
+/// where a camp or a building stands in front of the Fire site (nothing reserves that ground yet).
+#[test]
+fn the_fire_fan_holds_no_camp_halo_and_no_legacy_building() {
+    let mut bad = Vec::new();
+    for l in maps() {
+        let m = &l.map;
+        let halos = halo_tiles(m);
+        let tiles = fan(l);
+        if let Some((c, (zone, camp))) = tiles.iter().find_map(|c| halos.get(c).map(|h| (c, h))) {
+            bad.push(format!(
+                "seed {}: fan tile {c:?} in the halo of the {zone:?} camp at {camp:?}",
+                l.seed
+            ));
+        }
+        if let Some(c) = tiles
+            .iter()
+            .find(|&&c| owner_kind(m, at(m, c).unwrap()) == Some(FeatureKind::Landmark))
+        {
+            bad.push(format!(
+                "seed {}: fan tile {c:?} belongs to a legacy landmark building",
+                l.seed
+            ));
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// Seeds 1-32, the brief's choice (known traps): the streams and pools may cross the legacy landmark protection (the
+/// camps' clearings grown by `landmark_clearing_margin`; the first build's `volcano::free`, commit `c6aa171ac`, and the
+/// measured prototype), but never a camp's halo: no tile a `LavaStream` or `LavaPool` feature owns (lava or ember)
+/// lies in any camp's halo. A guard on the stub (today's streams keep off both).
+#[test]
+fn no_stream_or_pool_tile_lies_in_a_camp_halo() {
+    let mut bad = Vec::new();
+    for l in maps() {
+        let m = &l.map;
+        let halos = halo_tiles(m);
+        for i in 0..m.tiles.len() {
+            if matches!(
+                owner_kind(m, i),
+                Some(FeatureKind::LavaStream | FeatureKind::LavaPool)
+            ) {
+                if let Some((zone, camp)) = halos.get(&cell(m, i)) {
+                    bad.push(format!(
+                        "seed {}: {:?} tile {:?} in the halo of the {zone:?} camp at {camp:?}",
+                        l.seed,
+                        owner_kind(m, i).unwrap(),
+                        cell(m, i)
+                    ));
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// Guard (owner decision 2026-11-14: the zone fairness rule is NOT changed). The certifier's `zone-floor-share` rule is
+/// still 1.15 (`R.floor_share`: the largest zone floor at most 1.15 times the smallest), and no kept map of seeds 1-32
+/// fails it. The same check is one of those `guard_every_zone_keeps_its_landmark_and_every_map_certifies_clean` makes;
+/// it is named here so that a change to the rule shows.
+#[test]
+fn guard_the_zone_fairness_rule_is_unchanged_and_holds() {
+    assert_eq!(R.floor_share, floor_share(), "the certifier's floor share");
+    for l in maps() {
+        let c = certify::certify(
+            &l.map,
+            &certify::Options {
+                styled: true,
+                zone: true,
+                strict: certify::Strict::All,
+            },
+        )
+        .unwrap_or_else(|e| panic!("seed {}: certifier refused the map: {e:?}", l.seed));
+        assert!(
+            !c.failures.iter().any(|f| f.rule == "zone-floor-share"),
+            "seed {}: zone-floor-share fails",
+            l.seed
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

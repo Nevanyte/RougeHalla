@@ -17,8 +17,9 @@
 //! * crater size: the crater feature's tile count (`MapFeature::tiles`, rim walls and bowl floor). A crater's band: the
 //!   nearest band (`signature::band` against the Fire anchor) of any of its tiles.
 //! * legacy river budget: the option-off maps of seeds 1-16 hold 107-158 lava tiles, all in their one `LavaRiver`
-//!   (measured 2026-11-12, packet brief). P-MAPGEN-SIG-SCALE-4 retired this file's budget (70-160): the approved cone
-//!   alone holds 160 lava tiles; the Fire lava window is `mapgen_signature_volcano.rs`'s.
+//!   (measured 2026-11-12, packet brief). P-MAPGEN-SIG-SCALE-4 retired this file's budget (70-160): the approved 22 x 22
+//!   cone alone holds 136 lava tiles and with its three streams and pools the zone holds about 220-245 (the measured
+//!   prototype); the Fire lava window is `mapgen_signature_volcano.rs`'s.
 use rh_sim::mapdata::{FeatureKind, GameMapData, Zone, ZoneAnchor};
 use rh_sim::mapgen::landmarks::recipe_support::DIR16;
 use rh_sim::mapgen::landmarks::signature::{band, Band, SignatureContext, DEFAULT_DEFINITION};
@@ -351,7 +352,7 @@ fn volcano_on_the_back_edge_with_streams_toward_the_front() {
 
 /// No lava river with the option on; every lava tile belongs to the volcano, a stream or a pool. Amended by
 /// P-MAPGEN-SIG-SCALE-4: was `no_lava_river_and_lava_within_the_rivers_budget`, whose budget (70-160) the approved cone
-/// alone (160 lava tiles) fills; the Fire lava window is now `mapgen_signature_volcano.rs`
+/// with its three streams (about 220-245 lava tiles) exceeds; the Fire lava window is now `mapgen_signature_volcano.rs`
 /// `the_fire_lava_lies_in_the_provisional_window` (a number for the owner).
 #[test]
 fn no_lava_river_and_every_lava_tile_is_the_volcanos() {

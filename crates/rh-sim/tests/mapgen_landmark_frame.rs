@@ -467,7 +467,9 @@ fn the_frames_cells_are_the_landmarks_tiles_on_the_finished_map() {
 /// Seeds 1-32 attempts 0-1, every accepted Landmarks phase, each frame with a landing: its marks are every tile of
 /// every mark of its drawing's legend, by character then grid order, each on the tile its landing sends it to; the
 /// cave's `D` tiles come in ascending drawing column under every orientation; `heading((0, 1))` is the axis of the
-/// anchor's front and `heading(d)` is the landing's turn of `d`. The volcano (no landing) has no marks and no heading.
+/// anchor's front and `heading(d)` is the landing's turn of `d` (the volcano's six `O` outlets of the 22 x 22 drawing
+/// included: amended by P-MAPGEN-SIG-SCALE-4, was "the volcano (no landing) has no marks and no heading"; a frame with
+/// no landing has none).
 /// At least three orientations of the cave are seen.
 #[test]
 fn marks_keep_grid_order_and_headings_turn_with_the_drawing() {

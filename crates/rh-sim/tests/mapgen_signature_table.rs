@@ -368,7 +368,7 @@ fn without_a_reserved_site_the_attempt_is_refused() {
 #[test]
 fn guard_every_shipped_drawing_is_the_approved_file() {
     let approved = |zone: Zone| match zone {
-        // P-MAPGEN-SIG-SCALE-4: the volcano's drawing.
+        // P-MAPGEN-SIG-SCALE-4: the volcano's drawing (22 x 22 by the owner decision of 2026-11-14).
         Zone::Fire => Some(include_str!(
             "../../../docs/landmarks/blueprints/volcano.txt"
         )),
