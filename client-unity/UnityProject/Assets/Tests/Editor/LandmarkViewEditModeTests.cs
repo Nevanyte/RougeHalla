@@ -289,14 +289,14 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void AKnownKindWithNoArtRegisteredBuildsNothingAndLogsOnce()
         {
-            // Volcano (kind 1) is the next packet's. Until then it draws today's tiles and says so once.
-            Assert.That(LandmarkArts.Has(MapBlob.AnchorKindVolcano), Is.False, "this packet registers no art for the volcano");
+            // Hall (kind 5) is a later packet's. Until then it draws today's tiles and says so once.
+            Assert.That(LandmarkArts.Has(MapBlob.AnchorKindHall), Is.False, "this packet registers no art for the hall");
             using (var logs = new Logs())
-            using (var scene = new Scene(Open(), Anchor(1, MapBlob.AnchorKindVolcano)))
+            using (var scene = new Scene(Open(), Anchor(1, MapBlob.AnchorKindHall)))
             {
                 Assert.That(scene.View.Count, Is.EqualTo(0));
                 Assert.That(scene.Root.transform.childCount, Is.EqualTo(0), "nothing extra under the parent");
-                Assert.That(logs.Count("LandmarkView: no art for kind 1"), Is.EqualTo(1));
+                Assert.That(logs.Count("LandmarkView: no art for kind 5"), Is.EqualTo(1));
             }
         }
 
@@ -304,7 +304,7 @@ namespace Roguehalla.Client.Tests
         public void TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts()
         {
             Assert.That(LandmarkArts.Has(MapBlob.AnchorKindCave), Is.True, "Cave is registered");
-            foreach (byte kind in new[] { MapBlob.AnchorKindVolcano, MapBlob.AnchorKindChurch, MapBlob.AnchorKindBogTree, MapBlob.AnchorKindHall })
+            foreach (byte kind in new[] { MapBlob.AnchorKindChurch, MapBlob.AnchorKindBogTree, MapBlob.AnchorKindHall })
                 Assert.That(LandmarkArts.Has(kind), Is.False, "kind " + kind + " belongs to a follow-up packet");
             Assert.That(LandmarkArts.IsKnownKind(0), Is.False); Assert.That(LandmarkArts.IsKnownKind(6), Is.False);
             for (byte kind = 1; kind <= 5; kind++) Assert.That(LandmarkArts.IsKnownKind(kind), Is.True);
