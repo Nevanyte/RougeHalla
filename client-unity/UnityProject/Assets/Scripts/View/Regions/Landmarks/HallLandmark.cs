@@ -8,8 +8,9 @@ namespace Roguehalla.Client
     /// P-UNITY-LANDMARK-5: the Holy hall's art (kind 5), painted procedurally once per map and derived only from the tiles the framework
     /// classified (never from a copy of the drawing), so it is right in all eight orientations. The wall groups of the footprint are found
     /// from the tiles: the one larger than a 3 x 3 block is the shrine, every other group is a pier. Pieces:
-    ///  - columns ("Hall column"): one per pier group: a sandstone stylobate that repaints the group's whole wall silhouette (fully opaque, so
-    ///    the blocks RegionWalls still draws never show at a soft edge) with a fluted shaft, gold bands and a capital standing on it. Sorted
+    ///  - columns ("Hall column"): one per pier group that is exactly a full 3 x 3 box (other fragments draw nothing): a two-step sandstone base
+    ///    that repaints the group's whole wall silhouette (fully opaque, so the blocks RegionWalls still draws never show at a soft edge) with one
+    ///    massive fluted shaft (about two tiles wide) and a gold-banded capital standing on it. Sorted
     ///    on the walls' row rule (the group's south row), so an actor behind a column is hidden by it and one in front stands before it.
     ///    There is no roof or beam over the colonnade: the nave and its camps stay in plain view;
     ///  - roof: a sandstone hip roof over the shrine's box with a gold ridge; one piece through Landmark.AddRoofRenderer. Its lower edge is
@@ -51,8 +52,9 @@ namespace Roguehalla.Client
             if (groups.Count == 0) return;
             Group shrine = null;
             foreach (var g in groups) if (g.Tiles.Count > 9 && (shrine == null || g.Tiles.Count > shrine.Tiles.Count)) shrine = g;
-            foreach (var g in groups) if (g != shrine) BuildColumn(lm, g);
-            if (shrine != null) BuildShrine(lm, shrine);
+            foreach (var g in groups)                                                  // a pier is exactly a full 3 x 3 box; any other fragment draws nothing
+                if (g != shrine && g.Tiles.Count == 9 && g.MaxX - g.MinX == 2 && g.MaxY - g.MinY == 2) BuildColumn(lm, g);
+            if (shrine != null) BuildShrine(lm, shrine); else lm.SetCover(new List<Roguehalla.Net.Protocol.MapTile>());
             if (lm.ArchTiles.Length > 0) BuildThreshold(lm);
         }
 
@@ -132,7 +134,8 @@ namespace Roguehalla.Client
             public SpriteRenderer ToSprite(Landmark lm, string name, string objectName, int order)
             {
                 var tex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { name = name, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-                tex.SetPixels(_px); tex.Apply(false, true); lm.Own(tex);                var sprite = Sprite.Create(tex, new Rect(0, 0, W, H), Vector2.zero, Ppu, 0, SpriteMeshType.FullRect); lm.Own(sprite);
+                tex.SetPixels(_px); tex.Apply(false, true); lm.Own(tex);
+                var sprite = Sprite.Create(tex, new Rect(0, 0, W, H), Vector2.zero, Ppu, 0, SpriteMeshType.FullRect); lm.Own(sprite);
                 var go = new GameObject(objectName); go.transform.SetParent(lm.Root.transform, false);
                 go.transform.localPosition = new Vector3(X0, Y0, 0);
                 var sr = go.AddComponent<SpriteRenderer>(); sr.sprite = sprite; sr.sharedMaterial = lm.Material; sr.sortingOrder = order;
@@ -146,76 +149,82 @@ namespace Roguehalla.Client
 
         // ---- the columns ---------------------------------------------------------------------------------------------------------
 
-        /// <summary>One column on one pier group: the stylobate repaints the blocks' whole silhouette, the column rises from the middle of its top.</summary>
+        /// <summary>One column on one full 3 x 3 pier group: a two-step base repaints the blocks' whole silhouette (opaque, so no wall block shows
+        /// beneath), and one massive fluted column about two tiles wide rises from the middle of the upper step, with a gold-banded capital.</summary>
         static void BuildColumn(Landmark lm, Group g)
         {
-            const int P = 20; const float Pad = .2f, ShaftH = 1.9f, CapH = .3f;
-            float xa = g.MinX, xb = g.MaxX + 1, cx = (xa + xb) / 2f, hw = (xb - xa) / 2f;
+            const int P = 20; const float Pad = .2f, ShaftH = 3.1f, CapH = .5f, Foot = .16f, Step = .22f, Inset = .35f;
+            float xa = g.MinX, xb = g.MaxX + 1, cx = (xa + xb) / 2f, hw = (xb - xa) / 2f, depth = (g.MaxY - g.MinY + 1);
             float baseY = -(g.MaxY + 1) * Sq;                                          // the blocks' south edge
-            float topH = Wall + (g.MaxY - g.MinY + 1) * Sq;                            // the blocks' cap line above baseY
-            float h0 = (Wall + topH) / 2f;                                              // the middle of the stylobate's top surface
-            float total = h0 + .12f + ShaftH + CapH + .2f;
+            float topH = Wall + depth * Sq;                                            // the blocks' cap line above baseY (the silhouette to cover)
+            float s2x = hw - Inset, s2y0 = Wall + Inset * Sq, s2y1 = Wall + (depth - Inset) * Sq + Step;   // the upper step: half-width and its south / north screen edges
+            float h0 = Wall + Step + depth * Sq / 2f;                                   // the middle of the upper step's top surface: the column's foot
+            float total = h0 + Foot + ShaftH + CapH + .1f;
             var cv = new Canvas(xa - Pad, baseY - .02f, xb - xa + 2f * Pad, total + .02f, P);
             int seed = g.MinX * 7 + g.MinY;
             cv.Paint((wx, wy) =>
             {
                 float lx = wx - cx, ly = wy - baseY, ax = Mathf.Abs(lx);
-                if (ly < 0f) return default;
-                // stylobate: a south face and a top surface covering exactly the wall blocks' silhouette
-                if (ax <= hw + .01f && ly <= topH + .01f)
+                if (ly < 0f || ax > hw + .01f || ly > topH + .01f) return default;
+                Color c;
+                if (ax <= s2x && ly >= s2y0 && ly <= s2y1)                              // the upper step
                 {
-                    bool face = ly < Wall;
-                    Color c;
-                    if (face)
-                    {
-                        float course = ly / .22f, jx = (wx + ((int)Mathf.Floor(course) & 1) * .45f) / .9f;
-                        c = Shade(Color.Lerp(Sand, SandLit, .4f), .86f + .22f * (ly / Wall) + .1f * (Noise(wx * 3f, wy * 3f, 5) - .5f));
-                        if (course - Mathf.Floor(course) < .08f || jx - Mathf.Floor(jx) < .04f) c = Shade(c, .72f);
-                    }
-                    else
-                    {
-                        c = Shade(Color.Lerp(SandLit, Sand, .35f), .94f + .12f * Noise(wx * 4f, wy * 4f, 9));
-                        float inset = Mathf.Min(hw - ax, Mathf.Min(ly - Wall, topH - ly));
-                        if (inset > .14f && inset < .19f) c = Shade(c, .84f);           // the inset step line
-                        if (inset < .09f) c = Shade(c, 1.06f);
-                    }
-                    if (ax > hw - .035f || ly < .03f || ly > topH - .03f && !face || Mathf.Abs(ly - Wall) < .02f) c = Mathf.Abs(ly - Wall) < .02f && ax < hw - .035f && ly < topH - .03f ? Shade(c, .6f) : Ink;
+                    bool face = ly < s2y0 + Step;
+                    if (face) c = Shade(Color.Lerp(Sand, SandLit, .45f), .84f + .2f * (ly - s2y0) / Step);
+                    else c = Shade(Color.Lerp(SandLit, Sand, .3f), .96f + .1f * Noise(wx * 4f, wy * 4f, 9));
+                    if (ax > s2x - .03f || ly > s2y1 - .03f && !face || Mathf.Abs(ly - s2y0 - Step) < .02f) c = Ink;
+                    else if (!face && (ly > s2y1 - .09f || ax > s2x - .09f)) c = Shade(c, 1.08f);
                     c.a = 1f; return c;
                 }
-                return default;
+                if (ly < Wall)                                                          // the lower step's south face
+                {
+                    c = Shade(Color.Lerp(Sand, SandLit, .3f), .78f + .26f * (ly / Wall) + .08f * (Noise(wx * 3f, wy * 3f, 5) - .5f));
+                    if (Mathf.Abs(ly - Wall * .5f) < .02f) c = Shade(c, .66f);          // a moulding line halfway up
+                    if (ax > hw - .035f || ly < .03f) c = Ink;
+                }
+                else                                                                    // the lower step's top surface
+                {
+                    c = Shade(Color.Lerp(SandLit, Sand, .4f), .93f + .1f * Noise(wx * 4f, wy * 4f, 11));
+                    float edge = Mathf.Min(hw - ax, topH - ly);
+                    if (edge < .035f || Mathf.Abs(ly - Wall) < .025f) c = Ink;
+                    else if (edge < .1f || ly < Wall + .1f) c = Shade(c, 1.07f);
+                }
+                c.a = 1f; return c;
             });
-            cv.Paint((wx, wy) =>                                                        // the column, over the stylobate
+            cv.Paint((wx, wy) =>                                                        // the column, over the base
             {
                 float lx = wx - cx, ly = wy - baseY, ax = Mathf.Abs(lx);
-                float h = ly - h0;                                                     // height above the column's foot on the top
-                if (h < -.02f) return default;
-                // plinth (square block with a front face), shaft, capital with a gold band
+                float h = ly - h0;                                                      // height above the column's foot on the upper step
+                if (h < -.03f) return default;
                 float half;
-                if (h < .12f) half = .66f;
-                else if (h < .12f + ShaftH) half = Mathf.Lerp(.50f, .43f, (h - .12f) / ShaftH);
-                else if (h < .12f + ShaftH + .08f) half = .54f;
-                else if (h < .12f + ShaftH + CapH) half = Mathf.Lerp(.54f, .74f, (h - .12f - ShaftH - .08f) / (CapH - .08f));
+                if (h < Foot) half = 1.12f;                                             // the base ring
+                else if (h < Foot + ShaftH) half = Mathf.Lerp(1.0f, .86f, (h - Foot) / ShaftH);
+                else if (h < Foot + ShaftH + .1f) half = .94f;                          // the neck ring
+                else if (h < Foot + ShaftH + CapH) half = Mathf.Lerp(.98f, 1.4f, (h - Foot - ShaftH - .1f) / (CapH - .1f));
                 else return default;
                 if (ax > half) return default;
                 float s = Mathf.Clamp(lx / half, -1f, 1f);
                 Color col;
-                bool shaft = h >= .12f && h < .12f + ShaftH;
+                bool shaft = h >= Foot && h < Foot + ShaftH;
+                float t = (h - Foot) / ShaftH;
                 if (shaft)
                 {
-                    col = Color.Lerp(SandLit, SandDark, Mathf.Clamp01(.35f + s * .55f));    // round: lit left, dark right
-                    float fl = Mathf.Abs(Mathf.Sin(lx / half * 4.5f)); if (fl > .93f) col = Shade(col, .84f);   // flutes
-                    float t = (h - .12f) / ShaftH;
-                    if (t < .08f || (t > .46f && t < .5f) || t > .92f) col = Color.Lerp(col, Gold, .85f);   // gold bands at foot, middle, neck
-                    if (t < .08f || t > .92f) col = Shade(col, 1f - .12f * Mathf.Abs(s));
+                    float th = Mathf.Asin(s);                                           // the angle round the cylinder; a flute every 22.5 degrees
+                    col = Color.Lerp(SandLit, SandDark, Mathf.Clamp01(.3f + (s + .25f * (1f - Mathf.Cos(th))) * .6f));   // lit left, dark right
+                    float fr = th / (Mathf.PI / 8f); fr -= Mathf.Floor(fr);
+                    if (fr < .14f) col = Shade(col, .72f); else if (fr > .86f) col = Shade(col, 1.08f);   // a groove and its lit lip
+                    if (t > .035f && t < .07f || t > .93f && t < .965f) col = Color.Lerp(col, Gold, .8f);   // thin gold fillets at foot and neck
                 }
-                else if (h < .12f) col = Shade(Color.Lerp(SandLit, SandDark, Mathf.Clamp01(.3f + s * .3f)), .9f);
+                else if (h < Foot) col = Shade(Color.Lerp(SandLit, SandDark, Mathf.Clamp01(.3f + s * .35f)), .92f);
                 else
                 {
                     col = Shade(Color.Lerp(SandLit, SandDark, Mathf.Clamp01(.3f + s * .4f)), 1f);
-                    if (h > .12f + ShaftH + CapH - .07f) col = Color.Lerp(Gold, GoldDark, Mathf.Clamp01(.3f + s * .4f));   // gold abacus
+                    float u = (h - Foot - ShaftH) / CapH;
+                    if (u > .22f && u < .42f) col = Color.Lerp(Gold, GoldDark, Mathf.Clamp01(.3f + s * .4f));   // the gold band
+                    if (u > .84f) col = Color.Lerp(Gold, GoldDark, Mathf.Clamp01(.3f + s * .4f));              // the gold abacus
                 }
-                col = Shade(col, .94f + .1f * Noise(wx * 5f, wy * 5f, seed));
-                if (ax > half - .03f || h < .01f || h > .12f + ShaftH + CapH - .025f) col = Ink;
+                col = Shade(col, .95f + .08f * Noise(wx * 5f, wy * 5f, seed));
+                if (ax > half - .03f || h < .01f || h > Foot + ShaftH + CapH - .03f || shaft && (h < Foot + .015f)) col = Ink;
                 col.a = 1f; return col;
             });
             cv.ToSprite(lm, "Hall column", "Hall column", 2000 + 16 * g.MaxY + 1);
@@ -226,14 +235,17 @@ namespace Roguehalla.Client
         static void BuildShrine(Landmark lm, Group b)
         {
             var cover = new List<Roguehalla.Net.Protocol.MapTile>();                   // the roof's cover: the shrine's interior and walls (not the door tiles, no pier)
+            var door = DoorTiles(lm, b);
+            if (door.Count == 0)                                                       // no doorway found: no roof and no cover (nobody could be seen entering)
+            {
+                lm.SetCover(cover); BuildLight(lm); return;
+            }
             for (int y = b.MinY; y <= b.MaxY; y++) for (int x = b.MinX; x <= b.MaxX; x++)
                 if (lm.IsWall(x, y) || lm.IsInterior(x, y)) cover.Add(new Roguehalla.Net.Protocol.MapTile((ushort)x, (ushort)y));
             lm.SetCover(cover);
-            var door = DoorTiles(lm, b);
-            Box notch = default; bool horizontalRun = true, outwardNorthOrWest = false;
-            if (door.Count > 0) notch = DoorNotch(b, door, out horizontalRun, out outwardNorthOrWest);
+            var notch = DoorNotch(b, door, out bool horizontalRun, out bool outwardNorthOrWest);
             BuildRoof(lm, b, notch);
-            if (door.Count > 0) BuildDoor(lm, door, horizontalRun, outwardNorthOrWest);
+            BuildDoor(lm, door, horizontalRun, outwardNorthOrWest);
             BuildLight(lm);
         }
 
@@ -303,11 +315,11 @@ namespace Roguehalla.Client
         /// <summary>A warm gold glow over the 3 x 3 tiles of terrain Light inside the footprint, with a ring and a bright core, under the actors.</summary>
         static void BuildLight(Landmark lm)
         {
-            int x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1;
+            int x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1, n = 0;
             for (int y = lm.FootY; y < lm.FootY + lm.FootH; y++) for (int x = lm.FootX; x < lm.FootX + lm.FootW; x++)
                 if (lm.Terrain(x, y) == (byte)TerrainKind.Light)
-                { x0 = Mathf.Min(x0, x); x1 = Mathf.Max(x1, x); y0 = Mathf.Min(y0, y); y1 = Mathf.Max(y1, y); }
-            if (x1 < 0) return;
+                { n++; x0 = Mathf.Min(x0, x); x1 = Mathf.Max(x1, x); y0 = Mathf.Min(y0, y); y1 = Mathf.Max(y1, y); }
+            if (x1 < 0 || (x1 - x0 + 1) * (y1 - y0 + 1) != n) return;                   // no light, or not one compact block: no glow
             const int P = 16; const float M = .6f;
             float cx = (x0 + x1 + 1) / 2f, cy = -(y0 + y1 + 1) / 2f * Sq, rx = (x1 - x0 + 1) / 2f + M, ry = ((y1 - y0 + 1) / 2f) * Sq + M * Sq;
             var cv = new Canvas(cx - rx, cy - ry, 2f * rx, 2f * ry, P);
@@ -330,6 +342,7 @@ namespace Roguehalla.Client
         {
             int minX = int.MaxValue, maxX = int.MinValue, minY = int.MaxValue, maxY = int.MinValue;
             foreach (var t in lm.ArchTiles) { minX = Mathf.Min(minX, t.X); maxX = Mathf.Max(maxX, t.X); minY = Mathf.Min(minY, t.Y); maxY = Mathf.Max(maxY, t.Y); }
+            if ((maxX - minX + 1) * (maxY - minY + 1) != lm.ArchTiles.Length || maxX > minX && maxY > minY) return;   // not one straight run: no threshold
             bool vertical = maxY - minY > maxX - minX;
             Flagstones(lm, "Hall threshold", minX, minY, maxX, maxY, -84, true);
             if (!vertical)
