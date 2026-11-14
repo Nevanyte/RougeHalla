@@ -4,6 +4,113 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integrations 24 and 25 (2026-11-13, night): the wire carries landmark anchors, the Unity landmark framework, the replay fault fixed
+
+Identities unchanged: protocol 17 (18 stamped on the next deployed build), observation 29, policy contract 23,
+checkpoint 32, replay 25, content hash `4674a176a28e3c7a`. Gated together in the coordinator's clean worktree:
+
+| Packet | What landed | Review |
+|---|---|---|
+| P-BOT-BRAIN-CONTINUITY-1 | A live Brain seat keeps its mobs across samples (per-session tracks, bounded memory) and no longer freezes on an unknown bow pull. Carry: one test set-up line (`min_players`, a field added after the branch was cut). | reviewer-opus, LAND WITH NOTES; the owner accepted the kite fix and the oracle edits |
+| P-UNITY-WORLD-MARKS-2 | Camp patience ranges and the quest carrier's flag are drawn. | LAND |
+| P-WIRE17-MAP-3 | Each landmark's anchor (zone, kind, centre, footprint, front, entrance) is in the Welcome map blob: second presence byte bit 0x02, kind codes 1 Volcano, 2 Church, 3 BogTree, 4 Cave, 5 Hall; Rust, C# and JS decoders agree; `v17.json` regenerated. Note 1 applied: `map_anchor_seeds.rs` checks seeds 1 to 8 against every wire rule. Note 2 open: rename the C# protocol `MapRect`. | reviewer-opus, LAND WITH NOTES |
+| P-BOT-TUNER-2 | `tune` writes an evidence block (per-tier intervals in sample and on a held-out seed; a verdict per tier). The three review notes are applied (the verdict line says it measures tier win share, not the band objective; the in-sample block is labelled; counts are integers). | LAND WITH NOTES, applied |
+| P-UNITY-LANDMARK-1 | The client draws a landmark from the delivered tiles inside its anchor's footprint: interior rule, a roof that fades while a visible actor is inside, and the Frost cave's art. | LAND WITH NOTES (both about the look: the roof can cover an actor in the mouth; rock strips lie over wall tiles still drawn beneath) |
+| P-SIM-REPLAY-LONG-1 | A step reads back only the events it produced (`step_event_start` on `TickScratch`; mob AI's Block wake). The seed-3 Brain replay that diverged at step 11,004 verifies over 11,100 ticks on the merged tree, and diverges again at 11,004 with the old scan. | reviewer-opus, LAND, no notes |
+| P-LAND-DECOR-ERRORS-1 | The land-generation session's test: with the landmark option and decor on, every attempt of seeds 1 to 32 is a map or a refusal (59 attempts, 27 refused, no error). Its file goes when P-MAPGEN-STYLE-REFUSE-1 lands (same sweep there), with the owner's leave. | reviewer-opus, LAND WITH NOTES, wording fixed |
+
+Also in the batch: the gate's landmark anchor line, the signed DEVIATIONS rows, the garbage-test measurement fix (see
+the owner decisions above), the brief P-UNITY-DRESS-2, backlog rows brought up to date.
+
+**Flaky tests.** (1) `runtime_admission`: fixed at `180e7ceb1`. (2) `GarbageTests`: cause found and fixed in the
+measurement helper (above). (3) New, not fixed: `rh-sim` `terrain_no_alloc::warmed_terrain_passes_allocate_nothing`
+failed once in a full gate ("terrain kind 4": 5 allocations, expected 0) and passed 8 of 8 reruns; nothing in
+`rh-sim` had changed. Cause not established; changing that test is the owner's to approve.
+
+**Not established.** Nothing since integration 13 has been seen in the running client: decoration, the two Plague
+waters, the practice banner, the HUD timers, the world marks, and now the cave's art (seen only as texture dumps).
+The practice-room replay recorder still diverges at step 0 (`Recorder::new` records the room's own five weapon racks
+as setup inputs); not briefed. `the_replay_of_a_long_brain_match_verifies` stays `#[ignore]` (36 s in release) and
+`REPLAY_TICKS` in `brain_bots.rs` stays shortened: restoring them edits an existing test.
+
+**Next.** Unity first: landmark art for the volcano, church, bog tree and Holy hall (P-UNITY-LANDMARK-2 to -5),
+P-UNITY-DRESS-2, a Web build and a screenshot round with a visual review. Behind it: P-FROST-WALL-1b (unblocked by
+the replay fix), P-FROST-WALL-2 and its Unity packet, P-BOT-BRAIN-CHOICES-1, then the learner and tuner runs. The map
+generator session builds the remaining landmark generator packets; the coordinator reviews and merges each.
+
+## Owner instruction 2026-11-13 (chat, night): an Opus sub-agent merges the strays, then deletes branches to free space
+
+The owner asked for "a sub agent that both merges then delete all branches to create more space", Opus. The
+coordinator's reading, stated to the owner at the time: the goal is disk space and a tidy branch list without losing
+work, so in-flight work is fenced off and every unmerged branch is archived before it is deleted. What the agent did
+(its inventory: session scratchpad `sweep/inventory.tsv`):
+- **Merged:** one stray, the hand-off of P-BOT-LEARN-ON-1 (docs only), through `integration/branch-sweep`.
+- **Deleted 255 local branches:** 209 already merged, 1 merged by the sweep, 45 unmerged. The 45 (13 touching
+  protected paths, 17 `packet/*-oracle` refs of landed packets, 13 Unity/Codex lane branches the 2026-11-12 triage
+  left for the owner, `packet/P-SIGNATURE-2`, `worktree-server-perf-sweep`) are in one verified bundle,
+  `.agent-runs/branch-archive-2026-11-13.bundle` (21.7 MB, git-ignored, on this machine only); restore one with
+  `git fetch <bundle> <branch>:<branch>`. None of the 45 was on origin.
+- **Removed 18 worktrees** (about 146 GB by `du`); free disk went from 50 GB to 131 GB.
+- **Kept:** `main`, `optimization_port`, `feature/unity-rework`, every remote branch (nothing was pushed or deleted on
+  origin), the map generator session's three worktrees and all `P-LAND-`/`P-MAPGEN-` branches, live sub-agents, and
+  twelve older worktrees with uncommitted or untracked work (listed in the agent's report; about 14 GB in all), which
+  are the owner's to rule on.
+No object was pruned (`git gc` and reflog expiry were not run).
+
+## Owner decisions 2026-11-13 (chat, night): signatures, the two flaky tests, the gate checks, the settings file
+
+The owner sent the coordinator a message headed "Recommended decisions" and nothing else; it is taken as the owner's
+decisions on every point the coordinator had open. What it decides, and what was done:
+
+**Deviation rows (all now signed; none is left unsigned).**
+- DEV-022 to DEV-025 signed. The stale "screenshots pending" evidence in DEV-022 and DEV-024 was replaced with the
+  EditMode tests by name and what screenshot rounds 5 to 7 showed (round 5 is the build at `7ba766aa`). Still not seen
+  in any screenshot: a cleared camp's dimmed icon with its seconds.
+- DEV-026 was **revised before signing**, as the owner asked. The row now states the three confirmations: static map
+  facts a legacy client generated for itself count as public; the seat's own `mobKills`, derived from its accepted
+  death events, is accepted despite the possible under-count; bounded live mob memory and per-session track continuity
+  (P-BOT-BRAIN-CONTINUITY-1) replace the earlier "passive seats" state. A reviewer's wording note on the row was fixed.
+- DEV-027 signed, **with the owner's condition kept**: the Brain's camp valuation must read themed buffs before
+  `--bot-brain full` goes live.
+- DEV-028 signed as the **explicit approval of the first elite camp inside the church and the cave**.
+- DEV-029 signed for the Frost Wall **mechanic and numbers only**; its follow-ups (P-FROST-WALL-1b, P-FROST-WALL-2,
+  the Unity drawing and aim preview) are not covered.
+- DEV-030, DEV-031 and DEV-032 signed. (The coordinator's note stands beside them: no searched table has been shown
+  better than the shipped one.)
+
+**The two flaky tests (test-only fixes approved, each with a constraint).**
+- `crates/rh-server/tests/runtime_admission.rs`: "a more generous or configurable deadline while preserving its
+  predicates and socket-level diagnostics"; no behavioural assertion weakened, no product code changed. Done at
+  `180e7ceb1`: the client wait is 40 s by default, `RH_TEST_WAIT_SECS` overrides it.
+- `client-unity/RoguehallaNet.Tests/GarbageTests.cs`: keep the exact zero-allocation assertion; "warm up or measure a
+  second steady-state pass to eliminate one-time runtime allocations rather than raising the budget, skipping the
+  test, or tolerating recurring garbage". **Fixed, by a different mechanism than the one
+  approved, and flagged to the owner.** The cause was found: the measured code allocates nothing. The per-thread
+  counter charges a thread for the unused rest of its current 8 KB allocation block when the collector voids that
+  block between collections, which it does when it considers memory load high (the machine was building). One jump
+  of 2 to 7.5 KB at a random call, no collection counted; bytes used before the window plus the jump is a multiple
+  of 8,192. Reproduced on demand with `DOTNET_GCHighMemPercent=0x0A`. Tiered JIT was ruled out (flake rates with
+  tiered compilation, PGO or quick JIT for loops off were no lower). A second pass or a longer warm-up would not have
+  removed it. The fix is one line in the measurement helper `PerCall` (and in `SessionMeMakesNoGarbageOnTheSteadyPath`):
+  a collection after the warm-up, so the thread holds no block when the window opens. The exact-zero assertions, the
+  200 warm-up and 20,000 measured calls and the helper's guard tests are unchanged. A/B over whole-suite runs under
+  the forced setting: unfixed 14 failures in 45, fixed 0 zero-assertion failures in 90. **Not fixed:**
+  `PlainDecodeAllocatesOnlyTheSnapshotItsSelfAndOneActorArray(68)`, whose body allocates and whose budget is exact
+  to the byte, failed 2 of those 90 runs from the same charge (a thread that allocates always holds a block); it has
+  not been seen failing in a gate. Removing that needs a margin under one object's size, which is a budget change and
+  the owner's call.
+
+**Gate checks.** `scripts/gate.sh` runs `check-dressing.mjs` and `check-map-patience.mjs` (`180e7ceb1`). The landmark
+anchor check was approved in principle, its line to be added "only once its script actually lands and passes": the
+script landed with P-WIRE17-MAP-3, passes (33 checks), and the line was added in the same integration (`32b84f10d`).
+
+**Settings.** "Do not commit the current `.claude/settings.json` change": it stays an uncommitted local change in the
+owner's checkout. Because the gate refuses a protected path that differs from the base, the coordinator gates every
+merge in a clean detached worktree and fast-forwards the checkout afterwards; the coordinator keeps the CLAUDE.md
+approval rules itself (push only the integration branch after a green gate; nothing into `main` or
+`optimization_port`; no deploy; no deletion outside an approved scope). The four CloudFormation deny lines were
+already removed locally; nothing to do.
+
 ## Owner decision 2026-11-13 (chat, evening): the landmark generator lane goes to the map generator session
 
 The owner told the coordinator "I still have the map generator finishing up, you just need to make sure unity front

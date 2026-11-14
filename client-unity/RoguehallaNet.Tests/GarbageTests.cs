@@ -62,6 +62,16 @@ namespace Roguehalla.Net.Tests
             frame[1] = (byte)((tick & 0x7f) | 0x80); frame[2] = (byte)(((tick >> 7) & 0x7f) | 0x80); frame[3] = (byte)(tick >> 14);
         }
 
+        /// <summary>Leaves the calling thread holding no allocation block, so a measured window counts only what its body allocates.
+        /// The per-thread counter is "bytes handed to the thread minus the unused rest of its current block". When the collector
+        /// considers memory load high it can void a thread's block between collections, and the unused rest is then charged to the
+        /// thread: one jump of a few kilobytes (bytes used so far plus the jump is a multiple of the 8 KB block), at a random call,
+        /// with no gen0 or gen2 collection counted and nothing allocated by the body. Measured 2026-11-13: about one whole-suite run
+        /// in three while the machine was building, none when idle, and on demand with DOTNET_GCHighMemPercent=0x0A. After a
+        /// collection the thread holds no block, so there is no rest to charge; a real allocation, even a single one, is still
+        /// counted in full.</summary>
+        static void RetireAllocationBlock() => GC.Collect();
+
         /// <summary>Bytes allocated per call of <paramref name="body"/>, after a warm-up (JIT, first-use statics).</summary>
         static double PerCall(Action<int> body)
         {
@@ -74,6 +84,7 @@ namespace Roguehalla.Net.Tests
                     // Counter first-use and caller/NUnit execution context are outside the measured work.
                     GC.GetAllocatedBytesForCurrentThread();
                     for (int i = 0; i < 200; i++) body(i);
+                    RetireAllocationBlock();
                     long before = GC.GetAllocatedBytesForCurrentThread();
                     for (int i = 200; i < 200 + Iterations; i++) body(i);
                     result = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)Iterations;
@@ -266,6 +277,7 @@ namespace Roguehalla.Net.Tests
             uint tick = BaseTick;
             // Warm up past the buffer so decodes recycle, then measure the receive path including the Me copy.
             for (int i = 0; i < 200; i++) { SetTick(frames[i % 64], ++tick); t.DeliverRaw(frames[i % 64]); var m = s.Me; }
+            RetireAllocationBlock();
             long before = GC.GetAllocatedBytesForCurrentThread();
             float sum = 0;
             for (int i = 0; i < 2000; i++) { SetTick(frames[i % 64], ++tick); t.DeliverRaw(frames[i % 64]); sum += s.Me.X; }
