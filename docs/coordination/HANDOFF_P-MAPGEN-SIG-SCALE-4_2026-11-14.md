@@ -102,9 +102,14 @@ a 14-18 tile middle stream toward the coliseum runs into a camp halo or out of t
 - `mapgen_signature_volcano`: green `the_fire_entry_is_the_volcano_drawing_with_its_legend`,
   `the_heading_helper_turns_the_outlet_headings_into_dir16`, `guard_the_drawing_and_the_outlet_table_are_the_owners`;
   the other 11 red, all on `seed 1: no map with the option on`, not on a structural assertion.
-- Integration targets (`--no-fail-fast` run, saved by the implementer outside the repo): every target that builds
-  option-on maps is expected red for the same reason (no map), so none of them is "red by design, to re-pin" yet; the
-  option-off guards do not move (no option-off code path changed). The coordinator's full gate is the record.
+- Full `cargo test -p rh-sim --features trusted-status-probes --no-fail-fast`: 1,384 passed, 134 failed, in 20
+  targets: the lib (the 4 above) and `mapgen_guarantees`, `mapgen_land_decor_attempts`, `mapgen_land_plague`,
+  `mapgen_land_sentenced`, `mapgen_landmark_frame`, `mapgen_signature_{aprons, blueprint, bog_tree, church, core, fire,
+  fire_bands, frost, frost_lake, reserve, scale, table, volcano}`, `mapgen_style_refusal`: every one builds option-on
+  maps, and none exist, so none of them is "red by design, to re-pin" yet. The 11 tests named `*option_off*` are
+  green; the two red tests with "option_off" in their names (`lane_fence_share_stays_near_option_off`,
+  `lane_and_churchyard_fence_together_stay_near_option_off`) compare an option-on map with option off. The
+  coordinator's full gate is the record.
 - Not run: `cargo test -p rh-mapdress`, `cargo test -p rh-server --test map_anchor_seeds --test map_anchors` (they
   read option-on maps; nothing to measure until the blocker is decided).
 
