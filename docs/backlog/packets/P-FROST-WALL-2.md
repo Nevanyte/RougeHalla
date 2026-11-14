@@ -34,6 +34,14 @@ Bots: a fair observation carries the wall like any other viewer's; the Brain's u
   view state), `crates/rh-server/web/probe.html`, `tools/protocol-js/**`
 - not Unity scripts (P-UNITY-FROST-WALL-1 draws it and adds the aim preview)
 
+## 5b. Carried from P-SIM-LIVE-CONTENT-1's review (same write scope, one commit)
+- The flip is `frost_wish: FrostWish::Wall` in `SimConfig::live_content()` (`crates/rh-sim/src/statics.rs`); the
+  characterisation tables that state the live value move with it: `crates/rh-server/tests/live_content.rs:86` and
+  `:115` (the oracle author of this packet amends them, since they are oracle files of the earlier packet).
+- Two literal copies of the live world remain in `crates/rh-headless/examples/source_soak.rs:23-42` and
+  `examples/full_map_cost.rs:33-50`: switch both to `..SimConfig::live_content()` and extend the source scan in
+  `crates/rh-headless/tests/live_content.rs` to `crates/rh-headless/examples`, so they cannot stay on Freeze unseen.
+
 ## 8. Acceptance checks
 - Wire vectors for a snapshot or state with a wall and refusals for malformed ones; Rust, C# and JS agree.
 - C-OBS: a viewer who cannot see the wall's tiles receives neither the wall nor its landing centre; an unseated
