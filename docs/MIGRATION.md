@@ -4,6 +4,30 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Screenshot round 10 (2026-11-13, past midnight): the Web build script is clean, the roof rule works, the Sentenced floor is pulled
+
+Web build of `d6ab750da` (the staged tree), a local server with and without `--signature-landmarks`; about 95 shots in
+the session scratchpad, `shots10/`, with a report.
+- **`Tools/build-web.sh` exits 0** (405 s; no `Shader error` line; the licence copy and the audio check run and pass).
+  P-UNITY-GROUND-SAMPLERS-1 is confirmed where it mattered. Its "nothing looks different" was checked by pixels first:
+  21 ground-only renders, old against new shader, differ by at most one brightness step in under 200 of 2.07 million
+  pixels, the same as one shader rendered twice; a deliberately wrong sampler changes 300,570.
+- **Landmark roofs follow the owner's rule** (P-UNITY-LANDMARK-ROOF-RETURN-1): the cave's roof is opaque from outside,
+  about 10 percent with the player inside (still faintly there), about half just after leaving, and solid again about
+  eight seconds after the player returned from 45 s away.
+- **The Sentenced floor tints are wrong in the client and were reverted before any push.** The owner had approved
+  flat-colour patches ("New sentenced floor looks good"); the client drew vivid violet, ochre and silver fills whose
+  edges cut across the slabs, because the ground's variant plane lays a flat colour over the ground and the oracle
+  had measured a colour model, not the screen. On a landmark-mode map the scatter did not show at all (the server's
+  band covers every open Sentenced tile). DEV-033 is withdrawn. The coordinator told the owner and sent the shots.
+- **What the round-9 unknowns are:** the pink rectangles on the Fire ground and the orange in the church are the
+  server's decoration bands (ground variants), drawn by the same flat mechanism: large pastel regions with hard
+  wobbling edges in every zone. The grey slab east of the cave is a set of Frost wall blocks. Both the bands and the
+  Sentenced scatter are rebuilt under P-UNITY-GROUND-TINT-1 (a tint modulates the ground art; measured on renders).
+- Also seen: a Tab-map walk target keeps pulling the character after WASD input; the cave's mouth is on one side only
+  and cannot be found from the others.
+The coordinator's lesson, added to the earlier one: a look is not approved on anything but the running client.
+
 ## Owner direction 2026-11-13 (chat, late night): the zones' real look is approved; what screenshot round 9 found
 
 **What the owner saw and said, in order.** (1) Editor renders of the five landmarks, made with a capture tool of the
