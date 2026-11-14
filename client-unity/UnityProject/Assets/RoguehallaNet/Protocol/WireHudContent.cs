@@ -20,6 +20,17 @@ namespace Roguehalla.Net.Protocol
         FrostWallCellReach = 28, FrostWallEndSlack = 29,
     }
 
+    /// <summary>P-FROST-WALL-2b: which Wish Frost has in the room (HUD term 23).</summary>
+    public enum FrostWishKind : byte { Freeze = 0, Wall = 1 }
+
+    /// <summary>P-FROST-WALL-2b: the wall's public numbers (HUD terms 24-29), as the server sent them.</summary>
+    public readonly struct FrostWallNumbers
+    {
+        public readonly double Range, MinRange, Length, Ms, CellReach, EndSlack;
+        public FrostWallNumbers(double range, double minRange, double length, double ms, double cellReach, double endSlack)
+        { Range = range; MinRange = minRange; Length = length; Ms = ms; CellReach = cellReach; EndSlack = endSlack; }
+    }
+
     /// <summary>One weapon's damage scaling (legacy <c>WeaponSpec.scaling</c> and <c>dominant</c>).</summary>
     public sealed class WireWeaponScaling
     {
@@ -63,6 +74,22 @@ namespace Roguehalla.Net.Protocol
             if (Terms == null) return null;
             foreach (var t in Terms) if (t != null && t.Code == (byte)code) return t.Value;
             return null;
+        }
+
+        /// <summary>P-FROST-WALL-2b: Frost's Wish in this room; Freeze when term 23 is absent or anything but exactly 1.</summary>
+        public FrostWishKind FrostWish { get { var v = Term(HudTerm.FrostWish); return v.HasValue && v.Value == 1 ? FrostWishKind.Wall : FrostWishKind.Freeze; } }
+        /// <summary>P-FROST-WALL-2b: the block carries term 23.</summary>
+        public bool CarriesFrostWish { get { return Term(HudTerm.FrostWish).HasValue; } }
+        /// <summary>P-FROST-WALL-2b: the wall's six numbers, or null unless the block carries all of terms 24-29.</summary>
+        public FrostWallNumbers? FrostWall
+        {
+            get
+            {
+                var a = Term(HudTerm.FrostWallRange); var b = Term(HudTerm.FrostWallMinRange); var c = Term(HudTerm.FrostWallLength);
+                var d = Term(HudTerm.FrostWallMs); var e = Term(HudTerm.FrostWallCellReach); var f = Term(HudTerm.FrostWallEndSlack);
+                if (!a.HasValue || !b.HasValue || !c.HasValue || !d.HasValue || !e.HasValue || !f.HasValue) return null;
+                return new FrostWallNumbers(a.Value, b.Value, c.Value, d.Value, e.Value, f.Value);
+            }
         }
 
         /// <summary>The scaling row of a weapon id, or null.</summary>
