@@ -29,6 +29,12 @@ namespace Roguehalla.Client
 
         public void Initialize(MatchClient mc) { _mc = mc; }
 
+        /// <summary>STUB (P-UNITY-WEB-DRIVE-2): the delivered landmark anchors as a JSON array (see the packet for the row shape).</summary>
+        public static string AnchorsJson(MapAnchor[] anchors) { return "[]"; }
+
+        /// <summary>STUB (P-UNITY-WEB-DRIVE-2): the delivered landmark anchors as a JSON array (see the packet for the row shape).</summary>
+        public static string AnchorsJson(MapAnchor[] anchors) { return "[]"; }
+
         void LateUpdate()
         {
             if (_mc == null || _mc.Cam == null || Time.unscaledTime < _next) return;
