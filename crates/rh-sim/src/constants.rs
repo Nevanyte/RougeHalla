@@ -503,4 +503,32 @@ content! {
     CAMP_BUFF_BALANCE_POWER: u32 = 2, "exponent";
     /// At most this many repair moves after the draw.
     CAMP_BUFF_REPAIR_STEPS: u32 = 160, "moves";
+
+    // ---- Frost Wall (unreleased legacy 78dd8bd4; P-FROST-WALL-1/1b, registered in P-FROST-WALL-2a). Read only under
+    // SimConfig::frost_wish = Wall (default Freeze). Re-exported from abilities/mod.rs and barriers.rs. ----
+    /// The farthest a wall's centre may be placed from the caster (`shared/src/abilities.ts` `FROST_WALL_RANGE`).
+    FROST_WALL_RANGE: f64 = 450., "u";
+    /// An aim point closer than this is pushed out to it (`FROST_WALL_MIN_RANGE`).
+    FROST_WALL_MIN_RANGE: f64 = 64., "u";
+    /// The wall's length, end to end: seven tiles (`FROST_WALL_LENGTH`).
+    FROST_WALL_LENGTH: f64 = 224., "u";
+    /// How long a wall stands (`FROST_WALL_MS`).
+    FROST_WALL_MS: f64 = 4000., "ms";
+    /// The cast time (`FROST_WALL_CAST_MS`).
+    FROST_WALL_CAST_MS: f64 = 250., "ms";
+    /// The cooldown (`shared/src/constants.ts` `FROST_WALL_COOLDOWN_SECONDS` 45).
+    FROST_WALL_COOLDOWN_MS: f64 = 45000., "ms";
+    /// A tile is under a wall when its centre is this close to the wall's line (`shared/src/barriers.ts`
+    /// `WALL_CELL_REACH`): one tile thick along an axis, a closed staircase on a diagonal.
+    WALL_CELL_REACH: f64 = TILE * 0.75, "u";
+    /// A tile past a wall's end is under it only within this much (`WALL_END_SLACK`).
+    WALL_END_SLACK: f64 = TILE / 4., "u";
+    /// The rising wall's push-out searches outward in steps of this (`server/src/sim/abilities.ts:532`
+    /// `WALL_PUSH_STEP`, module-local in legacy).
+    WALL_PUSH_STEP: f64 = 4., "u";
+    /// ... up to this far from the wall's line (`:533` `WALL_PUSH_MAX`, module-local).
+    WALL_PUSH_MAX: f64 = 96., "u";
+    /// A fighter with no room on either side keeps a gap: every wall tile whose centre is within this of it on both
+    /// axes leaves the wall (legacy `raiseWall` `:585` `PLAYER_RADIUS + 32`, unnamed in legacy).
+    WALL_GAP_REACH: f64 = PLAYER_RADIUS + 32., "u";
 }

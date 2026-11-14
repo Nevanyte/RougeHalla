@@ -15,11 +15,9 @@ use crate::{
 };
 use std::sync::Arc;
 
-/// A tile is under a wall when its centre is this close to the wall's line (legacy `WALL_CELL_REACH`): one tile thick
-/// along an axis, a closed staircase on a diagonal.
-pub const WALL_CELL_REACH: f64 = TILE * 0.75;
-/// A tile past a wall's end is under it only within this much (legacy `WALL_END_SLACK`).
-pub const WALL_END_SLACK: f64 = TILE / 4.;
+/// The wall's tile reach and end slack (legacy `WALL_CELL_REACH`, `WALL_END_SLACK`) are content registry rows
+/// (`constants.rs`, P-FROST-WALL-2a), re-exported here.
+pub use crate::constants::{WALL_CELL_REACH, WALL_END_SLACK};
 
 /// A wall's line (legacy `WallSegment`): its centre (the clamped aim point) and its two ends, square to the line from
 /// the caster.
@@ -128,8 +126,8 @@ pub fn wall_cells(map: &TileMap, seg: &WallSegment, out: &mut Vec<u32>) {
 // ---- The push-out of a rising wall (P-FROST-WALL-1b; legacy 78dd8bd4 `abilities.ts:532-616` `raiseWall`) ----
 //
 // The search's numbers are legacy's module-local `WALL_PUSH_STEP = 4` and `WALL_PUSH_MAX = 96` (`:532-533`) and the gap's
-// `PLAYER_RADIUS + 32` (`:585`). They are literals inside the functions below, not consts: they are read only under
-// `SimConfig::frost_wish = Wall` and stay out of `content_hash` with the other wall numbers until P-FROST-WALL-2.
+// `PLAYER_RADIUS + 32` (`:585`, Rust `WALL_GAP_REACH`). They are content registry rows (`constants.rs`,
+// P-FROST-WALL-2a) like the other wall numbers, read only under `SimConfig::frost_wish = Wall`.
 
 /// The wall's unit normal, pointing away from the caster (legacy `raiseWall` `nx`, `ny`): from where the caster stood to
 /// the wall's centre, along the caster's facing when that is shorter than 1 u (or not a number).
@@ -180,7 +178,7 @@ pub(crate) fn set_down(
     p: Vec2,
     caster: bool,
 ) -> Option<Vec2> {
-    let (step, max) = (4., 96.);
+    let (step, max) = (crate::constants::WALL_PUSH_STEP, crate::constants::WALL_PUSH_MAX);
     let along = (p.x - seg.cx) * nx + (p.y - seg.cy) * ny;
     let first: f64 = if caster {
         -1.
@@ -214,7 +212,7 @@ pub(crate) fn set_down(
 /// The gap a fighter at `p` with no room on either side keeps (legacy `raiseWall` `:585-590`): every cell whose tile
 /// centre is within `PLAYER_RADIUS + 32` of `p` on both axes (a square) leaves the wall. The rest stay ascending.
 pub(crate) fn keep_gap(cells: &mut Vec<u32>, w: u32, p: Vec2) {
-    let r = crate::constants::PLAYER_RADIUS + 32.;
+    let r = crate::constants::WALL_GAP_REACH;
     cells.retain(|&i| {
         let px = f64::from(i % w) * TILE + TILE / 2.;
         let py = f64::from(i / w) * TILE + TILE / 2.;
