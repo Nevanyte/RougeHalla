@@ -601,7 +601,9 @@ exactJson(decode(bytes(fx.server.find(v => v.name === "welcome").hex)).hud, {
   scaling: [hudScaling(0, 1, 1, 0, 0, true), hudScaling(1, 1, 0, 0, 0, false), hudScaling(2, 0.3, 1, 0, 0, false),
     hudScaling(3, 0, 0.3, 0, 0.4, false), hudScaling(4, 1, 0, 0.02, 0, false), hudScaling(5, 0.6, 0.6, 0, 0, false)],
   // P-WIRE17-HUD-2c: codes 19-22, the Fire roam constants (fireRoam.ts:2-7).
-  terms: [1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1, 20000, 1000, 50, 0.4]
+  // P-FROST-WALL-2: codes 23-29, Frost's Wish (0 Freeze in the sample room) and the Frost Wall numbers.
+  terms: [1250, 450, 8000, 72, 5000, 0.8, 0.7, 1.2, 1500, 300, 200, 30, 2000, 64, 300, 5000, 0.3, 0.3, 1, 20000, 1000, 50, 0.4,
+    0, 450, 64, 224, 4000, 24, 8]
     .map((value, code) => ({ code, value })),
 }, "welcome HUD content block (legacy weapon scaling and Wish numbers)");
 for (const name of ["welcome_hud_scaling_count", "welcome_hud_scaling_dominant", "welcome_hud_scaling_nan",
@@ -807,6 +809,9 @@ const reason = {
   state_inventory_healing_nan: /inventory clock/, state_inventory_healing_negative: /inventory clock/,
   state_inventory_boost_infinite: /inventory clock/, state_inventory_clock_truncated: /./,
   state_arena_min_players_over: /min players/, state_arena_min_players_missing: /./,
+  // P-FROST-WALL-2: the State key 3 wall row.
+  state_field_kind_unknown: /bad field$/, state_wall_tiles_zero: /bad wall tiles$/, state_wall_tiles_over: /bad wall tiles$/,
+  state_wall_tiles_truncated: /./, state_wall_tile_off_map: /bad wall tile$/, state_wall_tile_order: /bad wall order$/,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];
@@ -1046,3 +1051,7 @@ if (version >= 16) {
 }
 
 console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);
+
+// P-FROST-WALL-2: the gate runs this script for the protocol vectors, so it also runs the Frost Wall decoder check (its own
+// file, an oracle); a failure there throws here and fails this script.
+await import("./check-frost-wall.mjs");

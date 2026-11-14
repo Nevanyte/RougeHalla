@@ -73,6 +73,8 @@ function cursor(view, p = 0, limit = view.byteLength) {
 }
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const MAX_MAP_TILES = 1024 * 1024;
+// P-FROST-WALL-2: most tiles one key 3 wall row may carry (rh-protocol MAX_WALL_TILES).
+const MAX_WALL_TILES = 64;
 // Protocol 17: six decodable planes (collision, terrain, regions, bushes, ground variants and, section version 3, the camp
 // patience plane).
 const MAX_MAP_DECODED_BYTES = 6 * 1024 * 1024;
@@ -539,9 +541,11 @@ function readWeapons(r) {
   return rows;
 }
 // P-WIRE17-HUD-2b: the HUD content block, between the weapon table and the map: scaling count u8 (<= 32), rows of id u8,
-// ad f64, ap f64, bonusHp f64, bonusDefense f64, dominant u8 (0/1); term count u8 (<= 23), rows of code u8 (< 23),
+// ad f64, ap f64, bonusHp f64, bonusDefense f64, dominant u8 (0/1); term count u8 (<= 30), rows of code u8 (< 30),
 // value f64. Ids and codes strictly ascend; every value finite in 0..=1e6. Checked in the Rust order: a count over its cap
-// before any row, a dominant byte or a code as soon as read, then values, then order.
+// before any row, a dominant byte or a code as soon as read, then values, then order. P-FROST-WALL-2: codes 23-29 (23 Frost's
+// Wish in this room, 0 Freeze, 1 Wall; 24-29 the wall's numbers).
+const HUD_TERM_COUNT = 30;
 function readHud(r) {
   const ok = (v) => Number.isFinite(v) && v >= 0 && v <= 1e6;
   const n = r.u8();
@@ -555,11 +559,11 @@ function readHud(r) {
   for (const s of scaling) if (![s.ad, s.ap, s.bonusHp, s.bonusDefense].every(ok)) throw new Error("bad scaling");
   for (let i = 1; i < n; i++) if (scaling[i].id <= scaling[i - 1].id) throw new Error("bad scaling order");
   const m = r.u8();
-  if (m > 23) throw new Error("bad hud term count");
+  if (m > HUD_TERM_COUNT) throw new Error("bad hud term count");
   const terms = [];
   for (let i = 0; i < m; i++) {
     const code = r.u8();
-    if (code >= 23) throw new Error("bad hud term code");
+    if (code >= HUD_TERM_COUNT) throw new Error("bad hud term code");
     terms.push({ code, value: r.f64() });
   }
   for (const t of terms) if (!ok(t.value)) throw new Error("bad hud term");
@@ -1017,10 +1021,26 @@ function readState(r) {
       value = { rows, focus };
     } else if (key === 3) {
       value = [];
+      // P-FROST-WALL-2, in the Rust order: the common row is read whole; a kind >= 4 is refused before any tile list; a
+      // wall (kind 3) then carries `count u8` (1..=64, "wall tiles") and that many u32 tiles (the whole list against the
+      // frame first: truncated), each below the map tile cap ("wall tile"), strictly ascending ("wall order"); then the
+      // common checks ("field"). Rows of other kinds have no `tiles` key.
       for (let j = 0, k = count(); j < k; j++) {
-        const f = { kind: r.code(2, "field"), ability: r.code(4, "field"), owner: actor(), subject: actor() };
-        for (const name of ["x", "y", "x2", "y2", "r", "vx", "vy"]) f[name] = finite(r.f32());
-        f.startedAt = finite(r.f64()); f.endsAt = finite(r.f64());
+        const f = { kind: r.u8(), ability: r.u8(), owner: actor(), subject: actor() };
+        for (const name of ["x", "y", "x2", "y2", "r", "vx", "vy"]) f[name] = r.f32();
+        f.startedAt = r.f64(); f.endsAt = r.f64();
+        if (f.kind > 3) throw new Error("bad field");
+        if (f.kind === 3) {
+          const m = r.u8();
+          if (m === 0 || m > MAX_WALL_TILES) throw new Error("bad wall tiles");
+          r.need(m * 4);
+          f.tiles = [];
+          for (let t = 0; t < m; t++) f.tiles.push(r.u32());
+          if (f.tiles.some((t) => t >= MAX_MAP_TILES)) throw new Error("bad wall tile");
+          for (let t = 1; t < m; t++) if (f.tiles[t] <= f.tiles[t - 1]) throw new Error("bad wall order");
+        }
+        if (f.ability > 4) throw new Error("bad field");
+        for (const name of ["x", "y", "x2", "y2", "r", "vx", "vy", "startedAt", "endsAt"]) finite(f[name]);
         if (f.r < 0 || f.endsAt < f.startedAt) throw new Error("bad field");
         value.push(f);
       }
