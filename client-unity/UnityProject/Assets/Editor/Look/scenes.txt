@@ -30,3 +30,8 @@ hall-rot-wide
 volcano-edge-wide
 volcano-edge-close
 volcano-edge-rot-wide
+frost-wall
+frost-wall-vertical
+frost-wall-cracking
+frost-wall-preview
+frost-wall-preview-invalid
