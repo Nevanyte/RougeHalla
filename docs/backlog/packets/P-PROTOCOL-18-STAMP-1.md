@@ -250,3 +250,13 @@ wire and cross-crate (`CLAUDE.md` rule 2).
 
 ## Notes from previous attempts
 <!-- Coordinator appends on escalation: tier, branch, the gate's failure block. Nothing else. -->
+
+## Added by the coordinator after attempt 1
+
+Two pins of protocol 17 that the survey missed, both mechanical and both moved by the implementer in `62c46114b`:
+
+| File | What pinned 17 | Change |
+|---|---|---|
+| `crates/rh-protocol/tests/map_dressing.rs` | `a_map_without_dressing_keeps_today_s_bytes` pins FNV digests of four Welcome hexes; the version u16 is inside the digested bytes | `WELCOME_DIGEST`, `SHIPPED_DIGEST`, `ALL_DIGEST`, `GROUND_BOTH_DIGEST` moved to the v18 values; lengths unchanged |
+| `crates/rh-server/tests/ending_metadata.rs:50` | `assert_eq!(rh_protocol::PROTOCOL_VERSION, 17)` | 18 |
+

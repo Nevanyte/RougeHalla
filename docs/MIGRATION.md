@@ -4,6 +4,40 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integration 46 (2026-11-14): protocol 18; the release tree; current checkpoint
+
+Staged as `coord/int-46` on `fffbad5c6` and under gate. **Identities: protocol 18** (P-PROTOCOL-18-STAMP-1,
+`62c46114b`: the constant, generated `protocol/fixtures/v18.json`, the Rust, C# and JS decoders, the probe and the
+reload-proof tools; `v17.json` stays as history; the v17 and v18 fixtures differ only in the version bytes, pinned by
+a test), observation 30, policy contract 25, checkpoint 32, replay 25, content hash `7a542a13187f034c`. A protocol-17
+build and a protocol-18 build refuse each other, both ways. The client's `BakedContent.cs` now holds
+`7a542a13187f034c` (it held the deployed beta's `7d2d84b827af3ddc`; Web round 14's build baked the same value from its
+own server's `/info`). Also in 46: P-ENV-RETRO-2 (the oracle-guard hook covers sibling worktrees; reviewed LAND).
+Test amendments: the nine pins of 17 listed in the stamp's brief and two found by its gate (`map_dressing.rs` four
+Welcome digests, `ending_metadata.rs:50`).
+
+**Web round 14** (`fffbad5c6`, the running client; partial, it ran out of time; shots in the session scratchpad
+`shots14/`, five sent to the owner): the wall and its aim marks read on Fire basalt; a wall by the bog tree is now
+drawn but the part behind trunk and crown is hidden by the tree (one cast of four); a camp's patience outline is
+absent from afar, appears once its mobs hit the player and stays while they chase, but the "PATIENCE RANGE" label was
+not visible and "gone 3 s after disengaging" was not shown; one volcano stream and its pool (no wide shot: the cone is
+taller than the screen). Defects: **a key-held walk went through a standing wall on the server's own position** (x
+1266 to 1782 in 3 s at walk speed, no snap); the bog tree still reads as a dark blocky mass; an ember ring by a lava
+pool held the player almost still while burning 985 to 322 HP. Not obtained: a wall under fog, a bot's wall, the
+church gate, the solid crown. **On the walk-through:** a read-only investigation found no server path that lets a
+walker through (a held key is a `Move` every 100 ms aimed 64 u ahead on a client map with no wall tiles; the server
+plans each with wall tiles blocked; no caster exemption; a start or goal inside a wall tile snaps to the nearest open
+tile, possibly the far side) and could not rule one out without running it; no existing test steers a mover into a
+wall under the live hitboxes. A server test of exactly that stream is being written first in P-FROST-WALL-PREDICT-1's
+oracle: green means the client gap only, red means a server packet.
+
+**Deploy readiness (2026-11-14):** the AWS sign-in on this machine has expired (the owner re-authenticates); Docker
+Desktop was not answering (the Linux server binary is built through `hosting/Dockerfile`, as on 2026-11-11); the DNS
+record for `play.rougehalla.com` is set by hand in Cloudflare; the previous deploy's command sequence is recovered
+from the earlier session's record. Pool with landmarks on, measured by the map generator session on `fffbad5c6`:
+1,500 random seeds, 3 with no map in 16 attempts (the pool asks for another), slowest seed 1.9 s against the
+worker's 5 s hang threshold on a loaded machine in a debug-assertions build; the host's CPU is not measured.
+
 ## Final combined review (2026-11-14): fit with notes; current checkpoint
 
 Integration branch `feature/unity-rework` @ `fffbad5c6` on origin: integrations 43, 44 and 45 gated as one tree (full
