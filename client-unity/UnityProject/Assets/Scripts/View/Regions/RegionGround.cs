@@ -102,19 +102,20 @@ namespace Roguehalla.Client
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off; mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
         }
 
-        /// <summary>One texel per tile (row-major, w * h), the ground-variant look the shader blends over the base ground: rgb the tint, a its strength (0 = base ground). Variant 0 and an unknown variant bake 0; an unknown variant logs once per call.</summary>
+        /// <summary>One texel per tile (row-major, w * h), the ground-variant look the shader applies to the base ground: rgb the tint, a its strength (0 = base ground), as decided by <see cref="Roguehalla.Net.Ui.GroundTint.Bake"/> (the server's variant, plus the Sentenced scatter family). Variant 0 on a tile without a scatter family and an unknown variant bake 0; an unknown variant logs once per call.</summary>
         public static Color32[] BakeVariants(MapBlob map)
         {
             int w = map.W, h = map.H; var px = new Color32[w * h];
-            var plane = map.GroundVariants; if (plane == null || plane.Length != w * h) return px;
+            var plane = map.GroundVariants; bool hasPlane = plane != null && plane.Length == w * h;   // a map without a plane can still carry the Sentenced scatter
+            bool hasRegions = map.Regions != null && map.Regions.Length == px.Length;
             System.Collections.Generic.HashSet<byte> warned = null;
             for (int i = 0; i < px.Length; i++)
             {
-                byte v = plane[i]; if (v == 0) continue;
-                int region = map.Regions != null && map.Regions.Length == px.Length ? map.Regions[i] : 0;
-                if (Roguehalla.Net.Ui.GroundVariantLook.TryGet(region, v, out var t))
+                byte v = hasPlane ? plane[i] : (byte)0;
+                int region = hasRegions ? map.Regions[i] : 0;
+                if (Roguehalla.Net.Ui.GroundTint.Bake(region, v, i % w, i / w, out var t))
                     px[i] = new Color32(t.R, t.G, t.B, (byte)Mathf.RoundToInt(Mathf.Clamp01(t.Strength) * 255f));
-                else if (v > 8 || region >= 1 && region <= 5)
+                else if (v != 0 && (v > 8 || region >= 1 && region <= 5))
                 {
                     if (warned == null) warned = new System.Collections.Generic.HashSet<byte>();
                     if (warned.Add(v)) Debug.LogWarning("RegionGround: unknown ground variant " + v + " draws the base ground");
