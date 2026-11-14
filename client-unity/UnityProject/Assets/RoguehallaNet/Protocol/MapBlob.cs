@@ -77,7 +77,7 @@ namespace Roguehalla.Net.Protocol
         const byte Presence2Patience = 0x01, Presence2Anchors = 0x02, KnownPresence2 = 0x03;
         /// <summary>Six decodable planes (collision, terrain, regions, bushes, ground variants, patience), as Rust's
         /// MAX_DECODED_PLANES and MAX_CUMULATIVE_RUNS.</summary>
-        const long MaxDecodedPlaneBytes = 6L * Wire.MaxMapTiles;
+        const long MaxDecodedPlaneBytes = Wire.MaxMapDecodedBytes;
         const byte TerrainPresent = 0x01, RegionPresent = 0x02, CampsPresent = 0x04, ColiseumPresent = 0x08,
             BushesPresent = 0x10, PropsPresent = 0x20, GroundVariantsPresent = 0x40, KnownPresence = 0x7f;
         public const int MaxCamps = 64, MaxColiseumGates = 8, MaxGateTiles = 16, MaxProps = 8192;

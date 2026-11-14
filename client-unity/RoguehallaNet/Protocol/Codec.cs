@@ -23,7 +23,9 @@ namespace Roguehalla.Net.Protocol
         public const int MaxActors = 512;
         public const int MaxMapTiles = 1024 * 1024;
         public const int MaxMapRuns = 6 * MaxMapTiles;
-        public const int MaxMapDecodedBytes = 5 * MaxMapTiles;
+        /// <summary>Six decodable planes (collision, terrain, regions, bushes, ground variants, patience), one byte per tile.</summary>
+        public const int MaxMapPlanes = 6;
+        public const int MaxMapDecodedBytes = MaxMapPlanes * MaxMapTiles;
     }
 
     public enum DecodeError { Truncated, TooLarge, TooMany, BadTag, BadUtf8, NonFinite, Trailing, BadMap, BadVarint, BadField }
