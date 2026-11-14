@@ -262,12 +262,8 @@ fn without_content_hash(relative: &str) -> Value {
 /// (the switch is off in every case), and the archetype golden's table is untouched.
 #[test]
 fn the_carry_changes_only_the_content_hash_field_of_the_tape_and_the_archetype_golden() {
-    let tape = without_content_hash("parity/abilities/hash-tape.json");
-    assert_eq!(
-        hex(digest(&tape)),
-        "dcd5497d723e8a8d",
-        "parity/abilities/hash-tape.json changed beyond contentHash"
-    );
+    // The tape digest pin proved the content packet changed nothing in the tape but the content hash; retired on
+    // 2026-11-14 at the wire merge (the tape moves with every observation version): `ability_hash_tape_matches_the_base` guards it.
     let archetypes = without_content_hash("protocol/fixtures/archetypes_v1.json");
     assert_eq!(
         hex(digest(&archetypes)),
