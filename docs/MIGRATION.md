@@ -4,6 +4,49 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integrations 38 to 40 (2026-11-14): Frost Wall is complete behind its switch; identities move
+
+Integration branch `feature/unity-rework` @ `15c35e2f7` on origin (full gates with Postgres green on `76bf3ba7a` and
+`15c35e2f7`). Staged as `coord/int-40`, to be gated as one tree: the four packets below.
+
+**Identities after integration 40** (they move in this batch, together, per the owner's decision of 2026-11-12):
+content hash `4674a176a28e3c7a` -> `7a542a13187f034c` (the wall's eleven numbers are content, P-FROST-WALL-2a);
+observation 29 -> 30 and policy contract 23 -> 24 (a wall is a field kind with its tiles, P-FROST-WALL-2);
+protocol stays 17 in the tree with `v17.json` regenerated; checkpoint 32 and replay 25 unchanged.
+**The next deployed build must be stamped protocol 18**, and server and client must ship together: no handshake
+catches a client built before this batch (same protocol number; it then refuses every Welcome on "hud term count"),
+and replays and checkpoints recorded before it are refused on the content hash. `hosting/technical-demo/README.md:199`
+still names the old content hash (a protected path: the owner's edit). The reload-proof evidence hashes under
+`docs/evidence/unity-browser-reload-readiness/` predate this change and P-WIRE17-HUD-2c: historical records, re-pinned
+only when that proof is re-run.
+
+**Frost Wall, where it stands** (owner decision 2; legacy patch `78dd8bd4`, read with `git show`, not merged into
+`packages/`): the sim rule (parts 1, 1b, 1c: bodies, swings, walks, mobs, blinks, cannon landings, zombies, bruiser
+and signature reach, Wind emblems, a swing meeting a ball), content (2a), the wire and the three decoders (2), the
+C# client state (2b), the Unity drawing, cast telegraph and aim preview with a quick-cast setting (P-UNITY-FROST-WALL-1;
+the preview mirrors `rh-sim` and is checked against 13 Rust vectors). **Nothing selects the wall yet**: P-FROST-WALL-3
+(one line in `SimConfig::live_content()`) has its oracle in progress, with a bot sanity run under the wall;
+P-FROST-WALL-1d (loot pick-up, corpse consume and trader reach across the ice) has its oracle in progress. Named and
+not started: P-FROST-WALL-PREDICT-1 (client walk prediction round a wall; today the server corrects a predicted walk
+through ice). Kept as legacy and flagged: a wall is shown to a viewer only when its FIRST end is in sight, so a viewer
+who sees only the far end is blocked by ice it cannot see; an "any tile visible" rule would be its own packet.
+**Not yet seen by anyone on screen:** the wall, its telegraph and the preview (no render was made; a Web round needs
+P-FROST-WALL-3).
+
+**Also landed (integrations 38, 39):** soft, ragged decoration band edges (the square halo round bog pools is gone in
+the running client), the bog tree's crown fading only for an actor it hides, the Web-round driver that lists and
+walks to landmarks (`unity/WEB_ROUND.md` corrected from two independent runs), the map generator session's shared
+drawing reader (P-MAPGEN-SIG-BLUEPRINT-1). Web round 12 (shots in the session scratchpad `shots12/`; two sent to the
+owner): the pool bands read as ground; the bog tree's crown reads dark and mottled when a mob stands under it (the
+50 percent rule of the owner's roof ruling applied to a tree): asked of the owner, unanswered.
+
+**Test changes made and flagged for the owner in this stretch:** the mechanical pins the wire packet moved (observation
+and contract versions, HUD term count 23 -> 30, four Welcome digests in `map_dressing.rs`, `vectors.rs` and three C#
+files, `hud_content_wire.rs`, `hud_tooltip_wire.rs`); `tests/content.rs` (eight `NON_GAMEPLAY` wall rows removed, the
+golden hash; staged for this step by the owner's 2026-11-12 decision); `frost_wall_content.rs` (the one-off tape digest
+retired at the wire merge); P-FROST-WALL-1c's content guard now follows the golden; the tape re-recorded for
+observation 30.
+
 ## Integrations 35 to 37 and Web round 11 (2026-11-14): current checkpoint
 
 Integration branch `feature/unity-rework` @ `aadff95e3` on origin. Three full gates with Postgres, each green on the
