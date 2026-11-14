@@ -607,7 +607,12 @@ impl<'f> SignatureContext<'f> {
                 Zone::Plague => bog_tree::place(
                     &site,
                     &mut rng,
-                    reserved.map(|r| (r.rect.x + r.rect.w as i32 / 2, r.rect.y + r.rect.h as i32 / 2)),
+                    reserved.map(|r| {
+                        (
+                            r.rect.x + r.rect.w as i32 / 2,
+                            r.rect.y + r.rect.h as i32 / 2,
+                        )
+                    }),
                 ),
                 _ => cave::place(&site, &prefix.layout.camps, &mut rng, camp),
             };
