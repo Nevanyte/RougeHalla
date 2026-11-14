@@ -1007,6 +1007,7 @@ fn parse_hunt_mob(v: &SVal) -> R<(String, HuntMobLike)> {
             weapon0: weapon0_text.as_deref().and_then(WeaponId::parse),
             weapon0_text,
             type_,
+            reward: None,
         },
     ))
 }

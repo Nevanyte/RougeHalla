@@ -34,6 +34,9 @@ mod tests;
 // P-BOT-BRAIN-THEMED-1 oracle: the route values a camp by the stat its kills pay.
 #[cfg(test)]
 mod themed_camp_tests;
+// P-BOT-BRAIN-THEMED-2 oracle: the hunt values a mob by the stat its camp pays.
+#[cfg(test)]
+mod themed_hunt_tests;
 mod trace;
 
 pub(crate) mod compose14;

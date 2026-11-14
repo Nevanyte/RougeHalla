@@ -19,6 +19,16 @@ pub(super) use mob_hunt::HuntMobLike;
 pub(super) use build_route::{route_camp_value, BuildRoute, RouteInput};
 #[cfg(test)]
 pub(super) use engine::route_camps;
+// P-BOT-BRAIN-THEMED-2 oracle bridge: the Brain's composed-percept hunt test (`brain/themed_hunt_tests.rs`) builds the
+// hunter's snapshot, the engine's hunt weight and the hunter's pick exactly as the strategy does. Test-only.
+#[cfg(test)]
+pub(super) use build_route::hud_code_stat;
+#[cfg(test)]
+pub(super) use engine::hunt_type_weight;
+#[cfg(test)]
+pub(super) use hunt_adapter::hunt_mobs;
+#[cfg(test)]
+pub(super) use mob_hunt::{hunt_wanted, HuntInput, HuntSelf, MobHunter};
 #[cfg(test)]
 mod private_strategy_tests;
 #[cfg(test)]

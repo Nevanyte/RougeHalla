@@ -37,6 +37,10 @@ pub(crate) struct HuntMobLike {
     pub weapon0: Option<WeaponId>,
     pub weapon0_text: Option<String>,
     pub type_: Option<String>,
+    /// P-BOT-BRAIN-THEMED-2 (a7b5c4ce `MobLike.reward`): the stat this mob's kill pays when its camp pays one other than
+    /// its type's own (an off-theme camp buff, read from the seat's own percept); `None` = its type's stat (legacy
+    /// `m.reward ?? m.type`).
+    pub reward: Option<crate::bots::build_route::FarmStat>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -547,11 +551,7 @@ impl MobHunter {
             if walk > reach * cfg.walk_slack {
                 continue;
             }
-            let wanted = match inp.type_weight {
-                None => 1.,
-                Some(_weight) if m.kind == "elite" => 1.,
-                Some(weight) => weight(m.type_.as_deref()),
-            };
+            let wanted = hunt_wanted(&m, inp.type_weight);
             if wanted < BUILD_WANTED && walk > OFF_BUILD_WALK && inp.self_.mob_kills > 0. {
                 continue;
             }
@@ -586,6 +586,17 @@ impl MobHunter {
             }
         }
         best.map(|(id, _)| id)
+    }
+}
+
+/// mobHunt.ts `wanted` (a7b5c4ce: `m.kind === "elite" || !inp.typeWeight ? 1 : inp.typeWeight(m.reward ?? m.type)`): what
+/// one candidate mob is worth to the build. The hunter's pick reads it here and nowhere else.
+/// STUB (P-BOT-BRAIN-THEMED-2): today's by-type rule; `reward` is not read yet.
+pub(crate) fn hunt_wanted(m: &HuntMobLike, type_weight: Option<&TypeWeightFn<'_>>) -> f64 {
+    match type_weight {
+        None => 1.,
+        Some(_weight) if m.kind == "elite" => 1.,
+        Some(weight) => weight(m.type_.as_deref()),
     }
 }
 

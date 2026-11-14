@@ -71,16 +71,11 @@ impl HuntAdapter {
     }
 
     fn mobs(ctx: &StrategyContext<'_>) -> Vec<(String, HuntMobLike)> {
-        let mut mobs = Vec::new();
-        for (id, m) in ctx.mem.mobs() {
-            if m.returning {
-                continue;
-            }
-            if let Some(like) = mob_like_of(m) {
-                mobs.push((id.clone(), like));
-            }
-        }
-        mobs
+        hunt_mobs(
+            ctx.mem.mobs(),
+            ctx.p.extras.camps.as_deref(),
+            &ctx.cfg.map.camps,
+        )
     }
 
     fn players(ctx: &StrategyContext<'_>) -> (Vec<Vec2>, f64) {
@@ -319,5 +314,29 @@ fn mob_like_of(m: &super::super::memory::MobMemory) -> Option<HuntMobLike> {
         weapon0: m.in_hand,
         weapon0_text: m.in_hand.map(|w| w.as_str().to_string()),
         type_: m.type_.clone(),
+        reward: None,
     })
+}
+
+/// The hunter's mob snapshot (huntAdapter.ts, the `mobs` loop as patched by a7b5c4ce): every remembered regional mob
+/// not walking home, in memory order, each carrying what its kill pays when its camp (`MobMemory::camp_id`, the map
+/// camp id `defs[i].id`) pays a stat other than its type's own, as the seat's percept reports it
+/// (`camps[j].reward` of the view with `index == i`). `camps` is `None` when the camps feature is off.
+/// STUB (P-BOT-BRAIN-THEMED-2): today's snapshot; `camps` and `defs` are not read yet and `reward` stays `None`.
+pub(crate) fn hunt_mobs(
+    mobs: &[(String, super::super::memory::MobMemory)],
+    camps: Option<&[super::types::CampView]>,
+    defs: &[super::types::CampDef],
+) -> Vec<(String, HuntMobLike)> {
+    let _ = (camps, defs);
+    let mut out = Vec::new();
+    for (id, m) in mobs {
+        if m.returning {
+            continue;
+        }
+        if let Some(like) = mob_like_of(m) {
+            out.push((id.clone(), like));
+        }
+    }
+    out
 }

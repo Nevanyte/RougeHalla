@@ -243,6 +243,15 @@ impl BuildRoute {
     }
 }
 
+/// P-BOT-BRAIN-THEMED-2: the one shared HUD stat code -> farm stat table (the composer's nine `HUD_STATS` codes,
+/// `rh-sim` `observe.rs` `hud_stat` read backwards), read by the route and the hunt alike; `None` for any other text.
+/// STUB: returns `None`; the implementer moves `paid_stat`'s table here and has the route call this.
+#[allow(dead_code)]
+pub(crate) fn hud_code_stat(code: &str) -> Option<FarmStat> {
+    let _ = code;
+    None
+}
+
 /// The farm stat a camp's percept reward names, when it is one of the composer's nine HUD stat codes (`compose14.rs`
 /// `HUD_STATS`, `rh-sim` `observe.rs` `hud_stat` read backwards); `None` for any other text (the frozen corpus's legacy
 /// clear-reward kind `"" | "?" | "skills" | "relic" | "cursed"`, or anything unknown).

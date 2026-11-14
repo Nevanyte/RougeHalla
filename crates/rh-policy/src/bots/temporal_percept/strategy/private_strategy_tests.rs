@@ -504,6 +504,7 @@ fn private_strategy_tracker_and_hunter_controls() {
         weapon0: Some(WeaponId::Axe),
         weapon0_text: Some("axe".into()),
         type_: Some("emberImp".into()),
+        reward: None,
     };
     let mut tracker = MobTracker::default();
     tracker.observe(&[("m1".into(), base.clone())], 1000.);
