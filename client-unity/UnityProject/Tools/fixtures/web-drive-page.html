@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8"><title>web-drive fixture</title>
+<!-- P-UNITY-WEB-DRIVE-2 oracle: a stand-in for the client page. window.__rhProbe has a movable "me" and two landmarks.
+     W/A/S/D move 100 world units per second (W is y-), a key keeps acting 300 ms after key-up, a wall stops x at 400. -->
+<script>
+  const probe = window.__rhProbe = {
+    session: true,
+    me: { id: 1, x: 100, y: 100 },
+    anchors: [
+      { kind: 'cave', zone: 4, footprint: { x: 10, y: 5, w: 6, h: 6 }, centre: { x: 368, y: 208 }, entrance: [{ x: 336, y: 336 }] },
+      { kind: 'hall', zone: 5, footprint: { x: 40, y: 40, w: 8, h: 8 }, centre: { x: 1456, y: 1456 }, entrance: [] },
+    ],
+  };
+  const until = {};            // key -> time (ms) it stops acting
+  const dir = { w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0] };
+  addEventListener('keydown', (e) => { until[e.key.toLowerCase()] = Infinity; });
+  addEventListener('keyup', (e) => { until[e.key.toLowerCase()] = performance.now() + 300; });
+  let last = performance.now();
+  setInterval(() => {
+    const now = performance.now(), dt = (now - last) / 1000; last = now;
+    for (const k in dir) if ((until[k] || 0) > now) {
+      probe.me.x += dir[k][0] * 100 * dt; probe.me.y += dir[k][1] * 100 * dt;
+    }
+    if (probe.me.x > 400) probe.me.x = 400;
+  }, 10);
+</script>
+<body style="margin:0">fixture</body>
