@@ -55,7 +55,8 @@ namespace Roguehalla.Client
             BuildRoof(lm, building, notch);
             if (door.Count > 0) BuildDoor(lm, door, horizontalRun, outwardNorthOrWest);
             if (lm.ArchTiles.Length > 0) BuildGate(lm);
-            foreach (var g in groups) if (g != building) BuildGravestones(lm, g);
+            foreach (var g in groups)                                                   // a plot lies outside the building's box; the pillar blocks inside it stay as RegionWalls draws them
+                if (g != building && !(g.MinX >= building.MinX && g.MaxX <= building.MaxX && g.MinY >= building.MinY && g.MaxY <= building.MaxY)) BuildGravestones(lm, g);
         }
 
         // ---- reading the tiles --------------------------------------------------------------------------------------------------
@@ -141,7 +142,7 @@ namespace Roguehalla.Client
             public SpriteRenderer ToSprite(Landmark lm, string name, string objectName, int order)
             {
                 var tex = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { name = name, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-                tex.SetPixels(_px); tex.Apply(false, !KeepReadable); lm.Own(tex);
+                tex.SetPixels(_px); tex.Apply(false, true); lm.Own(tex);
                 var sprite = Sprite.Create(tex, new Rect(0, 0, W, H), Vector2.zero, Ppu, 0, SpriteMeshType.FullRect); lm.Own(sprite);
                 var go = new GameObject(objectName); go.transform.SetParent(lm.Root.transform, false);
                 go.transform.localPosition = new Vector3(X0, Y0, 0);
@@ -150,7 +151,6 @@ namespace Roguehalla.Client
             }
         }
 
-        public static bool KeepReadable;
 
         static Color Shade(Color c, float k) { return new Color(Mathf.Clamp01(c.r * k), Mathf.Clamp01(c.g * k), Mathf.Clamp01(c.b * k), 1f); }
         static Color WithAlpha(Color c, float a) { c.a = a; return c; }
@@ -362,7 +362,7 @@ namespace Roguehalla.Client
             {
                 int hash = (int)(RegionNoise.Hash(t.x, t.y, 53) % 1000u);
                 float cx = t.x + .5f + ((hash % 7) - 3) * .025f, baseY = Wall - (t.y + .78f) * Sq, sw = .5f + (hash % 5) * .02f, sh = .72f + ((hash / 7) % 5) * .07f;
-                Stone(cv, cx, baseY, sw, sh, hash % 4);
+                DrawStone(cv, cx, baseY, sw, sh, hash % 4);
             }
             cv.ToSprite(lm, "Church gravestones", "Church gravestone", 2000 + 16 * g.MaxY + 1);
         }
@@ -399,7 +399,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Type 0 round-topped slab, 1 pointed (gothic) slab, 2 cross, 3 chamfered slab; (cx, baseY) is the stone's foot.</summary>
-        static void Stone(Canvas cv, float cx, float baseY, float w, float h, int type)
+        static void DrawStone(Canvas cv, float cx, float baseY, float w, float h, int type)
         {
             float hw = w / 2f;
             cv.PaintIn(cx - hw - .3f, baseY - .2f, cx + hw + .3f, baseY + h + .1f, (wx, wy) =>
