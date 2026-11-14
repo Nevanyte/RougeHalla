@@ -1133,6 +1133,57 @@ fn wide_maps_certify_clean_and_keep_the_tree() {
 }
 
 // --------------------------------------------------------------------------------------------------------------------
+// P-LAND-PLAGUE-1-fix-2 (brief `docs/backlog/packets/P-LAND-PLAGUE-1-fix-2.md`): the pipeline's end-of-attempt pool
+// check (`pipeline::plague_pools`) on today's maps, seeds 1-96 (the two cached map sets).
+// --------------------------------------------------------------------------------------------------------------------
+
+/// The pipeline's check measures this oracle's walk: on every accepted map of seeds 1-96, `plague_pools::walk_growth`
+/// equals `bog_detours` (per Plague spawn of the pool that a walk reaches, in pool order), and no `BogPool` is dry.
+#[test]
+fn the_end_of_attempt_check_measures_this_oracles_walk_on_seeds_1_to_96() {
+    let mut findings = Vec::new();
+    for l in maps().iter().chain(wide_maps()) {
+        let m = &l.map;
+        let (check, oracle) = (pipeline::plague_pools::walk_growth(m), bog_detours(m));
+        if check != oracle {
+            findings.push(format!(
+                "seed {}: the check measures {check:?}, the oracle {oracle:?}",
+                l.seed
+            ));
+        }
+        let dry = pipeline::plague_pools::dry_pools(m);
+        if !dry.is_empty() {
+            findings.push(format!("seed {}: dry BogPool features {dry:?}", l.seed));
+        }
+    }
+    verdict("end-of-attempt pool check, seeds 1-96", &findings);
+}
+
+/// The check costs no map today: no attempt of seeds 1-96 before the accepted one was refused by it, and every
+/// accepted map passes it with the pools' detour.
+#[test]
+fn no_attempt_of_seeds_1_to_96_is_refused_by_the_pool_check() {
+    let refused = format!("{:?}", Some(pipeline::Refusal::SignaturePools));
+    let mut findings = Vec::new();
+    for l in maps().iter().chain(wide_maps()) {
+        let n = l.refusals.iter().filter(|r| **r == refused).count();
+        if n > 0 {
+            findings.push(format!(
+                "seed {}: {n} attempts refused by the pool check",
+                l.seed
+            ));
+        }
+        if !pipeline::plague_pools::keeps(&l.map, walk_detour_max()) {
+            findings.push(format!(
+                "seed {}: the accepted map fails the pool check",
+                l.seed
+            ));
+        }
+    }
+    verdict("pool-check refusals, seeds 1-96", &findings);
+}
+
+// --------------------------------------------------------------------------------------------------------------------
 // Reports (brief section 12; not gate checks). Run with `--ignored --nocapture`.
 // --------------------------------------------------------------------------------------------------------------------
 
