@@ -3,9 +3,13 @@
 ```
 PACKET:          P-MAPGEN-GUARANTEES-1 — serves the land-generation lane's architecture review of 2026-11-13, finding 4
                  (order (B), second packet after P-MAPGEN-LANDMARK-FRAME-1); before the Frost, Fire and Holy land rules
-BRANCH:          agent/opus/P-MAPGEN-GUARANTEES-1 @ 2391eee0f (code) + this hand-off commit; stacked on
+BRANCH:          agent/opus/P-MAPGEN-GUARANTEES-1 @ f87f1c8bf (implementation 939444e33, 5366c0172, 2391eee0f; review
+                 note 1 by the lane's session f87f1c8bf; hand-off commits beside them); stacked on
                  agent/opus/P-MAPGEN-LANDMARK-FRAME-1 @ 7e715bd57
-GATE:            not run by the implementer (the lane's session runs the full gate)
+GATE:            PASS (full, `scripts/gate.sh --oracle packet/P-MAPGEN-GUARANTEES-1 --base
+                 agent/opus/P-MAPGEN-LANDMARK-FRAME-1`, run by the lane's session on 1eeacce97) [skipped: Postgres suites
+                 (no DATABASE_URL); the CI/owner-hardware-only steps]; then PASS (quick, same flags, on f87f1c8bf, the
+                 review fix: one doc paragraph and one in-crate test)
 CHANGED:         crates/rh-sim/src/mapgen/pipeline/mod.rs (end of attempt, Refusal, Pipeline field, with_guarantees
                  seam, inline guarantee_tests module), pipeline/README.md, pipeline/plague_pools.rs and
                  pipeline/plague_pools_tests.rs (emptied to a one-line module doc each, see RISKS),
@@ -140,3 +144,32 @@ $ rg -n 'Refusal::Guarantee' crates/rh-sim/src/mapgen/pipeline/mod.rs
    covered (`pipeline::guarantee_tests`). A new rule changes which attempts are kept, so expect to re-pin maps
    (`tests/support/signature_pins.rs`), add the label to `pinned_labels` and the rule to
    `the_registry_lists_the_frost_and_plague_rules_and_nothing_else` in `tests/mapgen_guarantees.rs` (oracle work).
+
+## Review (reviewer-opus, 2026-11-14): LAND WITH NOTES, one note, fixed in f87f1c8bf
+Read-only, old against new.
+- The kept set is the old one on every path: the lake rule is the old predicate with the same two inputs (the reach
+  from `DEFAULT_DEFINITION`, which the pipeline's context always was; the mouth from the frame's anchor, which `finish`
+  copies unchanged into the map); `pool-walks` and `pool-wet` together are the old `keeps` with the same detour; an
+  option-on attempt that reaches the end always has all four frames; option off skips the loop. Every check is a pure
+  read, so running the lake rule after the certifier changes no outcome.
+- Labels as the brief maps them; `Refusal::Guarantee` is produced in one place; nothing in production branches on the
+  label; the order (frame order, then list order) is deterministic and pinned by a seam test.
+- The moved lake and pool tests keep every assertion; the three seam tests cover the two deleted pipeline tests.
+- The shape is enough for the Fire, Frost and Holy rules; `walk_growth` is reusable as written; the slice literals are
+  sound.
+- **Note 1 (structural), fixed:** a list registered for a zone without a landmark frame would never run (the pipeline
+  loops over frames; Holy has none until P-MAPGEN-SIG-HOLY-1) and no pin would notice. `style_zones::guarantees` now
+  says so, and `pipeline::guarantee_tests::only_zones_with_a_frame_have_guarantees` fails if a zone outside
+  `signature::reserved_zones` registers a rule. The lookup's module doc also states the content scanner's rule as found
+  (every upper-case `const` or `static`, local ones included).
+
+Carried forward (not fix packets):
+- No test pins that an attempt failing `intact` and a guarantee stays `SignatureDiscarded` (the code is plainly so).
+- `lake_at_mouth` and the pool rules read `DEFAULT_DEFINITION` and `POOLS` directly (review finding 6);
+  `world_tile`, `at` and `walk_field` exist in `style_zones` beside similar helpers in `signature`.
+- `pub mod plague_pools;` stays a public, empty module: the owner decided emptied files are kept (2026-11-14).
+- Proposed shared-record edit for the coordinator: `docs/DEVIATIONS.md` DEV-034 still names `pipeline/plague_pools.rs`
+  and `Refusal::SignaturePools`; it should name `style_warren/guarantees.rs` (`pool-walks`, `pool-wet`) and
+  `Refusal::Guarantee { zone: Plague, .. }`.
+- The Fire guarantees will need the stream cells: the volcano's frame has `cells` and `features` (no marks until it
+  is a drawing).
