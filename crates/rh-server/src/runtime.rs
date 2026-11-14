@@ -1,7 +1,7 @@
 //! Explicit endpoint configuration. The protocol Hello carries no room mode: each process hosts one profile.
-use rh_sim::{mob_runtime::MobMode, terrain, Arena, ArenaMode, SimConfig};
 #[cfg(test)] // `tests` names it through `super::*`
 use rh_sim::abilities;
+use rh_sim::{mob_runtime::MobMode, terrain, Arena, ArenaMode, SimConfig};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Profile {
