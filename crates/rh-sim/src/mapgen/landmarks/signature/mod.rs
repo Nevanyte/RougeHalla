@@ -350,6 +350,16 @@ pub struct Landed {
     pub marks: Vec<(u8, Vec<TilePt>)>,
 }
 
+/// P-MAPGEN-SIG-BLUEPRINT-2: the terrain codes (indices into the terrain catalog, `terrain_gate::DEFAULT_DEFINITION.kinds`)
+/// of the catalog kinds `bog`, `lava`, `ember` and `ice`, as the context uses them (`SignatureContext::terrain_codes`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TerrainCodes {
+    pub bog: u8,
+    pub lava: u8,
+    pub ember: u8,
+    pub ice: u8,
+}
+
 /// Immutable per-pipeline context, reused by every attempt.
 pub struct SignatureContext<'f> {
     _fixed: core::marker::PhantomData<&'f FixedLayout>,
@@ -407,6 +417,18 @@ impl<'f> SignatureContext<'f> {
 
     pub fn definition(&self) -> &Definition {
         &self.rules
+    }
+
+    /// P-MAPGEN-SIG-BLUEPRINT-2 (review finding 6): the terrain codes this context writes and checks for the bog, the
+    /// lava, the ember and the ice. Stub: today's `Definition` literals; the packet looks them up by key in the terrain
+    /// catalog (`terrain_gate::DEFAULT_DEFINITION.kinds`) when the context is built.
+    pub fn terrain_codes(&self) -> TerrainCodes {
+        TerrainCodes {
+            bog: self.rules.bog,
+            lava: self.rules.lava,
+            ember: self.rules.ember,
+            ice: self.rules.ice,
+        }
     }
 
     /// P-MAPGEN-SIG-RESERVE-1: each reserving zone's signature stream, `hash_seed(seed, attempt, zone slot, stream)`, in
@@ -668,6 +690,20 @@ impl<'f> SignatureContext<'f> {
             terrain,
             landed,
         }))
+    }
+
+    /// P-MAPGEN-SIG-BLUEPRINT-2 (review finding 5): `apply` for the one landmark of `zone` alone, as if the zones placed
+    /// before it in `apply` had placed nothing: the same site, stream, draws and checks, its features written into
+    /// `stage`, and a `Placed` holding only its anchor, its terrain and (for a drawing) its landing. A test seam: what
+    /// each landmark's own oracle pins without depending on the others. Stub: refuses (`Ok(None)`).
+    pub fn apply_only(
+        &self,
+        frame: &AttemptFrame,
+        stage: &mut LandmarkStage,
+        zone: Zone,
+    ) -> Result<Option<Placed>, AttemptInputError> {
+        let _ = (frame, stage, zone);
+        Ok(None)
     }
 
     fn write(&self, stage: &mut LandmarkStage, terrain: &mut [u8], zone: Zone, p: &Piece) {

@@ -48,6 +48,13 @@ pub struct Spec {
     pub entrance: EntranceRule,
     /// Whether the `Definition::doorway` tiles beyond each entrance tile, along the front, must be `Site::open`.
     pub doorway: bool,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: every feature kind that belongs to this landmark (its own features and, for the volcano,
+    /// its streams and pools): what `is_signature`, `aprons_apart` and the owned-cell part of `intact` read. Stub: empty,
+    /// nothing reads it yet.
+    pub members: Vec<FeatureKind>,
+    /// P-MAPGEN-SIG-BLUEPRINT-2: the member kinds whose apron and keep mask follow their own tiles rather than their box
+    /// (the volcano's lava streams and pools): what `by_tile` reads. Stub: empty, nothing reads it yet.
+    pub by_tile: Vec<FeatureKind>,
 }
 
 /// A glyph that writes `write`, owned by `feature`, on a tile passing `legality`.
@@ -104,6 +111,8 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Centre,
             entrance: EntranceRule::None,
             doorway: false,
+            members: Vec::new(),
+            by_tile: Vec::new(),
         },
         // The church (`#` walls, `P` pillars) and its graveyard (`G` headstones, `+` the LOW fence), `E` on the camp;
         // the entrance is the main gate, the open front row through `E`'s column.
@@ -132,6 +141,8 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Pin(b'E'),
             entrance: EntranceRule::FrontRun(b'E'),
             doorway: true,
+            members: Vec::new(),
+            by_tile: Vec::new(),
         },
         // The bog tree (`T` trunk, `r` roots, `%` marsh), off every apron marked before it, centred in its site; the
         // entrance is the causeways `:` on the box's edge.
@@ -150,6 +161,8 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Centre,
             entrance: EntranceRule::Edge(b':'),
             doorway: false,
+            members: Vec::new(),
+            by_tile: Vec::new(),
         },
         // The cave (`#` walls, `R` rock, `=` ice floor), `E` on the camp; the entrance is the mouth `D`.
         Spec {
@@ -168,6 +181,8 @@ pub fn specs(d: &Definition) -> Vec<Spec> {
             placement: Placement::Pin(b'E'),
             entrance: EntranceRule::Mark(b'D'),
             doorway: true,
+            members: Vec::new(),
+            by_tile: Vec::new(),
         },
     ]
 }
