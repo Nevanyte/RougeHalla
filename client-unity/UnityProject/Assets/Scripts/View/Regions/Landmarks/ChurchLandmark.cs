@@ -93,8 +93,17 @@ namespace Roguehalla.Client
         {
             var door = new List<Vector2Int>();
             for (int y = b.MinY; y <= b.MaxY; y++) for (int x = b.MinX; x <= b.MaxX; x++)
-                if ((x == b.MinX || x == b.MaxX || y == b.MinY || y == b.MaxY) && !lm.IsWall(x, y)) door.Add(new Vector2Int(x, y));
+            {
+                bool edgeX = x == b.MinX || x == b.MaxX, edgeY = y == b.MinY || y == b.MaxY;
+                if ((edgeX || edgeY) && !(edgeX && edgeY) && !lm.IsWall(x, y)) door.Add(new Vector2Int(x, y));   // border tiles, never a corner
+            }
             if (door.Count > 5) door.Clear();                                       // not a doorway: no door art, no notch
+            else if (door.Count > 0)                                                // one contiguous run along one border line, or no door at all
+            {
+                Extent(door, out int x0, out int y0, out int x1, out int y1);
+                bool oneLine = (x0 == x1 || y0 == y1) && (x1 - x0 + 1) * (y1 - y0 + 1) == door.Count;
+                if (!oneLine) door.Clear();
+            }
             return door;
         }
 
@@ -162,17 +171,16 @@ namespace Roguehalla.Client
         {
             const int P = 16; const float Ov = .35f, Course = .32f;
             float xa = b.MinX - Ov, xb = b.MaxX + 1 + Ov;
-            float ya = -(b.MaxY + 1) * Sq + .35f, yb = -b.MinY * Sq + Wall + .12f;   // the south wall's face shows below ya; the north caps are under yb
+            float ya = -(b.MaxY + 1) * Sq + Wall, yb = -b.MinY * Sq + Wall + .12f;   // the roof's lower edge is the wall-cap line: the south wall's whole face shows below it and an actor in front is not overlapped; the north caps are under yb
             bool ridgeX = b.MaxX - b.MinX >= b.MaxY - b.MinY;
             float xr = (xa + xb) / 2f, yr = (ya + yb) / 2f, half = ridgeX ? (yb - ya) / 2f : (xb - xa) / 2f;
-            var cv = new Canvas(xa - .15f, ya - .3f, xb - xa + .3f, yb - ya + .45f, P);
+            var cv = new Canvas(xa - .15f, ya, xb - xa + .3f, yb - ya + .15f, P);
             cv.Paint((wx, wy) =>
             {
                 if (notch.Contains(wx, wy)) return default;
                 float outside = Mathf.Max(Mathf.Max(xa - wx, wx - xb), Mathf.Max(ya - wy, wy - yb));
                 if (outside > 0f)
                 {
-                    if (wy < ya && wx > xa && wx < xb && ya - wy < .3f) return new Color(0f, 0f, .03f, .34f * (1f - (ya - wy) / .3f));   // the eave's shadow on the wall face
                     return default;
                 }
                 float d = ridgeX ? Mathf.Abs(wy - yr) : Mathf.Abs(wx - xr);
@@ -190,6 +198,7 @@ namespace Roguehalla.Client
                 else if (d < .26f && !lit) c = Shade(c, .72f);                         // the ridge cap's shadow on the dark slope
                 if (-outside < .05f) c = Ink;
                 else if (-outside < .11f && (ridgeX ? (wx < xa + .11f || wx > xb - .11f) : (wy < ya + .11f || wy > yb - .11f))) c = Shade(c, 1.25f);   // the gable edge board
+                if (wy < ya + .3f && wx > xa + .05f && wx < xb - .05f) c = Shade(c, .62f + .38f * (wy - ya) / .3f);   // the eave's shadow, on the roof's own lower rows
                 if (notch.Dist(wx, wy) < .06f) c = Ink;
                 c.a = 1f; return c;
             });
@@ -265,7 +274,7 @@ namespace Roguehalla.Client
         {
             int minX = int.MaxValue, maxX = int.MinValue, minY = int.MaxValue, maxY = int.MinValue;
             foreach (var t in lm.ArchTiles) { minX = Mathf.Min(minX, t.X); maxX = Mathf.Max(maxX, t.X); minY = Mathf.Min(minY, t.Y); maxY = Mathf.Max(maxY, t.Y); }
-            bool vertical = Mathf.Abs(lm.FrontVector.x) > Mathf.Abs(lm.FrontVector.y);    // front east / west: the gate runs north-south
+            bool vertical = maxY - minY > maxX - minX;                                     // taller than wide: the gate runs north-south
             Flagstones(lm, "Church gate", minX, minY, maxX, maxY, -84);
             if (!vertical)
             {
