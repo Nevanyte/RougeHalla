@@ -40,6 +40,14 @@ no merged migration edited; `main` is an ancestor of the tip, so the pull reques
 resolve a path against the worktree that holds it, with a test (P-ENV-RETRO-2, implementer-sonnet; the approval covers
 `.claude/hooks/guard-oracles.sh` and its test only).
 
+**Owner, later again (chat): "Please go with best recommendation that allows the game to live later today."** The
+coordinator's reading, which it acts on: the one approved beta host (12 hours, about CAD 10; approvals 8 and 9 of
+2026-11-12) is deployed today, after the protocol 18 stamp is gated and the browser proof is green, with the
+recommended settings of queue Q22: `map_pool: true`, `signature_landmarks: true`, `lobby_timing: "legacy"`. Q23: the
+wall walk-prediction fix (P-FROST-WALL-PREDICT-1) is included only if it is green and reviewed by the time the stamp
+is gated; otherwise the host goes up without it, testers are told what walking into a wall looks like, and the fix
+lands after. The hook fix (P-ENV-RETRO-2) does not hold the deploy either.
+
 **Map generator session:** the owner asked it in its chat to build the rest ("Please build those": the Holy hall, the
 Frost lake at the cave's mouth, the Fire crater rule; relayed, not confirmed here). P-LAND-FROST-1, P-LAND-FIRE-1 and
 P-MAPGEN-SIG-HOLY-1 land after the finish steps, one at a time, each through the coordinator's review.
