@@ -120,6 +120,11 @@ full_steps() {
   unity_editmode
   run "headless smoke (seed1, 8 bots)" cargo run -q --release --locked -p rh-headless -- --matches 1 --players 8 \
     --map parity/maps/seed1.map.json --max-ticks 4000
+  # Tests that only run in a release build (`cfg_attr(debug_assertions, ignore)`): no other step reaches them, so a
+  # packet's release-only acceptance check was run by hand or not at all (P-FROST-WALL-BOTS-1 review, 2026-11-14).
+  # A new release-only test file is added to this list by the packet that adds it.
+  run "release-only checks (bots in the live world)" cargo test --locked --release -p rh-headless \
+    --test frost_wall_bots --test frost_wall_live --test brain_choices
 }
 if ((LIST)); then
   run() { echo "$1"; }

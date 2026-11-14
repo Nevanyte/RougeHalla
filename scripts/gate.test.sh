@@ -104,7 +104,7 @@ rc=0; out="$(bash scripts/gate.sh --list-steps 2>&1)" || rc=$?
 prev=0 order_ok=1 missing=""
 for pat in "path checks" "rustfmt" "Unity tool tests" "JS decoder vs golden" "reload-proof" "C# net library tests" \
   "Unity copy of the net library" "clippy workspace (all features)" "workspace tests except rh-sim" "rh-sim suite" \
-  "Postgres suite" "parity report" "Unity EditMode" "headless smoke"; do
+  "Postgres suite" "parity report" "Unity EditMode" "headless smoke" "release-only checks"; do
   n="$(grep -nF -- "$pat" <<<"$out" | head -n 1 | cut -d: -f1 || true)"
   if [[ -z "$n" ]]; then order_ok=0; missing="$missing [$pat]"; continue; fi
   if ((n <= prev)); then order_ok=0; missing="$missing [$pat out of order]"; fi
