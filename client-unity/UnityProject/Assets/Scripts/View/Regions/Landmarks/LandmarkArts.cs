@@ -7,7 +7,7 @@ namespace Roguehalla.Client
 
     /// <summary>
     /// P-UNITY-LANDMARK-1: the registration point for a kind's art. Follow-up packets add one case to <see cref="TryGet"/>:
-    /// P-UNITY-LANDMARK-2 Volcano and -3 Church are registered; -4 BogTree and -5 Hall are still to come.
+    /// All five kinds are registered: Cave, Volcano (-2), Church (-3), BogTree (-4) and Hall (-5).
     /// </summary>
     public static class LandmarkArts
     {
@@ -17,19 +17,21 @@ namespace Roguehalla.Client
         static readonly System.Collections.Generic.Dictionary<byte, LandmarkArtBuilder> Overrides = new System.Collections.Generic.Dictionary<byte, LandmarkArtBuilder>();
 
         /// <summary>For tests only (SEAMS-1): registers <paramref name="builder"/> for <paramref name="kind"/>, taking precedence over the production switch
-        /// (also for a kind that has no art). Undo with <see cref="ClearOverrides"/>.</summary>
+        /// (also for a kind that has no art). A null builder makes the kind one with no art, which is how a test still reaches the
+        /// "known kind, no art" path now that all five kinds are registered. Undo with <see cref="ClearOverrides"/>.</summary>
         public static void SetOverride(byte kind, LandmarkArtBuilder builder) { Overrides[kind] = builder; }
         /// <summary>For tests only: removes every override.</summary>
         public static void ClearOverrides() { Overrides.Clear(); }
 
         public static bool TryGet(byte kind, out LandmarkArtBuilder builder)
         {
-            if (Overrides.TryGetValue(kind, out builder)) return true;
+            if (Overrides.TryGetValue(kind, out builder)) return builder != null;
             switch (kind)
             {
                 case MapBlob.AnchorKindCave: builder = CaveLandmark.Build; return true;
                 case MapBlob.AnchorKindVolcano: builder = VolcanoLandmark.Build; return true;
                 case MapBlob.AnchorKindChurch: builder = ChurchLandmark.Build; return true;
+                case MapBlob.AnchorKindBogTree: builder = BogTreeLandmark.Build; return true;
                 case MapBlob.AnchorKindHall: builder = HallLandmark.Build; return true;
                 default: builder = null; return false;
             }

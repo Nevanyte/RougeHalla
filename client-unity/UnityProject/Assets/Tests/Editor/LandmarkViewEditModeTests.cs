@@ -289,23 +289,30 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void AKnownKindWithNoArtRegisteredBuildsNothingAndLogsOnce()
         {
-            // BogTree (kind 3) is a later packet's. Until then it draws today's tiles and says so once.
-            Assert.That(LandmarkArts.Has(MapBlob.AnchorKindBogTree), Is.False, "this packet registers no art for the bog tree");
-            using (var logs = new Logs())
-            using (var scene = new Scene(Open(), Anchor(1, MapBlob.AnchorKindBogTree)))
+            // All five kinds have art now, so the "known kind, no art" path is reached by switching the bog tree's art off through the
+            // test-only override (a null builder). What is asserted is unchanged: it draws today's tiles and says so once.
+            LandmarkArts.SetOverride(MapBlob.AnchorKindBogTree, null);
+            try
             {
-                Assert.That(scene.View.Count, Is.EqualTo(0));
-                Assert.That(scene.Root.transform.childCount, Is.EqualTo(0), "nothing extra under the parent");
-                Assert.That(logs.Count("LandmarkView: no art for kind 3"), Is.EqualTo(1));
+                Assert.That(LandmarkArts.Has(MapBlob.AnchorKindBogTree), Is.False, "the bog tree's art is switched off for this test");
+                using (var logs = new Logs())
+                using (var scene = new Scene(Open(), Anchor(1, MapBlob.AnchorKindBogTree)))
+                {
+                    Assert.That(scene.View.Count, Is.EqualTo(0));
+                    Assert.That(scene.Root.transform.childCount, Is.EqualTo(0), "nothing extra under the parent");
+                    Assert.That(logs.Count("LandmarkView: no art for kind 3"), Is.EqualTo(1));
+                }
             }
+            finally { LandmarkArts.ClearOverrides(); }
         }
 
         [Test]
-        public void TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts()
+        public void EveryKindHasArtAndTheRegistrationPointIsLandmarkArts()
         {
             Assert.That(LandmarkArts.Has(MapBlob.AnchorKindCave), Is.True, "Cave is registered");
-            foreach (byte kind in new[] { MapBlob.AnchorKindBogTree })
-                Assert.That(LandmarkArts.Has(kind), Is.False, "kind " + kind + " belongs to a follow-up packet");
+            // Every follow-up packet has landed (P-UNITY-LANDMARK-2 to -5): each of the five kinds has its art.
+            foreach (byte kind in new[] { MapBlob.AnchorKindVolcano, MapBlob.AnchorKindChurch, MapBlob.AnchorKindBogTree, MapBlob.AnchorKindHall })
+                Assert.That(LandmarkArts.Has(kind), Is.True, "kind " + kind + " is registered");
             Assert.That(LandmarkArts.IsKnownKind(0), Is.False); Assert.That(LandmarkArts.IsKnownKind(6), Is.False);
             for (byte kind = 1; kind <= 5; kind++) Assert.That(LandmarkArts.IsKnownKind(kind), Is.True);
         }
