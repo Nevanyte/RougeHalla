@@ -418,25 +418,25 @@ const OTHER_ZONES: [Zone; 4] = [Zone::Fire, Zone::Sentenced, Zone::Frost, Zone::
 const SIG_GOLDEN: [[u64; 4]; 4] = [
     [
         0x1c2403197ac77b81,
-        0x9ca6b38ba4658882,
+        0x74fee9808bc6f23d,
         0xb6e5bea43b282086,
         0xab7424ae005b7730,
     ],
     [
         0xb2253c2b52fd4f8e,
-        0x241316309dc57b67,
+        0x41a4f43e6a18d991,
         0x2704a51095d52b99,
         0xc97ffbfc7a459ad4,
     ],
     [
         0xf802f5e7f8cf6805,
-        0x8ec2507065e382ab,
+        0xe8d0b69d6eeb6f97,
         0x457f2597fb89bceb,
         0xfa1cd254a5df3290,
     ],
     [
         0xeead2fbdc814438d,
-        0xe0c3d36f2899378e,
+        0x97ae9b2dc020d313,
         0xfa9a2c6e5ddd5e88,
         0x1b7730b40a4d65ac,
     ],
