@@ -31,6 +31,9 @@ mod percept;
 mod source_input;
 #[cfg(test)]
 mod tests;
+// P-BOT-BRAIN-THEMED-1 oracle: the route values a camp by the stat its kills pay.
+#[cfg(test)]
+mod themed_camp_tests;
 mod trace;
 
 pub(crate) mod compose14;
