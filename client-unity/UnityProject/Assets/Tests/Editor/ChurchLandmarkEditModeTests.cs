@@ -265,7 +265,7 @@ namespace Roguehalla.Client.Tests
             {
                 var lm = Built(scene, "orientation " + k);
                 Assert.That(site.Gate.Count, Is.EqualTo(5));
-                Assert.That(lm.ArchTiles.Select(t => (t.X, t.Y)).OrderBy(t => t), Is.EqualTo(site.Gate.OrderBy(t => t)), "the framework's arch is the main gate");
+                Assert.That(lm.ArchTiles.Select(t => ((int)t.X, (int)t.Y)).OrderBy(t => t), Is.EqualTo(site.Gate.OrderBy(t => t)), "the framework's arch is the main gate");
                 Assert.That(TryBounds(Named(lm, GateName), out var gate), Is.True, "orientation " + k + ": gate art (objects named '" + GateName + "' with renderers)");
                 foreach (var t in site.Gate) Assert.That(Reaches(gate, t), Is.True, "orientation " + k + ": the gate art spans entrance tile " + t);
                 float tx = lm.ArchCentre.x, ty = -lm.ArchCentre.y / ArenaView.GroundSquash;
