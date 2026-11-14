@@ -53,7 +53,10 @@ the bog tree, `pools.rs` lays the bog as free pools of overlapping rough discs b
 owners; a reserved ring of plain floor round each pool), keeping off the rock today's rule would site where it
 can; the barrows are then sited by today's rule with no crescent on what the pools leave. That path draws from the
 shape stream; with the option off nothing in it runs and the legacy capture above is unchanged. Its tunables are
-`pools::POOLS`, outside `visit_content`.
+`pools::POOLS`, outside `visit_content`. The pools keep the spawns' walks (P-LAND-PLAGUE-1-fix, `walk.rs`): a pool or
+merge that would make a zone spawn's 4-connected walk to the coliseum (its centre and gate tiles) more than
+`walk_detour` steps longer with bog avoided is not laid there, and after the barrows whole bodies are given back, last
+laid first, while a walk is still past its limit. Neither adds a draw.
 
 Admitted jitter definitions keep `512 * jitter_scale / jitter_divisor` finite and below 3.5, so the
 source sampling/cache and guaranteed/possible disc shortcuts stay within their exact -3..3 envelope.
