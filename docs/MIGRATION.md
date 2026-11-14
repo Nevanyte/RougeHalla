@@ -4,6 +4,64 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Integrations 35 to 37 and Web round 11 (2026-11-14): current checkpoint
+
+Integration branch `feature/unity-rework` @ `aadff95e3` on origin. Three full gates with Postgres, each green on the
+merged tree: `b4106a2d8`, `9890f291b`, `aadff95e3`. Identities unchanged: protocol 17 (18 at the next deploy),
+observation 29, policy contract 23, checkpoint 32, replay 25, content hash `4674a176a28e3c7a`.
+
+**Landed (reviewed, gated, pushed):**
+- The tuning lane and its guides (`agent/TUNING_LANE.md`, `unity/DIALS.md`, `unity/LOOK_CHECK.md`,
+  `unity/WEB_ROUND.md`), the look tools (P-UNITY-LOOK-TOOLS-1), the ground tints rebuilt as a gain on the ground art
+  (P-UNITY-GROUND-TINT-1), the roof at 20 percent.
+- Bots: the Brain tournament and tuner play a real world (P-BOT-BRAIN-CHOICES-1); the Brain's build route and hunt
+  value a camp or mob by the buff paid, as the patched legacy Brain does (P-BOT-BRAIN-THEMED-1, -2): DEV-027's
+  condition is met. One definition of the live content world, `SimConfig::live_content()`, for the server, the
+  practice room and the Brain world (P-SIM-LIVE-CONTENT-1); the Brain world now plays the live hitbox mode.
+- Map generator session (reviewed by the coordinator's reviewer-opus, re-pinned on the merged tree): the Plague free
+  pools (DEV-034 proposed, unsigned), the church from its drawing, the Sentenced decoration rings measured from the
+  church building. All 14 mapgen suites pass together.
+- The bog tree redrawn as a bald cypress with a lifted crown and a fade set wider than its cover (P-UNITY-BOG-TREE-2).
+- Frost Wall, second sim part (P-FROST-WALL-1b): fighters set down or given a gap, walks re-planned, mobs and blinks
+  read the wall. Switch off by default; no profile selects the wall.
+
+**Staged, not yet gated** (`coord/int-38`): soft, ragged decoration band edges (P-UNITY-GROUND-BANDS-1), the bog tree's
+crown fading only for an actor it hides and its shadow as a ground piece (P-UNITY-BOG-TREE-3), the Web-round driver
+finding landmarks (P-UNITY-WEB-DRIVE-2). **In flight:** P-FROST-WALL-1c (eight more readers read the wall; no identity
+moves). **Briefed:** P-FROST-WALL-2 (wire, the profile flip in `live_content()`, and the wall's numbers entering
+content: the content hash and the protocol number move together there, per the owner's decision of 2026-11-12),
+P-UNITY-FROST-WALL-1 (drawing and aim preview).
+
+**Web round 11** (running Web client on `9890f291b`, by a Sonnet agent from `WEB_ROUND.md`; shots in the session
+scratchpad `shots11/`; five sent to the owner): the Sentenced floor's tile variance, the church and the cave at 20
+percent, and Fire's bands tinting the ground all read as intended; the Web build is clean. Found: every decoration
+band is drawn per tile with a hard stepped outline (a square halo round each bog pool: fixed by GROUND-BANDS-1); the
+bog tree's crown faded as soon as the player stepped on its shadow, so it was never seen solid (BOG-TREE-3); the
+driver could not find a landmark (WEB-DRIVE-2); the volcano is still the old small block (the generator's volcano
+packet has not landed). Not yet shown to the owner from the client: the bog tree with a solid crown, the soft bands.
+
+**Coordinator decisions the owner should know (made and flagged, 2026-11-14):**
+- `brain_choices`: the single-seed assertion "a seat makes a second-weapon choice" broke twice in a day (a second
+  appears on 4 of 24 seeds in a 3-minute game). The gate test now asserts openers and well-formed keys on its seed;
+  a release-only sweep of 24 seeds asserts a second on at least 2. A weakening of a test written on 2026-11-13.
+- `BogTreeLandmarkEditModeTests`: its roof-bounds helper also counts ground pieces, and its four "fades here" tiles
+  now stand where the crown hides the actor; the old far-south tile is asserted solid. Follows from the crown rule.
+- `source_arena_soak.rs` (ignored test) and the `hitbox_compare` example build on `live_content()`; same values.
+- P-FROST-WALL-1c's first brief pulled the wall's content registration forward; that was against the owner's
+  2026-11-12 decision and was reversed before any implementation.
+- The coordinator removed twelve merged-looking agent worktrees after integration 35; one belonged to a running
+  sub-agent of the map generator session, whose run was lost and relaunched. No branch or uncommitted work was lost.
+  The coordinator now removes only worktrees of agents it launched.
+
+**Still the owner's:** the outstanding decisions listed under earlier sections (the two allocation-test margins, the
+`terrain_no_alloc` flake, `mapgen_land_decor_attempts.rs`, `MapBlobGroundTests.cs:151`, the flagged test amendments,
+the twelve older dirty worktrees, a tuning-lane row in `CLAUDE.md`), DEV-033 and DEV-034 signatures, DEV-029's
+amended text, and confirmation in the coordinator's chat of the floors approved in the map generator session's chat
+(Plague: marsh plus pools at least 80 percent, pools alone 35, barrows 55; Sentenced: lanes plus churchyard fence 75,
+lanes alone 45). **Timing:** the map generator session expects its last landmark packet (the Holy hall) about three
+working days out; the final combined review follows it unless the owner wants the PR opened earlier with the
+landmarks behind their server flag.
+
 ## Owner direction 2026-11-14 (chat, early): the coordinator builds leverage; wrap up and finalise the plan
 
 After round 10 the owner wrote: "Since we are using the fable model I do not see your job as fit for making small
