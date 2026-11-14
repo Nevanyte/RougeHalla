@@ -252,13 +252,18 @@ pub struct ZoneAnchor {
     pub zone: Zone,
     /// The landmark's feature kind (`Volcano`, `BogTree`, `Church`, `Cave`, `Hall`).
     pub kind: FeatureKind,
-    /// The landmark's centre tile.
+    /// The landmark's centre tile: for a landmark pinned on a camp (the church, the cave) the camp tile its drawing's `E`
+    /// lands on, NOT the middle of the footprint (the footprint is the whole yard or cave box); for the bog tree, centred
+    /// in its site, the site's centre tile; for the volcano its cone's centre tile; for the Holy hall its feature's
+    /// anchor point.
     pub centre: TilePt,
-    /// Bounding rectangle of the landmark feature's owned tiles (its `bbox`); bands are measured from it.
+    /// The landmark's box; bands are measured from it. The church's is its drawing's landed box (graveyard and
+    /// churchyard included); the volcano's, the tree's, the cave's and the hall's are their anchor feature's `bbox`.
     pub footprint: TileRect,
     /// DIR16 index (0 = +x, 4 = +y, `landmarks::recipe_support::DIR16`) from the centre toward the coliseum centre.
     pub front: u8,
-    /// The way in (the church door, the cave mouth), on the footprint's edge facing `front`; empty for a landmark without one.
+    /// The ways in, row-major (by y, then x): the church's main gate, the cave's mouth, the bog tree's causeways (on
+    /// several edges of its box); empty for a landmark without one (the volcano, the hall).
     pub entrance: Vec<TilePt>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

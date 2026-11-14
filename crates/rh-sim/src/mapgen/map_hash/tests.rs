@@ -397,7 +397,8 @@ fn every_dto_field_requires_an_explicit_hashing_decision() {
         ground_spots: _,
         features: _,
         feature_grid: _,
-        // Not hashed: the anchors restate the signature features (kind, bbox), which the hash already covers.
+        // Not hashed: the anchors are derived from the generator's placement (the signature step's sites and landings,
+        // the finished features); the map hash covers the tiles and features they describe, not the anchors themselves.
         anchors: _,
     } = &map;
     let CampDef {
