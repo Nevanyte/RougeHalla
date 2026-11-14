@@ -75,3 +75,12 @@ Sonnet. A look change judged by the owner; the numbers keep it honest (dispersed
 - The capture tool's Sentenced scene is darker than the Web client: judge on Web screenshots.
 
 ## Notes from previous attempts
+
+**Attempt 1 (2026-11-13): built, reviewed LAND WITH NOTES, then reverted by the coordinator before any push.** The
+packet's oracle modelled tile colours as albedo against the palette base (31, 30, 37). The real ground is a shaded
+texture far from that base under a strong zone light, and the tint reached the screen as `lerp(col, tint, 0.6)` on the
+ground's per-tile variant plane: a flat fill that removes the slab's bevel and speckle, sampled at a warped
+coordinate so its edges cut across the slabs. In the running client (round 10, `shots10/120`) the tiles are vivid
+violet, ochre and silver, not "relatively dark". The flat patches the owner approved did not predict it. On a
+landmark-mode map the scatter is not visible at all: the server's decoration band covers every open Sentenced tile
+and overrides it. Rebuilt under P-UNITY-GROUND-TINT-1 with an oracle on rendered pixels.
