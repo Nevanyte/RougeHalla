@@ -76,3 +76,51 @@ Sonnet. Only structure can be tested; the look is judged at the screenshot round
 - An EditMode run modifies `NunitoRegular.asset`: never commit it.
 
 ## Notes from previous attempts
+
+## Established facts (oracle author, 2026-11-13)
+
+Drawing (`docs/landmarks/blueprints/hall.txt`, 37 x 37; guards in `HallLandmarkDrawingTests`, green today):
+- 315 wall tiles: 32 pier groups of 9 (3 x 3 boxes, 8-connected) and one shrine group of 27 (box columns 14-22, rows 1-7). Nine `L` tiles
+  (rows 3-5, columns 17-19), three `D` (row 7, columns 17-19), two `E` (18, 15) and (18, 27), six `*`.
+- `TerrainKind.Light` = 7 (`RegionThemes.cs:11`). The `L` tiles are Floor (not Low) with terrain 7: read with `Landmark.Terrain(x, y)`.
+- `LandmarkInterior.Find` on the drawing, all eight orientations: 33 interior tiles (rows 2-5 x 7 columns + row 6 x 5), all in the shrine's box;
+  the door's 3 tiles are the closed doorway (not interior); no pier is a building (a full 3 x 3 box has no floor). `Landmark.InteriorCount == 33`.
+- Entrance (decided here; P-MAPGEN-SIG-HOLY-1 must record the same): the nave's 7 tiles on the front row, drawing row 36, columns 15-21. Front =
+  the bottom edge. The test derives `MapAnchor.Front` from the entrance side like the church test; the anchor centre is the footprint centre.
+
+Contract names (descendants of `Landmark.Root`, each with at least one renderer):
+- `Hall column`: exactly 32; one per pier group (centre x within the group's box +-0.5 tile, foot (bounds south edge) within the group's rows to 0.75
+  below them); taller than `RegionWalls.WallHeight`; none in the shrine.
+- `Hall door`: bounds reach the shrine's 3 door tiles (found as the closed doorway of the shrine's wall group), centred on them within 3 tiles, and
+  not the entrance.
+- `Hall light`: bounds reach the 9 tiles with `Landmark.Terrain == (byte)TerrainKind.Light`, centred on them within 2 tiles.
+- `Hall threshold`: bounds reach both end tiles of the 7 entrance tiles, its foot on the side `FrontVector` points to; not the shrine door. In all
+  four front directions (eight orientations).
+- Roof: pieces through `AddRoofRenderer`; bounds reach every shrine interior tile and every shrine wall tile; reach no tile of the colonnade (floor
+  or pier) at Chebyshev distance 4 or more from the shrine's box, no camp centre, no nave/between-piers/entrance sample tile.
+- Cover: `Landmark.SetCover` with the shrine's interior (33) plus the shrine's wall tiles (27): `RoofCovers` true on exactly those 60 tiles of the
+  footprint (so not the door tiles, not any pier).
+- Fade: an actor on a shrine tile fades the roof; on a camp, nave, between piers, entrance or door tile it does not.
+- Registration: `LandmarkArts.Has(MapBlob.AnchorKindHall)`; the stub registers nothing.
+
+Not pinned: a notch in the roof over the door, shapes, colours, the roof's sort order, how many objects make a column or a threshold; the shrine
+roof may overhang up to three tiles beyond its box (hence the "four tiles away" rule for the negatives).
+
+Existing tests changed (mechanical, in the `stub:` commit, coordinator-approved): in `LandmarkViewEditModeTests`,
+`TheCaveIsTheOnlyKindWithArtAndTheRegistrationPointIsLandmarkArts` no longer lists the Hall (token `, MapBlob.AnchorKindHall` removed);
+`AKnownKindWithNoArtRegisteredBuildsNothingAndLogsOnce` uses BogTree (kind 3) as its kind without art (same assertions). The bog tree packet hits both
+spots too: the LAST of the two art packets to merge must retire or rework that second test, since no kind will lack art. Proposal (needs the
+coordinator's approval, flagged to the owner): retire it; the "unknown kind 9" test already covers nothing built and one log, and the seams tests
+cover a builder that fails.
+
+## Oracle files (read-only for implementers)
+- `client-unity/UnityProject/Assets/Tests/Editor/HallLandmarkEditModeTests.cs` and `.meta`
+- `client-unity/RoguehallaNet.Tests/HallLandmarkDrawingTests.cs`
+
+Stub commit (the implementer edits): `Landmarks/HallLandmark.cs` (+ `.meta`), and `Landmarks/LandmarkArts.cs` (the one `case`, the implementer's line).
+
+## Baseline
+`dotnet test client-unity/RoguehallaNet.Tests --filter HallLandmarkDrawing`: 11 pass (guards). EditMode (stub, Hall not registered): 1186 tests,
+66 failed, all in `HallLandmarkEditModeTests` (8 orientations x 8 tests + 2): the first assertion is `Hall is registered in LandmarkArts` or
+`one landmark for the Hall anchor` (Count 0 vs 1); no compile error. With a throwaway empty override the fixture map checks pass (wall 315,
+interior 33, Light terrain), so the red is the art's. The other 1120 pass.
