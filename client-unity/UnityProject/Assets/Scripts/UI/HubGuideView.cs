@@ -24,13 +24,13 @@ namespace Roguehalla.Client
             "Frozen Justice grants defenses in elite fights. Slow enemy attacks and briefly chill nearby enemies before they thaw.",
             "Earn lasting lifesteal from eligible camp clears. Heal from damage dealt, with stronger faction lifesteal as your health falls."
         };
-        static readonly string[] Wishes = { "Blink · Burning Trail", "Judgment Ring", "Hidden Swarm", "Frost Stun", "Death's Door" };
+        static readonly string[] Wishes = { "Blink · Burning Trail", "Judgment Ring", "Hidden Swarm", "Frost Wall", "Death's Door" };
         static readonly string[] WishSummaries =
         {
             "Blink toward your cursor through walls and leave a burning trail behind you.",
             "Trap an enemy in a judgment ring: weaken their damage, strengthen yours, and stun them if they leave.",
             "Become a hidden swarm to break enemy targeting and reposition.",
-            "Stun the enemy nearest your cursor to catch them or interrupt their attack.",
+            "Raise a wall of ice where you aim to cut off a chaser or split a fight: bodies and swings stop at it, shots fly over.",
             "Survive lethal damage briefly, move faster, then recover a share of the damage the effect held."
         };
         static readonly string[] WeaponIds = { "sword", "bow", "wand", "shield", "axe", "fists" };
