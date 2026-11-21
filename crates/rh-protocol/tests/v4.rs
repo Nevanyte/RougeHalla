@@ -275,7 +275,9 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
     assert_eq!(b, [0x88, 0xac, 0x02, 0]);
     assert_eq!(ServerMsg::decode(&b), Ok(m.clone()));
     assert_eq!(
-        ServerMsg::decode(&[0x88, 0, 1, 14]),
+        // P-WIRE19-B (oracle-amend): key 14 is the readout rows. P-AUG-NATIVE-5 (oracle-amend): key 15 is the Marked
+        // Man rows; 16 is the first undefined key.
+        ServerMsg::decode(&[0x88, 0, 1, 16]),
         Err(DecodeError::BadField("state key"))
     );
     let mut t = SnapshotTracker::new();

@@ -50,6 +50,11 @@ jobs:
       # The dhat allocator is process-global. Keep the two Card regressions isolated and serial after the default suite.
       - name: Card producer and public-output allocation regressions (serial)
         run: cargo test --locked -p rh-sim --features trusted-status-probes --lib card_bleed_alloc -- --ignored --test-threads=1
+      # Files gated `#![cfg(not(feature = "schedule-trace"))]` compile to nothing under trusted-status-probes, so the suite
+      # above never runs them: the warm allocation tests after a clone and a restore (P-NOALLOC-GATE-1). Same list as
+      # sim_tests in scripts/gate.sh; scripts/gate.test.sh checks both.
+      - name: Allocation tests that compile out under schedule-trace (no features)
+        run: cargo test --locked -p rh-sim --test pack_leader_warm --test cards_no_alloc
 
   rust:
     needs: provenance

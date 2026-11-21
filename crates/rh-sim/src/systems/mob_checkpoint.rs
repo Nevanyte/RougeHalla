@@ -13,15 +13,20 @@ use crate::{
 /// duration with the ordinary binary64 addition (`until = started_at + ms`); the reader's accepted clock domain does
 /// not equate `server_time` with `tick * tick_ms`, so no such equality is required here — only the canonical tag tick
 /// is bounded by the current tick. Immutable producer facts are compared; the source need not be present, alive or
-/// still own the card, and generic status/time validation plus known-actor provenance remain authoritative.
-fn earned_hemorrhage_bleed(w: &World, st: &crate::status_runtime::StatusInstance) -> bool {
+/// still own the card, and generic status/time validation plus known-actor provenance remain authoritative. The duration
+/// is the world's card table's Hemorrhage row (`k.cards`, P-AUG-RULES-1), the one the producer applied.
+fn earned_hemorrhage_bleed_in(
+    tuning: &crate::cards::Tuning,
+    w: &World,
+    st: &crate::status_runtime::StatusInstance,
+) -> bool {
     if st.kind != crate::status_runtime::StatusKind::Dot || st.ability.is_some() {
         return false;
     }
     let Some(tick) = canonical_bleed_tag_tick(st) else {
         return false;
     };
-    let Some(ms) = hemorrhage_bleed_ms() else {
+    let Some(ms) = hemorrhage_bleed_ms(tuning) else {
         return false;
     };
     if tick == 0
@@ -60,10 +65,16 @@ fn canonical_bleed_tag_tick(st: &crate::status_runtime::StatusInstance) -> Optio
     (format!("{BLEED_TAG_PREFIX}{tick}") == tag).then_some(tick)
 }
 
-/// The duration comes from the existing Hemorrhage card row, never from a new tuning constant.
-fn hemorrhage_bleed_ms() -> Option<f64> {
-    crate::cards::CardId::Hemorrhage
-        .definition()
+/// [`earned_hemorrhage_bleed_in`] under the legacy card table (the bleed tests' form).
+#[cfg(test)]
+fn earned_hemorrhage_bleed(w: &World, st: &crate::status_runtime::StatusInstance) -> bool {
+    earned_hemorrhage_bleed_in(crate::cards::Tuning::legacy(), w, st)
+}
+
+/// The duration comes from the Hemorrhage card row of the world's table, never from a new tuning constant.
+fn hemorrhage_bleed_ms(tuning: &crate::cards::Tuning) -> Option<f64> {
+    tuning
+        .def(crate::cards::CardId::Hemorrhage)
         .rows
         .iter()
         .find_map(|row| match row {
@@ -335,7 +346,8 @@ pub(crate) fn validate(
         let d = &map.camps[*camp as usize];
         let at = d.spots[*spot as usize];
         let p = &m.core;
-        let expected = crate::mob_runtime::Mob::born(
+        let expected = crate::mob_runtime::Mob::born_with(
+            crate::mob_runtime::EliteTuning::of(k.config.elites),
             w.actor_history.get(p.id).unwrap(),
             crate::Vec2::new(at.x, at.y),
             crate::math::atan2(d.y - at.y, d.x - at.x),
@@ -381,6 +393,7 @@ pub(crate) fn validate(
             || p.weapon.slot != 0
             || p.weapon.targeting != Default::default()
             || !p.modifiers.valid(
+                k.cards,
                 &Default::default(),
                 &Default::default(),
                 &Default::default(),
@@ -449,6 +462,8 @@ pub(crate) fn validate(
                                 + (1. - p.signature.chill) * k.tick_ms()
                                 + TIE_EPS_MS.max(8. * f64::EPSILON * w.server_time.max(1.))))
                 || a.lands_at < a.started_at
+                // Plant Your Feet's factor (1 for every mob attack today) within the planted-attack bound.
+                || !crate::cards::valid_range_mult(k.cards, a.range_mult)
                 || pk.raw < 0.
                 || [pk.phys, pk.magic, pk.true_]
                     .iter()
@@ -497,7 +512,7 @@ pub(crate) fn validate(
                     || (s.kind == crate::status_runtime::StatusKind::Dot
                         && !(k.config.abilities == crate::abilities::Mode::Full
                             && crate::abilities::checkpoint::blaze_dot(w, s))
-                        && !earned_hemorrhage_bleed(w, s))
+                        && !earned_hemorrhage_bleed_in(k.cards, w, s))
             })
         {
             return Err("unsupported mob status domain".into());

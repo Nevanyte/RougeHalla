@@ -192,6 +192,8 @@ fn config_with_hitboxes(input: &V, hitboxes: crate::archetype::HitboxMode) -> Si
         regen_in_combat: crate::RegenInCombat::Legacy,
         camp_buffs: crate::CampBuffRule::Legacy,
         frost_wish: crate::FrostWish::Freeze,
+        augments: crate::AugmentRule::Legacy,
+        elites: crate::EliteRule::Legacy,
         tick_ms: 50,
     }
 }

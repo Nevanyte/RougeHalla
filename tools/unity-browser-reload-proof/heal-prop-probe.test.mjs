@@ -27,9 +27,9 @@ const stateFrame = rows => new Uint8Array([0x88, ...varint(202), 1, 2, ...varint
   ...rows.flatMap(r => [...varint(r.handle), ...u16(r.x), ...u16(r.y), r.kind, ...varint(r.readyAt)]), 0]).buffer;
 const propsOf = msg => msg.items.find(i => i.key === 2).value;
 
-test('the probe speaks protocol 21', () => {
-  assert.equal(probe.PROTOCOL, 21, 'a new prop kind is an incompatible wire change: 19 -> 20');
-  assert.notEqual(html.indexOf('// ---- protocol v21 '), -1, 'the codec block marker names v21');
+test('the probe speaks protocol 22', () => {
+  assert.equal(probe.PROTOCOL, 22, 'a new prop kind is an incompatible wire change: 19 -> 20 (origin); P-SYNC-ORIGIN-2 carries it as 22');
+  assert.notEqual(html.indexOf('// ---- protocol v22 '), -1, 'the codec block marker names v22');
 });
 
 test('the probe reads a hand-built kind 8 row as a heal with its clock', () => {

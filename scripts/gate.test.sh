@@ -308,6 +308,27 @@ if grep -qF 'unittest discover -s tools/determinism' "$SRC/scripts/gate.sh" \
    && grep -qF 'determinism comparator tests' <<<"$(bash "$SRC/scripts/gate.sh" --list-steps 2>&1)"; then ok "the determinism comparator tests run in the offline pin step"
 else bad "comparator tests selection" "gate.sh does not run tools/determinism tests in offline_pin_checks"; fi
 
+# rh-sim test files that compile out under schedule-trace (`#![cfg(not(feature = ...))]`; trusted-status-probes turns it
+# on) never run in the rh-sim suite of the gate or of CI. Each must be named in a no-features step of `sim_tests` (both
+# modes) and of CI's `simulation` job (P-NOALLOC-GATE-1: a warm allocation regression stayed red in such a file from
+# 2026-11-10 to 2026-11-19 while the gate and CI were green). Continuation lines are joined before matching.
+joined() { awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }'; }
+sim_fn="$(sed -n '/^sim_tests() {$/,/^}$/p' "$SRC/scripts/gate.sh" | joined)"
+ci_sim="$(awk '/^  simulation:/ { on = 1; next } on && /^  [A-Za-z0-9_-]+:/ { on = 0 } on' "$SRC/.github/workflows/rust.yml" | joined)"
+plain="" missing=""
+for f in "$SRC"/crates/rh-sim/tests/*.rs; do
+  grep -E '^#!\[cfg\(not\(feature = "(schedule-trace|trusted-status-probes|trusted-build-setup)"\)\)\]' "$f" >/dev/null || continue
+  t="$(basename "$f" .rs)"; plain="$plain $t"
+  # No grep -q at the end of these pipelines (SIGPIPE under pipefail; see gate.sh).
+  grep -E -- "cargo test .*-p rh-sim .*--test $t( |\$)" <<<"$sim_fn" | grep -vF -- '--features' >/dev/null \
+    || missing="$missing [scripts/gate.sh sim_tests: $t]"
+  grep -E -- "cargo test .*-p rh-sim .*--test $t( |\$)" <<<"$ci_sim" | grep -vF -- '--features' >/dev/null \
+    || missing="$missing [rust.yml simulation job: $t]"
+done
+if [[ -z "$missing" ]] && grep -qF 'rh-sim tests that compile out under schedule-trace' <<<"$(bash "$SRC/scripts/gate.sh" --list-steps 2>&1)"; then
+  ok "rh-sim test files that compile out under schedule-trace run without features in the gate and in CI:${plain:- (none)}"
+else bad "rh-sim plain-feature tests (P-NOALLOC-GATE-1)" "not run without features:${missing:- (the full-mode list has no step 'rh-sim tests that compile out under schedule-trace')}"; fi
+
 echo
 echo "$PASSES passed, $FAILS failed"
 [[ $FAILS -eq 0 ]]

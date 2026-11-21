@@ -212,9 +212,23 @@ pub fn text(a: KillAugment) -> (String, String) {
 /// one scoring mode the trophy roll reads). The leech term starts from Holy's camp lifesteal
 /// (`holyCampLifestealOf(campClears)`) and then adds the farm rows, as legacy. `camp_clears` is the public camp-clear
 /// mirror legacy reads (`combatReadability.ts:102,133`): `systems::bruiser::camp_clears`, 0 without the Bruiser installer.
+/// Under the legacy card table; the kill path reads the world's ([`invested_stats_in`]).
 pub fn invested_stats(p: &crate::state::Player, camp_clears: u16) -> Vec<(KillStatKey, f64)> {
+    invested_stats_in(crate::cards::Tuning::legacy(), p, camp_clears)
+}
+
+/// [`invested_stats`] under the world's card table (`k.cards`): an override row's numbers count, not the catalog's.
+pub(crate) fn invested_stats_in(
+    tuning: &crate::cards::Tuning,
+    p: &crate::state::Player,
+    camp_clears: u16,
+) -> Vec<(KillStatKey, f64)> {
     let (farm_rows, farm_len) = p.farm.rows();
-    let scores = invested_scores(&Readable::of(p, &farm_rows[..farm_len], camp_clears), true);
+    let scores = invested_scores_in(
+        tuning,
+        &Readable::of(p, &farm_rows[..farm_len], camp_clears),
+        true,
+    );
     let mut out: Vec<(KillStatKey, f64)> = KillStatKey::ALL
         .into_iter()
         .map(|k| (k, scores[k.index()]))
@@ -294,7 +308,17 @@ impl<'a> Readable<'a> {
 }
 
 /// Source `combatReadability` scores, indexed by [`KillStatKey::index`]; `lasting` is the source option of that name.
+/// Under the legacy card table (the display marks, [`build_marks`], whose observation callers hold no match statics).
 pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
+    invested_scores_in(crate::cards::Tuning::legacy(), r, lasting)
+}
+
+/// [`invested_scores`] under a card table: the card rows are the table's (`Tuning::rows`).
+pub(crate) fn invested_scores_in(
+    tuning: &crate::cards::Tuning,
+    r: &Readable,
+    lasting: bool,
+) -> [f64; 9] {
     use crate::stat_fold::{ChestBoostStat, StatKey};
     let build = r.build;
     let faction = r.faction;
@@ -309,7 +333,7 @@ pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
     let mut cards_move = 0.;
     for id in build.cards() {
         let count = f64::from(build.count(id));
-        let (_, def_rows) = id.definition().selection(faction);
+        let def_rows = tuning.rows(id, faction);
         for row in def_rows {
             if let CardRow::Fold(kind) = row {
                 match kind {
@@ -439,14 +463,19 @@ pub(crate) fn invested_scores(r: &Readable, lasting: bool) -> [f64; 9] {
 /// the canonical camp count, i.e. a world with the Bruiser installer. The kill path (`on_player_killed`) uses
 /// `roll_with` and the gated mirror; this form stays for callers without the match statics.
 pub fn roll(p: &crate::state::Player) -> Vec<KillAugment> {
-    roll_with(p, p.camps_cleared)
+    roll_with(crate::cards::Tuning::legacy(), p, p.camps_cleared)
 }
 
-/// [`roll`] with the victim's public camp-clear mirror `camp_clears` (`systems::bruiser::camp_clears`).
-pub(crate) fn roll_with(p: &crate::state::Player, camp_clears: u16) -> Vec<KillAugment> {
+/// [`roll`] under the world's card table with the victim's public camp-clear mirror `camp_clears`
+/// (`systems::bruiser::camp_clears`).
+pub(crate) fn roll_with(
+    tuning: &crate::cards::Tuning,
+    p: &crate::state::Player,
+    camp_clears: u16,
+) -> Vec<KillAugment> {
     let mut out = Vec::with_capacity(3);
     let cap = usize::try_from(crate::constants::KILL_AUG_OPTIONS).unwrap_or(3);
-    for (key, score) in invested_stats(p, camp_clears) {
+    for (key, score) in invested_stats_in(tuning, p, camp_clears) {
         let gain = js_to_fixed_value(
             score * DEFINITION.unit[key.index()] * crate::constants::KILL_AUG_SHARE,
             if key.flat() { 1 } else { 4 },
@@ -585,7 +614,7 @@ pub(crate) fn on_player_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::H
     let Some(v) = hx.w.player(*victim) else {
         return;
     };
-    let options = roll_with(v, crate::systems::bruiser::camp_clears(hx.k, v));
+    let options = roll_with(hx.k.cards, v, crate::systems::bruiser::camp_clears(hx.k, v));
     if options.is_empty() {
         return;
     }

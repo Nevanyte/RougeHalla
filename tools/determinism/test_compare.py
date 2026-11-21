@@ -202,6 +202,7 @@ class ComparatorTests(unittest.TestCase):
     NEW_LEAVES = {
         "consumables": True, "walk_hints": None, "hitboxes": "Archetypes", "mob_spacing": None,
         "regen_in_combat": None, "camp_buffs": None, "frost_wish": "wall", "tick_ms": 25,
+        "augments": "rework", "elites": None,
     }
 
     def test_new_replay_config_leaves_pass_when_equal_and_fail_when_targets_differ(self):
@@ -213,7 +214,8 @@ class ComparatorTests(unittest.TestCase):
     def test_unknown_replay_config_key_and_bad_new_leaf_values_fail(self):
         self.mutate_both_replays(lambda r: r["config"].update(invented_leaf=True))
         self.assert_rejected()
-        for key, bad in (("frost_wish", "freeze"), ("hitboxes", "Round"), ("consumables", 1), ("tick_ms", 33)):
+        for key, bad in (("frost_wish", "freeze"), ("hitboxes", "Round"), ("consumables", 1), ("tick_ms", 33),
+                         ("augments", "legacy"), ("elites", True)):
             self.reset()
             self.mutate_both_replays(lambda r: r["config"].update({key: bad}))
             self.assert_rejected()

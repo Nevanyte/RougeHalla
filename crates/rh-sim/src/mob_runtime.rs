@@ -298,7 +298,26 @@ impl Mob {
             inputs: InputQueue::default(),
         }
     }
+    /// [`Mob::born_with`] under the legacy elite numbers: the births that are never elite (quest givers, dummies) and tests.
     pub(crate) fn born(
+        provenance: &ActorProvenance,
+        at: Vec2,
+        facing: f64,
+        now: f64,
+        hitboxes: crate::archetype::HitboxMode,
+    ) -> Self {
+        Self::born_with(
+            EliteTuning::of(crate::EliteRule::Legacy),
+            provenance,
+            at,
+            facing,
+            now,
+            hitboxes,
+        )
+    }
+    /// A typed non-seat birth; an elite's spawn hp reads the world's elite numbers (`elites`, P-AUG-RULES-1).
+    pub(crate) fn born_with(
+        elites: &EliteTuning,
         provenance: &ActorProvenance,
         at: Vec2,
         facing: f64,
@@ -331,7 +350,7 @@ impl Mob {
                     Some(mob_type),
                     elite,
                     camp,
-                    spawn_hp(ty.zone, elite, mob_type),
+                    spawn_hp(elites, ty.zone, elite, mob_type),
                     ty.zone.into(),
                     Some(ty.weapon),
                 )
@@ -349,7 +368,7 @@ impl Mob {
                     Some(mob_type),
                     elite,
                     camp,
-                    spawn_hp(ty.zone, elite, mob_type),
+                    spawn_hp(elites, ty.zone, elite, mob_type),
                     ty.zone.into(),
                     Some(ty.weapon),
                 )
@@ -409,19 +428,73 @@ impl Mob {
         }
     }
 }
-/// Source mobTypeFaction HP only. Full faction sheets remain the combat stage's responsibility.
-pub fn spawn_hp(region: FactionId, elite: bool, ty: MobTypeId) -> f64 {
+
+/// P-AUG-RULES-1: the elite numbers a world plays (`SimConfig::elites`; legacy `mobs.ts:37-41`, `constants.ts:485,
+/// 513-514`), read wherever `ELITE_K` / `ELITE_HP_MULT` / `ELITE_DMG_MULT` are read today. Legacy values under both rules
+/// until P-ELITE-TUNE-1.
+///
+/// Readers with the match statics read `EliteTuning::of(k.config.elites)`; readers without them (`World::faction_spec`,
+/// `point_damage`, the practice-mob birth) read [`EliteTuning::of_world`], the rule the world's mob runtime stores
+/// (`MobRuntime::elites`, tied to the config by `check_world`). Both give the same numbers.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EliteTuning {
+    pub k: f64,
+    pub hp_mult: f64,
+    pub dmg_mult: f64,
+}
+
+// The two tables, registered constants by name (`tests/content.rs` lists both in NON_GAMEPLAY). P-ELITE-TUNE-1 points
+// `REWORK_ELITES` at its `REWORK_ELITE_*` registry rows (`docs/agent/AUGMENT_REWORK.md`).
+static LEGACY_ELITES: EliteTuning = EliteTuning {
+    k: crate::constants::ELITE_K,
+    hp_mult: crate::constants::ELITE_HP_MULT,
+    dmg_mult: crate::constants::ELITE_DMG_MULT,
+};
+static REWORK_ELITES: EliteTuning = EliteTuning {
+    k: crate::constants::ELITE_K,
+    hp_mult: crate::constants::REWORK_ELITE_HP_MULT,
+    dmg_mult: crate::constants::REWORK_ELITE_DMG_MULT,
+};
+
+impl EliteTuning {
+    /// The elite numbers of a rule (a static: no allocation).
+    pub fn of(rule: crate::EliteRule) -> &'static EliteTuning {
+        match rule {
+            crate::EliteRule::Legacy => &LEGACY_ELITES,
+            crate::EliteRule::Rework => &REWORK_ELITES,
+        }
+    }
+    /// The rule a world's mob runtime stores for a config rule (`MobRuntime::elites`): the rule itself, except that a
+    /// rule whose numbers equal the legacy ones is stored as `Legacy`, which writes nothing. So a `Rework` world whose
+    /// elite numbers are still legacy (every world until P-ELITE-TUNE-1) has the world bytes of the same `Legacy` world;
+    /// once the numbers differ, the runtime writes `"rework"` and the state hash folds it.
+    pub(crate) fn stored_rule(rule: crate::EliteRule) -> crate::EliteRule {
+        if *Self::of(rule) == LEGACY_ELITES {
+            crate::EliteRule::Legacy
+        } else {
+            rule
+        }
+    }
+    /// The elite numbers a world plays, from the rule its mob runtime stores (legacy without a runtime: no world has an
+    /// elite without one).
+    pub(crate) fn of_world(w: &crate::state::World) -> &'static EliteTuning {
+        Self::of(
+            w.mob_runtime
+                .as_ref()
+                .map_or(crate::EliteRule::Legacy, |rt| rt.elites),
+        )
+    }
+}
+
+/// Source mobTypeFaction HP only (an elite's `k` and hp multiplier from the world's elite numbers). Full faction sheets
+/// remain the combat stage's responsibility.
+pub fn spawn_hp(elites: &EliteTuning, region: FactionId, elite: bool, ty: MobTypeId) -> f64 {
     let scale = if elite {
-        crate::constants::ELITE_K
+        elites.k
     } else {
         crate::constants::MOB_K
     };
-    let hp_mult = crate::constants::MOB_HP_MULT
-        * if elite {
-            crate::constants::ELITE_HP_MULT
-        } else {
-            1.
-        };
+    let hp_mult = crate::constants::MOB_HP_MULT * if elite { elites.hp_mult } else { 1. };
     let role = crate::mob_catalog::mob_type_in(region, Some(ty.as_str()))
         .map_or(1., |t| t.role_def().hp_mult);
     (crate::content::faction(region).hp * scale) * hp_mult * role
@@ -438,6 +511,13 @@ pub(crate) struct MobRuntime {
     /// before the field restore as empty.
     #[serde(default)]
     pub(crate) buffs: CampBuffs,
+    /// P-AUG-RULES-1: the elite rule this world's elites play, for the readers without the match statics
+    /// ([`EliteTuning::of_world`]). Set where the runtime is built to [`EliteTuning::stored_rule`] of
+    /// `SimConfig::elites` and tied to it by `check_world`, so within one statics digest only one value is admitted;
+    /// `Legacy` serializes as a unit (JSON `null`, no word for the state hasher), so every world whose elite numbers are
+    /// legacy keeps its hash and checkpoint (`hash.rs` module docs). `#[serde(default)]`: older checkpoints read `Legacy`.
+    #[serde(default)]
+    pub(crate) elites: crate::EliteRule,
 }
 
 /// Each camp's buff (legacy a7b5c4ce `CampState.buff`): `Some(t)` when its normal kills pay normal type `t`'s stat

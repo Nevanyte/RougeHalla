@@ -164,9 +164,16 @@ impl RewardChestObserver {
                             )
                             && !picked
                             && c.owner.is_none_or(|id| id == self.viewer)
+                            && !super::first_pick_blocks(&sim.w, c, self.viewer)
                             && super::birth_available(c.held_until_tick, tick)
                             && sim.server_time() < c.expires_at
                             && super::reach(&sim.k, sim.w.rt.gates_locked, me.pos(), c.at).is_ok(),
+                        // P-WIRE19-A: the window's public end while it is in force, and whether it is this viewer's
+                        // own; never the killer's id (C-OBS).
+                        first_pick: super::first_pick_open(&sim.w, c).map(|f| FirstPickView {
+                            until: f.until,
+                            mine: f.killer == self.viewer,
+                        }),
                     },
                 });
             }
@@ -285,6 +292,13 @@ fn public_cmp(a: &RewardChestView, b: &RewardChestView) -> std::cmp::Ordering {
         })
         .then(a.picked.cmp(&b.picked))
         .then(a.can_choose.cmp(&b.can_choose))
+        // P-WIRE19-A: the window is public identity, so its end republishes the row on that tick.
+        .then_with(|| match (a.first_pick, b.first_pick) {
+            (None, None) => std::cmp::Ordering::Equal,
+            (None, Some(_)) => std::cmp::Ordering::Less,
+            (Some(_), None) => std::cmp::Ordering::Greater,
+            (Some(a), Some(b)) => a.until.total_cmp(&b.until).then(a.mine.cmp(&b.mine)),
+        })
 }
 #[must_use = "commit only after reliable publication; dropping does not issue handles"]
 pub struct PreparedRewardOffer<'a> {

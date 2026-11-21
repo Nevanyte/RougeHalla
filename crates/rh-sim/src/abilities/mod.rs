@@ -426,11 +426,91 @@ pub const fn ability_in_slot(slot: Slot, faction: FactionId) -> Option<AbilityId
         Slot::Q | Slot::E => None,
     }
 }
+/// The Wish multiplier a player's next cast spends ([`cooldown_for`]'s `wish_mult`): the folded `wish_cooldown_mult()`
+/// (Arcane Overload's lever) times `1 - share`, Wish Engine's earned share (`cards::native::wish_engine_share`, 0 for a
+/// non-holder, for whom the product is bit-identical to the folded multiplier). The one reader of both levers: the cast
+/// producer, the Wish restore validator (`checkpoint.rs`) and the owner view ([`OwnerView::of`]) call it.
+pub(crate) fn wish_mult(p: &crate::state::Player) -> f64 {
+    p.modifiers.wish_cooldown_mult() * (1. - crate::cards::native::wish_engine_share(&p.build))
+}
+
+/// P-AUG-NATIVE-3b: Wish Engine's share lattice for one Wish row: after `n` landed casts the share is
+/// `min(CAP, n x step)`, `step = CAP x row cooldown / CAP_MS`, computed from the integer `n` every time (never
+/// accumulated, so Fire reaches the cap exactly on its tenth cast). The handler (`cards::native::zone`), the counter rule
+/// (`cards::native::check`) and the restore envelope (`checkpoint.rs`) all read it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WishEngineGrid {
+    step: f64,
+    top: u32,
+}
+impl WishEngineGrid {
+    /// The lattice of the Wish row whose cooldown is `row_cooldown_ms` (`definition_for(..).cooldown_ms`; `None` for a
+    /// row with no positive cooldown, which cannot step).
+    pub(crate) fn of(row_cooldown_ms: f64) -> Option<Self> {
+        use crate::constants::{REWORK_WISH_ENGINE_CAP, REWORK_WISH_ENGINE_CAP_MS};
+        let step = REWORK_WISH_ENGINE_CAP * row_cooldown_ms / REWORK_WISH_ENGINE_CAP_MS;
+        if !(step > 0. && step.is_finite()) {
+            return None;
+        }
+        // The first `n` whose `n x step` reaches the cap: the cap's index.
+        let mut top = 0u32;
+        while f64::from(top) * step < REWORK_WISH_ENGINE_CAP {
+            top += 1;
+        }
+        Some(Self { step, top })
+    }
+    /// The index of the cap (the last point of the lattice).
+    pub(crate) fn top(self) -> u32 {
+        self.top
+    }
+    /// The share after `n` landed casts.
+    pub(crate) fn share(self, n: u32) -> f64 {
+        crate::constants::REWORK_WISH_ENGINE_CAP.min(f64::from(n) * self.step)
+    }
+    /// The lattice index of `share`, bit-exact (`None` off the lattice).
+    pub(crate) fn index_of(self, share: f64) -> Option<u32> {
+        if share == crate::constants::REWORK_WISH_ENGINE_CAP {
+            return Some(self.top);
+        }
+        let n = (share / self.step).round();
+        if !(0. ..f64::from(self.top)).contains(&n) {
+            return None;
+        }
+        let n = n as u32;
+        (self.share(n) == share).then_some(n)
+    }
+    /// The share after one more landed cast from `share`: `n = round(share / step)`, then `min(CAP, (n + 1) x step)`.
+    pub(crate) fn next(self, share: f64) -> f64 {
+        let n = (share / self.step).round();
+        let n = if n > 0. && n.is_finite() {
+            n.min(f64::from(self.top)) as u32
+        } else {
+            0
+        };
+        self.share((n + 1).min(self.top))
+    }
+}
+
+/// The catalog row's cooldown ([`definition`]), for readers that know no world (bots, tools). A world's own spend, and
+/// the restore that judges it, read [`cooldown_for`].
 pub fn cooldown(id: AbilityId, training: bool, wish_mult: Option<f64>) -> f64 {
+    scaled_cooldown(definition(id).cooldown_ms, training, wish_mult)
+}
+/// The cooldown a world spends for `id`: the row it casts ([`definition_for`]: Frost Wall's under `frost_wish = Wall`)
+/// under its training rule and the Wish multiplier ([`wish_mult`]: Arcane Overload's lever times Wish Engine's `1 - share`,
+/// floored at `WISH_MULT_MIN`). The cast producer and the Wish restore validator both read this one function, so neither
+/// can judge a config-selected row by another row's numbers.
+pub fn cooldown_for(config: &crate::SimConfig, id: AbilityId, wish_mult: Option<f64>) -> f64 {
+    scaled_cooldown(
+        definition_for(config, id).cooldown_ms,
+        config.training,
+        wish_mult,
+    )
+}
+fn scaled_cooldown(base: f64, training: bool, wish_mult: Option<f64>) -> f64 {
     if training {
         return TRAINING_COOLDOWN_MS;
     }
-    let base = definition(id).cooldown_ms;
     let mult = wish_mult
         .filter(|v| *v > 0.)
         .map_or(1., |v| v.max(WISH_MULT_MIN));
@@ -491,11 +571,19 @@ pub struct CastView {
 impl OwnerView {
     pub(crate) fn of(p: &crate::state::Player, now: f64, training: bool) -> Self {
         let ability = wish(p.faction());
-        let recharge_ms = cooldown(ability, training, Some(p.modifiers.wish_cooldown_mult()));
+        // The cooldown the next cast will spend (both levers, `wish_mult`).
+        let recharge_ms = cooldown(ability, training, Some(wish_mult(p)));
         // Legacy abilitySlot reads `fullAt ?? 0`; preserve that fallback during the pre-raid interval.
         let full_at = p.stocks.wish_full_at.unwrap_or(0.);
         let max_charges = definition(ability).charges;
-        let charges = charges_at(full_at, now, max_charges, recharge_ms);
+        // The stock clocks were built by the last spend's cooldown (`card_runtime.wish_cast`), which differs from
+        // `recharge_ms` once a lever moved after that spend (Wish Engine's landing step, an Arcane Overload grant).
+        // Count and time the charges by the clocks' own cooldown; with no recorded spend the two agree.
+        let clock_ms = p
+            .card_runtime
+            .and_then(|r| r.wish_cast)
+            .map_or(recharge_ms, |spend| spend.cooldown_ms);
+        let charges = charges_at(full_at, now, max_charges, clock_ms);
         Self {
             ability,
             ready_at: p.stocks.wish_ready_at,
@@ -503,8 +591,16 @@ impl OwnerView {
             max_charges,
             recharge_ms,
             charges,
-            next_charge_at: (charges < max_charges)
-                .then(|| next_charge_at(full_at, now, recharge_ms)),
+            // Fire's two spends can carry two cooldowns (a mixed full clock), so the missing count can exceed
+            // `max_charges`: clamped, no charge up returns at `wish_ready_at` and one of two up at `wish_full_at`.
+            next_charge_at: (charges < max_charges).then(|| {
+                let missing = ((full_at - now) / clock_ms.max(1.)).ceil();
+                if missing > f64::from(max_charges) {
+                    full_at - f64::from(max_charges - 1) * clock_ms
+                } else {
+                    next_charge_at(full_at, now, clock_ms)
+                }
+            }),
             cast: p
                 .statuses
                 .cast
@@ -521,9 +617,13 @@ impl OwnerView {
 pub(crate) mod checkpoint;
 mod effect_checkpoint;
 #[cfg(test)]
+mod frost_restore_tests;
+#[cfg(test)]
 mod owner_view_tests;
 #[cfg(test)]
 mod source_tests;
+#[cfg(test)]
+mod wish_lever_tests;
 
 /// The arena inventory delegates its genuine Wish prerequisite to the same source consumer.
 #[cfg(test)]

@@ -181,6 +181,7 @@ fn offered_reward_chest_is_answered_with_its_delivered_handle_and_the_chosen_car
             .to_vec(),
             picked: false,
             can_choose,
+            first_pick: None,
         }];
     };
     let mut chooses = vec![];
@@ -259,6 +260,7 @@ fn bot_attacked_at_a_readable_chest_fights_back_and_still_picks() {
             }],
             picked: false,
             can_choose: true,
+            first_pick: None,
         }];
         for c in b.component_commands(&obs) {
             match c {

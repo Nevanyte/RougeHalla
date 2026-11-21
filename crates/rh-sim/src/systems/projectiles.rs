@@ -23,6 +23,8 @@ pub(crate) struct Spawn {
     pub packet: Packet,
     /// The launch came from an armed Fire attack (the source's armed-packet mark).
     pub roam_armed: bool,
+    /// Plant Your Feet: the shot's `PendingAction::range_mult` (legacy `SpawnRequest.rangeMult`); 1 when unplanted.
+    pub range_mult: f64,
 }
 #[derive(Clone, Copy, Debug)]
 struct Swept {
@@ -49,7 +51,7 @@ fn launch(
     swept: &mut Vec<Swept>,
     ev: &mut Vec<Event>,
     mut start: ProjectileLaunch,
-    packet: Packet,
+    (packet, range_mult): (Packet, f64),
     roam_armed: bool,
     reflections: u8,
 ) {
@@ -64,6 +66,7 @@ fn launch(
         halved: false,
         reflections,
         roam_armed,
+        range_mult,
     });
     swept.push(Swept {
         from: start.origin,
@@ -92,7 +95,8 @@ pub(crate) fn spawn(cx: &mut Cx) {
             origin: owner.pos(),
             velocity: Vec2::new(cos(req.aim) * speed, sin(req.aim) * speed),
             time: cx.w.server_time,
-            range,
+            // Plant Your Feet: an armed shot flies `range_mult` times as far (legacy projectiles.ts:110).
+            range: range * req.range_mult,
             target: req.target,
             height: owner.hull().chest,
         };
@@ -101,11 +105,38 @@ pub(crate) fn spawn(cx: &mut Cx) {
             &mut cx.s.flight.swept,
             cx.ev,
             start,
-            req.packet,
+            (req.packet, req.range_mult),
             req.roam_armed,
             0,
         );
     }
+}
+
+/// Restore rule (`checkpoint::check_world`): a projectile starts with its faction's weapon damage, times its Plant Your
+/// Feet factor. Reflections, interceptions and arrow deletions only reduce it. Pending ranged packets are checked too,
+/// before they can become a flight. `range_mult` is the action's or flight's factor (`cards::valid_range_mult`).
+pub(crate) fn valid_planted_packet(
+    tuning: &crate::cards::Tuning,
+    packet: Packet,
+    weapon: WeaponId,
+    range_mult: f64,
+) -> bool {
+    let shares = [packet.phys, packet.magic, packet.true_];
+    crate::cards::valid_range_mult(tuning, range_mult)
+        && (0.0..=crate::modifiers::maximum_packet(tuning, weapon) * range_mult)
+            .contains(&packet.raw)
+        && shares.iter().all(|v| (0.0..=1.0).contains(v))
+        && (shares.iter().sum::<f64>() - 1.0).abs() <= 4.0 * f64::EPSILON
+}
+
+/// The unplanted form of [`valid_planted_packet`] (the ranged-packet envelope alone; the envelope tests read it).
+#[cfg(test)]
+pub(crate) fn valid_ranged_packet(
+    tuning: &crate::cards::Tuning,
+    packet: Packet,
+    weapon: WeaponId,
+) -> bool {
+    valid_planted_packet(tuning, packet, weapon, 1.)
 }
 
 fn end(
@@ -360,7 +391,9 @@ fn entry(pr: Projectile, victim: PlayerId, scale: f64, derived: bool) -> Entry {
         arena: false,
         source: None,
         critical: false,
-        critical_mult: None,
+        // Plant Your Feet's factor, already in the packet: the baked multiplier the outgoing row cap counts (legacy
+        // `packet.mult`, kept by splashes and reflections).
+        critical_mult: (pr.range_mult > 1.).then_some(pr.range_mult),
         sig: None,
         execute: false,
         victim,
@@ -498,7 +531,8 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
         &mut cx.s.flight.swept,
         cx.ev,
         start,
-        packet,
+        // A reflected planted arrow flies the bow range above but keeps its baked factor (projectiles.ts:318-325).
+        (packet, pr.range_mult),
         false,
         pr.reflections + 1,
     );
@@ -736,12 +770,15 @@ mod tests {
             &mut vec![],
             &mut vec![],
             start,
-            Packet {
-                raw: 100.,
-                phys: 1.,
-                magic: 0.,
-                true_: 0.,
-            },
+            (
+                Packet {
+                    raw: 100.,
+                    phys: 1.,
+                    magic: 0.,
+                    true_: 0.,
+                },
+                1.0,
+            ),
             false,
             0,
         );
@@ -921,6 +958,7 @@ mod tests {
                     true_: 0.,
                 },
                 roam_armed: false,
+                range_mult: 1.0,
             });
             let ev = s.step();
             assert_eq!(

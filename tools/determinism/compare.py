@@ -61,10 +61,13 @@ REPLAY_SIM_KEYS = SIM_KEYS | {
     "walk_hints", "hitboxes", "mob_spacing", "regen_in_combat", "camp_buffs", "frost_wish",
     # ADR 0029 (P-TICK-1a): null at the legacy 50 ms step, 25 for a 40 Hz match.
     "tick_ms",
+    # P-AUG-RULES-1: the augment and elite rules, null (Legacy) or "rework" (live content).
+    "augments", "elites",
 }
 # Replay-config leaves whose serialized form is JSON null (the default) or one named string.
 REPLAY_NULLABLE_NAMES = {
     "mob_spacing": {"off"}, "regen_in_combat": {"off"}, "camp_buffs": {"themed"}, "frost_wish": {"wall"},
+    "augments": {"rework"}, "elites": {"rework"},
 }
 HITBOX_MODES = {"LegacyCircle", "Archetypes"}
 REPLAY_KEYS = {

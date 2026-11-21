@@ -37,7 +37,7 @@ fn hit_taken_rows(hx: &mut Hx, entry: &crate::systems::ledger::Entry, applied: f
     let mut rows = [(0., crate::cards::TriggerAction::Cooldown { ms: 0. }); 4];
     let mut n = 0;
     for card in victim.build.cards() {
-        for row in card.definition().rows {
+        for row in hx.k.cards.def(card).rows {
             if let CardRow::Trigger(t) = row {
                 if t.on == crate::cards::TriggerOn::HitTaken && n < rows.len() {
                     rows[n] = (t.arg, t.action);
@@ -228,11 +228,13 @@ fn run_on_hit(
         return;
     }
     let player = hx.w.player(by);
+    let numbers = hx.k.cards.numbers();
     let applications = player.map_or(1., |p| {
         let w = &p.core.weapon;
         let hand_empty = (if w.slot == 0 { w.weapon0 } else { w.weapon1 }).is_none();
         let unarmed = p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty;
-        // Read at the pass start, so this tick's streak write cannot see itself.
+        // Read at the pass start, so this tick's streak write cannot see itself. Legacy `% 3` and `n++` (`onHit.ts:39`):
+        // the table's `third_time_every` (3) and `third_time_extra` (1) give the same bits.
         let third = streak
             && p.build.has_flag(crate::stat_fold::EffectFlag::ThirdCharm)
             && (crate::cards::streak_before(
@@ -241,9 +243,9 @@ fn run_on_hit(
                 victim,
                 crate::constants::STREAK_GAP_MS,
             ) + 1)
-                % 3
-                == 0;
-        1. + f64::from(u8::from(unarmed)) + f64::from(u8::from(third))
+                .checked_rem(numbers.third_time_every)
+                == Some(0);
+        1. + f64::from(u8::from(unarmed)) + if third { numbers.third_time_extra } else { 0. }
     });
     let k = weapon.map_or(
         crate::constants::PLAIN_ON_HIT_POWER,
@@ -283,7 +285,7 @@ fn run_on_hit(
     let mut rows = [(StatusKind::Dot, 0., None, 0.); MAX_ON_HIT_ROWS];
     let mut n = 0;
     for id in p.build.cards() {
-        for row in id.definition().rows {
+        for row in hx.k.cards.def(id).rows {
             if let CardRow::OnHit(o) = row {
                 if n < rows.len() {
                     rows[n] = (o.status, o.per, o.cap, o.ms);

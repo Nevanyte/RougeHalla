@@ -23,7 +23,7 @@ pub struct Limits {
 }
 impl Limits {
     pub fn check(self) -> Result<Self> {
-        if !matches!(crate::PROTOCOL_VERSION, 14 | 21)
+        if !matches!(crate::PROTOCOL_VERSION, 14 | 22)
             || self.body_bytes == 0
             || self.body_bytes > i32::MAX as usize
             || self.retained_body_bytes < self.body_bytes
@@ -461,8 +461,10 @@ fn validate_body(meta: Meta, body: &[u8], limits: Limits) -> Result<()> {
             ) if *tick == meta.tick && server_time.to_bits() == meta.source_time.to_bits() => {}
             (1, ServerMsg::State { tick, items })
                 if *tick == meta.tick
-                    // The experiment predates key 12 (ADR0026 roster): a complete scene is keys 1..=11, or 1..=12.
-                    && (items.len() == 11 || items.len() == crate::state::MAX_STATE_KEYS)
+                    // The experiment predates key 12 (ADR0026 roster): a complete scene is keys 1..=11, or 1..=13 (key 14,
+                    // the optional own readouts of P-WIRE19-B, and key 15, the optional Marked Man rows of P-AUG-NATIVE-5, are
+                    // never part of one).
+                    && (items.len() == 11 || items.len() == 13)
                     && items
                         .iter()
                         .enumerate()

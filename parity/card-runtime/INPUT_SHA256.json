@@ -542,7 +542,7 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "sha256": "8e22485fe88ba0d34f7c9df0c3b83ef3b20f5f3431a8ff9685a6c23f7b089807"
+      "sha256": "558741bb356ad1634457ac60aa5fe43064e6e26027e78acbd92284895b6b3d67"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",
@@ -580,7 +580,7 @@
   "immutableReferences": [
     {
       "path": "parity/card-catalog/source.json",
-      "sha256": "ab40ad59065713589f94c7f33dbbac3ea6cd9cc028463d90d6c6fe7fe1856214",
+      "sha256": "08eedc97e5ce6d48b34699b43f787cf9bec6e90097a9e74c365a9a3f91f067d8",
       "reuse": [
         "catalog/*",
         "eligibility/*",
@@ -635,23 +635,17 @@
   "acceptedProvenanceOverlay": {
     "path": "parity/card-catalog/source.json",
     "originalSha256": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
-    "priorAcceptedEffectiveSha256": "04c2c8d0bf4547e2e1db0050179c92e9d1458d80cb908e5ade5b049f8819c9f2",
-    "effectiveSha256": "ab40ad59065713589f94c7f33dbbac3ea6cd9cc028463d90d6c6fe7fe1856214",
+    "priorAcceptedEffectiveSha256": "ab40ad59065713589f94c7f33dbbac3ea6cd9cc028463d90d6c6fe7fe1856214",
+    "effectiveSha256": "08eedc97e5ce6d48b34699b43f787cf9bec6e90097a9e74c365a9a3f91f067d8",
     "acceptedChanges": [
       {
-        "leaf": "/protectedSha256/tools/determinism/compare.py",
-        "from": "c5dcfa1d4e0ddf3f22475082bd40e4af80a3c99d98cc0128ce10b825822d3b7a",
-        "to": "e3fe6a69c7591e825411714218b97b4b63803a986bb0b58ef0b0152d60a01d84",
-        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
-      },
-      {
-        "leaf": "/protectedSha256/tools/determinism/test_compare.py",
-        "from": "1c426f4ffe118e1680c0d63ebf085827d2eaa32616b85600a01ef9c098daaa8d",
-        "to": "85aa88b08e1a29fb96e31b25f379af4e91a89a53a4296875713991f56d996501",
-        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+        "leaf": "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+        "from": "aebbcc177fb42dc39676c26b5bf64ec21b142c6230805f7eaf0328b82d547b2b",
+        "to": "c9dc447665e367028eacedefbc8abe987d4f41f47309e29c4d3c0ef4c029a7df",
+        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
       }
     ],
-    "preservedPriorLineage": "catalog original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e -> accepted 9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507 -> accepted 2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792 -> accepted e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3 -> accepted 9e194b56fa5e435c6546440d3f22ba40d671dc79d259936f3db90d26ad1e96ca -> accepted 04c2c8d0bf4547e2e1db0050179c92e9d1458d80cb908e5ade5b049f8819c9f2 -> this effectiveSha256; earlier exact leaf transitions/receipts remain in docs/evidence/ci-card-catalog-protocol13, docs/evidence/ci-browser-provenance-chain, docs/evidence/browser-provenance14, docs/evidence/ci-provenance-refresh-2026-11-14, docs/evidence/ci-provenance-refresh-2026-11-17 and docs/evidence/ci-provenance-refresh-2026-11-20; this hop admits only the two listed current-to-final protected leaves",
+    "preservedPriorLineage": "catalog original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e -> accepted 9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507 -> accepted 2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792 -> accepted e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3 -> accepted 9e194b56fa5e435c6546440d3f22ba40d671dc79d259936f3db90d26ad1e96ca -> accepted 04c2c8d0bf4547e2e1db0050179c92e9d1458d80cb908e5ade5b049f8819c9f2 -> accepted ab40ad59065713589f94c7f33dbbac3ea6cd9cc028463d90d6c6fe7fe1856214 -> this effectiveSha256; earlier exact leaf transitions/receipts remain in docs/evidence/ci-card-catalog-protocol13, docs/evidence/ci-browser-provenance-chain, docs/evidence/browser-provenance14, docs/evidence/ci-provenance-refresh-2026-11-14, docs/evidence/ci-provenance-refresh-2026-11-17, docs/evidence/ci-provenance-refresh-2026-11-20 and docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors; this hop admits only the one listed current-to-final protected leaf",
     "rejects": "any catalog hash other than effectiveSha256"
   }
 }

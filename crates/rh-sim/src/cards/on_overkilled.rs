@@ -32,7 +32,7 @@ pub(crate) fn on_overkilled(hx: &mut Hx, args: &HookArgs) {
         let mut rows = [0.; 4];
         let mut n = 0;
         for card in p.build.cards() {
-            for row in card.definition().rows {
+            for row in hx.k.cards.def(card).rows {
                 if let CardRow::Trigger(t) = row {
                     if t.on == TriggerOn::Kill {
                         if let TriggerAction::Splash { radius } = t.action {

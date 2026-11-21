@@ -1,8 +1,14 @@
 # Quest design discussion (FUTURE ONLY)
 
-**Status: future design only.** Nothing in this folder is implemented, scheduled or approved. It is not in
-`docs/ORDER_OF_OPERATIONS.md` and has no packet. Building any of it needs owner approval and a packet in
-`docs/backlog/packets/`. The live quest system is documented in [`docs/quests.md`](../quests.md).
+**Status: future design only, except the augment and elite rework below.** Apart from that rework, nothing in this
+folder is implemented, scheduled or approved. It is not in `docs/ORDER_OF_OPERATIONS.md` and has no packet. Building
+any of it needs owner approval and a packet in `docs/backlog/packets/`. The live quest system is documented in
+[`docs/quests.md`](../quests.md).
+
+**Implemented: the augment and elite rework from this workbook.** It is live-only: it applies when `SimConfig::augments`
+or `SimConfig::elites` is `Rework` (the live server, `SimConfig::live_content()`). Legacy and parity worlds keep the
+legacy numbers. Marked Man (an owner addition, 2026-11-18) is built too (P-AUG-NATIVE-5). The plan of record and its packets
+are in [`../backlog/AUGMENT_ELITE_REWORK.md`](../backlog/AUGMENT_ELITE_REWORK.md).
 
 - `FUTURE_ONLY_Quest_Design_Discussion.xlsx`: the whole 2026-11-13 discussion. It covers pricing stats in farming time
   (camp-equivalents), the quest math and a reward pricer, calibration data, quest methodology, reward feel, quests built on

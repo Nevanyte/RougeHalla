@@ -36,7 +36,13 @@
 //! the string "tick_ms=25" (length 10) in the hasher while JSON keeps the number `25`, and every other value is refused
 //! at construction and restore (`statics.rs`).
 //!
-//! Two World exceptions. `MobRuntime::buffs` (P-CAMP-BUFF-THEMES-1, coordinator decision) writes its empty row as a unit
+//! The config's later silent switches (`frost_wish`, and P-AUG-RULES-1's `augments` and `elites`) follow the same rule:
+//! their non-default values fold the tags `"frost_wish=wall"`, `"augments=rework"` and `"elites=rework"`, which no other
+//! field writes (`tests/augment_rules.rs` checks all 128 combinations of the seven silent switches, `tick_ms` included).
+//!
+//! Four World exceptions. `MobRuntime::elites` (P-AUG-RULES-1) writes `EliteRule::Legacy` as a unit (no word), so every
+//! world whose elite numbers are legacy keeps its hash and checkpoint; it is safe because `check_world` admits exactly
+//! the one value `EliteTuning::stored_rule(config.elites)` per statics digest. `MobRuntime::buffs` (P-CAMP-BUFF-THEMES-1, coordinator decision) writes its empty row as a unit
 //! (no word) so every `CampBuffRule::Legacy` world keeps its hash and checkpoint; it is safe only because `check_world`
 //! admits that untagged shape exactly when the digest holds `Legacy` (or the world has no camps) and a row of one entry
 //! per camp exactly when it holds `Themed`, so two states under one digest never differ by its presence alone.
@@ -44,6 +50,11 @@
 //! with no wall standing keeps its hash and checkpoint; it is safe because the row is non-empty exactly when the field
 //! list written before it holds a `Wall` field (`barriers::check`), so the untagged empty form cannot be confused with a
 //! written one.
+//! `cards::Build::native` (P-AUG-NATIVE-1a) is written by `Build`'s hand-written `Serialize`, first and only when a
+//! native card is held (no field at all otherwise; a struct writes no field count, so no word marks its absence). Every
+//! native-free build, so every `Legacy` world and every `Rework` world holding no native card, keeps its hash and
+//! checkpoint. It is safe because both forms start with a sequence length: a held-native build with its row count
+//! (1..=14, refused empty on restore), a native-free one with `Counts`' length 80, so the two cannot run into each other.
 //!
 //! Mixer: one `(h ^ word) * K` and a rotate per word (a bijection of the running state for every word, so a single changed
 //! word always changes the result), then a splitmix64 finalizer.

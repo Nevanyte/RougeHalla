@@ -262,6 +262,7 @@ fn a_body_or_a_chest_behind_a_wall_is_not_read_through_it() {
             }],
             picked: false,
             can_choose: true,
+            first_pick: None,
         });
     let read = |arena| {
         let raw = compose(&obs, arena);

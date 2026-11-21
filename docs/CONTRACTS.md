@@ -15,10 +15,10 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 ### Union identities (2026-11-10)
 
 On `integration/backend-unity-union` (head `f6432ea9`, merge `1319260b`) the current identities are: protocol 16 (unchanged by
-the merges), observation 24 (25 since P-WIRE17-HUD-1, 2026-11-11), checkpoint `rh-checkpoint/31` (`rh-checkpoint/32` since P-TRAINING-CAMPS-1, 2026-11-13), replay `rh-replay/25`, policy contract 18 (19 since P-WIRE17-HUD-1), content hash
+the merges), observation 24 (25 since P-WIRE17-HUD-1, 2026-11-11), checkpoint `rh-checkpoint/31` (`rh-checkpoint/32` since P-TRAINING-CAMPS-1, 2026-11-13; `rh-checkpoint/33` since P-AUG-PLANT-1, 2026-11-19; `rh-checkpoint/35` since integration 65, 2026-11-20), replay `rh-replay/25`, policy contract 18 (19 since P-WIRE17-HUD-1), content hash
 `a2d1022ebe713382`. Gates and limits are in [MIGRATION.md](MIGRATION.md#backendunity-union-checkpoint-2026-11-10). The current
-identities on `feature/unity-rework` (protocol 18, observation 30, policy contract 25, checkpoint 32, replay 25, content hash `7a542a13187f034c`, as of integration 46, 2026-11-14) are in the
-MIGRATION checkpoint's top section.
+identities on `feature/unity-rework` (protocol 22, observation 35, policy contract 31, checkpoint 37, replay 25, content hash
+`d43155e2ed7d1c68`, as of integration 76, 2026-11-20) are in the MIGRATION checkpoint's top section.
 The per-row validation cuts below name their own revisions and identities and are kept as history; they are not re-validated
 at the union head.
 
@@ -501,6 +501,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   `VISION_RADIUS` with a clear line on the sight mask; sorted by public id; hp as a bar (hundredths); events filtered to
   what the viewer could perceive. Clients and policies receive the same observation. `observe_into` fills caller-owned
   buffers (`observe` wraps it).
+- Exception (owner decision 9, 2026-11-18; P-AUG-NATIVE-5, integration 74): every `Alive` Marked Man holder's `{id, x, y}`
+  is public to every viewer whatever its vision (`Observation::marked`, State key 15). No other fact of the holder
+  (actor row, hp, weapon, effects, events) leaves vision. Live worlds only (`SimConfig::augments = Rework`).
 - Action-producing observers use one `ItemObserver` per seat, not disposable `observe` previews. Its public offers change
   only with public cues or scheduled renewal; immutable exact-target handles have 20 ticks of retired grace and never
   rebind to a replacement. Preparation commits only after delivery. `Env::observe_external_into` and policy seats own

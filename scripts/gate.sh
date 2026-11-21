@@ -111,6 +111,12 @@ sim_tests() {
   # on the merge (integration 5, 2026-11-12).
   run "rh-sim content registry" cargo test --locked -p rh-sim --features trusted-status-probes --test content
   run "rh-sim suite (trusted-status-probes, as CI)" cargo test --locked -p rh-sim --features trusted-status-probes
+  # Files gated `#![cfg(not(feature = "schedule-trace"))]` compile to nothing in the suite above (trusted-status-probes
+  # turns schedule-trace on), so they run here without features, as in CI's simulation job. They are the warm allocation
+  # tests after a clone and a restore: one sat red from 2026-11-10 to 2026-11-19 while this gate was green
+  # (P-NOALLOC-GATE-1). A new such file is added here and to CI; scripts/gate.test.sh fails until it is.
+  run "rh-sim tests that compile out under schedule-trace (no features, as CI)" \
+    cargo test --locked -p rh-sim --test pack_leader_warm --test cards_no_alloc
 }
 # The accepted card provenance chain (catalog, runtime and witness pins) is audited by a read-only node script. CI's
 # `provenance` job runs it and gates `rust`, `simulation`, `csharp` and `card-runtime-source`: a stale pin there skipped

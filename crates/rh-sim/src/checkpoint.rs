@@ -20,7 +20,12 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/32";
+/// 36 (P-SYNC-ORIGIN-1): the local 35 plus origin's `statics.config.tick_ms` (P-TICK-1a) and `ContainerKind::Heal`
+/// (P-COLISEUM-HEALS-1), which origin added under its own `rh-checkpoint/32`; every earlier tag of either line is refused.
+/// 37 (P-SYNC-ORIGIN-2): 36's fields, but origin's P-TICK-1b changed what a 25 ms world holds in them (walk hints,
+/// rewind history, vision steps, Wish clocks on the match's step); a local 36 written at 25 ms by systems that still
+/// stepped 50 ms is not a state this sim produces, so 36 is refused with every earlier tag.
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/37";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -268,15 +273,9 @@ fn content_mismatch(checkpoint: u64) -> Option<CheckpointError> {
     (checkpoint != build).then_some(CheckpointError::ContentMismatch { checkpoint, build })
 }
 
-/// A projectile starts with its faction's weapon damage. Reflections, interceptions and arrow
-/// deletions only reduce it. Check pending ranged packets too, before they can become a flight.
-pub(crate) fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId) -> bool {
-    let maximum = crate::modifiers::maximum_packet(weapon);
-    let shares = [packet.phys, packet.magic, packet.true_];
-    (0.0..=maximum).contains(&packet.raw)
-        && shares.iter().all(|v| (0.0..=1.0).contains(v))
-        && (shares.iter().sum::<f64>() - 1.0).abs() <= 4.0 * f64::EPSILON
-}
+use crate::systems::projectiles::valid_planted_packet;
+#[cfg(test)]
+pub(crate) use crate::systems::projectiles::valid_ranged_packet;
 
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
 /// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
@@ -343,7 +342,7 @@ fn check_camp_buffs(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
 }
 
-fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
+pub(crate) fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     crate::statics::validate_tick_ms(&k.config)?;
     // Validate actor classes before any player-only facade or faction/brain consumer can run.
     if w.players.iter().any(|p| p.core.faction_id().is_none()) {
@@ -630,7 +629,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             // ADR0024 (review finding 4): a height this match's mode can produce, so a restored flight never meets,
             // homes or projects differently from one the tick launched.
             || !crate::archetype::valid_height(k.config.hitboxes, st.height)
-            || !(0. ..=range).contains(&st.range)
+            || !(0. ..=range * pr.range_mult).contains(&st.range)
             || !(0. ..=st.range).contains(&pr.traveled)
             || !near(st.origin.x, st.origin.y)
             || !near(pr.pos.x, pr.pos.y)
@@ -638,7 +637,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || pr.time != w.server_time
             || !velocity_ok(st.velocity)
             || !velocity_ok(pr.velocity)
-            || !valid_ranged_packet(pr.packet, weapon)
+            || !valid_planted_packet(k.cards, pr.packet, weapon, pr.range_mult)
             // A Fire seat's armed attack can launch the flight; a departed owner's flag is unreachable for the burst
             // because the source consults only present players.
             || (pr.roam_armed
@@ -663,7 +662,8 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     crate::abilities::checkpoint::validate(k, w)?;
     crate::systems::initial_loot::validate(k, w)?;
     crate::systems::potions::validate(w)?;
-    crate::reward_chests::validate_world(w, near)?;
+    crate::reward_chests::validate_world(w, k.cards, k.config.elites, near)?;
+    crate::cards::native::check(k, w)?;
     crate::terrain::validate(k, w, near)?;
     for e in &w.deferred.hits {
         if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
@@ -857,6 +857,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             ));
         }
         if !p.modifiers.valid(
+            k.cards,
             &p.build,
             &p.farm,
             &p.kill_stats,
@@ -907,7 +908,9 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             if a.kind != expected
                 || a.weapon != p.active_weapon()
                 || !finite
-                || (a.kind != ActionKind::Swing && !valid_ranged_packet(pk, a.weapon))
+                || !crate::cards::valid_range_mult(k.cards, a.range_mult)
+                || (a.kind != ActionKind::Swing
+                    && !valid_planted_packet(k.cards, pk, a.weapon, a.range_mult))
                 || a.lands_at < a.started_at
                 || (a.roam_armed && p.faction() != crate::FactionId::Fire)
             {

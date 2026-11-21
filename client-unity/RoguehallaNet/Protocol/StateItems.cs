@@ -146,16 +146,20 @@ namespace Roguehalla.Net.Protocol
     {
         public override uint Key { get { return 4; } }
         public WireRewardChest[] Rows = Array.Empty<WireRewardChest>();
+        /// <summary>Card ids an option may carry: the 80 catalog cards, then the 14 native cards (80..=93, P-WIRE19-A).</summary>
+        internal const byte MaxCardId = 94;
         internal override void Check()
         {
             Require(Rows != null && Rows.Length <= MaxRows, "reward chests"); uint previous = 0;
             foreach (var row in Rows)
             {
                 Require(row != null && row.Handle.Value > previous && Finite(row.ExpiresAt) && row.Options != null && row.Options.Length <= 3, "reward chest");
+                // P-WIRE19-A: a window is finite and ends by the chest's expiry.
+                Require(!row.FirstPick.HasValue || (Finite(row.FirstPick.Value.Until) && row.FirstPick.Value.Until <= row.ExpiresAt), "reward chest first pick");
                 previous = row.Handle.Value;
                 foreach (var o in row.Options)
                 {
-                    bool card = o.Kind == 1 && o.Id < 80 && !o.KillKey.HasValue && o.KillGain == 0;
+                    bool card = o.Kind == 1 && o.Id < MaxCardId && !o.KillKey.HasValue && o.KillGain == 0;
                     bool boost = o.Kind == 2 && o.Id < 8 && !o.KillKey.HasValue && o.KillGain == 0;
                     bool kill = o.Kind == 3 && o.Id == 0 && o.KillKey.HasValue &&
                         (byte)o.KillKey.Value <= (byte)TrophyStatKey.Leech && Finite(o.KillGain) && o.KillGain > 0;
@@ -177,6 +181,8 @@ namespace Roguehalla.Net.Protocol
                     w.U8(o.Taken ? (byte)1 : (byte)0); WriteActor(w, o.TakenBy);
                 }
                 w.U8(row.Picked ? (byte)1 : (byte)0); w.U8(row.CanChoose ? (byte)1 : (byte)0);
+                if (row.FirstPick.HasValue) { w.U8(1); w.F64(row.FirstPick.Value.Until); w.U8(row.FirstPick.Value.Mine ? (byte)1 : (byte)0); }
+                else w.U8(0);
             }
         }
     }

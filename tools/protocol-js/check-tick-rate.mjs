@@ -50,7 +50,7 @@ const throws = (fn, re, what) => {
   if (re && !re.test(String(err.message))) throw new Error(`${what}: threw "${err.message}", want ${re}`);
 };
 
-check("the probe speaks protocol 21", () => eq(PROTOCOL, 21, "const PROTOCOL"));
+check("the probe speaks protocol 22 (21 merged by P-SYNC-ORIGIN-2)", () => eq(PROTOCOL, 22, "const PROTOCOL"));
 
 check("the same Full bytes are tick * 50 at 20 and tick * 25 at 40", () => {
   eq(decode(bytes(FULL10)).serverMs, 500, "tick 10, no rate (the 20 Hz decode)");

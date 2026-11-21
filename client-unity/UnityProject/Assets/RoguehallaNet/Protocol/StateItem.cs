@@ -10,7 +10,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = (int)StateKey.BuildSummary;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Marked;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static bool QuestFlag(ref Reader r, string field)
@@ -317,7 +317,10 @@ namespace Roguehalla.Net.Protocol
                                 option.TakenBy = ReadActor(ref r);
                                 chest.Options[k] = option;
                             }
-                            chest.Picked = r.Flag(); chest.CanChoose = r.Flag(); chests.Rows[j] = chest;
+                            chest.Picked = r.Flag(); chest.CanChoose = r.Flag();
+                            // P-WIRE19-A: the first-pick window (tag 0|1, then until f64 and mine u8); Check() bounds it.
+                            if (r.Flag()) chest.FirstPick = new WireFirstPick { Until = r.F64(), Mine = r.Flag() };
+                            chests.Rows[j] = chest;
                         }
                         item = chests; break;
                     case 7:
@@ -380,6 +383,10 @@ namespace Roguehalla.Net.Protocol
                         item = RosterState.Read(ref r); break;
                     case 13:
                         item = BuildSummaryState.Read(ref r); break;
+                    case 14:
+                        item = ReadoutsState.Read(ref r); break;
+                    case 15:
+                        item = MarkedState.Read(ref r); break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }

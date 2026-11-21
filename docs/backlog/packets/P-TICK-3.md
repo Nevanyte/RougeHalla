@@ -20,6 +20,8 @@ reads the room's rate. The server still sends 20 everywhere until P-TICK-5 and P
   packet then takes the next free protocol number and rebases onto it. Merged as PR #74 (protocol 19). The coliseum
   thread's heal props (P-COLISEUM-HEALS-2) take protocol 20 first (agreed 2026-11-20); this packet then takes 21 or
   the next free number. P-COLISEUM-HEALS-2 merged as PR #76 (deaf125b, protocol 20): this packet takes **21**.
+  Meanwhile the local line's origin sync (P-SYNC-ORIGIN-1, integration 71) had also taken 20, for the walk hint plus
+  P-WIRE19-A/B; P-SYNC-ORIGIN-2 merged origin's 20 and 21 with the local 20 as protocol 22.
 - P-TICK-1b merged; no other protocol or fixture packet in flight (shared-file rule)
 
 ## 3. Relevant legacy paths

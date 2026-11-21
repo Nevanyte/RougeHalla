@@ -55,6 +55,7 @@ pub(crate) fn apply_with(
     }
     let p = w.core_mut(ix);
     let before = p.vitals.hp;
+    let over = before + amount - p.vitals.max_hp;
     p.vitals.hp = p.vitals.max_hp.min(before + amount);
     let gained = p.vitals.hp - before;
     if gained > 0.0 && !matches!(kind, Kind::QuietRegen | Kind::QuietOrdinary) {
@@ -62,6 +63,16 @@ pub(crate) fn apply_with(
             id: p.id,
             amount: gained,
         });
+    }
+    // P-AUG-NATIVE-1b: the native overheal hook, with what the heal had beyond max hp (not the regen heal, which grants
+    // no barrier either).
+    if over > 0. && w.is_player(ix) && !matches!(kind, Kind::QuietRegen) {
+        let id = w.core(ix).id;
+        crate::cards::native::hooks::fire_held(
+            w,
+            id,
+            crate::cards::native::hooks::NativeEvent::Overheal { amount: over },
+        );
     }
     #[cfg(feature = "trusted-status-probes")]
     if gained > 0. {

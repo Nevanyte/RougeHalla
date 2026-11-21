@@ -9,10 +9,15 @@ namespace Roguehalla.Net.Tests
     /// v18 golden vectors as protocol 18, and a session refuses a protocol-17 server's Welcome while accepting an 18 one.
     /// P-NET-DRAWAHEAD-1a moved the codec to protocol 19 (the walk hint): an 18 Welcome is now the refused one.
     /// P-COLISEUM-HEALS-2 moved it to protocol 20 (the heal prop): a 19 Welcome is now the refused one.
-    /// P-TICK-3 moved it to protocol 21 (snapshot time from the Welcome rate): a 20 Welcome is now the refused one.</summary>
+    /// P-TICK-3 moved it to protocol 21 (snapshot time from the Welcome rate): a 20 Welcome is now the refused one.
+    /// P-SYNC-ORIGIN-2 merged both lines as protocol 22: every Welcome of 17 to 21 is refused.</summary>
     public class Protocol18StampTests
     {
-        [Test] public void CodecSpeaksProtocol21() { Assert.AreEqual(21, Wire.ProtocolVersion); }
+        /// <summary>P-WIRE19-A moved the codec to 19; the v18 history below stays.</summary>
+        [Test] public void CodecSpeaksProtocol18OrLater() { Assert.GreaterOrEqual((int)Wire.ProtocolVersion, 18); }
+        /// <summary>P-NET-DRAWAHEAD-1a pinned 19; P-SYNC-ORIGIN-1 merged both protocol-19 wires as 20; origin took 20 and 21
+        /// (heal props, tick rate); P-SYNC-ORIGIN-2 merged both lines as 22.</summary>
+        [Test] public void CodecSpeaksProtocol22() { Assert.AreEqual(22, Wire.ProtocolVersion); }
 
         [Test]
         public void V18FixtureExistsAndItsHelloSays18()
@@ -41,19 +46,24 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void AProtocol20WelcomeIsRefusedAndA21WelcomeAccepted()
+        public void AProtocol21WelcomeIsRefusedAndA22WelcomeAccepted()
         {
-            var old = new FakeTransport(); var s20 = NewSession(old);
-            s20.Connect(); old.Open();
-            Assert.AreEqual(21, old.LastSent<ClientMsg.Hello>().Protocol, "the Hello says 21");
-            old.Deliver(Welcome(20));
-            Assert.AreEqual(SessionState.Failed, s20.State, "a protocol-20 Welcome is refused");
-            StringAssert.Contains("server protocol 20", s20.Error);
+            // P-WIRE19-A refused 17, P-NET-DRAWAHEAD-1a refused 18; P-SYNC-ORIGIN-1 (protocol 20) refuses both and 19;
+            // P-SYNC-ORIGIN-2 (protocol 22) refuses 20 (both lines' 20s) and origin's 21 as well.
+            foreach (ushort oldProtocol in new ushort[] { 17, 18, 19, 20, 21 })
+            {
+                var old = new FakeTransport(); var sOld = NewSession(old);
+                sOld.Connect(); old.Open();
+                Assert.AreEqual(Wire.ProtocolVersion, old.LastSent<ClientMsg.Hello>().Protocol, "the Hello says the codec's version");
+                old.Deliver(Welcome(oldProtocol));
+                Assert.AreEqual(SessionState.Failed, sOld.State, $"a protocol-{oldProtocol} Welcome is refused");
+                StringAssert.Contains($"server protocol {oldProtocol}", sOld.Error);
+            }
 
-            var cur = new FakeTransport(); var s21 = NewSession(cur);
-            s21.Connect(); cur.Open();
-            cur.Deliver(Welcome(21));
-            Assert.AreEqual(SessionState.InMatch, s21.State, "a protocol-21 Welcome starts the match");
+            var cur = new FakeTransport(); var sCur = NewSession(cur);
+            sCur.Connect(); cur.Open();
+            cur.Deliver(Welcome(Wire.ProtocolVersion));
+            Assert.AreEqual(SessionState.InMatch, sCur.State, "a Welcome of the codec's version starts the match");
         }
     }
 }

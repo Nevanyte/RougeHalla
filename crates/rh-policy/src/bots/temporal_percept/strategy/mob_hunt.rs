@@ -188,6 +188,8 @@ pub(crate) struct MobHunter {
     pub(crate) mob_ban_until: f64,
     pub(crate) next_pick_at: f64,
     log_fn: LogFn,
+    /// The room's elite rule, set by the adapter each decision (P-AUG-BOTS-1); Legacy until then.
+    pub(crate) rule: rh_sim::EliteRule,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -225,6 +227,7 @@ impl MobHunter {
             mob_ban_until: 0.,
             next_pick_at: 0.,
             log_fn: log.unwrap_or_else(|| std::sync::Arc::new(|_| {})),
+            rule: rh_sim::EliteRule::Legacy,
         }
     }
 
@@ -509,7 +512,7 @@ impl MobHunter {
                 continue;
             }
             let share = match (inp.self_.faction, m.faction) {
-                (Some(me), Some(theirs)) => matchup_share(me, theirs, m.kind == "elite"),
+                (Some(me), Some(theirs)) => matchup_share(me, theirs, m.kind == "elite", self.rule),
                 _ => 0.7,
             };
             let need = if m.kind != "elite" {
@@ -622,8 +625,8 @@ fn is_regional_kind(kind: &str) -> bool {
 fn distance(m: &HuntMobLike, at: Vec2) -> f64 {
     math::hypot(m.x - at.x, m.y - at.y)
 }
-fn matchup_share(me: FactionId, region: FactionId, elite: bool) -> f64 {
-    crate::bots::planning::matchup_share(me, region, elite)
+fn matchup_share(me: FactionId, region: FactionId, elite: bool, rule: rh_sim::EliteRule) -> f64 {
+    crate::bots::planning::matchup_share_under(me, region, elite, rule)
 }
 fn hunt_mob_weapon(m: &HuntMobLike) -> Option<WeaponId> {
     m.weapon0

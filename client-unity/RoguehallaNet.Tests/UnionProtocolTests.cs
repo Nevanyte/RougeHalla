@@ -25,7 +25,7 @@ namespace Roguehalla.Net.Tests
             var chest = ((RewardChestsState)state.Items[0]).Rows[0];
             CollectionAssert.AreEqual(new byte[] { 3, 79, 7 }, chest.Options.Select(o => o.Id));
             Assert.AreEqual(1, chest.Options[1].Kind);
-            var option = chest.Options[1]; option.Id = 80; chest.Options[1] = option;
+            var option = chest.Options[1]; option.Id = 94; chest.Options[1] = option;
             Assert.Throws<EncodeException>(() => state.Encode());
         }
 

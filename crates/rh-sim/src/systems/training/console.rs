@@ -20,7 +20,7 @@ use crate::math::{atan2, hypot};
 use crate::mob_catalog::{mob_type_by_id, MobTypeId};
 use crate::modifiers::farm_text::{mob_name, stat_text};
 use crate::pathfind::{self, Pathfinder};
-use crate::reward_chests::{self, is_interactive, OptionId};
+use crate::reward_chests::{self, OptionId};
 use crate::state::{Status, World};
 use crate::statics::MatchStatic;
 use crate::systems::{mobs, Cx};
@@ -65,15 +65,16 @@ fn drop_allowed(w: &World, ev: &mut Vec<Event>, to: PlayerId, last: Option<f64>)
     false
 }
 
-/// A live, supported, interactive augment (legacy \`cardLive\` + \`isInteractiveAugment\`).
-fn live_interactive(id: CardId) -> bool {
-    id.definition().ready && is_interactive(id)
+/// A live, supported, interactive augment (legacy \`cardLive\` + \`isInteractiveAugment\`) of the world's card table
+/// (`k.cards`: its rows, text and pool).
+fn live_interactive(tuning: &crate::cards::Tuning, id: CardId) -> bool {
+    tuning.def(id).ready && tuning.pool().contains(&id)
 }
 
 /// Legacy \`trainCard\`: set a card's copy count the way a chest pick does (build, rows re-folded, max hp following).
 fn card(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: CardId, count: u8) {
-    let def = id.definition();
-    if !live_interactive(id) || def.kind != CardKind::Augment {
+    let def = k.cards.def(id);
+    if !live_interactive(k.cards, id) || def.kind != CardKind::Augment {
         return;
     }
     let pid = w.players[ix.slot()].core.id;
@@ -85,7 +86,7 @@ fn card(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
         let owns = w.players[ix.slot()]
             .build
             .cards()
-            .any(|c| c.definition().base == Some(base));
+            .any(|c| k.cards.def(c).base == Some(base));
         if !owns {
             toast(ev, pid, format!("{}: Needs {}", def.title, base.label()));
             return;
@@ -100,7 +101,7 @@ fn card(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     }
     crate::modifiers::recompute(k, w, ix);
     let p = &mut w.players[ix.slot()];
-    if want == 0 && !has_fortify(&p.build, p.faction()) {
+    if want == 0 && !has_fortify(k.cards, &p.build, p.faction()) {
         p.card_tank_hp = 0.;
         p.card_prevented = 0.;
     }
@@ -124,9 +125,13 @@ fn card(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
 }
 
 /// Tank Engine holds a max-health bonus while its card's fortify trigger is in the build.
-fn has_fortify(build: &crate::cards::Build, faction: crate::FactionId) -> bool {
+fn has_fortify(
+    tuning: &crate::cards::Tuning,
+    build: &crate::cards::Build,
+    faction: crate::FactionId,
+) -> bool {
     build.cards().any(|id| {
-        let (_, rows) = id.definition().selection(faction);
+        let rows = tuning.rows(id, faction);
         rows.iter().any(|row| {
             matches!(
                 row,
@@ -401,11 +406,15 @@ fn chest(
         .iter()
         .flatten()
         .copied()
-        .filter(|id| live_interactive(*id))
+        .filter(|id| live_interactive(k.cards, *id))
         .collect();
     let ids: Vec<CardId> = if options.iter().all(|o| o.is_none()) {
-        let build = w.players[ix.slot()].build;
-        let pool = reward_chests::augment_pool(&[build]);
+        // Legacy `trainChest`: the player is the one picker, through the drop's offer path (`k.cards.offer_pool`).
+        let p = &w.players[ix.slot()];
+        let pool = k.cards.offer_pool(&[reward_chests::Picker {
+            build: p.build,
+            faction: p.faction(),
+        }]);
         let mut draw = || w.reward_rng.next_f64();
         reward_chests::roll_with(&mut draw, &pool, false, None)
     } else {
@@ -423,7 +432,7 @@ fn chest(
     let names: Vec<String> = ids
         .iter()
         .map(|id| {
-            let def = id.definition();
+            let def = k.cards.def(*id);
             let note = if def.ready { "" } else { " (not live yet)" };
             format!("{}{note}", def.title)
         })

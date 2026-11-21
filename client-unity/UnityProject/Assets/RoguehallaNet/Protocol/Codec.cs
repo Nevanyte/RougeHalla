@@ -3,10 +3,10 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v21 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v22 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 21;
+        public const ushort ProtocolVersion = 22;
         /// <summary>Milliseconds per server tick at the default 20 Hz. Protocol 21 (ADR 0029): a snapshot without a source-time
         /// override stands for Tick * the connection's tick ms (<see cref="TickMsOf"/> of Welcome.TickRate); this is the 20 Hz
         /// value every rate-less decode uses.</summary>

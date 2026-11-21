@@ -20,6 +20,8 @@ pub(crate) struct MeleeReq {
     pub(crate) a: f64,
     pub(crate) rewind_t: f64,
     pub(crate) packet: Packet,
+    /// Plant Your Feet: the swing's `PendingAction::range_mult` (legacy `MeleeRequest.rangeMult`); 1 when unplanted.
+    pub(crate) range_mult: f64,
 }
 
 /// System (legacy melee.resolveMelee): every swing that landed this tick, tested against the bodies standing at its
@@ -70,6 +72,9 @@ fn resolve_swings(cx: &mut Cx) {
         let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
             continue;
         };
+        // Plant Your Feet scales the reach at bodies, not the body radius (legacy melee.ts:64 `shape.reach * rangeMult`);
+        // a swing meets balls with the catalog reach (melee.ts:124).
+        let body_reach = reach * req.range_mult;
         if shared && rewound_t != Some(req.rewind_t.to_bits()) {
             rewound.clear();
             rewound.extend(
@@ -109,7 +114,7 @@ fn resolve_swings(cx: &mut Cx) {
             } else {
                 w.core(ti).position_at(req.rewind_t)
             };
-            let reached = reaches(origin, req.a, reach, half_arc, at, w.core(ti).hull());
+            let reached = reaches(origin, req.a, body_reach, half_arc, at, w.core(ti).hull());
             if !reached {
                 continue;
             }
@@ -127,21 +132,18 @@ fn resolve_swings(cx: &mut Cx) {
             let mut packet = req.packet;
             let mut critical = false;
             let mut critical_mult = None;
+            // The baked multiplier the ledger counts against the outgoing row cap (legacy `packet.mult`): Plant Your
+            // Feet's factor (already in `packet.raw`, decided at the attack's start) times the crit.
+            let mut baked = req.range_mult;
             if let Some(ai) = w.idx(req.attacker) {
-                let mut baked = 1.;
                 if crate::cards::roll_attack_crit(&mut w.players[ai]) {
                     critical = true;
+                    packet.raw *= crate::status_runtime::stats::CRIT_MULT;
                     baked *= crate::status_runtime::stats::CRIT_MULT;
                 }
-                // Plant Your Feet: an armed attack carries its bonus and spends the clock.
-                if crate::cards::plant_armed(&w.players[ai], w.server_time) {
-                    baked *= 1. + crate::constants::PLANT_FEET_BONUS;
-                    crate::cards::spend_plant(&mut w.players[ai], w.server_time);
-                }
-                if baked > 1. {
-                    packet.raw *= baked;
-                    critical_mult = Some(baked);
-                }
+            }
+            if baked > 1. {
+                critical_mult = Some(baked);
             }
             let target = w.core(ti);
             let dx = origin.x - at.x;

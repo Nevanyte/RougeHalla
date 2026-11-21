@@ -246,7 +246,7 @@ fn a_walking_player_s_hint_round_trips_full_and_delta_frames_and_no_mob_carries_
         "non-player rows were checked (practice dummies): {mob_rows}"
     );
     assert_eq!(
-        PROTOCOL_VERSION, 21,
-        "the walk hint is protocol 19's, unchanged in 20"
+        PROTOCOL_VERSION, 22,
+        "the walk hint is protocol 19 on origin, 20 with P-WIRE19-A/B (P-SYNC-ORIGIN-1), 22 with origin's 20 and 21 (P-SYNC-ORIGIN-2)"
     );
 }

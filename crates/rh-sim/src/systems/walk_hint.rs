@@ -55,7 +55,7 @@ fn compute(
         || status::hidden(&p.statuses.instances, now)
         || status::cannot_move(&p.statuses, now)
         || p.motion.slip.is_some()
-        || traction_at(k, p, p.pos()) != 0.
+        || grip_at(k, p, p.pos()) != 0.
     {
         return WalkHint::default();
     }
@@ -193,11 +193,17 @@ fn traction_at(k: &MatchStatic, p: &FighterCore, at: Vec2) -> f64 {
     .accel
 }
 
-fn ice_along(k: &MatchStatic, p: &FighterCore, ux: f64, uy: f64, distance: f64) -> bool {
+/// P-AUG-NATIVE-3c: the traction a player meets at `at`: the raw ice acceleration mapped by its Hazard Walker grip
+/// (an ice-immune holder meets none, so the ice is ground to its hint).
+fn grip_at(k: &MatchStatic, p: &crate::state::Player, at: Vec2) -> f64 {
+    crate::cards::native::ice_grip(&p.build).accel(traction_at(k, p, at))
+}
+
+fn ice_along(k: &MatchStatic, p: &crate::state::Player, ux: f64, uy: f64, distance: f64) -> bool {
     let n = (distance / WALK_HINT_ICE_PROBE_U).ceil().max(1.) as usize;
     for i in 1..=n {
         let d = distance * i as f64 / n as f64;
-        if traction_at(k, p, Vec2::new(p.body.x + ux * d, p.body.y + uy * d)) != 0. {
+        if grip_at(k, p, Vec2::new(p.body.x + ux * d, p.body.y + uy * d)) != 0. {
             return true;
         }
     }

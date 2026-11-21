@@ -37,7 +37,7 @@ pub(crate) fn on_hurt(hx: &mut Hx, args: &HookArgs) {
     ); MAX_ROWS];
     let mut n = 0;
     for card in hx.w.player(id).unwrap().build.cards() {
-        for row in card.definition().rows {
+        for row in hx.k.cards.def(card).rows {
             if let CardRow::Trigger(t) = row {
                 if t.on == TriggerOn::HpBelow {
                     if let TriggerAction::Heal { .. } = t.action {

@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v21 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v22 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v21 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v21.json) ----
+// ---- protocol v22 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v22.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -259,8 +259,8 @@ function checkTerrainAgainstCollision(collisionBuf, collision, terrainBuf, terra
     const take = Math.min(an, bn); an -= take; bn -= take; left -= take;
   }
 }
-const PROTOCOL = 21;
-// Protocol 21 (ADR 0029): a snapshot's server time is tick * tickMs with tickMs = 1000 / Welcome.tickRate; only 20 and 40 Hz
+const PROTOCOL = 22;
+// Protocol 21 (ADR 0029, kept in 22): a snapshot's server time is tick * tickMs with tickMs = 1000 / Welcome.tickRate; only 20 and 40 Hz
 // are rates. The delta limits keep their wall-clock time: a base at most 3200 ms behind (64 ticks at 20 Hz, 128 at 40 Hz).
 const MAX_DELTA_AGE_MS = 3200;
 function tickMsOf(rate) {
@@ -934,6 +934,37 @@ function decodeBody(r, tickMs) {
 // Protocol 16 (ADR0026) State key 12, the roster (names and bot flags of everyone seated): count u8 (at most 32), rows
 // strictly ascending by id: id varint (nonzero), flags u8 (0, or 1 bot), name (u8 length, 1..=24 UTF-8 bytes, no control
 // character).
+// P-WIRE19-B, State key 14: the viewer's own native readout rows. count u8 (<= 28, refused before the rows), then rows of
+// card u8 (80..93), kind u8 (0 counter, 1 meter, 2 marks), value f64, max f64; per row: card, kind, value, then order.
+function readReadouts(r) {
+  const n = r.u8(); if (n > 28) throw new Error("bad readout count");
+  const rows = []; let previous = 0;
+  for (let i = 0; i < n; i++) {
+    const card = r.u8(); if (card < 80 || card > 93) throw new Error("bad readout card");
+    const kind = r.u8(); if (kind > 2) throw new Error("bad readout kind");
+    const value = r.f64(), max = r.f64();
+    if (!Number.isFinite(value) || !Number.isFinite(max) || !(value >= 0) || !(value <= max)) throw new Error("bad readout value");
+    if (card < previous) throw new Error("bad readout order");
+    previous = card;
+    rows.push({ card, kind, value, max });
+  }
+  return rows;
+}
+// P-AUG-NATIVE-5, State key 15: every Marked Man holder's public position (the minimap marker, the same for every viewer).
+// count u8 (<= 32, refused before the rows), then rows of id varint (nonzero, strictly ascending), x u16, y u16 (actor
+// quantization); per row: id, then order. Every u16 position decodes.
+function readMarked(r) {
+  const n = r.u8(); if (n > 32) throw new Error("bad marked count");
+  const rows = []; let previous = 0;
+  for (let i = 0; i < n; i++) {
+    const id = r.varint(); if (id === 0) throw new Error("bad marked id");
+    if (id <= previous) throw new Error("bad marked order");
+    previous = id;
+    const x = dqPos(r.u16()), y = dqPos(r.u16());
+    rows.push({ id, x, y });
+  }
+  return rows;
+}
 function readRoster(r) {
   const n = r.u8();
   if (n > 32) throw new Error("bad roster count");
@@ -997,7 +1028,7 @@ function readBuildSummary(r) {
 }
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 13) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 15) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const strictBool = (what) => { const v = r.u8(); if (v > 1) throw new Error("bad " + what); return v === 1; };
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
@@ -1007,7 +1038,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 13) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 15) throw new Error("bad state key"); previous = key;
     let value;
     // Key 1: the counts are read (and checked) before the owner's clocks (P-WIRE17-HUD-3: server ms, finite, >= 0).
     if (key === 1) {
@@ -1069,7 +1100,8 @@ function readState(r) {
         const x = r.u16(), y = r.u16(), expiresAt = finite(r.f64()), options = [], k = r.code(3, "reward options");
         for (let o = 0; o < k; o++) {
           const kind = r.u8(); let reward;
-          if (kind === 1) reward = { kind, id: r.code(79, "reward id") };
+          // Card ids: the 80 catalog cards, then the 14 native cards (80..=93, P-WIRE19-A).
+          if (kind === 1) reward = { kind, id: r.code(93, "reward id") };
           else if (kind === 2) reward = { kind, id: r.code(7, "reward id") };
           else if (kind === 3 && PROTOCOL >= 13) {
             const key = r.code(8, "Trophy key"), gain = r.f64();
@@ -1078,7 +1110,11 @@ function readState(r) {
           } else throw new Error("bad reward kind");
           options.push({ ...reward, taken: flag(), takenBy: actor() });
         }
-        value.push({ handle: h, x, y, expiresAt, options, picked: flag(), canChoose: flag() });
+        const picked = flag(), canChoose = flag();
+        // P-WIRE19-A: the killer first-pick window, finite and ending by the chest's expiry; never a player id.
+        const firstPick = r.opt(() => ({ until: finite(r.f64()), mine: flag() }));
+        if (firstPick && firstPick.until > expiresAt) throw new Error("bad first pick");
+        value.push({ handle: h, x, y, expiresAt, options, picked, canChoose, firstPick });
       }
     } else if(key===7) {
       value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor(),height:r.u8()});
@@ -1122,6 +1158,8 @@ function readState(r) {
     else if (key === 11) value = readTrade(r, strictBool);
     else if (key === 12) value = readRoster(r);
     else if (key === 13) value = readBuildSummary(r);
+    else if (key === 14) value = readReadouts(r);
+    else if (key === 15) value = readMarked(r);
     else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }

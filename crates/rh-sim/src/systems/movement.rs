@@ -65,10 +65,16 @@ pub(crate) fn walk_one(
         .then(|| core.faction_id())
         .flatten();
     let slippery = k.hazards.slip && super::terrain::slip_allowed(w, ix);
+    // P-AUG-NATIVE-3c: a Hazard Walker holder meets a resisted (or, immune, no) ice acceleration; others the raw one.
+    let grip = if w.is_player(ix) {
+        crate::cards::native::ice_grip(&w.players[ix.slot()].build)
+    } else {
+        crate::cards::native::IceGrip::Raw
+    };
     let held = crate::barriers::held(w);
     let map = crate::barriers::body_map(k, &held, w.rt.gates_locked);
     let accel = if slippery {
-        crate::terrain::at(map, core.body.x, core.body.y, faction).accel
+        grip.accel(crate::terrain::at(map, core.body.x, core.body.y, faction).accel)
     } else {
         0.
     };
@@ -99,7 +105,7 @@ pub(crate) fn walk_one(
             &mut p.motion.path,
             dt_ms,
             PLAYER_SPEED * mult,
-            |x, y| crate::terrain::at(map, x, y, faction).accel,
+            |x, y| grip.accel(crate::terrain::at(map, x, y, faction).accel),
             now,
             foot,
             pf,

@@ -10,10 +10,9 @@
 use crate::bots::random::Rng;
 use crate::bots::types::{TierId, TierParams};
 use rh_sim::constants::{
-    ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, FIRE_BACKLASH, FIRE_BURN_DPS, FROST_SLOW,
-    HOLY_LEECH_BASE, HOLY_LEECH_CAP, HOLY_LEECH_MISSING, MARK_BASE_PCT, MARK_KILL_PCT,
-    MARK_TIER_HITS, MARK_TOP_TIER, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, PLAGUE_DPS,
-    PLAGUE_EXECUTE_DPS,
+    FIRE_BACKLASH, FIRE_BURN_DPS, FROST_SLOW, HOLY_LEECH_BASE, HOLY_LEECH_CAP, HOLY_LEECH_MISSING,
+    MARK_BASE_PCT, MARK_KILL_PCT, MARK_TIER_HITS, MARK_TOP_TIER, MOB_DMG_MULT, MOB_HP_MULT, MOB_K,
+    PLAGUE_DPS, PLAGUE_EXECUTE_DPS,
 };
 use rh_sim::mapdata::Zone;
 use rh_sim::{Arena, FactionId, WeaponId};
@@ -176,11 +175,15 @@ fn scaled(spec: &DuelSpec, k: f64) -> DuelSpec {
     out
 }
 /// shared/mobs.ts mobFaction: the region's faction as a regional mob fights it.
-fn mob_faction(region: FactionId, elite: bool) -> DuelSpec {
-    let k = if elite { ELITE_K } else { MOB_K };
+///
+/// The elite numbers come from the sim's elite seam (`EliteTuning`, P-AUG-RULES-1) under the room's `rule`
+/// (`MatchStart::elites`, carried by `Knowledge`, P-AUG-BOTS-1); the context-free callers read the legacy rule.
+fn mob_faction(region: FactionId, elite: bool, rule: rh_sim::EliteRule) -> DuelSpec {
+    let elites = rh_sim::mob_runtime::EliteTuning::of(rule);
+    let k = if elite { elites.k } else { MOB_K };
     let base = scaled(&player_spec(region), k);
-    let hp_mult = MOB_HP_MULT * if elite { ELITE_HP_MULT } else { 1. };
-    let d = MOB_DMG_MULT * if elite { ELITE_DMG_MULT } else { 1. };
+    let hp_mult = MOB_HP_MULT * if elite { elites.hp_mult } else { 1. };
+    let d = MOB_DMG_MULT * if elite { elites.dmg_mult } else { 1. };
     let mut out = scaled(&base, d);
     out.hp = base.hp * hp_mult;
     // The mob owner's hand scaling on top (shared/mobs.ts mobFaction tail): an execute scales by k again, and the mark's
@@ -191,6 +194,8 @@ fn mob_faction(region: FactionId, elite: bool) -> DuelSpec {
     out.params.mark_kill = base_spec.params.mark_kill * k * d;
     out
 }
+#[cfg(test)]
+mod elite_tests;
 fn mark_tier_of(progress: f64, swap_steps: f64, tier_hits: f64) -> u8 {
     if progress <= 0. && swap_steps <= 0. {
         return 0;
@@ -423,8 +428,17 @@ fn duel(a: &DuelSpec, b: &DuelSpec, dt: f64, t_max: f64) -> DuelResult {
 /// shared/planning.ts matchupShare: the share of its own hp a player of me keeps after a straight duel with a regional
 /// mob (0 for a loss or a draw), over the reference duel at dt 0.01.
 pub fn matchup_share(me: FactionId, region: FactionId, elite: bool) -> f64 {
+    matchup_share_under(me, region, elite, rh_sim::EliteRule::Legacy)
+}
+/// `matchup_share` against an elite of the room's `rule` (P-AUG-BOTS-1).
+pub fn matchup_share_under(
+    me: FactionId,
+    region: FactionId,
+    elite: bool,
+    rule: rh_sim::EliteRule,
+) -> f64 {
     let a = player_spec(me);
-    let b = mob_faction(region, elite);
+    let b = mob_faction(region, elite, rule);
     let d = duel(&a, &b, 0.01, 120.);
     if d.winner == Some(0) {
         d.hp_a / a.hp

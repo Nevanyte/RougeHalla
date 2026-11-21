@@ -65,7 +65,7 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
         attack_speed: m.as_mult - 1.,
         defense: m.armor_bonus,
         soul_defense: m.shield_bonus,
-        move_speed: m.speed_mult - 1.,
+        move_speed: crate::modifiers::speed_mult(p) - 1.,
         ..Default::default()
     };
     if let Some(f) = faction {
@@ -97,7 +97,7 @@ pub fn build_summary(sim: &Sim, id: PlayerId) -> Option<BuildSummary> {
     // Card rows (already repeated once per copy). Damage counts unconditional rows only; lifesteal counts them all.
     let mut ls_rows = 0.;
     if let Some(f) = faction {
-        let (rows, n) = p.build.rows(f);
+        let (rows, n) = p.build.rows(sim.k.cards, f);
         for row in &rows[..n] {
             if let EffectKind::Stat { stat, v } = row.kind {
                 match stat {

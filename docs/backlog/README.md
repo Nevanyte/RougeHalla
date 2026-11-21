@@ -205,6 +205,29 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-MOBS-CATALOG-1 | Pure typed 30-type/five-role catalog and draw-injected roster helpers; no actor/runtime or native RNG claim | Existing source and capture baseline | Integrated after independent acceptance and actual content registration; 322 +120 source cases, 327 aggregate checks, 1,207-test workspace gate passed. See stage2-mob-catalog evidence | shared/mobs.ts, rosters.ts, rng.ts |
 | P-MOBS-1 | Full regional mob runtime: true non-seat actors, shared NPC combat/AI, camp lifecycle and applied rewards | P-MOBS-CATALOG-1; P-STATUS-1 for actor integration; staged card/stat producers for completion | Selected shared-actor Holy/Fire/Plague PvE and camp lifecycle/rewards implemented with source/headless/Unity proof; full regional runtime/scale gates remain open | server/src/sim/mobAI.ts, mobLife.ts, camps.ts; shared/mobs.ts, rosters.ts |
 | P-MOBS-2 | Camp-clear heal, wards, elite chests, regen, `campCleared` hook chain | P-MOBS-1, P-CARDS-2 | Coarse | server/src/sim/campHeal.ts, regen.ts, camps.ts |
+| P-AUG-RULES-1 | Elite/augment rework seam: `SimConfig::augments` / `elites` (`Legacy` default, `Rework` live), a rule-aware card `Tuning` on `MatchStatic`, and an elite seam; empty overrides | none | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 1) | shared/cards.ts, constants.ts |
+| P-CONTENT-REGOLDEN-1 | One documented command that recomputes the content hash and refreshes every pinned copy | none | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 1) | none (tooling) |
+| P-AUG-UI-1 | Unity card text for the 22 retuned augments | none | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 1) | client/src/ui (card text) |
+| P-AUG-CONTENT-1 | Augment_Tuning numbers as `REWORK_*` registry rows; Boom cap 2.6; helper share 12; content move 1 | P-AUG-RULES-1, P-CONTENT-REGOLDEN-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 2) | shared/cards.ts |
+| P-SIM-BENCH-SEAM-1 | Feature-gated trusted build setup for headless benches | P-AUG-RULES-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 2) | none |
+| P-AUG-PLANT-1 | Port Plant Your Feet's range multiplier for every weapon (all worlds) | P-AUG-RULES-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 2) | server/src/sim/weapons.ts:333-340 |
+| P-AUG-TUNE-1 | Rework logic: Wishful Thinking percent, Third Time 2.5x, Gambler split chances | P-AUG-CONTENT-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 3) | server/src/sim/cardHooks.ts, onHit.ts |
+| P-AUG-POOL-1 | `REWORK_POOL` (+5 built augments), faction offer rule, Eye for an Eye weighting, console pool | P-AUG-CONTENT-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 3) | shared/rewards.ts, cards.ts |
+| P-ELITE-BENCH-1 | camp_bench elite mode with minute-5 builds; death-rate table | P-SIM-BENCH-SEAM-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 3) | server/bench/campDuel.ts |
+| P-AUG-NATIVE-1a | Native augment ids (14), state, caps, content move 2 | P-AUG-CONTENT-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 4) | none (new augments) |
+| P-ELITE-SHARE-1 | Elite helpers earn 12 themed stacks | P-AUG-CONTENT-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 4) | server/src/sim/mobLife.ts |
+| P-AUG-NATIVE-1b | Native hooks, batch tables, own-only readouts; Marksman's Tally and Bastion | P-AUG-NATIVE-1a | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 5) | none (new augments) |
+| P-ELITE-PICK-1 | Killer's 5 s first pick at the elite chest | P-AUG-POOL-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 5) | server/src/sim/chests.ts |
+| P-ELITE-TUNE-1 | Elite Rework numbers to the owner-approved death-rate target; content move 3 | owner OK, P-AUG-NATIVE-1a | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 5) | shared/constants.ts (elite multipliers) |
+| P-AUG-NATIVE-2 | Calluses, Executioner's Ledger, Eighth Strike | P-AUG-NATIVE-1b | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 6) | none (new augments) |
+| P-AUG-NATIVE-3 | Pathfinder, Hazard Walker, Wish Engine, Overflow | P-AUG-NATIVE-1b | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 6) | none (new augments) |
+| P-WIRE19-A | Protocol 19: native card ids and chest first-pick end time | P-AUG-NATIVE-1a, P-ELITE-PICK-1 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 6) | shared/schema.ts |
+| P-AUG-NATIVE-4 | Corpse Hoarder, Stoked, Glacier, Trophy Hunter (faction-only) | P-AUG-NATIVE-1b | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 7) | none (new augments) |
+| P-AUG-BOTS-1 | Bot chest scoring for pool additions, native and faction-only cards | P-AUG-NATIVE-2..4 | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 7) | server/src/bots |
+| P-WIRE19-B | Protocol 19: own-only card readout rows | P-AUG-NATIVE-1b, P-WIRE19-A | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 7) | shared/schema.ts |
+| P-AUG-NATIVE-5 | Marked Man: +50% kill stacks, holder always on every minimap | P-AUG-NATIVE-1b, P-WIRE19-B | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 8) | none (new augment) |
+| P-AUG-UI-2 | Unity native card text, selectors, HUD readouts, first-pick countdown | P-WIRE19-B | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 8) | client/src/ui/chestPanel.ts |
+| P-AUG-DOCS-1 | Docs: GAME_DESIGN §11/§12.5/GV table, MOB_PROGRESSION, quests README | all of the above | Coarse ([plan](AUGMENT_ELITE_REWORK.md), wave 9) | none |
 
 ### 1a. Live tick rate (ADR 0029, owner direction 2026-11-19)
 

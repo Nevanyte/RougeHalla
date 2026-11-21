@@ -718,6 +718,7 @@ fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
                 a: (rng.next_f64() - 0.5) * 6.4,
                 rewind_t,
                 packet: pkt,
+                range_mult: 1.0,
             });
         }
         let (mut want_ledger, mut want_ev) = (Vec::new(), Vec::new());

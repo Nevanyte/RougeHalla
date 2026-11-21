@@ -1,0 +1,61 @@
+elite camps, solo fighter. Two scripted fighters, neither a player. The Brawler is an upper bound (no abilities, no kiting, swings from 80 u whatever the weapon, no heals), so its death rates are biased high. The duelist is nearer to a player: it walks to its camp, uses its weapon range (melee closes to reach, ranged weapons stand and shoot at about 80% of range) and casts its Wish when ready, but it never retreats and does not read dodges, so its rates remain biased upward. The ci95 is the Wilson interval of deaths over engaged fights: its spread is over faction x weapon x seed within the seeds run, with one camp placement per elite kind (the map is fixed; the world seed varies the fight and the banked draw, not where camps are). The headline rate (died / engaged) counts truncated fights as non-deaths, so the decided rate (died / (died + cleared)) is printed beside it. A fighting mob gives up after 20 s without hitting a player and regenerates to full in 2 s (the legacy give-up rule), so a fighter that kites resets the camp: the duelist stands and shoots at 0.8 of its range and never steps back, and each cell's resets counts the camps' give-ups (legacy behaviour, not a sim defect). Fights that never touched the camp are no_engage and fights cut off by the tick cap are truncated: both are counted, not hidden, and a truncated fight is a non-death, so kiting weapons can understate deaths. Banked builds hold no cards, so the bots' misvaluing of reworked cards (until P-AUG-BOTS-1) does not enter; the bot_sample column does carry it, and only from matches that reached minute 5 (survivorship). Until P-ELITE-TUNE-1 the table is a baseline.
+duelist fighter
+  camp                     zone           samples    banked_0    banked_6   banked_12   banked_18  bot_sample
+  wyrmling                 fire                90       94.4%       84.4%       67.8%       21.1%       92.2%
+  ashDrake                 fire                90      100.0%       75.6%       46.7%       26.7%       95.6%
+  executioner              sentenced            90       84.4%       73.3%       23.3%        4.4%       82.2%
+  gaoler                   sentenced            90       98.9%       96.7%       74.4%       27.8%       98.9%
+  ratOgre                  plague              90       88.9%       73.3%       32.2%       12.2%       88.9%
+  poxBehemoth              plague              90       93.3%       57.8%       24.4%       15.6%       87.8%
+  glacialWarden            frost               90       94.4%       82.2%       53.3%       17.8%       94.4%
+  avalancheTroll           frost               90       95.6%       88.9%       84.4%       43.3%       95.6%
+  bloodSaint               holy                90       45.6%       16.7%       10.0%        7.8%       42.2%
+  archon                   holy                90       84.4%       48.9%       14.4%        6.7%       80.0%
+  overall                                     900       88.0%       69.8%       43.1%       18.3%       85.8%
+  counts duelist banked_0: samples=900 engaged=900 died=792 cleared=104 truncated=4 no_engage=0
+  counts duelist banked_6: samples=900 engaged=900 died=628 cleared=267 truncated=5 no_engage=0
+  counts duelist banked_12: samples=900 engaged=900 died=388 cleared=498 truncated=14 no_engage=0
+  counts duelist banked_18: samples=900 engaged=900 died=165 cleared=723 truncated=12 no_engage=0
+  counts duelist bot_sample: samples=900 engaged=900 died=772 cleared=124 truncated=4 no_engage=0
+  decided duelist banked_0: died=792 cleared=104 rate=88.4%
+  decided duelist banked_6: died=628 cleared=267 rate=70.2%
+  decided duelist banked_12: died=388 cleared=498 rate=43.8%
+  decided duelist banked_18: died=165 cleared=723 rate=18.6%
+  decided duelist bot_sample: died=772 cleared=124 rate=86.2%
+  weapon duelist sword banked_12: died=48 cleared=102 truncated=0 rate=32.0%
+  weapon duelist bow banked_12: died=107 cleared=36 truncated=7 rate=74.8%
+  weapon duelist wand banked_12: died=92 cleared=54 truncated=4 rate=63.0%
+  weapon duelist shield banked_12: died=43 cleared=106 truncated=1 rate=28.9%
+  weapon duelist axe banked_12: died=35 cleared=115 truncated=0 rate=23.3%
+  weapon duelist fists banked_12: died=63 cleared=85 truncated=2 rate=42.6%
+Brawler (upper bound)
+  camp                     zone           samples    banked_0    banked_6   banked_12   banked_18  bot_sample
+  wyrmling                 fire                90       96.7%       85.6%       70.0%       26.7%       93.3%
+  ashDrake                 fire                90       98.9%       80.0%       47.8%       35.6%       95.6%
+  executioner              sentenced            90       86.7%       73.3%       26.7%        7.8%       83.3%
+  gaoler                   sentenced            90       97.8%       95.6%       74.4%       37.8%       97.8%
+  ratOgre                  plague              90       93.3%       75.6%       27.8%        5.6%       90.0%
+  poxBehemoth              plague              90      100.0%       53.3%        6.7%        0.0%       95.6%
+  glacialWarden            frost               90       94.4%       78.9%       55.6%       20.0%       93.3%
+  avalancheTroll           frost               90       95.6%       90.0%       84.4%       38.9%       95.6%
+  bloodSaint               holy                90       53.3%       14.4%        4.4%        0.0%       46.7%
+  archon                   holy                90       91.1%       85.6%       64.4%       31.1%       91.1%
+  overall                                     900       90.8%       73.2%       46.2%       20.3%       88.2%
+  counts brawler banked_0: samples=900 engaged=900 died=817 cleared=64 truncated=19 no_engage=0
+  counts brawler banked_6: samples=900 engaged=900 died=659 cleared=215 truncated=26 no_engage=0
+  counts brawler banked_12: samples=900 engaged=900 died=416 cleared=449 truncated=35 no_engage=0
+  counts brawler banked_18: samples=900 engaged=900 died=183 cleared=677 truncated=40 no_engage=0
+  counts brawler bot_sample: samples=900 engaged=900 died=794 cleared=83 truncated=23 no_engage=0
+  decided brawler banked_0: died=817 cleared=64 rate=92.7%
+  decided brawler banked_6: died=659 cleared=215 rate=75.4%
+  decided brawler banked_12: died=416 cleared=449 rate=48.1%
+  decided brawler banked_18: died=183 cleared=677 rate=21.3%
+  decided brawler bot_sample: died=794 cleared=83 rate=90.5%
+  weapon brawler sword banked_12: died=58 cleared=89 truncated=3 rate=39.5%
+  weapon brawler bow banked_12: died=87 cleared=51 truncated=12 rate=63.0%
+  weapon brawler wand banked_12: died=100 cleared=39 truncated=11 rate=71.9%
+  weapon brawler shield banked_12: died=51 cleared=97 truncated=2 rate=34.5%
+  weapon brawler axe banked_12: died=44 cleared=104 truncated=2 rate=29.7%
+  weapon brawler fists banked_12: died=76 cleared=69 truncated=5 rate=52.4%
+  reference: fighter duelist, column banked_12 (12 camps banked, 12 stacks a camp: the workbook player); bots bank far fewer camps than the workbook player, so bot_sample is the bots' reality and the two are not comparable
+  owner target: an average minute-5 build dies 10-20% of the time soloing an elite camp

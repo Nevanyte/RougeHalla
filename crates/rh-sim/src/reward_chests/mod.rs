@@ -57,6 +57,40 @@ pub(crate) struct Chest {
     pub pickers: Vec<PlayerId>,
     pub camp: Option<u16>,
     pub owner: Option<PlayerId>,
+    /// P-ELITE-PICK-1 (owner 2026-11-18, "Killer first pick"): under `SimConfig::elites == Rework`, the credited killer
+    /// of an elite camp (the player with the most damage, `systems/mob_life.rs` `hurt`) and the end of their first-pick
+    /// window. `None` on every other chest, and on every chest of a `Legacy` world. `#[serde(default)]`: a declared
+    /// chest without the key (test JSON) reads `None`.
+    #[serde(default)]
+    pub first_pick: Option<FirstPick>,
+}
+/// P-ELITE-PICK-1: whose first pick a chest holds, and until when (server time, ms; open while `server_time < until`).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FirstPick {
+    pub killer: PlayerId,
+    pub until: f64,
+}
+/// P-ELITE-PICK-1: the length of the killer's first-pick window, in ms (owner 2026-11-18: 5 s), read from its registered
+/// content row.
+pub(crate) fn first_pick_window_ms() -> f64 {
+    crate::constants::REWORK_ELITE_FIRST_PICK_MS
+}
+/// P-ELITE-PICK-1: whether `chest`'s first-pick window keeps `who` from choosing there now. True while the window is
+/// open (`server_time < until`) for anyone but its killer, and only while the killer is still a standing player: a
+/// killer who dies, is downed, resolves or leaves ends the window at once (a player who stops standing never stands
+/// again inside a match), and one who was not standing at the drop never had it. The one predicate both `choose` and
+/// the observer's `can_choose` read (as [`birth_available`]), so the command and the observation never disagree.
+pub(crate) fn first_pick_blocks(w: &World, chest: &Chest, who: PlayerId) -> bool {
+    first_pick_open(w, chest).is_some_and(|f| f.killer != who)
+}
+/// P-WIRE19-A: `chest`'s first-pick window while it is in force (open, `server_time < until`, and its killer still a
+/// standing player), else `None`. The facts [`first_pick_blocks`] reads, so the observed window and the refusal of
+/// `choose` start and end on the same tick.
+pub(crate) fn first_pick_open(w: &World, chest: &Chest) -> Option<FirstPick> {
+    chest
+        .first_pick
+        .filter(|f| w.server_time < f.until && w.player(f.killer).is_some_and(|p| p.standing()))
 }
 pub(crate) fn insert(
     w: &mut World,
@@ -75,6 +109,7 @@ pub(crate) fn insert(
         pickers: Vec::with_capacity(crate::constants::MAX_PLAYERS),
         camp,
         owner: None,
+        first_pick: None,
     });
     id
 }
@@ -91,7 +126,8 @@ pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     });
     insert(w, at, options, None)
 }
-/// Source chest drop: the interactive augment pool of the eligible pickers, rolled with the reward RNG (exact draw order).
+/// [`drop_augment_in`] under the legacy card table (the capture tests' form).
+#[cfg(test)]
 pub(crate) fn drop_augment(
     w: &mut World,
     at: Vec2,
@@ -100,11 +136,39 @@ pub(crate) fn drop_augment(
     elite: bool,
     eligible: &[PlayerId],
 ) -> u32 {
-    let pickers: Vec<crate::cards::Build> = eligible
+    drop_augment_in(
+        crate::cards::Tuning::legacy(),
+        w,
+        at,
+        camp,
+        zone,
+        elite,
+        eligible,
+    )
+}
+
+/// Source chest drop: the interactive augment pool of the eligible pickers under the world's card table (`k.cards`,
+/// [`crate::cards::Tuning::offer_pool`]: the legacy `rewardAugmentPool` under `Legacy`), rolled with the reward RNG
+/// (exact draw order).
+pub(crate) fn drop_augment_in(
+    tuning: &crate::cards::Tuning,
+    w: &mut World,
+    at: Vec2,
+    camp: Option<u16>,
+    zone: crate::FactionId,
+    elite: bool,
+    eligible: &[PlayerId],
+) -> u32 {
+    let pickers: Vec<Picker> = eligible
         .iter()
-        .filter_map(|pid| w.player(*pid).map(|p| p.build))
+        .filter_map(|pid| {
+            w.player(*pid).map(|p| Picker {
+                build: p.build,
+                faction: p.faction(),
+            })
+        })
         .collect();
-    let pool = augment_pool(&pickers);
+    let pool = tuning.offer_pool(&pickers);
     let mut options = [None; 3];
     if !pool.is_empty() {
         let mut draw = || w.reward_rng.next_f64();
@@ -139,6 +203,7 @@ pub(crate) fn drop_trophy(
         pickers: Vec::with_capacity(crate::constants::MAX_PLAYERS),
         camp: None,
         owner: Some(owner),
+        first_pick: None,
     });
     id
 }
@@ -149,6 +214,7 @@ pub(crate) fn drop_trophy(
 /// arrives on the hook arguments because a clear forgets its contributors before the pass pays.
 pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
     let crate::hooks::HookArgs::MobKilled {
+        killer,
         camp,
         elite,
         zone,
@@ -176,11 +242,32 @@ pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hook
                     .is_some_and(|p| p.standing() && near_camp(k, camp, p.pos()))
             })
             .collect();
-        drop_augment(&mut *hx.w, spot, Some(camp as u16), *zone, true, &eligible);
+        let id = drop_augment_in(
+            k.cards,
+            &mut *hx.w,
+            spot,
+            Some(camp as u16),
+            *zone,
+            true,
+            &eligible,
+        );
+        // P-ELITE-PICK-1 (Rework only, no draw): the credited killer, if standing, holds the first pick for the window,
+        // wherever they stand (eligibility near the camp shapes only the cards rolled).
+        if k.config.elites == crate::EliteRule::Rework
+            && hx.w.player(*killer).is_some_and(|p| p.standing())
+        {
+            let until = hx.w.server_time + first_pick_window_ms();
+            if let Some(c) = hx.w.reward_chests.iter_mut().rev().find(|c| c.id == id) {
+                c.first_pick = Some(FirstPick {
+                    killer: *killer,
+                    until,
+                });
+            }
+        }
     } else {
         // Source: an elite without a camp (a training/dummy death) drops at its body with no eligible pickers, so the
         // conditional pool is empty and no card is held by all.
-        drop_augment(&mut *hx.w, *at, None, *zone, true, &[]);
+        drop_augment_in(k.cards, &mut *hx.w, *at, None, *zone, true, &[]);
     }
 }
 
@@ -260,7 +347,8 @@ pub(crate) fn choose(
     if !birth_available(c.held_until_tick, w.tick) || w.server_time >= c.expires_at {
         return Err(Refusal::Gone);
     }
-    if c.owner.is_some_and(|owner| owner != who) {
+    // P-ELITE-PICK-1: another player's first-pick window refuses like another player's Trophy (card and skip alike).
+    if c.owner.is_some_and(|owner| owner != who) || first_pick_blocks(w, c, who) {
         return Err(Refusal::NotYours);
     }
     reach(k, w.rt.gates_locked, w.players[pi].pos(), c.at)?;
@@ -300,13 +388,13 @@ pub(crate) fn choose(
         match option {
             OptionId::Card(id) if w.players[pi].build.owns(id) => return Err(Refusal::Owned),
             OptionId::Card(id)
-                if id.definition().requires.is_some_and(|req| {
+                if k.cards.def(id).requires.is_some_and(|req| {
                     !crate::cards::CardId::ALL.iter().any(|base| {
-                        base.definition().base == Some(req) && w.players[pi].build.owns(*base)
+                        k.cards.def(*base).base == Some(req) && w.players[pi].build.owns(*base)
                     })
                 }) =>
             {
-                return Err(Refusal::Needs(id.definition().requires.expect("checked")));
+                return Err(Refusal::Needs(k.cards.def(id).requires.expect("checked")));
             }
             OptionId::Boost(id)
                 if u32::from(w.players[pi].build.boosts[id.index()])
@@ -360,7 +448,19 @@ pub(crate) fn expire(cx: &mut crate::systems::Cx) {
 pub(crate) fn clear(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
     hx.w.reward_chests.clear();
 }
-pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Result<(), String> {
+/// `cards`: the world's card table; its chest pool is [`crate::cards::Tuning::in_pool`] (the catalog pool and, under
+/// `Rework`, the native pool cards). A camp chest (`camp: Some`, rolled by [`drop_augment_in`]) offers
+/// only its cards; a camp-less chest (a campless elite's, the console's, or one a test declares) is not pool-checked.
+///
+/// `elites`: the world's elite rule (`k.config.elites`). A first-pick window (P-ELITE-PICK-1) stands only on a shared
+/// camp chest of a `Rework` world, held by a player who joined, and ends no later than its drop
+/// (`expires_at - lifetime_ms`) plus the window. A past end is valid (the window closed while the chest stands).
+pub(crate) fn validate_world(
+    w: &World,
+    cards: &crate::cards::Tuning,
+    elites: crate::EliteRule,
+    near: impl Fn(f64, f64) -> bool,
+) -> Result<(), String> {
     for (i, c) in w.reward_chests.iter().enumerate() {
         let n = c.options.iter().flatten().count();
         if c.id == 0
@@ -392,6 +492,11 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
                 .iter()
                 .flatten()
                 .any(|o| matches!(o, OptionId::Kill(a) if !(a.gain.is_finite() && a.gain > 0.)))
+            || (c.camp.is_some()
+                && c.options
+                    .iter()
+                    .flatten()
+                    .any(|o| matches!(o, OptionId::Card(id) if !cards.in_pool(*id))))
             || c.options[..n].iter().any(Option::is_none)
             || c.options[n..].iter().any(Option::is_some)
             || c.options
@@ -410,6 +515,14 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
                         || c.taken[..j].contains(&Some(id))
                 })
             })
+            || c.first_pick.is_some_and(|f| {
+                elites != crate::EliteRule::Rework
+                    || c.camp.is_none()
+                    || c.owner.is_some()
+                    || w.roster.name(f.killer).is_none()
+                    || !f.until.is_finite()
+                    || f.until > c.expires_at - DEFINITION.lifetime_ms + first_pick_window_ms()
+            })
         {
             return Err("invalid reward chest".into());
         }
@@ -419,5 +532,13 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
 
 #[cfg(test)]
 mod chest_runtime_tests;
+#[cfg(test)]
+mod first_pick_tests;
+#[cfg(test)]
+mod first_pick_view_tests;
+#[cfg(test)]
+mod native_pool_tests;
+#[cfg(test)]
+mod pool_tests;
 #[cfg(test)]
 mod tests;

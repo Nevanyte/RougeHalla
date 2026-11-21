@@ -179,3 +179,21 @@ pub(super) fn roster_into(sim: &Sim, out: &mut Vec<RosterRow>) {
         out.sort_unstable_by_key(|r| r.id);
     }
 }
+
+/// P-AUG-NATIVE-5: refreshes `out` to every `Alive` Marked Man holder's body position, by ascending id, the same for
+/// every viewer and whatever its vision (the minimap marker, deliberately public). Reuses `out` (no allocation once warm).
+pub(super) fn marked_into(sim: &Sim, out: &mut Vec<MarkedView>) {
+    out.clear();
+    for p in sim.players() {
+        if p.status == Status::Alive && crate::cards::native::holds_marked_man(&p.build) {
+            out.push(MarkedView {
+                id: p.id,
+                x: p.body.x,
+                y: p.body.y,
+            });
+        }
+    }
+    if !out.is_sorted_by_key(|r| r.id) {
+        out.sort_unstable_by_key(|r| r.id);
+    }
+}

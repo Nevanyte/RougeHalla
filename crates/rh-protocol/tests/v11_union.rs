@@ -124,7 +124,8 @@ fn reward_card_positions_cover_the_catalog_and_refuse_the_next_position_atomical
     let StateItem::RewardChests(rows) = &mut items[0] else {
         panic!()
     };
-    rows[0].options[1].id = WireRewardId::Card(80);
+    // P-WIRE19-A (oracle-amend): the native ids 80..=93 are on the wire; the next position is 94.
+    rows[0].options[1].id = WireRewardId::Card(94);
     let mut bytes = vec![1, 2, 3];
     assert!(message.encode_into(&mut bytes).is_err());
     assert_eq!(bytes, [1, 2, 3]);

@@ -102,16 +102,23 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         }
     }
     let npc = !cx.w.is_player(ix);
+    // Does an attack start this step? Only reads of the fighter, which nothing below changes before the test.
+    let starts = {
+        let p = cx.w.core(ix);
+        let wants = p.weapon.held || now <= p.weapon.buffered_until;
+        p.weapon.action.is_none()
+            && wants
+            && now + TIE_EPS_MS >= p.weapon.ready_at
+            && !crate::status_runtime::action_blocked(&p.statuses, now)
+    };
+    // Plant Your Feet (legacy `startAttack`, `plantArmed` at the server time, players only): decided here, before the
+    // attack exists, and spent below only if one starts (so it is read only then: P-AUG-PERF-1).
+    let planted = starts && !npc && crate::cards::plant_armed(&cx.w.players[ix.slot()], now);
     let zombie_profile = super::plague_zombies::attack_profile(cx.k, cx.w, cx.w.core(ix).id);
     let sheet = cx.w.paced_faction_spec(ix);
     let base_hp = cx.w.faction_spec(ix).map(|f| f.hp);
     let p = cx.w.core_mut(ix);
-    let wants = p.weapon.held || now <= p.weapon.buffered_until;
-    if p.weapon.action.is_none()
-        && wants
-        && now + TIE_EPS_MS >= p.weapon.ready_at
-        && !crate::status_runtime::action_blocked(&p.statuses, now)
-    {
+    if starts {
         let (tm, packet) = if let Some((tm, packet)) = zombie_profile {
             (tm, packet)
         } else {
@@ -134,8 +141,28 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
             };
             (tm, packet)
         };
-        start_attack(p, now, cx.k.tick_ms(), cx.ev, weapon, tm, packet);
+        // The armed attack carries `1 + bonus` range and damage (the table's bonus: `k.cards`); the damage factor is
+        // the baked multiplier the ledger counts against the outgoing row cap (legacy `packet.mult`).
+        let (mut packet, mut range_mult) = (packet, 1.0);
+        if planted {
+            let bonus = 1. + cx.k.cards.numbers().plant_feet_bonus;
+            packet.raw *= bonus;
+            range_mult = bonus;
+        }
+        start_attack(
+            p,
+            now,
+            cx.k.tick_ms(),
+            cx.ev,
+            weapon,
+            tm,
+            packet,
+            range_mult,
+        );
         let id = p.id;
+        if planted {
+            crate::cards::spend_plant(&mut cx.w.players[ix.slot()], now);
+        }
         if cx.k.config.faction_mode.frost() {
             cx.s.attack_started[ix.slot()] = true;
         }
@@ -158,6 +185,8 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
     }
 }
 
+// The sim's step (P-TICK-1b) and Plant Your Feet's range factor (P-SIM-PLANT) each joined the legacy argument list.
+#[allow(clippy::too_many_arguments)]
 fn start_attack(
     p: &mut FighterCore,
     now: f64,
@@ -166,6 +195,7 @@ fn start_attack(
     weapon: WeaponId,
     tm: Timings,
     packet: crate::state::Packet,
+    range_mult: f64,
 ) {
     let start = if p.weapon.pressed_at <= p.weapon.ready_at {
         // A press buffered before `ready_at` starts then, or at most one step of the sim back.
@@ -194,6 +224,7 @@ fn start_attack(
         a: aim,
         packet,
         roam_armed: false,
+        range_mult,
     });
     p.weapon.ready_at = start + tm.interval * 1000.0;
     if tm.root > 0.0 {
@@ -231,6 +262,7 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
                 a: act.a,
                 rewind_t,
                 packet: act.packet,
+                range_mult: act.range_mult,
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
@@ -249,6 +281,7 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
                 aim,
                 packet: act.packet,
                 roam_armed: act.roam_armed,
+                range_mult: act.range_mult,
             });
             p.weapon.draw_started_at = 0.0;
         }

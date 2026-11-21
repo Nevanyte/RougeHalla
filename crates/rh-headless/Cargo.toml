@@ -26,6 +26,8 @@ required-features = ["bench"]
 [features]
 # Builds scalebench: N fighters past MAX_PLAYERS (rh-sim's `bench` constructor).
 bench = ["rh-sim/bench"]
+# Elite mode of camp_bench: minute-5 builds through rh-sim's trusted build setup. Opt-in; never in rh-server.
+elite-bench = ["rh-sim/trusted-build-setup"]
 
 [lints]
 workspace = true

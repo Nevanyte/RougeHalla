@@ -540,7 +540,7 @@
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.mts",
-      "sha256": "4439b0187d2243c8b1b2d2ecd2bcb22a606d8f047724d700a6207c6b93c3aaad"
+      "sha256": "cc6e87a69c14aedc97e8b8fc879920ffcf83d8d623dd64c5911a6a891cb35c0e"
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.sh",
@@ -662,26 +662,26 @@
     {
       "path": "parity/card-runtime/source.json",
       "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
-      "priorAcceptedEffectiveSha256": "2b425b02b41163eb6725aab767fcc029f716677d47ba66ae778a42b21d87b340",
-      "effectiveSha256": "7cb8040b16176c526b131e7445b22b5fa5bc751009a70fd6ae8389d8dc574031",
+      "priorAcceptedEffectiveSha256": "7cb8040b16176c526b131e7445b22b5fa5bc751009a70fd6ae8389d8dc574031",
+      "effectiveSha256": "eb66dd5e9bb79ec43f2e5f92cc6243dac7910719a555a281e1b4d1c8753b9f07",
       "scope": "metadata-only runtime provenance overlay: custom catalog immutable reference hash and runtime capture harness pin changed, plus the accepted overlay record; all 65 witness cases/cleanControls/comparison/privateOracleRecords/controlCorrection unchanged",
-      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
       "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
-      "priorAcceptedEffectiveSha256": "6250fb9277f6f016527ddf256a85e2b004a1035b977105bd1f2ea112c773f557",
-      "effectiveSha256": "bdc4a742b07f91edf10a402bec26754811d4e00df81206905c55d763911103b4",
+      "priorAcceptedEffectiveSha256": "bdc4a742b07f91edf10a402bec26754811d4e00df81206905c55d763911103b4",
+      "effectiveSha256": "0e81c141aab6cc99819c1f192fc775e1353d4498f65f3bf3df09a3d4b4278f5e",
       "scope": "metadata-only runtime input inventory overlay: the same accepted catalog reference/harness/overlay metadata; sourceInputs and inventory semantics unchanged",
-      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
       "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
-      "priorAcceptedEffectiveSha256": "03411d9440b1c7b799ee971d801638b2305f27598852f719e85c912e0ddce607",
-      "effectiveSha256": "8e22485fe88ba0d34f7c9df0c3b83ef3b20f5f3431a8ff9685a6c23f7b089807",
+      "priorAcceptedEffectiveSha256": "8e22485fe88ba0d34f7c9df0c3b83ef3b20f5f3431a8ff9685a6c23f7b089807",
+      "effectiveSha256": "558741bb356ad1634457ac60aa5fe43064e6e26027e78acbd92284895b6b3d67",
       "scope": "narrow accepted-provenance overlay implementation in the pinned runtime capture tool only (catalog reference chain + overlay metadata record); executable engine/cases/inspection/controls unchanged",
-      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+      "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
     }
   ],
   "actualPinnedInputs": [
@@ -694,15 +694,15 @@
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
-      "bytes": 25533,
-      "sha256": "bdc4a742b07f91edf10a402bec26754811d4e00df81206905c55d763911103b4",
+      "bytes": 25359,
+      "sha256": "0e81c141aab6cc99819c1f192fc775e1353d4498f65f3bf3df09a3d4b4278f5e",
       "frozenOriginalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
-        "effectiveSha256": "bdc4a742b07f91edf10a402bec26754811d4e00df81206905c55d763911103b4",
-        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+        "effectiveSha256": "0e81c141aab6cc99819c1f192fc775e1353d4498f65f3bf3df09a3d4b4278f5e",
+        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
       }
     },
     {
@@ -714,15 +714,15 @@
     },
     {
       "path": "parity/card-runtime/source.json",
-      "bytes": 53035463,
-      "sha256": "7cb8040b16176c526b131e7445b22b5fa5bc751009a70fd6ae8389d8dc574031",
+      "bytes": 53035343,
+      "sha256": "eb66dd5e9bb79ec43f2e5f92cc6243dac7910719a555a281e1b4d1c8753b9f07",
       "frozenOriginalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
-        "effectiveSha256": "7cb8040b16176c526b131e7445b22b5fa5bc751009a70fd6ae8389d8dc574031",
-        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+        "effectiveSha256": "eb66dd5e9bb79ec43f2e5f92cc6243dac7910719a555a281e1b4d1c8753b9f07",
+        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
       }
     },
     {
@@ -741,15 +741,15 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "bytes": 8114,
-      "sha256": "8e22485fe88ba0d34f7c9df0c3b83ef3b20f5f3431a8ff9685a6c23f7b089807",
+      "bytes": 7994,
+      "sha256": "558741bb356ad1634457ac60aa5fe43064e6e26027e78acbd92284895b6b3d67",
       "frozenOriginalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
-        "effectiveSha256": "8e22485fe88ba0d34f7c9df0c3b83ef3b20f5f3431a8ff9685a6c23f7b089807",
-        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20/README.md"
+        "effectiveSha256": "558741bb356ad1634457ac60aa5fe43064e6e26027e78acbd92284895b6b3d67",
+        "evidence": "docs/evidence/ci-provenance-refresh-2026-11-20-check-vectors/README.md"
       }
     },
     {

@@ -91,6 +91,17 @@ pub struct RewardChestView {
     pub options: Vec<RewardOptionView>,
     pub picked: bool,
     pub can_choose: bool,
+    /// P-WIRE19-A: the killer first-pick window (P-ELITE-PICK-1) while it is in force: its public end and whether it is
+    /// this viewer's own. `None` when the chest has no window, it ran out, or its killer stopped standing.
+    pub first_pick: Option<FirstPickView>,
+}
+/// P-WIRE19-A: a chest's first-pick window as one viewer sees it. Names no player (C-OBS).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct FirstPickView {
+    /// The window's end, server ms (open while `server_time < until`).
+    pub until: f64,
+    /// Whether the window is this viewer's own (the viewer is the credited killer).
+    pub mine: bool,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BuildView {

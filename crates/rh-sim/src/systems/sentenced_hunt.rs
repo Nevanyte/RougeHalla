@@ -130,7 +130,8 @@ pub(crate) fn fighter_out(hx: &mut Hx, args: &HookArgs) {
             continue;
         }
         let hunter_id = hunter.id;
-        let stacks = hx.w.players[hi].hunt_stacks.saturating_add(1);
+        let before = hx.w.players[hi].hunt_stacks;
+        let stacks = before.saturating_add(1);
         hx.w.players[hi].hunt_stacks = stacks;
         hx.ev.push(Event::MarkNotice {
             recipient: hunter_id,
@@ -138,6 +139,15 @@ pub(crate) fn fighter_out(hx: &mut Hx, args: &HookArgs) {
                 stacks: u32::from(stacks),
             },
         });
+        // P-AUG-NATIVE-1b: the native hunt hook, with the stacks this hunt paid.
+        crate::cards::native::hooks::fire(
+            hx.k,
+            hx.w,
+            hunter_id,
+            crate::cards::native::hooks::NativeEvent::HuntStack {
+                stacks: u32::from(stacks) - u32::from(before),
+            },
+        );
     }
 }
 

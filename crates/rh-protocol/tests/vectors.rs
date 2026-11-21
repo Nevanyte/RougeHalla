@@ -200,7 +200,26 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "state_trade_offers_over_limit"
             | "state_trade_stats_over_limit"
             | "state_trade_merchants_over_limit" => TooMany(0),
-            "state_reward_card_id_80" => BadField("reward id"),
+            // P-WIRE19-A (oracle-amend): native ids 80..=93 are valid; the first card id refused is 94. The first-pick
+            // window's tag and flag bytes, and a window that is not finite or ends after the chest.
+            "state_reward_card_id_94" => BadField("reward id"),
+            "state_reward_first_pick_tag_2" => BadTag(2),
+            "state_reward_first_pick_mine_2" => BadField("flag"),
+            "state_reward_first_pick_nonfinite" | "state_reward_first_pick_after_expiry" => {
+                BadField("reward chest")
+            }
+            // P-WIRE19-B (oracle-amend): State key 14, the viewer's own readout rows (count, card, kind, value, order).
+            "state_readouts_count_29" => BadField("readout count"),
+            "state_readouts_card_79" | "state_readouts_card_94" => BadField("readout card"),
+            "state_readouts_kind_3" => BadField("readout kind"),
+            "state_readouts_value_nan"
+            | "state_readouts_value_negative"
+            | "state_readouts_value_over_max"
+            | "state_readouts_max_infinite" => BadField("readout value"),
+            "state_readouts_order" => BadField("readout order"),
+            "state_marked_count_33" => BadField("marked count"),
+            "state_marked_id_0" => BadField("marked id"),
+            "state_marked_order" => BadField("marked order"),
             "state_roster_count_over_32" => BadField("roster count"),
             "state_roster_id_zero" | "state_roster_order" => BadField("roster order"),
             "state_roster_flags_unknown" => BadField("roster flags"),

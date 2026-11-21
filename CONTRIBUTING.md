@@ -55,6 +55,10 @@ python3 tools/perfproof/perfproof.py --help         # workloads, --only, the gat
 - Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate the golden vectors
   `protocol/fixtures/v<PROTOCOL_VERSION>.json` (`cargo run -p rh-protocol --bin protocol-fixtures`); the Rust, C# and JS
   decoders must all pass them.
+- Content hash moves: run `scripts/regolden-content.sh` (`--check` lists stale copies). It rewrites the text copies and
+  runs the documented commands for the protected ones: `cargo test -p rh-sim --lib record_ability_hash_tape -- --ignored`
+  (`parity/abilities/hash-tape.json`) and `cargo run -p rh-parity --bin hitbox-fixtures`
+  (`protocol/fixtures/archetypes_v1.json`; `--check` verifies).
 - Every ported mechanic arrives with captured legacy fixtures and a parity test.
 - Shared files (`Cargo.lock`, `docs/MIGRATION.md`, the CONTRACTS status table) are edited by one coordinator at a time.
 - Project-authored code uses the MIT license (`LICENSE`, owner choice 2026-11-05). Dependencies and third-party assets

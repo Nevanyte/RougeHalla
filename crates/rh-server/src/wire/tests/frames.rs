@@ -45,7 +45,7 @@ fn an_fx_frame_off_the_grid_is_refused_not_clamped() {
 #[test]
 fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
     use rh_sim::status_runtime::{AbilityId, StatusKind};
-    assert_eq!(rh_protocol::PROTOCOL_VERSION, 21);
+    assert_eq!(rh_protocol::PROTOCOL_VERSION, 22); // 19 -> 20: P-SYNC-ORIGIN-1; origin 20, 21 -> 22: P-SYNC-ORIGIN-2
     let env = seed1_match(1);
     let id = env.sim.players()[0].id;
     let mut publisher = Publisher::default();

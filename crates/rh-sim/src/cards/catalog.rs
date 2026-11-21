@@ -87,6 +87,21 @@ pub enum CardId {
     GallowsPatience,
     NoCommutation,
     FinalVerdict,
+    // P-AUG-NATIVE-1a: the 14 native augments (indices 80..=93), outside `ALL`; see `CardId::NATIVE`.
+    MarksmansTally,
+    Bastion,
+    Calluses,
+    ExecutionersLedger,
+    EighthStrike,
+    Pathfinder,
+    HazardWalker,
+    WishEngine,
+    Overflow,
+    CorpseHoarder,
+    Stoked,
+    Glacier,
+    TrophyHunter,
+    MarkedMan,
 }
 
 impl CardId {
@@ -171,6 +186,23 @@ impl CardId {
         Self::GallowsPatience,
         Self::NoCommutation,
         Self::FinalVerdict,
+    ];
+    /// P-AUG-NATIVE-1a: the native augments (hand-written table `cards/native`), in index order 80..=93.
+    pub const NATIVE: [Self; 14] = [
+        Self::MarksmansTally,
+        Self::Bastion,
+        Self::Calluses,
+        Self::ExecutionersLedger,
+        Self::EighthStrike,
+        Self::Pathfinder,
+        Self::HazardWalker,
+        Self::WishEngine,
+        Self::Overflow,
+        Self::CorpseHoarder,
+        Self::Stoked,
+        Self::Glacier,
+        Self::TrophyHunter,
+        Self::MarkedMan,
     ];
     pub const fn index(self) -> usize {
         self as usize
@@ -257,12 +289,29 @@ impl CardId {
             Self::GallowsPatience => "gallowsPatience",
             Self::NoCommutation => "noCommutation",
             Self::FinalVerdict => "finalVerdict",
+            Self::MarksmansTally => "marksmansTally",
+            Self::Bastion => "bastion",
+            Self::Calluses => "calluses",
+            Self::ExecutionersLedger => "executionersLedger",
+            Self::EighthStrike => "eighthStrike",
+            Self::Pathfinder => "pathfinder",
+            Self::HazardWalker => "hazardWalker",
+            Self::WishEngine => "wishEngine",
+            Self::Overflow => "overflow",
+            Self::CorpseHoarder => "corpseHoarder",
+            Self::Stoked => "stoked",
+            Self::Glacier => "glacier",
+            Self::TrophyHunter => "trophyHunter",
+            Self::MarkedMan => "markedMan",
         }
     }
     pub fn tier(self) -> u8 {
-        super::catalog_data::DEFINITIONS[self.index()].tier
+        self.definition().tier
     }
     pub fn definition(self) -> &'static CardDef {
+        if self.index() >= Self::ALL.len() {
+            return super::native::definition(self);
+        }
         &super::catalog_data::DEFINITIONS[self.index()]
     }
 }

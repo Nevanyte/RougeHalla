@@ -72,6 +72,7 @@ fn initialize_body(
             camps: Vec::new(),
             life: Vec::new(),
             buffs: Default::default(),
+            elites: crate::mob_runtime::EliteTuning::stored_rule(k.config.elites),
         });
         w.practice = Some(crate::state::PracticeRuntime {
             spawned: 0,
@@ -159,6 +160,7 @@ fn initialize_body(
         camps,
         combat: k.config.mob_mode == MobMode::Pve,
         buffs: crate::mob_runtime::CampBuffs(buffs),
+        elites: crate::mob_runtime::EliteTuning::stored_rule(k.config.elites),
     });
     Ok(())
 }
@@ -203,7 +205,14 @@ pub(super) fn spawn_camp(k: &MatchStatic, w: &mut World, ci: usize) {
                 elite: member.elite,
             },
         };
-        let mob = Mob::born(&provenance, at, facing, w.server_time, k.config.hitboxes);
+        let mob = Mob::born_with(
+            crate::mob_runtime::EliteTuning::of(k.config.elites),
+            &provenance,
+            at,
+            facing,
+            w.server_time,
+            k.config.hitboxes,
+        );
         w.actor_history.push(provenance);
         w.mobs.push(mob);
     }
@@ -240,6 +249,7 @@ pub(crate) fn validate(
     w: &World,
     near: impl Fn(f64, f64) -> bool,
 ) -> Result<(), String> {
+    check_elite_rule(k, w)?;
     if k.config.training {
         return super::training::validate_actors(k, w, near).map_err(str::to_owned);
     }
@@ -456,7 +466,8 @@ pub(crate) fn validate(
         let d = &map.camps[*camp as usize];
         let p = d.spots[*spot as usize];
         let facing = crate::math::atan2(d.y - p.y, d.x - p.x);
-        let mut expected = Mob::born(
+        let mut expected = Mob::born_with(
+            crate::mob_runtime::EliteTuning::of(k.config.elites),
             w.actor_history.get(m.core.id).expect("provenance checked"),
             Vec2::new(p.x, p.y),
             facing,
@@ -535,7 +546,9 @@ pub(crate) fn place_practice_mob(
             elite,
         },
     };
-    let mut mob = Mob::born(&provenance, at, facing, w.server_time, hitboxes);
+    // A practice elite plays the world's elite numbers (the training runtime stores the rule).
+    let elites = crate::mob_runtime::EliteTuning::of_world(w);
+    let mut mob = Mob::born_with(elites, &provenance, at, facing, w.server_time, hitboxes);
     mob.core
         .signature
         .chillers
@@ -618,3 +631,78 @@ pub(super) fn initial_prefix(
 }
 
 type InitialReplay = crate::systems::initial_loot::Replay;
+
+/// P-AUG-RULES-1 (`check_world`, through [`validate`]): the elite rule a mob runtime stores (`MobRuntime::elites`, read by
+/// the elite readers without the match statics) is the hashed config's, as `EliteTuning::stored_rule` writes it. One
+/// value per statics digest, so the unit form of `Legacy` cannot be confused with a written `Rework` (`hash.rs` docs).
+fn check_elite_rule(k: &MatchStatic, w: &World) -> Result<(), String> {
+    let Some(rt) = w.mob_runtime.as_ref() else {
+        return Ok(());
+    };
+    let want = crate::mob_runtime::EliteTuning::stored_rule(k.config.elites);
+    if rt.elites == want {
+        Ok(())
+    } else {
+        Err(format!(
+            "the mob runtime's elite rule {:?} is not the config's ({:?}, stored as {want:?})",
+            rt.elites, k.config.elites
+        ))
+    }
+}
+
+#[cfg(test)]
+mod elite_rule_tests {
+    use crate::arenas::practice_arena;
+    use crate::content::FactionId;
+    use crate::math::Vec2;
+    use crate::sim::{Placement, Secrets, Sim, SimConfig};
+    use crate::EliteRule;
+
+    /// `check_elite_rule`'s refusal: a training world (it always installs a mob runtime) whose runtime claims an elite
+    /// rule its config does not store is refused, under either config rule. What the config stores is
+    /// `EliteTuning::stored_rule`: `Legacy` (a unit) while the elite numbers equal legacy's, `Rework` (written as
+    /// `"rework"`) once they differ (P-ELITE-TUNE-1); the test reads it rather than assuming either.
+    #[test]
+    fn a_mob_runtime_elite_rule_the_config_does_not_store_is_refused() {
+        for elites in [EliteRule::Legacy, EliteRule::Rework] {
+            let sim = Sim::reset_active(
+                SimConfig {
+                    training: true,
+                    elites,
+                    ..SimConfig::default()
+                },
+                practice_arena(),
+                Secrets::from_seed(9),
+                &[Placement {
+                    profile: "elite-rule".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(400., 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                }],
+            );
+            let mut cp = serde_json::to_value(&sim).unwrap();
+            assert!(cp["world"]["mob_runtime"].is_object(), "{elites:?}");
+            let stored = crate::mob_runtime::EliteTuning::stored_rule(elites);
+            let other = if stored == EliteRule::Legacy {
+                EliteRule::Rework
+            } else {
+                EliteRule::Legacy
+            };
+            assert_eq!(
+                cp["world"]["mob_runtime"]["elites"],
+                serde_json::to_value(stored).unwrap(),
+                "{elites:?}: the runtime stores the config's stored rule"
+            );
+            assert!(Sim::restore(&cp).is_ok(), "{elites:?}: the produced world");
+            cp["world"]["mob_runtime"]["elites"] = serde_json::to_value(other).unwrap();
+            let err = Sim::restore(&cp).expect_err("a runtime rule the config does not store");
+            assert!(
+                format!("{err:?}").contains("elite rule"),
+                "{elites:?}: {err:?}"
+            );
+        }
+    }
+}

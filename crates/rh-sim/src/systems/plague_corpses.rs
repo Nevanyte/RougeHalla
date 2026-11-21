@@ -120,6 +120,13 @@ fn consume(
     let amount = crate::content::faction(FactionId::Plague).hp * PLAGUE_CORPSE_HEAL_SHARE;
     heal::apply(w, ev, ix, amount, heal::Kind::Ordinary);
     plague_zombies::raise_or_grow(k, w, owner_id);
+    // P-AUG-NATIVE-1b: the native corpse-harvest hook (both the F action and the auto harvest reach here).
+    crate::cards::native::hooks::fire(
+        k,
+        w,
+        owner_id,
+        crate::cards::native::hooks::NativeEvent::CorpseHarvest,
+    );
     toast(
         w,
         ev,

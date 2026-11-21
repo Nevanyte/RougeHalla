@@ -75,8 +75,13 @@ fn project_where(
     if !ready.is_finite() {
         return Err(Error::NonFiniteReadyClock);
     }
-    let [as_milli, windup_milli, speed_milli] =
-        checked_mirrors(owner.modifiers.owner_combat_mirrors())?;
+    let mut mirrors = owner.modifiers.owner_combat_mirrors();
+    // P-AUG-NATIVE-3c: a Pathfinder holder's walk speed carries its share (the wire's milli rounding); share 0 keeps
+    // the cached wire value bit for bit.
+    if crate::cards::native::move_speed_share(&owner.build) > 0. {
+        mirrors[2] = stat_fold::encode_mult(crate::modifiers::speed_mult(owner));
+    }
+    let [as_milli, windup_milli, speed_milli] = checked_mirrors(mirrors)?;
     let lock = match owner.weapon.targeting.target {
         None => Lock::Clear,
         Some(id) => Lock::Held {

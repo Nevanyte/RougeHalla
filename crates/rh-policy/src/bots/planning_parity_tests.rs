@@ -445,6 +445,7 @@ fn seat() -> HumanBot {
         observation_version: rh_sim::OBSERVATION_VERSION,
         tick_ms: 50.,
         frost_wish: rh_sim::FrostWish::Freeze,
+        elites: rh_sim::EliteRule::Legacy,
     });
     bot
 }

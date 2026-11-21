@@ -20,6 +20,10 @@ use rh_sim::{
 use serde::Serialize;
 use std::sync::Arc;
 
+#[cfg(feature = "elite-bench")]
+#[path = "../elite_bench.rs"]
+mod elite_bench;
+
 /// The owner-approved relative band (plus or minus 10%, plan 2026-11-10) outside which a cell is listed.
 const BAND: f64 = 0.10;
 const MAP: &str = concat!(
@@ -420,6 +424,9 @@ fn fail(msg: &str) -> ! {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let flag = |n: &str| args.iter().any(|a| a == n);
+    if flag("--elite") || flag("--sample-builds") {
+        elite_main(&args);
+    }
     let value = |n: &str| {
         args.iter().position(|a| a == n).map(|i| {
             args.get(i + 1)
@@ -572,4 +579,23 @@ fn main() {
         "{}",
         serde_json::to_string(&report).expect("report serialises")
     );
+}
+
+/// `--elite` (the elite death-rate table) and `--sample-builds` (writes the minute-5 sample): only in a build with the
+/// `elite-bench` feature; any other build says so and exits 2.
+#[cfg(feature = "elite-bench")]
+fn elite_main(args: &[String]) -> ! {
+    let rest: Vec<String> = args.iter().filter(|a| *a != "--elite").cloned().collect();
+    match elite_bench::run(&rest) {
+        Ok(out) => {
+            println!("{}", out.json);
+            eprintln!("{}", out.table);
+            std::process::exit(0)
+        }
+        Err(e) => fail(&e),
+    }
+}
+#[cfg(not(feature = "elite-bench"))]
+fn elite_main(_args: &[String]) -> ! {
+    fail("--elite and --sample-builds need a build with `--features elite-bench`")
 }

@@ -539,4 +539,132 @@ content! {
     /// A fighter with no room on either side keeps a gap: every wall tile whose centre is within this of it on both
     /// axes leaves the wall (legacy `raiseWall` `:585` `PLAYER_RADIUS + 32`, unnamed in legacy).
     WALL_GAP_REACH: f64 = PLAYER_RADIUS + 32., "u";
+
+    // ---- The Augment_Tuning rework numbers (P-AUG-CONTENT-1; read only under SimConfig::augments = Rework). ----
+    /// Tank Engine: max health gained per blocked point.
+    REWORK_TANK_ENGINE_PER: f64 = 1.5, "x";
+    /// Tank Engine: the most max health it can add.
+    REWORK_TANK_ENGINE_CAP: f64 = 350., "hp";
+    /// Plant Your Feet: the damage bonus.
+    REWORK_PLANT_FEET_BONUS: f64 = 0.35, "share";
+    /// Slow Burn: the damage-over-time multiplier.
+    REWORK_SLOW_BURN_DOT: f64 = 0.85, "x";
+    /// Pocket Sand: the slow on the attacker.
+    REWORK_POCKET_SAND_SLOW: f64 = 0.4, "share";
+    /// Pocket Sand: how long the slow lasts.
+    REWORK_POCKET_SAND_MS: f64 = 1500., "ms";
+    /// Overkill: the splash radius.
+    REWORK_OVERKILL_RADIUS: f64 = 260., "u";
+    /// Third Time's the Charm: extra on-hit applications (1 + 1.5 = 2.5x).
+    REWORK_THIRD_TIME_EXTRA: f64 = 1.5, "x";
+    /// Spiked Shell: the returned share.
+    REWORK_SPIKED_SHELL_SHARE: f64 = 0.2, "share";
+    /// Siphon: the damage-over-time lifesteal.
+    REWORK_SIPHON_SHARE: f64 = 0.25, "share";
+    /// Hemorrhage: the bleed per hit.
+    REWORK_HEMORRHAGE_PER: f64 = 0.12, "share";
+    /// Second Wind: the health share that triggers it.
+    REWORK_SECOND_WIND_BELOW: f64 = 0.3, "share";
+    /// Second Wind: the heal share.
+    REWORK_SECOND_WIND_HEAL: f64 = 0.25, "share";
+    /// Gambler: the chance to double.
+    REWORK_GAMBLER_UP_CHANCE: f64 = 0.18, "chance";
+    /// Gambler: the chance to halve.
+    REWORK_GAMBLER_DOWN_CHANCE: f64 = 0.12, "chance";
+    /// Committed: the damage bonus.
+    REWORK_COMMITTED_DAMAGE: f64 = 0.22, "share";
+    /// Glass Cannon: the max health change.
+    REWORK_GLASS_CANNON_MAX_HP: f64 = -0.22, "share";
+    /// Machine Gun: the hit multiplier.
+    REWORK_MACHINE_GUN_HIT: f64 = 0.55, "x";
+    /// Fists of Fury: the unarmed attack speed bonus.
+    REWORK_FISTS_ATTACK_SPEED: f64 = 0.5, "share";
+    /// Here Comes the Boom: the hit multiplier.
+    REWORK_BOOM_HIT: f64 = 2.6, "x";
+    /// The outgoing row ceiling and the fold's hit clamp under Rework.
+    REWORK_OUTGOING_ROW_CAP: f64 = 2.6, "x";
+    /// Vampiric Pact: the lifesteal.
+    REWORK_VAMPIRIC_LIFESTEAL: f64 = 0.18, "share";
+    /// Arcane Overload: the Wish cooldown multiplier.
+    REWORK_ARCANE_OVERLOAD_WISH_COOLDOWN: f64 = 1.5, "x";
+    /// Elite helper share: one camp's worth of stacks (read by P-ELITE-SHARE-1).
+    REWORK_ELITE_SHARE_STACKS: u32 = 12, "stacks";
+    /// Eye for an Eye: how many times it counts in a Rework chest's draws when an eligible picker owns a returned-damage
+    /// source (P-AUG-POOL-1; a whole number of copies).
+    REWORK_EYE_FOR_AN_EYE_WEIGHT: f64 = 2., "weight";
+    /// Wishful Thinking: each landed hit's cut as a share of the cast's full Wish cooldown (P-AUG-TUNE-1).
+    REWORK_WISHFUL_HIT_SHARE: f64 = 0.015, "share";
+    /// Wishful Thinking: the most one rolling window may cut, as a share of the cast's full Wish cooldown (P-AUG-TUNE-1).
+    REWORK_WISHFUL_BUDGET_SHARE: f64 = 0.20, "share";
+    /// Rework elites: damage multiplier (legacy `ELITE_DMG_MULT` 1.5; owner decision 2026-11-19, P-ELITE-TUNE-1).
+    REWORK_ELITE_DMG_MULT: f64 = 1.0, "multiplier";
+    /// Rework elites: HP multiplier (legacy `ELITE_HP_MULT` 2.0; owner decision 2026-11-19, P-ELITE-TUNE-1).
+    REWORK_ELITE_HP_MULT: f64 = 1.5, "multiplier";
+    /// Rework elites: the credited killer's first-pick window at an elite camp chest (owner 2026-11-18, P-ELITE-PICK-1).
+    REWORK_ELITE_FIRST_PICK_MS: f64 = 5000., "ms";
+    // ---- native augments (P-AUG-NATIVE-1a; workbook Augment_Tuning "Suggested change" unless noted) ----
+    /// Marksman's Tally: damage share per long-range hit.
+    REWORK_MARKSMANS_TALLY_PER: f64 = 0.003, "share";
+    /// Marksman's Tally: most damage share it holds.
+    REWORK_MARKSMANS_TALLY_CAP: f64 = 0.30, "share";
+    /// Marksman's Tally: a hit counts beyond this share of max range (sheet Augments "What it does").
+    REWORK_MARKSMANS_TALLY_RANGE_SHARE: f64 = 0.8, "share";
+    /// Bastion: share of stored blocks the next attack deals.
+    REWORK_BASTION_SHARE: f64 = 0.35, "share";
+    /// Calluses: armor per fist hit.
+    REWORK_CALLUSES_PER: f64 = 0.07, "armor";
+    /// Calluses: most armor it holds.
+    REWORK_CALLUSES_CAP: f64 = 30., "armor";
+    /// Executioner's Ledger: AD per player or elite kill.
+    REWORK_EXECUTIONERS_LEDGER_PER: f64 = 3., "ad";
+    /// Executioner's Ledger: most AD it holds.
+    REWORK_EXECUTIONERS_LEDGER_CAP: f64 = 30., "ad";
+    /// Eighth Strike: every this many hits doubles (decision 3).
+    REWORK_EIGHTH_STRIKE_EVERY: u32 = 8, "hits";
+    /// Eighth Strike: the doubled hit's multiplier.
+    REWORK_EIGHTH_STRIKE_MULT: f64 = 2., "x";
+    /// Pathfinder: move speed share per new mob type.
+    REWORK_PATHFINDER_PER: f64 = 0.012, "share";
+    /// Pathfinder: most move speed share it holds.
+    REWORK_PATHFINDER_CAP: f64 = 0.24, "share";
+    /// Hazard Walker: most stacks it holds.
+    REWORK_HAZARD_WALKER_CAP: f64 = 15., "stacks";
+    /// Hazard Walker: time on one hazard after which it is immune to that hazard.
+    REWORK_HAZARD_WALKER_IMMUNE_MS: f64 = 20000., "ms";
+    /// Wish Engine: most Wish cooldown share it cuts.
+    REWORK_WISH_ENGINE_CAP: f64 = 0.25, "share";
+    /// Wish Engine: time of use to reach the cap, every faction (sheet Augments, Wish Engine table "Minutes to cap 5").
+    REWORK_WISH_ENGINE_CAP_MS: f64 = 300000., "ms";
+    /// Overflow: the overheal shield fades over this long.
+    REWORK_OVERFLOW_FADE_MS: f64 = 8000., "ms";
+    /// Corpse Hoarder: max HP share per corpse.
+    REWORK_CORPSE_HOARDER_PER: f64 = 0.03, "share";
+    /// Corpse Hoarder: most max HP share it holds.
+    REWORK_CORPSE_HOARDER_CAP: f64 = 0.24, "share";
+    /// Stoked: AP per landed burst.
+    REWORK_STOKED_PER: f64 = 2., "ap";
+    /// Stoked: most AP it holds.
+    REWORK_STOKED_CAP: f64 = 30., "ap";
+    /// Glacier: armor per chill second.
+    REWORK_GLACIER_PER: f64 = 0.15, "armor";
+    /// Glacier: most armor it holds.
+    REWORK_GLACIER_CAP: f64 = 30., "armor";
+    /// Trophy Hunter: damage share per hunt stack.
+    REWORK_TROPHY_HUNTER_PER: f64 = 0.02, "share";
+    /// Trophy Hunter: most damage share it holds.
+    REWORK_TROPHY_HUNTER_CAP: f64 = 0.15, "share";
+    /// Marked Man: multiplier on stacks from kills (decision 9; legacy doubles).
+    REWORK_MARKED_MAN_STACK_MULT: f64 = 1.5, "x";
+    /// Bastion: most stored blocked damage its meter holds (P-AUG-NATIVE-1b decision: the workbook says only "Meter cap";
+    /// legacy Tank Engine's cap number, `TANK_ENGINE_CAP`, `constants.ts:292`, as Bastion "Pairs with Tank Engine").
+    REWORK_BASTION_METER_CAP: f64 = 250., "dmg";
+    /// Hazard Walker: hazard time per stack (decision: one stack per second on a hazard).
+    REWORK_HAZARD_WALKER_STACK_MS: f64 = 1000., "ms";
+    /// Hazard Walker: share of a hazard each stack resists (decision).
+    REWORK_HAZARD_WALKER_RESIST_PER: f64 = 0.04, "share";
+    /// Hazard Walker: share of base max hp each stack adds (decision).
+    REWORK_HAZARD_WALKER_HP_PER: f64 = 0.005, "share";
+    /// Marked Man: the most stacks its counter carries to the next kill (P-AUG-NATIVE-5 decision 3): the half stack
+    /// `MOB_KILL_STACKS x (REWORK_MARKED_MAN_STACK_MULT - 1)` leaves over; the counter is exactly 0 or this.
+    REWORK_MARKED_MAN_CARRY_CAP: f64 = 0.5, "stacks";
 }

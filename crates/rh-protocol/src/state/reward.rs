@@ -34,17 +34,21 @@ impl TrophyStatKey {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireRewardId {
-    /// Full 80-card catalog order (the same positions as WireBuild.cards).
+    /// `CardId::index()` order: the 80 catalog cards (0..=79, the same positions as WireBuild.cards), then the 14
+    /// native cards (80..=93, `CardId::NATIVE`; protocol 19).
     Card(u8),
     /// Source order: ad,ap,armor,shield,maxHp,attackSpeed,moveSpeed,lifesteal.
     Boost(u8),
     /// Owner-only Trophy award. `gain` is the exact source binary64 value.
     Kill { key: TrophyStatKey, gain: f64 },
 }
+/// Card ids a reward option may carry: 80 catalog cards and 14 native cards (P-WIRE19-A).
+const WIRE_CARD_IDS: u8 = 94;
+
 impl WireRewardId {
     pub(super) fn valid(self) -> bool {
         match self {
-            Self::Card(id) => id < 80,
+            Self::Card(id) => id < WIRE_CARD_IDS,
             Self::Boost(id) => id < 8,
             Self::Kill { gain, .. } => gain.is_finite() && gain > 0.0,
         }
@@ -104,10 +108,14 @@ impl WireRewardChest {
                 .options
                 .iter()
                 .all(|o| o.id.valid() && o.taken_by != Some(0))
+            && self
+                .first_pick
+                .is_none_or(|f| f.until.is_finite() && f.until <= self.expires_at)
     }
     pub(super) fn len(&self) -> usize {
         varint_len(self.handle.get())
-            + 15
+            + 16
+            + self.first_pick.map_or(0, |_| 9)
             + self
                 .options
                 .iter()
@@ -127,6 +135,10 @@ impl WireRewardChest {
         }
         w.u8(u8::from(self.picked));
         w.u8(u8::from(self.can_choose));
+        w.opt(self.first_pick.as_ref(), |w, f| {
+            w.f64(f.until);
+            w.u8(u8::from(f.mine));
+        });
     }
     pub(super) fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let handle =
@@ -151,6 +163,12 @@ impl WireRewardChest {
             options,
             picked: bool_flag(r)?,
             can_choose: bool_flag(r)?,
+            first_pick: r.opt(|r| {
+                Ok(WireFirstPick {
+                    until: r.f64()?,
+                    mine: bool_flag(r)?,
+                })
+            })?,
         };
         if result.valid() {
             Ok(result)

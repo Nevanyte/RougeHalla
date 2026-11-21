@@ -200,6 +200,13 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
         derived: true,
         passive: false,
     });
+    // P-AUG-NATIVE-1b: the native burst hook: the holder's fully charged roaming burst landed on a hit.
+    crate::cards::native::hooks::fire(
+        hx.k,
+        hx.w,
+        by,
+        crate::cards::native::hooks::NativeEvent::BurstLanded,
+    );
 }
 
 /// Source `raidStarted` link: every seat starts its ramp now and disarms; the source replaces its armed-packet map.

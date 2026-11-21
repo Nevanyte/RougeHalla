@@ -90,6 +90,113 @@ eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ 
 
 const catalogRewards = decode(bytes(fx.server.find(v => v.name === "state_full_catalog_rewards").hex));
 eq(JSON.stringify(catalogRewards.items[0].value[0].options.map(o => [o.kind,o.id])), JSON.stringify([[1,3],[1,79],[2,7]]), "full card catalog reward positions");
+// P-WIRE19-A oracle: protocol 19 carries native card ids (80..=93) and the killer first-pick window, one trailing key-4 row
+// field after canChoose: `firstPick: null` or `{ until, mine }`. The bytes are the brief's (docs/backlog/packets/P-WIRE19-A.md,
+// "Wire layout"), shared with the Rust (crates/rh-protocol/tests/wire19.rs) and C# (Wire19Tests.cs) oracles.
+if (Number(version) < 19) throw new Error(`the probe speaks protocol ${version}: P-WIRE19-A moves it to 19`);
+{
+  const firstPickHex = {
+    state_reward_first_pick_other: "88dc01010402052003c003000000000082d44003015d0000015000000202000000000100000000007cc54000066400c80000000000004ccd4001014f010104000000",
+    state_reward_first_pick_killer: "88dc01010402052003c003000000000082d44003015d0000015000000202000000010100000000007cc54001066400c80000000000004ccd4001014f010104000000",
+  };
+  const firstPickRows = (mine) => [
+    {handle:5,x:800,y:960,expiresAt:21000,options:[{kind:1,id:93,taken:false,takenBy:null},{kind:1,id:80,taken:false,takenBy:null},{kind:2,id:2,taken:false,takenBy:null}],picked:false,canChoose:mine,firstPick:{until:11000,mine}},
+    {handle:6,x:100,y:200,expiresAt:15000,options:[{kind:1,id:79,taken:true,takenBy:4}],picked:false,canChoose:false,firstPick:null},
+  ];
+  for (const [name, mine] of [["state_reward_first_pick_other", false], ["state_reward_first_pick_killer", true]]) {
+    const v = fx.server.find(v => v.name === name);
+    if (!v) throw new Error(`missing Rust-generated ${name} vector (P-WIRE19-A)`);
+    eq(v.hex, firstPickHex[name], name + " bytes are the brief's");
+    let s; try { s = decode(bytes(firstPickHex[name])); } catch (e) { throw new Error(`${name} is refused: ${e.message}`); }
+    eq(s.tick, 220, name + " tick");
+    eq(JSON.stringify(s.items), JSON.stringify([{key:4,value:firstPickRows(mine)}]), name + " rows (keys in order, firstPick last)");
+  }
+  // The window's bytes start after row A's canChoose: header 6, handle 1, x 2, y 2, expiry 8, n 1, three options 4 each, 2 flags.
+  const at = 6 + 1 + 2 + 2 + 8 + 1 + 3 * 4 + 2;
+  const patched = (patch) => { const b = new Uint8Array(bytes(firstPickHex.state_reward_first_pick_other)); patch(b, new DataView(b.buffer)); return b.buffer; };
+  const refusal = (buf) => { try { decode(buf); } catch (e) { return String(e.message); } return "accepted"; };
+  const refused = (buf, re, what) => { checks++; const m = refusal(buf); if (!re.test(m)) throw new Error(`${what}: got "${m}", want ${re}`); };
+  refused(patched((b) => { b[at - 2 - 12 + 1] = 94; }), /reward id/, "card 94");
+  refused(patched((b) => { b[at] = 2; }), /bad option/, "window tag 2");
+  refused(patched((b) => { b[at + 9] = 2; }), /bad option/, "mine 2");
+  refused(patched((b, dv) => dv.setFloat64(at + 1, NaN, true)), /first pick|bad field/, "until NaN");
+  refused(patched((b, dv) => dv.setFloat64(at + 1, 21000.5, true)), /first pick/, "until after the chest's expiry");
+  refused(patched((b, dv) => dv.setFloat64(at + 1, 21000, true)), /^accepted$/, "a window may end with the chest");
+}
+// P-WIRE19-B oracle-amend: State key 14 carries the viewer's own native readout rows: count u8 (<= 28), then rows of card u8
+// (80..=93), kind u8 (0..=2), value f64, max f64 (finite, 0 <= value <= max, cards in native order). The probe's item is
+// `{ key: 14, value: [{ card, kind, value, max }] }`. The bytes are the brief's (docs/backlog/packets/P-WIRE19-B.md),
+// shared with the Rust (crates/rh-protocol/tests/wire19_readouts.rs) and C# (Wire19ReadoutTests.cs) oracles.
+{
+  const readoutHex = {
+    state_readouts: "88dc01010e055000b81e85eb51b8be3f333333333333d33f510100000000000044400000000000406f405500cdcccccccccc0c4000000000000038405502000000000000084000000000000034405d000000000000000000000000000000f03f",
+    state_readouts_empty: "88dc01010e00",
+  };
+  const readoutRows = {
+    state_readouts: [{card:80,kind:0,value:0.12,max:0.3},{card:81,kind:1,value:40,max:250},{card:85,kind:0,value:3.6,max:24},{card:85,kind:2,value:3,max:20},{card:93,kind:0,value:0,max:1}],
+    state_readouts_empty: [],
+  };
+  for (const name of Object.keys(readoutHex)) {
+    const v = fx.server.find(v => v.name === name);
+    if (!v) throw new Error(`missing Rust-generated ${name} vector (P-WIRE19-B)`);
+    eq(v.hex, readoutHex[name], name + " bytes are the brief's");
+    let s; try { s = decode(bytes(readoutHex[name])); } catch (e) { throw new Error(`${name} is refused: ${e.message}`); }
+    eq(s.tick, 220, name + " tick");
+    eq(JSON.stringify(s.items), JSON.stringify([{key:14,value:readoutRows[name]}]), name + " rows (keys in order)");
+  }
+  // Row i starts at byte 6 + 18 i: card, kind, value, max.
+  const at = (row, field) => 6 + 18 * row + field;
+  const patched = (patch) => { const b = new Uint8Array(bytes(readoutHex.state_readouts)); patch(b, new DataView(b.buffer)); return b.buffer; };
+  const refusal = (buf) => { try { decode(buf); } catch (e) { return String(e.message); } return "accepted"; };
+  const refused = (buf, re, what) => { checks++; const m = refusal(buf); if (!re.test(m)) throw new Error(`${what}: got "${m}", want ${re}`); };
+  refused(bytes("88dc01010e1d"), /readout count/, "29 rows");
+  refused(patched((b) => { b[at(0, 0)] = 79; }), /readout card/, "catalog card 79");
+  refused(patched((b) => { b[at(4, 0)] = 94; }), /readout card/, "card 94");
+  refused(patched((b) => { b[at(1, 1)] = 3; }), /readout kind/, "kind 3");
+  refused(patched((b, dv) => dv.setFloat64(at(0, 2), NaN, true)), /readout value/, "value NaN");
+  refused(patched((b, dv) => dv.setFloat64(at(0, 2), -0.5, true)), /readout value/, "value negative");
+  refused(patched((b, dv) => dv.setFloat64(at(1, 2), 250.5, true)), /readout value/, "value over max");
+  refused(patched((b, dv) => dv.setFloat64(at(1, 10), Infinity, true)), /readout value/, "max infinite");
+  refused(patched((b) => { b[at(2, 0)] = 80; }), /readout order/, "order");
+  refused(patched((b, dv) => dv.setFloat64(at(1, 2), 250, true)), /^accepted$/, "a value may equal its max");
+  // P-AUG-NATIVE-5: key 15 is the Marked Man rows; 16 is the first unknown key and 16 keys are too many.
+  refused(bytes("88000110"), /state key/, "key 16 is unknown");
+  refused(bytes("880010"), /too many/, "16 keys are too many");
+  for (const [name, hex] of [["state_unknown_key", "88000110"], ["state_too_many_keys", "880010"]]) {
+    const v = fx.malformedServer.find(v => v.name === name);
+    eq(v?.hex, hex, name + " names key 16 now");
+  }
+}
+// P-AUG-NATIVE-5: State key 15 carries every Marked Man holder's public position: count u8 (<= 32, refused before the
+// rows), then rows of id varint (nonzero, strictly ascending), x u16, y u16 (actor quantization, 1/8 u). The probe's item
+// is `{ key: 15, value: [{ id, x, y }] }`. The bytes are the brief's (docs/backlog/packets/P-AUG-NATIVE-5.md), shared with
+// the Rust oracle (crates/rh-protocol/tests/marked_wire.rs).
+{
+  const markedHex = {
+    state_marked: "88dc01010f02022003843e070000ffff",
+    state_marked_empty: "88dc01010f00",
+  };
+  const markedRows = {
+    state_marked: [{id:2,x:100,y:2000.5},{id:7,x:0,y:8191.875}],
+    state_marked_empty: [],
+  };
+  for (const name of Object.keys(markedHex)) {
+    const v = fx.server.find(v => v.name === name);
+    if (!v) throw new Error(`missing Rust-generated ${name} vector (P-AUG-NATIVE-5)`);
+    eq(v.hex, markedHex[name], name + " bytes are the brief's");
+    let s; try { s = decode(bytes(markedHex[name])); } catch (e) { throw new Error(`${name} is refused: ${e.message}`); }
+    eq(s.tick, 220, name + " tick");
+    eq(JSON.stringify(s.items), JSON.stringify([{key:15,value:markedRows[name]}]), name + " rows");
+  }
+  const refusal = (buf) => { try { decode(buf); } catch (e) { return String(e.message); } return "accepted"; };
+  const refused = (buf, re, what) => { checks++; const m = refusal(buf); if (!re.test(m)) throw new Error(`${what}: got "${m}", want ${re}`); };
+  const patched = (at, value) => { const b = new Uint8Array(bytes(markedHex.state_marked)); b[at] = value; return b.buffer; };
+  refused(bytes("88dc01010f21"), /marked count/, "33 rows");
+  refused(patched(6, 0), /marked id/, "id 0");
+  refused(patched(11, 2), /marked order/, "equal ids");
+  refused(patched(11, 1), /marked order/, "descending ids");
+  refused(bytes("88dc01010f01010000ffff"), /^accepted$/, "every u16 position decodes");
+}
 if (version >= 13) {
   const trophyVector = fx.server.find(v => v.name === "state_trophy_reward_keys");
   if (!trophyVector?.decoded) throw new Error("missing Rust-decoded state_trophy_reward_keys vector");
@@ -118,7 +225,7 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionLarge:4,potionsHealing:3,healingUntil:null,speedBoostUntil:null}},
   {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"},{handle:4,x:803,y:904,kind:5}],focus:{handle:3,bodyHint:4}}},
   {key:3,value:[publicField,publicField]},
-  {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
+  {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true,firstPick:null}]},
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
   {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000,reward:null,ward:null}]},
   {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1,height:30},{kind:0,x:800,y:900,facing:12345,owner:1,height:30}]},
@@ -712,7 +819,16 @@ const reason = {
   head_self_bit_without_present_bit: /head/, head_unknown_bit: /head/, head_overlong_varint: /varint/, self_status_over_3: /status/, phase_over_3: /phase/,
   self_max_hp_over_u16: /max_hp/, actor_status_over_3: /status/, actor_mask_overlong_varint: /varint/, actor_unknown_mask_bit_after_kind: /actor mask/,
   state_duplicate_key: /state key/, state_key_order: /state key/, state_too_many_keys: /too many/, state_too_many_props: /too many/, state_too_many_fields: /too many/, state_too_many_rewards: /too many/, state_bad_potion_count: /potion count/, state_zero_prop_handle: /handle/, state_missing_focus: /prop focus/,
-  state_reward_card_id_80: /reward id/, state_reward_kill_key_unknown: /Trophy key/,
+  // P-WIRE19-A (oracle-amend): native ids 80..=93 decode; 94 is the first refused. The first-pick window's bytes.
+  state_reward_card_id_94: /reward id/, state_reward_kill_key_unknown: /Trophy key/,
+  state_reward_first_pick_tag_2: /bad option/, state_reward_first_pick_mine_2: /bad option/,
+  state_reward_first_pick_nonfinite: /first pick|bad field/, state_reward_first_pick_after_expiry: /first pick/,
+  // P-WIRE19-B (oracle-amend): State key 14, the viewer's own readout rows.
+  state_readouts_count_29: /readout count/, state_readouts_card_79: /readout card/, state_readouts_card_94: /readout card/,
+  state_readouts_kind_3: /readout kind/, state_readouts_value_nan: /readout value/, state_readouts_value_negative: /readout value/,
+  state_readouts_value_over_max: /readout value/, state_readouts_max_infinite: /readout value/, state_readouts_order: /readout order/,
+  // P-AUG-NATIVE-5: State key 15, the Marked Man rows.
+  state_marked_count_33: /marked count/, state_marked_id_0: /marked id/, state_marked_order: /marked order/,
   state_reward_kind_unknown: /bad reward kind/,
   state_reward_kill_gain_zero: /Trophy gain/, state_reward_kill_gain_negative: /Trophy gain/,
   state_reward_kill_gain_nan: /Trophy gain/, state_reward_kill_gain_infinity: /Trophy gain/,

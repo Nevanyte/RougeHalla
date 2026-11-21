@@ -452,6 +452,10 @@ pub(crate) trait KnowledgeApi {
     fn faction_edge(&self, a: FactionId, b: FactionId) -> i8;
     fn weapon_edge(&self, a: BotWeapon, b: BotWeapon) -> i8;
     fn mob_share(&self, me: FactionId, region: FactionId, elite: bool) -> f64;
+    /// The room's elite rule (P-AUG-BOTS-1); Legacy for a recorded or scripted source.
+    fn elite_rule(&self) -> rh_sim::EliteRule {
+        rh_sim::EliteRule::Legacy
+    }
     /// Source odds(me, them): `me` is the percept self the strategy passes (a source SelfView shape); `them` is the
     /// source OpponentSnapshot derived from the enemy.
     fn odds(&self, me: &StrategySelf, them: &Enemy) -> FightOdds;
@@ -465,6 +469,9 @@ impl KnowledgeApi for Knowledge {
     }
     fn mob_share(&self, me: FactionId, region: FactionId, elite: bool) -> f64 {
         Knowledge::mob_share(self, me, region, elite)
+    }
+    fn elite_rule(&self) -> rh_sim::EliteRule {
+        Knowledge::elite_rule(self)
     }
     fn odds(&self, me: &StrategySelf, them: &Enemy) -> FightOdds {
         Knowledge::odds(self, &self_view(me), &them.snap)

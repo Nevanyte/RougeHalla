@@ -1680,6 +1680,9 @@ impl StrategyKnowledge<'_> {
 }
 
 impl strat::KnowledgeApi for StrategyKnowledge<'_> {
+    fn elite_rule(&self) -> rh_sim::EliteRule {
+        Knowledge::elite_rule(self.know)
+    }
     fn faction_edge(&self, a: FactionId, b: FactionId) -> i8 {
         let edge = Knowledge::faction_edge(self.know, a, b);
         record_callback(

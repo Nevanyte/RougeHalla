@@ -51,6 +51,23 @@ A chest offers up to three distinct, live, interactive augments and expires afte
 
 The reward whitelist contains observable interactions such as bleeding, splash after a kill, retaliatory damage, blocking interactions, cooldown refunds, or reactive healing. Pure stat cards, stat tradeoffs, and simple conditional stat bonuses are excluded. The historical eighty-card catalog remains usable by internal combat harnesses, but external reward and practice-console paths enforce the interactive whitelist.
 
+**Live worlds (Rework).** The elite rules above are the legacy ones. The live server plays the augment and elite rework
+(`SimConfig::elites` and `SimConfig::augments` = `Rework`;
+[docs/backlog/AUGMENT_ELITE_REWORK.md](backlog/AUGMENT_ELITE_REWORK.md)). Legacy and parity worlds keep the legacy
+numbers. Under Rework:
+
+- **Elite strength.** Hp is ×1.5 (`REWORK_ELITE_HP_MULT`) and damage ×1.0 (`REWORK_ELITE_DMG_MULT`), both on top of
+  `ELITE_K` 0.65 (`crates/rh-sim/src/constants.rs`). Legacy: hp ×2.0 and damage ×1.5.
+- **Killer's first pick.** The credited killer (the player with the most damage) has 5 s (`REWORK_ELITE_FIRST_PICK_MS`)
+  to take a card from the elite chest before anyone else. The window ends early if the killer stops standing.
+- **Helper share.** Every standing player in the elite camp's contributor snapshot, the killer included, gets 12 stacks
+  (`REWORK_ELITE_SHARE_STACKS`) of the stat the camp's normal kills pay (its buff row, else its normal type's stat).
+- **Chest pool.** The legacy 14 interactive augments, plus Committed, Fists of Fury, Machine Gun, Here Comes the Boom
+  and A Race to 0, plus the 14 native augments. A Marked Man holder's normal kills pay 4, 5, 4, 5 stacks (+50%, the
+  half carried); elite helper shares, player kills and hunt stacks are not multiplied.
+
+Build notes and the number tables are in [docs/agent/AUGMENT_REWORK.md](agent/AUGMENT_REWORK.md).
+
 ## Quests, practice, and bots
 
 Quests grant 10–20 whole normal-mob stat stacks from their destination zone, added to any previous progress, plus their existing GV. Their per-offer quantity is `clamp(ceil((objSec + 0.4 × travelSec) / 12 × 2.5), 10, 20)`: it counts objective time fully, discounts travel for incidental farming, and adds a strong route premium. This bounds one award; accumulated earned stacks still have no ceiling. Feed never reduces quest rewards, and quests never grant augments. Bounties pay GV without transferring stats or augments. Historical card tiers/copies and their questBench comparison remain available for tuning reference, not as current quest payout or balance evidence.

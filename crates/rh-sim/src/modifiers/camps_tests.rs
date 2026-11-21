@@ -85,6 +85,7 @@ fn declared_helper_counts_0_1_7_8_9_20_match_the_native_query() {
         let probe = probe(&doc, id);
         let n = count(id);
         let other = outgoing_damage(
+            sim.k.cards,
             &p.core,
             &p.build,
             1.,
@@ -101,6 +102,7 @@ fn declared_helper_counts_0_1_7_8_9_20_match_the_native_query() {
             probe["other"]
         );
         let hit = outgoing_damage(
+            sim.k.cards,
             &p.core,
             &p.build,
             1.,
@@ -119,6 +121,7 @@ fn declared_helper_counts_0_1_7_8_9_20_match_the_native_query() {
         // G1 row ceiling: the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP, so a x3
         // baked hit returns the ceiling for every declared camps count.
         let g1 = outgoing_damage(
+            sim.k.cards,
             &p.core,
             &p.build,
             1.,
@@ -145,8 +148,24 @@ fn declared_helper_execute_share_matches_the_native_full_versus_without_queries(
     let i = player(&sim);
     let p = &sim.w.players[i];
     let probe = probe(&doc, "declared-helper-execute-share-count-1");
-    let at_0 = execute_share(&p.core, &p.build, 0.2, OutgoingKind::Hit, 1., 0);
-    let at_1 = execute_share(&p.core, &p.build, 0.2, OutgoingKind::Hit, 1., 1);
+    let at_0 = execute_share(
+        sim.k.cards,
+        &p.core,
+        &p.build,
+        0.2,
+        OutgoingKind::Hit,
+        1.,
+        0,
+    );
+    let at_1 = execute_share(
+        sim.k.cards,
+        &p.core,
+        &p.build,
+        0.2,
+        OutgoingKind::Hit,
+        1.,
+        1,
+    );
     assert!(
         (at_0 - probe["executeShareCount0"].as_f64().unwrap()).abs() < 1e-12,
         "execute share count0 {at_0} != source {}",
@@ -171,6 +190,7 @@ fn declared_helper_cache_refresh_timing_maps_to_the_explicit_native_count_argume
     let p = &sim.w.players[i];
     let probe = probe(&doc, "declared-helper-cache-refresh-timing");
     let stale = outgoing_damage(
+        sim.k.cards,
         &p.core,
         &p.build,
         1.,
@@ -182,6 +202,7 @@ fn declared_helper_cache_refresh_timing_maps_to_the_explicit_native_count_argume
         false,
     );
     let refreshed = outgoing_damage(
+        sim.k.cards,
         &p.core,
         &p.build,
         1.,
@@ -210,6 +231,7 @@ fn farm_damage_is_added_outside_the_camps_row_cap() {
     sim.w.players[i].modifiers.farm = farm.source_values();
     let p = &sim.w.players[i];
     let capped = outgoing_damage(
+        sim.k.cards,
         &p.core,
         &p.build,
         1.,

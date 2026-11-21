@@ -56,7 +56,7 @@ namespace Roguehalla.Net.Tests
             return new Session(t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = new byte[] { 1 }, Now = () => 1000, ReconnectBaseMs = 500, MaxReconnectAttempts = 3 });
         }
 
-        [Test] public void CodecSpeaksProtocol21() { Assert.AreEqual(21, Wire.ProtocolVersion, "snapshot time read from Welcome.TickRate is an incompatible wire change: 20 -> 21"); }
+        [Test] public void CodecSpeaksProtocol22() { Assert.AreEqual(22, Wire.ProtocolVersion, "snapshot time read from Welcome.TickRate is an incompatible wire change: 20 -> 21 (origin); P-SYNC-ORIGIN-2 carries it as 22"); }
 
         [Test]
         public void TheSameSnapshotBytesAreTickTimes50At20AndTickTimes25At40()

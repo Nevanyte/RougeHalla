@@ -44,16 +44,29 @@ pub(crate) struct Projection {
     pub(crate) report: FxTickReport,
     /// Every player's overhead build marks (ADR0026) as of the end of the last step, so observations read them once per
     /// player per tick instead of once per viewer and visible player. Derived, never hashed or checkpointed; empty after
-    /// a clone or a restore until the next step (observers then compute them directly).
+    /// a clone or a restore until the next step (observers then compute them directly), but already sized for a full
+    /// lobby, so that step's refresh allocates nothing.
     pub(crate) marks: BuildMarkCache,
 }
 /// See [`Projection::marks`]. Rows ascend by player id; the buffer is reused (no allocation while the seats are steady).
 /// Every production writer of the marks' inputs (cards, mob stats, kill stats, folds, the practice console) runs inside a
 /// step, so the end-of-step refresh is exact; code that edits those inputs between steps (tests) calls `invalidate`.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct BuildMarkCache {
     tick: Option<u32>,
     rows: Vec<(PlayerId, [Option<crate::kill_augments::KillStatKey>; 2])>,
+}
+/// An empty cache (no tick: observers compute directly) with room for a full lobby's rows. Every projection is built
+/// fresh, not cloned, on a clone, a restore or a reset, and the trusted build setup replaces the cache after editing its
+/// inputs, so this is where the buffer's capacity comes from: without it the first refresh after any of those allocates
+/// (P-NOALLOC-GATE-1).
+impl Default for BuildMarkCache {
+    fn default() -> Self {
+        Self {
+            tick: None,
+            rows: Vec::with_capacity(crate::constants::MAX_PLAYERS),
+        }
+    }
 }
 impl BuildMarkCache {
     fn refresh(&mut self, w: &crate::state::World) {

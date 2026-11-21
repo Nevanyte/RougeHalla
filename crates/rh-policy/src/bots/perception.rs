@@ -173,8 +173,11 @@ pub const CHEST_PANEL_RANGE: f64 = 96. - 8.;
 /// The source option id of a wire reward option (cards.ts ids, `boost:*`, `kill:<key>:<gain>`).
 pub fn reward_option_id(id: &rh_protocol::WireRewardId) -> String {
     match *id {
+        // `CardId::index()` order: the 80 catalog cards, then the native cards (80..=93, P-WIRE19-A).
         rh_protocol::WireRewardId::Card(i) => rh_sim::cards::CardId::ALL
-            .get(usize::from(i))
+            .iter()
+            .chain(&rh_sim::cards::CardId::NATIVE)
+            .nth(usize::from(i))
             .map_or_else(String::new, |c| c.as_str().to_owned()),
         rh_protocol::WireRewardId::Boost(i) => rh_sim::reward_chests::BoostId::ALL
             .get(usize::from(i))

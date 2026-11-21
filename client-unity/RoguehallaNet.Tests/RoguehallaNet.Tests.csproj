@@ -22,6 +22,11 @@
     <ProjectReference Include="..\RoguehallaNet.Probe\RoguehallaNet.Probe.csproj" />
     <Compile Include="..\UnityProject\Assets\Scripts\UI\UiLayoutReviewFrames.cs" Link="UiLayoutReviewFrames.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\UI\TrophyText.cs" Link="TrophyText.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\CardDisplayCatalog.cs" Link="CardDisplayCatalog.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\NativeReadoutText.cs" Link="NativeReadoutText.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\TrainingConsoleSelectors.cs" Link="TrainingConsoleSelectors.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\FirstPickText.cs" Link="FirstPickText.cs" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\ChestOptionText.cs" Link="ChestOptionText.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Net\AccountFullJson.cs" Link="AccountFullJson.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Net\MatchLaunchConfig.cs" Link="MatchLaunchConfig.cs" />
     <Compile Include="..\UnityProject\Assets\Scripts\Presentation\QualityModel.cs" Link="QualityModel.cs" />

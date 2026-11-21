@@ -13,6 +13,7 @@ mod repair_tests;
 mod runner;
 mod setup;
 mod training_tests;
+mod wishful_rework_restore_tests;
 use compare::*;
 use runner::*;
 use setup::*;

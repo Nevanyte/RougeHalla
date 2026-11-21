@@ -173,6 +173,12 @@ pub(super) fn construct_with_stages(
             crate::FactionMode::Off
         },
         wish_lock_ms: input["config"]["wishLockSeconds"].as_f64().unwrap_or(0.) * 1000.,
+        // P-AUG-TUNE-1: a test-only `config.augments: "rework"` plays the case under the Rework card table.
+        augments: if input["config"]["augments"] == "rework" {
+            crate::AugmentRule::Rework
+        } else {
+            crate::AugmentRule::Legacy
+        },
         ..Default::default()
     };
     let mut sim =

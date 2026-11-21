@@ -1,0 +1,760 @@
+{
+  "version": 1,
+  "tick": 6000,
+  "map": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+  "seeds": [
+    1,
+    81
+  ],
+  "ended_early": [
+    1,
+    2,
+    4,
+    5,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    18,
+    20,
+    22,
+    23,
+    26,
+    27,
+    28,
+    29,
+    31,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    43,
+    45,
+    46,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    65,
+    67,
+    68,
+    70,
+    71,
+    73,
+    74,
+    75,
+    78,
+    79
+  ],
+  "builds": [
+    {
+      "seed": 3,
+      "bot": 3,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 3,
+      "bot": 6,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 6,
+      "bot": 2,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 6,
+      "bot": 3,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 6,
+      "bot": 5,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "frostbowSentry",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 6,
+      "bot": 6,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 7,
+      "bot": 0,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 7,
+      "bot": 7,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 15,
+      "bot": 1,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 15,
+      "bot": 4,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 17,
+      "bot": 6,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 17,
+      "bot": 7,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "frostWisp",
+            15
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 19,
+      "bot": 4,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 19,
+      "bot": 7,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 21,
+      "bot": 6,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 21,
+      "bot": 7,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 24,
+      "bot": 3,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 24,
+      "bot": 5,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 25,
+      "bot": 2,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 25,
+      "bot": 4,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 30,
+      "bot": 0,
+      "faction": "fire",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "penitent",
+            12
+          ],
+          [
+            "zealot",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 30,
+      "bot": 3,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "magmaBrute",
+            30
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 32,
+      "bot": 2,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 32,
+      "bot": 4,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 32,
+      "bot": 7,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 42,
+      "bot": 6,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 42,
+      "bot": 7,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "emberImp",
+            9
+          ],
+          [
+            "cinderHound",
+            9
+          ],
+          [
+            "magmaBrute",
+            15
+          ],
+          [
+            "rimeStalker",
+            12
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 44,
+      "bot": 1,
+      "faction": "fire",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 44,
+      "bot": 5,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 47,
+      "bot": 2,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 47,
+      "bot": 4,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "emberImp",
+            30
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 47,
+      "bot": 7,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 50,
+      "bot": 0,
+      "faction": "fire",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 50,
+      "bot": 3,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 50,
+      "bot": 4,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "zealot",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 64,
+      "bot": 0,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "zealot",
+            12
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 64,
+      "bot": 2,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "zealot",
+            3
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 64,
+      "bot": 4,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 64,
+      "bot": 7,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 66,
+      "bot": 0,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 66,
+      "bot": 2,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 69,
+      "bot": 0,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 69,
+      "bot": 4,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "inquisitor",
+            9
+          ],
+          [
+            "frostbowSentry",
+            24
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 72,
+      "bot": 1,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 72,
+      "bot": 2,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 72,
+      "bot": 6,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "emberImp",
+            24
+          ],
+          [
+            "magmaBrute",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 76,
+      "bot": 0,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 76,
+      "bot": 2,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "emberImp",
+            30
+          ],
+          [
+            "frostWisp",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 76,
+      "bot": 3,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "emberImp",
+            12
+          ],
+          [
+            "plagueRat",
+            9
+          ],
+          [
+            "miasmaWitch",
+            12
+          ],
+          [
+            "iceGolem",
+            9
+          ],
+          [
+            "rimeStalker",
+            9
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 76,
+      "bot": 6,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 77,
+      "bot": 1,
+      "faction": "frost",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "zealot",
+            30
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 77,
+      "bot": 2,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 77,
+      "bot": 4,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "magmaBrute",
+            18
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 77,
+      "bot": 5,
+      "faction": "plague",
+      "build": {
+        "cards": [],
+        "stacks": [],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 80,
+      "bot": 1,
+      "faction": "sentenced",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "iceGolem",
+            24
+          ]
+        ],
+        "boosts": []
+      }
+    },
+    {
+      "seed": 80,
+      "bot": 4,
+      "faction": "holy",
+      "build": {
+        "cards": [],
+        "stacks": [
+          [
+            "cinderHound",
+            15
+          ]
+        ],
+        "boosts": []
+      }
+    }
+  ]
+}

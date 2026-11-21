@@ -22,8 +22,12 @@ dhat = "0.3"
 rh-alloc-count = { path = "../rh-alloc-count" }
 
 [features]
-# Trusted parity harness only; never a gameplay command or a production default.
-trusted-status-probes = ["schedule-trace"]
+# Trusted parity harness only; never a gameplay command or a production default. It also turns on the trusted build
+# setup below, because the gate and CI test rh-sim with this feature only.
+trusted-status-probes = ["schedule-trace", "trusted-build-setup"]
+# Trusted build setup for headless benches (`rh_sim::trusted_build`: cards, mob stat stacks and chest boosts on a seated
+# fighter between steps). Never enabled by rh-server or in any production build (tests/trusted_build_feature_guard.rs).
+trusted-build-setup = []
 # Records which ported rows of the tick schedule ran, in order (tests only: enabled by rh-parity as a dev-dependency
 # feature, never in a production build). See src/schedule.rs.
 schedule-trace = []

@@ -82,6 +82,7 @@ fn state() -> ServerMsg {
                 ],
                 picked: false,
                 can_choose: true,
+                first_pick: None,
             }]),
             StateItem::Build(Some(WireBuild {
                 cards: {
@@ -236,6 +237,7 @@ fn trophy_rewards_reject_nonpositive_and_nonfinite_gains_on_encode() {
                 }],
                 picked: false,
                 can_choose: true,
+                first_pick: None,
             }])],
         };
         assert!(message.try_encode().is_err(), "gain={gain:?}");

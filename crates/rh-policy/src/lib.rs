@@ -53,10 +53,21 @@ use std::time::{Duration, Instant};
 /// Wall (field kind 3) with its tile list; bots do not decide on it.
 /// Version 25 (observation 30, P-FROST-WALL-BOTS-1): [`MatchStart`] carries `frost_wish`, the room's Frost Wish (the
 /// room-wide public value every human client reads from the Welcome's HUD block, term 23); bots aim Frost Wall by it.
-/// Version 26 (observation 31, protocol 19, P-NET-DRAWAHEAD-1a): each delivered player row and its projected actor carry
-/// the public walk hint (heading, committed ticks); bots do not decide on it.
-/// Version 27 (protocol 20, P-COLISEUM-HEALS-2): heal props; bots ignore them.
-pub const POLICY_CONTRACT_VERSION: u16 = 27;
+/// Version 26 (observation 31, P-WIRE19-A): a projected reward chest row (State key 4) carries `first_pick` (the killer
+/// first-pick window's end and the viewer's own `mine`), and a card option may be a native id 80..=93.
+/// Version 27 (observation 32, P-WIRE19-B): the observation carries the viewer's own native readout rows, projected as
+/// the optional State key 14 (sent on change only) and kept by `CollectionView::readouts`; bots do not decide on them.
+/// Origin's version 26 (observation 31, its protocol 19, P-NET-DRAWAHEAD-1a): each delivered player row and its
+/// projected actor carry the public walk hint (heading, committed ticks); bots do not decide on it.
+/// Version 28 (observation 33, protocol 20, P-SYNC-ORIGIN-1): both lines' version 26/27 changes together.
+/// Version 29 (P-AUG-BOTS-1): `MatchStart` carries the room's elite rule (`SimConfig::elites`); the planning and hunt
+/// estimates of an elite read it.
+/// Version 30 (observation 34, P-AUG-NATIVE-5): the observation carries every `Alive` Marked Man holder's public
+/// position, projected as the optional State key 15 (sent on change only) and kept by `CollectionView::marked`; bots do
+/// not decide on it.
+/// Origin's version 27 (its protocol 20, P-COLISEUM-HEALS-2): heal props; bots ignore them.
+/// Version 31 (observation 35, protocol 22, P-SYNC-ORIGIN-2): the local version 30 and origin's version 27 together.
+pub const POLICY_CONTRACT_VERSION: u16 = 31;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -79,6 +90,9 @@ pub struct MatchStart {
     /// plays legacy's Frost Wall policy row (`bots::wish::wish_for`; the Brain's composed def); with `Freeze` every
     /// decision is today's. P-FROST-WALL-BOTS-1.
     pub frost_wish: rh_sim::FrostWish,
+    /// Which elite numbers the room plays (`SimConfig::elites`): the room-wide public rule (P-AUG-BOTS-1). The planning
+    /// and hunt estimates of an elite's hp and damage read it.
+    pub elites: rh_sim::EliteRule,
 }
 
 impl MatchStart {
@@ -96,6 +110,7 @@ impl MatchStart {
             observation_version: OBSERVATION_VERSION,
             tick_ms: f64::from(sim.tick_ms()),
             frost_wish: sim.config().frost_wish,
+            elites: sim.config().elites,
         }
     }
 

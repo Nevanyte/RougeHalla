@@ -818,6 +818,79 @@ fn camp_buffs_themed_mob_state() -> (&'static str, Sim) {
     ("camp buffs themed (one PvE camp, off theme)", sim)
 }
 
+/// `SimConfig::augments = Rework` and `elites = Rework` (P-AUG-RULES-1, the live profiles), config only: both serialize
+/// as `"rework"`; restoring either as `null` (`Legacy`) must change the hash.
+fn augment_elite_rework_state() -> (&'static str, Sim) {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            augments: rh_sim::AugmentRule::Rework,
+            elites: rh_sim::EliteRule::Rework,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(83),
+        &[Placement {
+            profile: "hash-aug-rules".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    let cp = serde_json::to_value(&sim).unwrap();
+    assert_eq!(
+        cp["statics"]["config"]["augments"],
+        serde_json::json!("rework")
+    );
+    assert_eq!(
+        cp["statics"]["config"]["elites"],
+        serde_json::json!("rework")
+    );
+    ("augment and elite rework (live profiles, config only)", sim)
+}
+
+/// `SimConfig::elites = Rework` on the one-camp PvE fixture (an elite camp), stepped into the raid: whatever the elite
+/// seam stores in the world under `Rework` is serialized here and perturbed.
+fn elite_rework_mob_state() -> (&'static str, Sim) {
+    let data = serde_json::from_str(include_str!("fixtures/mob-pve-map.json")).unwrap();
+    let arena = rh_sim::mapdata::MapExport {
+        format: "rh-map/2".into(),
+        legacy_map_hash_u32: 0,
+        map: data,
+    }
+    .validate()
+    .unwrap()
+    .into_arena()
+    .unwrap();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            quests: false,
+            consumables: true,
+            mob_mode: rh_sim::mob_runtime::MobMode::Pve,
+            augments: rh_sim::AugmentRule::Rework,
+            elites: rh_sim::EliteRule::Rework,
+            ..Default::default()
+        },
+        arena,
+        Secrets::from_seed(84),
+        &[Placement {
+            profile: "hash-elite-rework-mob".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400., 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        }],
+    );
+    sim.step();
+    assert!(sim.mobs().iter().any(|m| m.elite), "the elite camp spawned");
+    ("elite rework (one PvE elite camp)", sim)
+}
+
 /// Admitted Training worlds produce their hints through ordinary validated movement.
 /// None inherits Training's enabled preset; explicit false and true remain distinct config tags.
 fn produced_walk_hint_states() -> Vec<(&'static str, Sim)> {
@@ -1051,6 +1124,8 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     states.push(camp_buffs_themed_state());
     states.push(camp_buffs_themed_mob_state());
     states.push(frost_wall_state());
+    states.push(augment_elite_rework_state());
+    states.push(elite_rework_mob_state());
     states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
@@ -1382,6 +1457,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.kill_stats.values.#len", "the killStats store is exactly the nine readable investment totals; serde fixes the array length"),
     ("world.players.*.kill_stats.values.*", "a kill-augment grant is non-negative and finite; negative or non-finite totals are refused"),
     ("world.reward_chests.*.owner", "an owner-bound Trophy is produced only by a credited player kill; a non-null owner must name a roster member, and these corpora have no player kill"),
+    ("world.reward_chests.*.first_pick", "P-ELITE-PICK-1: a killer's first-pick window exists only on an elite camp chest of an EliteRule::Rework world; check_world refuses it under Legacy (these corpora), on a campless chest, with a killer outside the roster, or ending after drop + window; its leaves are hashed (reward_chests::first_pick_tests::the_window_is_hashed)"),
     ("world.quests", "the quest runtime is absent in these corpora (config.quests off); when it is present its offers, carriers, timers and containers are validated and every nested leaf is hashed"),
     ("world.traders", "the trader runtime is absent in these corpora (traders ride the quests live-content switch, config.quests off); when it is present its actors, walkers and barter cooldowns are validated and every nested leaf is hashed (the pinned trade replay covers the present state), and the per-player tradeUsed/tradeOffers/tradeStats leaves are hashed here"),
     ("world.players.*.vision.reveals.*.ordinal", "first retained reveal is ordinal zero; same-tick successors increment exactly once"),
@@ -1512,6 +1588,8 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.abilities.barriers.#len", "barriers::check ties the barrier row to the Wall fields one to one, in field order: one row more or fewer is refused"),
     ("world.abilities.barriers.*.field", "barriers::check: each barrier row names the id of the Wall field at its position; any other id is refused"),
     ("statics.config.camp_buffs", "a closed null/\"themed\" domain whose value must match the world's camp buff row (check_world): flipping it alone on a world with camps is refused; the config-only scenario perturbs it"),
+    ("statics.config.elites", "P-AUG-RULES-1: a closed null/\"rework\" domain; if the elite seam keeps a copy on the mob runtime, check_world ties the two and flipping the config alone on a world with mobs is refused; the config-only scenario perturbs it"),
+    ("world.mob_runtime.elites", "P-AUG-RULES-1 (if the elite seam keeps the rule on the mob runtime, the CampBuffs precedent): check_world ties it to statics.config.elites, Legacy writes nothing (null), Rework \"rework\""),
     ("world.mob_runtime.life.#len", "mob runtime camp and life arrays must match admitted map camp count"),
     ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
     ("world.mob_runtime.life.*.ward_expires_at", "ward expiry is zero without owner, otherwise cleared_at plus CAMP_WARD_MS"),
@@ -2312,8 +2390,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "statics.rs",
-            7,
-            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry",
+            8,
+            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry; the card tuning table (P-AUG-RULES-1) is a static selected by the hashed `config.augments` in MatchStatic::new",
         ),
         (
             "systems/signatures.rs",

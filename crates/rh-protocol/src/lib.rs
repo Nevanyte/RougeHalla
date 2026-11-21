@@ -182,12 +182,12 @@ mod server_msg;
 mod snapshot_read;
 pub use state::{
     validate_quest_props, PickupHandle, QuestHandle, RewardChestHandle, RosterId, StateItem,
-    TrophyStatKey, WireArena, WireBuild, WireCamp, WireField, WireFocus, WireInventory,
-    WireMerchant, WirePlan, WirePlanOption, WireProjectile, WireProp, WirePropKind, WireProps,
-    WireQuestObjective, WireQuestParticipant, WireQuestPoint, WireQuestRow, WireQuestView,
-    WireRewardChest, WireRewardId, WireRewardOption, WireRosterEntry, WireRosterRow,
-    WireTradeDelta, WireTradeKind, WireTradeOffer, WireTradeStat, WireTradeView,
-    MAX_TRADE_MERCHANTS, MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
+    TrophyStatKey, WireArena, WireBuild, WireCamp, WireField, WireFirstPick, WireFocus,
+    WireInventory, WireMarked, WireMerchant, WirePlan, WirePlanOption, WireProjectile, WireProp,
+    WirePropKind, WireProps, WireQuestObjective, WireQuestParticipant, WireQuestPoint,
+    WireQuestRow, WireQuestView, WireReadout, WireRewardChest, WireRewardId, WireRewardOption,
+    WireRosterEntry, WireRosterRow, WireTradeDelta, WireTradeKind, WireTradeOffer, WireTradeStat,
+    WireTradeView, MAX_TRADE_MERCHANTS, MAX_TRADE_OFFERS, MAX_TRADE_STATS, MAX_TRADE_VIEW_BYTES,
 };
 
 pub use actor::*;
@@ -212,7 +212,12 @@ pub use weapon::{
 };
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 21;
+/// 20 (P-SYNC-ORIGIN-1): the walk hint (P-NET-DRAWAHEAD-1a, origin's 19) and native card ids, the first-pick window
+/// and the own readouts, State key 14 (P-WIRE19-A/B, the local 19) together. Both 19s are refused.
+/// 22 (P-SYNC-ORIGIN-2): origin's 20 (heal pickups as prop kind 8, P-COLISEUM-HEALS-2) and 21 (snapshot time at the
+/// Welcome's tick rate, P-TICK-3) with the local 20 (the walk hint, P-WIRE19-A/B and Marked Man, State key 15). 21 and
+/// below are refused.
+pub const PROTOCOL_VERSION: u16 = 22;
 /// Milliseconds per server tick at the default 20 Hz. A Snapshot carries `tick` only: its server time is `tick * tick_ms`
 /// exactly, with `tick_ms` from the connection's Welcome ([`tick_ms_for_rate`]); this is the 20 Hz value, which every
 /// rate-less decode and encode uses.

@@ -42,6 +42,7 @@ namespace Roguehalla.Client
         /// <summary>The chest seconds text of the badge at <paramref name="i"/> in the last presentation.</summary>
         public string ChestBadgeText(int i) => _chestRows[i].Text;
         readonly List<ContactMark> _contactMarks = new List<ContactMark>();
+        readonly List<Roguehalla.Net.Ui.MarkedMark> _marked = new List<Roguehalla.Net.Ui.MarkedMark>();
         readonly List<RectTransform> _contactChips = new List<RectTransform>();
         readonly List<TMP_Text> _contactTexts = new List<TMP_Text>();
         // planning.css:175-183 .pl-actor-label on an enemy: near-black box, 1px border, text #ffc3c7, border #ff5360 (HUNT and ENEMY alike).
@@ -104,7 +105,7 @@ namespace Roguehalla.Client
         {
             _map = map;
             _ping.Active = false;
-            if (map == null) { _actors.Clear(); _contactMarks.Clear(); RefreshContactLabels(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
+            if (map == null) { _actors.Clear(); _contactMarks.Clear(); _marked.Clear(); RefreshContactLabels(); _route.Clear(); _chests.Clear(); _self = null; ClearDelivered(); for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false; }
             else if (map.Regions != null) MapZones.LabelTiles(map.Regions, map.W, map.H, out _zoneFound, out _zoneX, out _zoneY);
             else for (int r = 0; r <= MapZones.Count; r++) _zoneFound[r] = false;
             RefreshZoneLabels();
@@ -131,7 +132,7 @@ namespace Roguehalla.Client
 
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
-            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _realIcons = 0; _wards.Clear(); _contactMarks.Clear(); _self = null; ClearDelivered();
+            _actors.Clear(); _route.Clear(); _chests.Clear(); _chestRows.Clear(); _camps.Clear(); _realIcons = 0; _wards.Clear(); _contactMarks.Clear(); _marked.Clear(); _self = null; ClearDelivered();
             if (session != null && session.State == SessionState.InMatch)
             {
                 if (_map != null)
@@ -146,6 +147,7 @@ namespace Roguehalla.Client
                 if (session.Me != null) _self = new Vector2(session.Me.X, session.Me.Y);
                 if (Large && session.Me != null)
                     Roguehalla.Net.Ui.WorldMarks.TabMapContacts(_actors, _selfId, session.Me.Faction, session.Me.Status, session.Me.HuntTarget, true, _contactMarks);
+                Roguehalla.Net.Ui.WorldMarks.MarkedHolders(session.Collections.Marked, _selfId, _marked);
                 foreach (var chest in session.Collections.RewardChests) _chests.Add(new Vector2(chest.X, chest.Y));
                 ChestBadges.Rows(_map?.Camps, session.Collections.RewardChests, session.ServerTimeMs, Large ? CampSurface.TabMap : CampSurface.Minimap, null, _chestRows);
                 if (route != null) foreach (var point in route) _route.Add(new Vector2((float)point.X, (float)point.Y));
@@ -515,6 +517,13 @@ namespace Roguehalla.Client
                     if (player != (pass == 1)) continue;
                     FactionMark(vh, At(new Vector2(actor.X, actor.Y)), (player ? 12f : 6.5f) * s, actor.Faction, theme, ink);
                 }
+            // P-AUG-UI-3: every Marked Man holder is public (rows, not actors): a danger diamond ringed in warning, above the dots.
+            foreach (var mark in _marked)
+            {
+                var p = At(new Vector2(mark.X, mark.Y));
+                Glyph(vh, p, 24f * s, MapGlyph.Ring, Alpha(theme.Warning, .9f));
+                Marker(vh, p, 15f * s, MapGlyph.Diamond, theme.Danger, ink);
+            }
             if (_self.HasValue)
             {
                 var p = At(_self.Value);

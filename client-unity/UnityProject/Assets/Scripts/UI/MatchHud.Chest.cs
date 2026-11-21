@@ -91,7 +91,8 @@ namespace Roguehalla.Client
             if (_chestTimer == null) return;
             double left = Math.Max(0d, chest.ExpiresAt - _session.ServerTimeMs) / 1000d;
             bool active = !chest.Picked && _session.Latest != null && chest.ExpiresAt > 0;
-            Set(_chestTimer, active ? Math.Ceiling(left).ToString("0", CultureInfo.InvariantCulture) + "s" : "");
+            string firstPick = active ? FirstPickText.Label(chest.FirstPick, _session.ServerTimeMs) : "";
+            Set(_chestTimer, active ? (firstPick.Length > 0 ? firstPick + "   " : "") + Math.Ceiling(left).ToString("0", CultureInfo.InvariantCulture) + "s" : "");
             _chestTimer.color = left <= UrgentSeconds ? UiTheme.Current.Danger : ShowcasePalette.Gold;
             if (_chestBarFill != null)
             {
@@ -104,14 +105,8 @@ namespace Roguehalla.Client
         void FillChestCard(int i, RewardOptionView option, bool interactable)
         {
             if (_optKind[i] == null) return; // a fixture that builds only the name label
-            string kind, text, tags = "";
-            if (option.KillKey.HasValue) { kind = "TROPHY"; text = TrophyText.Description(option.KillKey.Value, option.KillGain); }
-            else if (option.Card.HasValue)
-            {
-                var entry = CardDisplayCatalog.Get((byte)option.Card.Value);
-                kind = "AUGMENT"; text = entry.Description; tags = entry.Tags;
-            }
-            else { kind = "BOOST"; text = "Permanent bonus for this run."; }
+            var described = ChestOptionText.Describe(option);
+            string kind = described.Kind, text = described.Text, tags = described.Tags;
             Set(_optKind[i], string.IsNullOrEmpty(tags) ? kind : kind + "  ·  " + tags.ToUpperInvariant());
             Set(_optText[i], text);
             string title = option.Card.HasValue ? CardDisplayCatalog.Title((byte)option.Card.Value) : "";

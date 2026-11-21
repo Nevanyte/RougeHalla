@@ -551,13 +551,13 @@ fn a_map_without_dressing_keeps_today_s_bytes() {
 }
 
 // Moved with the version field at protocol 18: v17/v18 Welcomes differ only in 811100 -> 811200 (protocol_18_stamp.rs);
-// again at protocol 19 (P-NET-DRAWAHEAD-1a): 811200 -> 811300; at protocol 20 (P-COLISEUM-HEALS-2): 811300 -> 811400;
-// and at protocol 21 (P-TICK-3): 811400 -> 811500.
+// at protocol 19 (P-WIRE19-A; P-NET-DRAWAHEAD-1a on origin): 811200 -> 811300; at 20 (P-SYNC-ORIGIN-1; P-COLISEUM-HEALS-2
+// on origin): 811300 -> 811400; at 21 on origin (P-TICK-3): 811400 -> 811500; at 22 (P-SYNC-ORIGIN-2): -> 811600.
 const WELCOME_LEN: usize = 1832;
-const WELCOME_DIGEST: u64 = 0x5a5b_0e96_9a7e_e9cf;
+const WELCOME_DIGEST: u64 = 0x8322_9a1e_a79b_0dda;
 const SHIPPED_LEN: usize = 2324;
-const SHIPPED_DIGEST: u64 = 0xaa87_04ae_2a1f_5c39;
+const SHIPPED_DIGEST: u64 = 0xdeed_fe2f_f7ed_75e4;
 const ALL_LEN: usize = 2424;
-const ALL_DIGEST: u64 = 0x4a66_9ae1_19cd_f054;
+const ALL_DIGEST: u64 = 0x3f33_a536_bea6_8115;
 const GROUND_BOTH_LEN: usize = 1868;
-const GROUND_BOTH_DIGEST: u64 = 0x3698_29fa_b938_d094;
+const GROUND_BOTH_DIGEST: u64 = 0x908f_36ad_ef94_e209;

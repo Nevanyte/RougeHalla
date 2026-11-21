@@ -214,6 +214,8 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
         regen_in_combat: rh_sim::RegenInCombat::Legacy,
         camp_buffs: rh_sim::CampBuffRule::Legacy,
         frost_wish: rh_sim::FrostWish::Freeze,
+        augments: rh_sim::AugmentRule::Legacy,
+        elites: rh_sim::EliteRule::Legacy,
         walk_hints: None,
         regen: false,
         quests: false,

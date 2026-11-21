@@ -71,7 +71,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
         let mut wish_ms = 0.;
         for id in w.players[i].build.cards() {
-            for row in id.definition().rows {
+            for row in k.cards.def(id).rows {
                 if let crate::cards::CardRow::Trigger(t) = row {
                     if t.on == crate::cards::TriggerOn::Hit {
                         if let crate::cards::TriggerAction::Cooldown { ms } = t.action {
@@ -90,6 +90,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             let p = &mut w.players[i];
             let cast = p.card_runtime.and_then(|r| r.wish_cast);
             crate::cards::wishful_thinking(
+                k.cards.numbers(),
                 n_total,
                 wish_ms,
                 now,

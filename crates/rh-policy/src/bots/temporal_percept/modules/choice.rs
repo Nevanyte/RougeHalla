@@ -7,10 +7,12 @@
 //! the declared source input.
 
 use super::types::{CardCounts, ChestSelf, CHEST_BOOST_MAX_PICKS, DANGER_RISK, TRADEOFF_RISK};
+use rh_sim::cards::native::pool_members;
 use rh_sim::cards::{BaseStatId, CardDef, CardId, CardKind, CardRow, MechanicTag};
 use rh_sim::kill_augments::{self, KillStatKey};
-use rh_sim::reward_chests::BoostId;
+use rh_sim::reward_chests::{BoostId, Offer};
 use rh_sim::stat_fold::{EffectFlag, EffectKind, EffectStat, MultKey};
+use rh_sim::FactionId;
 use rh_sim::WeaponId;
 
 /// The three catalog-tier card ids of a base stat (source `baseCardId`), in tier order.
@@ -41,6 +43,7 @@ fn boost_stat(id: &str) -> Option<BoostId> {
 fn card_def(id: &str) -> Option<&'static CardDef> {
     CardId::ALL
         .into_iter()
+        .chain(CardId::NATIVE)
         .map(CardId::definition)
         .find(|def| def.id.as_str() == id)
 }
@@ -204,11 +207,35 @@ fn rule_fit(def: &CardDef, weapon: WeaponId, faction: &str, carried: f64) -> f64
             -1.
         };
     }
+    // P-AUG-BOTS-1: the rework's weapon cards prefer their weapon (a design choice built on the same fit scale).
+    for (card, own) in [
+        (CardId::Calluses, WeaponId::Fists),
+        (CardId::Bastion, WeaponId::Shield),
+        (CardId::MarksmansTally, WeaponId::Bow),
+    ] {
+        if def.id == card {
+            fit += if weapon == own { 1.5 } else { -1.5 };
+        }
+    }
     if def.id == CardId::Committed && carried > 1. {
         // It locks the second slot the bot is using.
         fit -= 2.;
     }
     fit
+}
+
+/// The faction a native card is offered to alone (`pool_members`), by the bot's faction spelling.
+fn native_faction(id: CardId) -> Option<&'static str> {
+    pool_members().find_map(|(card, offer)| match (card == id, offer) {
+        (true, Offer::Faction(f)) => Some(match f {
+            FactionId::Fire => "fire",
+            FactionId::Frost => "frost",
+            FactionId::Plague => "plague",
+            FactionId::Sentenced => "sentenced",
+            _ => "",
+        }),
+        _ => None,
+    })
 }
 
 /// Source `cardBlock`: a conditional without its base, or a unique card already held, cannot be picked.
@@ -301,10 +328,27 @@ pub(crate) fn card_score(id: &str, self_: &ChestSelf) -> f64 {
             if costs_something_def(def) && risk < TRADEOFF_RISK {
                 return f64::NEG_INFINITY;
             }
+            // P-AUG-BOTS-1: a faction-only chest card is worth its own faction's bot only; Marked Man (always shown on
+            // the minimap) is a trade-off, refused below `TRADEOFF_RISK` and ranked under Wish Engine.
+            let faction_fit = match native_faction(def.id) {
+                Some(own) if own == self_.faction => 2.,
+                Some(_) => -4.,
+                None => 0.,
+            };
+            let marked = if def.id == CardId::MarkedMan {
+                if risk < TRADEOFF_RISK {
+                    return f64::NEG_INFINITY;
+                }
+                -2.
+            } else {
+                0.
+            };
             f64::from(def.tier)
                 + 1.
                 + 2. * clamp_risk(risk)
                 + rule_fit(def, weapon, &self_.faction, carried)
+                + faction_fit
+                + marked
         }
     }
 }
@@ -340,6 +384,9 @@ pub(crate) fn choose_option(options: &[String], taken_by: &[String], self_: &Che
 
 /// The source boost cap as an exact f64 compare (raw build count, not floored).
 pub(crate) const BOOST_CAP: f64 = CHEST_BOOST_MAX_PICKS;
+
+#[cfg(test)]
+mod native_tests;
 
 #[cfg(test)]
 mod tests {

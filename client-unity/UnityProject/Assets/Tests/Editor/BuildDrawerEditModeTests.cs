@@ -37,6 +37,8 @@ namespace Roguehalla.Client.Tests
         [Test]
         public void DisplayCatalogExactlyMirrorsRustCardIdsTitlesDescriptionsAndTags()
         {
+            // P-AUG-CONTENT-1: the client shows the LIVE (Rework) text: rework_overrides.rs for an overridden card, otherwise
+            // catalog_data.rs (the legacy catalog). Both files share one layout, so one pattern reads both.
             string root = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../"));
             string data = File.ReadAllText(Path.Combine(root, "crates/rh-sim/src/cards/catalog_data.rs"));
             string idsSource = File.ReadAllText(Path.Combine(root, "crates/rh-sim/src/cards/catalog.rs"));
@@ -44,12 +46,23 @@ namespace Roguehalla.Client.Tests
             Assert.That(orderedIds.Success, Is.True, "Rust CardId::ALL source list exists");
             var stableIds = Regex.Matches(orderedIds.Groups[1].Value, @"Self::(\w+)");
             Assert.That(stableIds.Count, Is.EqualTo(CardDisplayCatalog.Count));
-            var rows = Regex.Matches(data, @"CardDef\s*\{\s*id:\s*CardId::(\w+),.*?title:\s*""((?:\\.|[^""\\])*)"",\s*text:\s*""((?:\\.|[^""\\])*)"",\s*tags:\s*&\[(.*?)\]", RegexOptions.Singleline);
+            const string cardPattern = @"CardDef\s*\{\s*id:\s*CardId::(\w+),.*?title:\s*""((?:\\.|[^""\\])*)"",\s*text:\s*""((?:\\.|[^""\\])*)"",\s*tags:\s*&\[(.*?)\]";
+            var rows = Regex.Matches(data, cardPattern, RegexOptions.Singleline);
             Assert.That(rows.Count, Is.EqualTo(CardDisplayCatalog.Count));
             var tagPattern = new Regex(@"MechanicTag::(\w+)");
+            string overrideSource = File.ReadAllText(Path.Combine(root, "crates/rh-sim/src/cards/rework_overrides.rs"));
+            var live = new Dictionary<string, Match>();
+            foreach (Match m in Regex.Matches(overrideSource, cardPattern, RegexOptions.Singleline))
+                live[m.Groups[1].Value] = m;
+            foreach (var id in live.Keys)
+            {
+                bool known = false;
+                foreach (Match stable in stableIds) known |= stable.Groups[1].Value == id;
+                Assert.That(known, Is.True, "override row names a real card: " + id);
+            }
             for (int i = 0; i < rows.Count; i++)
             {
-                var row = rows[i]; var display = CardDisplayCatalog.Get(i);
+                var row = live.TryGetValue(rows[i].Groups[1].Value, out var overridden) ? overridden : rows[i]; var display = CardDisplayCatalog.Get(i);
                 Assert.That(row.Groups[1].Value, Is.EqualTo(stableIds[i].Groups[1].Value), "Rust runtime index at " + i);
                 var tags = new List<string>();
                 foreach (Match tag in tagPattern.Matches(row.Groups[4].Value)) tags.Add(tag.Groups[1].Value);

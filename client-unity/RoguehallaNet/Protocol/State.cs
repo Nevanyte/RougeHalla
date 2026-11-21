@@ -98,6 +98,24 @@ namespace Roguehalla.Net.Protocol
         public double ExpiresAt;
         public WireRewardOption[] Options = Array.Empty<WireRewardOption>();
         public bool Picked, CanChoose;
+        /// <summary>P-WIRE19-A (protocol 19): the killer first-pick window while it is in force; null without one.</summary>
+        public WireFirstPick? FirstPick;
+    }
+    /// <summary>P-WIRE19-A: a chest's first-pick window as this viewer sees it. Its end is public; Mine is the viewer's own
+    /// fact (true only for the killer). It names no player.</summary>
+    public struct WireFirstPick
+    {
+        public double Until;
+        public bool Mine;
+    }
+    /// <summary>P-WIRE19-B (State key 14): one of the viewer's own native readout rows. Card is a native card id (80..93),
+    /// Kind 0 counter, 1 meter, 2 marks; Value and Max are finite with 0 &lt;= Value &lt;= Max.</summary>
+    public struct WireReadout
+    {
+        public byte Card;
+        public byte Kind;
+        public double Value;
+        public double Max;
     }
     public struct WireProjectile
     {
@@ -233,5 +251,5 @@ namespace Roguehalla.Net.Protocol
         public WireMerchant[] Merchants = Array.Empty<WireMerchant>();
         public string[] BarterLabels = new[] { "", "", "" };
     }
-    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11, Roster = 12, BuildSummary = 13 }
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10, Trade = 11, Roster = 12, BuildSummary = 13, Readouts = 14, Marked = 15 }
 }

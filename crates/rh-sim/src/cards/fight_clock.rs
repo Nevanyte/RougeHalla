@@ -8,8 +8,11 @@ pub(crate) fn watches_rows(rows: &[EffectRow<'_>]) -> bool {
         .any(|row| matches!(row.kind, EffectKind::While(r) if r.cond == WhileCond::FightTime))
 }
 
+/// Does the build hold a fight-time `while` row? A question of row shape (the `while` condition), which the override
+/// guard (`cards::check_override`) keeps equal in every card table, so the legacy table answers it for every world (the
+/// landed-hit caller, `systems/items.rs`, holds no match statics).
 fn watches(p: &Player) -> bool {
-    let (rows, n) = p.build.rows(p.faction());
+    let (rows, n) = p.build.rows(super::Tuning::legacy(), p.faction());
     watches_rows(&rows[..n])
 }
 

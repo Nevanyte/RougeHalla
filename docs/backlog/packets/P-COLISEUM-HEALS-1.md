@@ -33,7 +33,7 @@ ten existing tests pin protocol 18 (Rust `protocol_18_stamp.rs:40,43`, `frost_wa
 `envelope.rs:34`, `rh-server` `wire/tests/frames.rs:48`, `tests/ending_metadata.rs:50`; C# `Protocol18StampTests.cs`;
 JS `tools/unity-browser-reload-proof/protocol-18-stamp.test.mjs`, `check.mjs:66-102`, `normal-companion.test.mjs`,
 `check.test.mjs:240`): amending them is an owner approval. So the wire, the three decoders, the fixtures v19 and the
-Unity drawing are **P-COLISEUM-HEALS-2** (proposal: `WirePropKind::Heal { ready_at: u32 }`, prop kind 8, the cannon's
+Unity drawing are **P-COLISEUM-HEALS-2** (protocol 21: 20 was taken by the coordinator's origin sync, P-SYNC-ORIGIN-1, 2026-11-20; proposal: `WirePropKind::Heal { ready_at: u32 }`, prop kind 8, the cannon's
 encoding; `PropKind::Heal { ready_at }` in `item_view.rs`; bots ignore it; Unity draws a chest/heal sprite that glows
 when `ready_at <= server ms`). Until it lands the pickups are invisible (the item view skips them) but work.
 

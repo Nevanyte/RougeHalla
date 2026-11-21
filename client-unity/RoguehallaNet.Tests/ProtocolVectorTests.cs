@@ -34,7 +34,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV21() { Assert.AreEqual(21, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV22() { Assert.AreEqual(22, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -1004,6 +1004,8 @@ namespace Roguehalla.Net.Tests
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
                 case "projectile_owner_flag": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
+                // P-WIRE19-A (oracle-amend): the first-pick window's tag and mine bytes (Reader.Flag).
+                case "state_reward_first_pick_tag_2": case "state_reward_first_pick_mine_2": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
                 case "cannon_notice_zero": case "cannon_notice_unknown": case "cannon_notice_bad_seconds": case "cannon_notice_seconds_over":
@@ -1038,7 +1040,7 @@ namespace Roguehalla.Net.Tests
                 case "state_reward_kind_unknown":
                 case "state_reward_kill_key_unknown": case "state_reward_kill_gain_zero": case "state_reward_kill_gain_negative":
                 case "state_reward_kill_gain_nan": case "state_reward_kill_gain_infinity":
-                case "state_reward_card_id_80": case "state_plan_negative_deadline": case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
+                case "state_reward_card_id_94": case "state_plan_negative_deadline": case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
                 case "state_quest_row_handle_zero": case "state_quest_roster_id_zero": case "state_quest_objective_handle_zero": case "state_quest_prop_handle_zero":
                 case "state_quest_availability_flag": case "state_quest_participant_accepted_flag": case "state_quest_done_by_flag": case "state_quest_prop_fetch_flag":
                 case "state_quest_duplicate_row_handle": case "state_quest_duplicate_roster_id": case "state_quest_duplicate_participant_id":
@@ -1117,6 +1119,13 @@ namespace Roguehalla.Net.Tests
                 case "state_field_kind_unknown": case "state_wall_tiles_zero": case "state_wall_tiles_over":
                 case "state_wall_tile_off_map": case "state_wall_tile_order": want = DecodeError.BadField; break;
                 case "state_wall_tiles_truncated": want = DecodeError.Truncated; break;
+                // P-WIRE19-A (oracle-amend): a first-pick window that is not finite or ends after its chest.
+                case "state_reward_first_pick_nonfinite": case "state_reward_first_pick_after_expiry": want = DecodeError.BadField; break;
+                // P-WIRE19-B (oracle-amend): State key 14, the viewer's own readout rows; every refusal is BadField.
+                case "state_readouts_count_29": case "state_readouts_card_79": case "state_readouts_card_94": case "state_readouts_kind_3":
+                case "state_readouts_value_nan": case "state_readouts_value_negative": case "state_readouts_value_over_max":
+                case "state_readouts_max_infinite": case "state_readouts_order": want = DecodeError.BadField; break;
+                case "state_marked_count_33": case "state_marked_id_0": case "state_marked_order": want = DecodeError.BadField; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

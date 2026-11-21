@@ -68,6 +68,7 @@ fn swing(s: &mut Sim, by: PlayerId, weapon: WeaponId) -> Vec<Event> {
             magic: 0.,
             true_: 0.,
         },
+        range_mult: 1.0,
     });
     let mut events = vec![];
     resolve(&mut Cx {

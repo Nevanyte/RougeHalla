@@ -569,6 +569,7 @@ fn the_refusal_sequence_matches_the_source_toast_tape() {
         pickers: Vec::new(),
         camp: None,
         owner: None,
+        first_pick: None,
     });
     let mut ev = Vec::new();
     // Born this tick: "Chest gone".
@@ -657,6 +658,7 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         pickers: Vec::new(),
         camp: Some(1),
         owner: None,
+        first_pick: None,
     });
     let mut ev = Vec::new();
     assert_eq!(choose(&s.k, &mut s.w, &mut ev, p0, Some(id), -1), Ok(()));
@@ -689,6 +691,7 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         pickers: Vec::new(),
         camp: Some(1),
         owner: None,
+        first_pick: None,
     });
     let mut ev = Vec::new();
     let before = s.w.players[0].vitals.hp;
@@ -723,6 +726,7 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         pickers: Vec::new(),
         camp: None,
         owner: Some(p1),
+        first_pick: None,
     });
     let mut ev = Vec::new();
     assert_eq!(
@@ -782,6 +786,7 @@ fn birth_hold_choose_and_observer_agree_at_the_boundaries() {
                 pickers: Vec::new(),
                 camp: None,
                 owner: trophy.then_some(p0),
+                first_pick: None,
             });
             let mut observer = RewardChestObserver::new(p0);
             let mut rows = Vec::new();
@@ -839,6 +844,7 @@ fn birth_hold_choose_and_observer_agree_at_the_boundaries() {
                 pickers: Vec::new(),
                 camp: None,
                 owner: trophy.then_some(p0),
+                first_pick: None,
             });
             let mut observer = RewardChestObserver::new(p0);
             let mut rows = Vec::new();

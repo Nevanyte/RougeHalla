@@ -110,9 +110,16 @@ pub(super) struct RuntimeWords<'a> {
     pub(super) timings: Option<&'a [u64]>,
 }
 
-/// Ordered words from the actual selected-card, modifier, farm, reward and private-stream definitions.
+/// Ordered words from the actual selected-card, modifier, farm, reward and private-stream definitions, and the
+/// realized card tables of both rules ([`card_table_snapshots`]).
 /// Component names/lengths and actual public key mappings prevent membership/order ambiguity.
-pub fn visit_progression_content(mut word: impl FnMut(u64)) {
+pub fn visit_progression_content(word: impl FnMut(u64)) {
+    visit_progression_content_with(&card_table_snapshots(), word);
+}
+
+/// [`visit_progression_content`] with the card tables given by the caller: the one code path that the
+/// [`content_hash_of_card_tables`] seam and `content_hash` share.
+fn visit_progression_content_with(tables: &[CardTableSnapshot<'_>], mut word: impl FnMut(u64)) {
     type Visit = fn(&mut dyn FnMut(u64));
     let visitors: [(&str, Visit); 10] = [
         ("cards/1", |f| {
@@ -161,6 +168,9 @@ pub fn visit_progression_content(mut word: impl FnMut(u64)) {
             word(u64::from(b));
         }
     }
+    // P-AUG-NATIVE-1a: the native ids the same way, then their definitions and caps.
+    crate::cards::native::visit_content(&mut word);
+    visit_card_tables(tables, &mut word);
     word(crate::reward_chests::BoostId::ALL.len() as u64);
     for id in crate::reward_chests::BoostId::ALL {
         word(id.index() as u64);
@@ -293,4 +303,157 @@ pub fn content_hash_of_progression_words(
             ..Default::default()
         },
     )
+}
+
+/// P-AUG-POOL-1-fix: one card table as a world with its rule plays it, as the rules identity folds it: the named card
+/// numbers (each `CardNumbers` field), the override rows (each row's numbers by `cards::map_numbers`), and the chest
+/// inputs (the pool ids, the faction-only pairs, the Eye for an Eye weighting flag).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CardTableSnapshot<'a> {
+    pub rule: crate::AugmentRule,
+    pub numbers: crate::cards::CardNumbers,
+    pub overrides: &'a [crate::cards::CardDef],
+    pub pool: &'a [crate::cards::CardId],
+    pub faction_only: &'a [(crate::cards::CardId, FactionId)],
+    pub weight_eye_for_an_eye: bool,
+}
+
+impl CardTableSnapshot<'static> {
+    /// The snapshot of a real card table.
+    pub fn of(t: &'static crate::cards::Tuning) -> Self {
+        CardTableSnapshot {
+            rule: t.rule(),
+            numbers: *t.numbers(),
+            overrides: t.overrides(),
+            pool: t.pool(),
+            faction_only: t.faction_only(),
+            weight_eye_for_an_eye: t.weights_eye_for_an_eye(),
+        }
+    }
+}
+
+/// P-AUG-POOL-1-fix: both real card tables, `[Legacy, Rework]`, read from the `Tuning` statics. `content_hash` folds
+/// exactly these.
+pub fn card_table_snapshots() -> [CardTableSnapshot<'static>; 2] {
+    use crate::cards::Tuning;
+    use crate::AugmentRule;
+    [
+        CardTableSnapshot::of(Tuning::of_rule(AugmentRule::Legacy)),
+        CardTableSnapshot::of(Tuning::of_rule(AugmentRule::Rework)),
+    ]
+}
+
+/// P-AUG-POOL-1-fix sensitivity seam: [`content_hash`] with the card tables given by the caller in place of
+/// [`card_table_snapshots`] (everything else is the build's own). Equals `content_hash()` for the real tables.
+pub fn content_hash_of_card_tables(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    tables: &[CardTableSnapshot<'_>],
+) -> u64 {
+    let mut words = Vec::new();
+    visit_progression_content_with(tables, |w| words.push(w));
+    content_hash_of_progression_words(registry, stagger_weapons, &words)
+}
+
+/// The words of the realized card tables, inside the `mvp-progression/1` stream. Per table: a tag, the rule, the named
+/// numbers in field order, the override rows (count; per row its id, its rows, then its selections as faction code and
+/// rows; each row as its number count and the bits `cards::map_numbers` walks), the pool (length, ids), the
+/// faction-only pairs (count, pairs) and the Eye for an Eye weighting flag. Card text, titles, tags and row shape are
+/// not folded: they are display, or forced equal to the catalog row by `check_override`.
+fn visit_card_tables(tables: &[CardTableSnapshot<'_>], word: &mut impl FnMut(u64)) {
+    fn text(word: &mut impl FnMut(u64), value: &str) {
+        word(value.len() as u64);
+        for b in value.bytes() {
+            word(u64::from(b));
+        }
+    }
+    fn rows(word: &mut impl FnMut(u64), rows: &[crate::cards::CardRow]) {
+        word(rows.len() as u64);
+        for row in rows {
+            let mut count = 0u64;
+            crate::cards::map_numbers(row, &mut |x| {
+                count += 1;
+                x
+            });
+            word(count);
+            crate::cards::map_numbers(row, &mut |x| {
+                word(x.to_bits());
+                x
+            });
+        }
+    }
+    text(word, "card-tables/1");
+    word(tables.len() as u64);
+    for table in tables {
+        let CardTableSnapshot {
+            rule,
+            numbers,
+            overrides,
+            pool,
+            faction_only,
+            weight_eye_for_an_eye,
+        } = *table;
+        text(word, "card-table");
+        word(match rule {
+            crate::AugmentRule::Legacy => 0,
+            crate::AugmentRule::Rework => 1,
+        });
+        // No `..`: a new `CardNumbers` field fails to compile here until it is folded.
+        let crate::cards::CardNumbers {
+            plant_feet_bonus,
+            gambler_up_chance,
+            gambler_down_chance,
+            gambler_up,
+            gambler_down,
+            wishful_budget_ms,
+            wishful_window_ms,
+            wishful_floor_share,
+            wishful_hit_share,
+            wishful_budget_share,
+            outgoing_row_cap,
+            hp_race_cap,
+            third_time_every,
+            third_time_extra,
+        } = numbers;
+        let fields = [
+            plant_feet_bonus.to_bits(),
+            gambler_up_chance.to_bits(),
+            gambler_down_chance.to_bits(),
+            gambler_up.to_bits(),
+            gambler_down.to_bits(),
+            wishful_budget_ms.to_bits(),
+            wishful_window_ms.to_bits(),
+            wishful_floor_share.to_bits(),
+            wishful_hit_share.to_bits(),
+            wishful_budget_share.to_bits(),
+            outgoing_row_cap.to_bits(),
+            hp_race_cap.to_bits(),
+            u64::from(third_time_every),
+            third_time_extra.to_bits(),
+        ];
+        word(fields.len() as u64);
+        for field in fields {
+            word(field);
+        }
+        word(overrides.len() as u64);
+        for def in overrides {
+            word(def.id.index() as u64);
+            rows(word, def.rows);
+            word(def.selections.len() as u64);
+            for selection in def.selections {
+                word(u64::from(selection.faction.code()));
+                rows(word, selection.rows);
+            }
+        }
+        word(pool.len() as u64);
+        for id in pool {
+            word(id.index() as u64);
+        }
+        word(faction_only.len() as u64);
+        for (id, faction) in faction_only {
+            word(id.index() as u64);
+            word(u64::from(faction.code()));
+        }
+        word(u64::from(weight_eye_for_an_eye));
+    }
 }

@@ -32,7 +32,27 @@ pub(crate) fn bog(
     if counts {
         w.terrain.seconds[1] += dt / 1000.;
     }
+    native_hazards(k, w, ix, dt, counts);
     multiplier
+}
+/// P-AUG-NATIVE-1b: the native hazard hook for a holder's tick on bog (this move-modifier read, once per standing
+/// fighter and tick) and on ice (the slip surface the walk will meet from here: `terrain::at(..).accel`, read at the same
+/// position on the arena map). Ember is `burn_dt`'s.
+fn native_hazards(k: &MatchStatic, w: &mut World, ix: FighterIx, dt: f64, bog: bool) {
+    if !w.is_player(ix) {
+        return;
+    }
+    let id = w.core(ix).id;
+    if !crate::cards::native::hooks::holds_native(k, w, id) {
+        return;
+    }
+    use crate::cards::native::hooks::{fire, NativeEvent};
+    if bog {
+        fire(k, w, id, NativeEvent::HazardTick { hazard: 1, ms: dt });
+    }
+    if k.hazards.slip && effect(k, w, ix).accel > 0. {
+        fire(k, w, id, NativeEvent::HazardTick { hazard: 2, ms: dt });
+    }
 }
 fn bog_read(
     k: &MatchStatic,
@@ -44,10 +64,18 @@ fn bog_read(
         return (1., false);
     }
     let e = effect(k, w, ix);
-    (
-        crate::status_runtime::resist_slow(e.speed, stats.slow_resist),
-        e.speed != 1.,
-    )
+    let m = crate::status_runtime::resist_slow(e.speed, stats.slow_resist);
+    // P-AUG-NATIVE-3: Hazard Walker resists the bog slow, and is immune after 20 s on it.
+    if w.is_player(ix) {
+        let (resist, immune) = crate::cards::native::hazard_guard(&w.players[ix.slot()].build, 1);
+        if immune {
+            return (1., false);
+        }
+        if resist > 0. {
+            return (1. - (1. - m) * (1. - resist), e.speed != 1.);
+        }
+    }
+    (m, e.speed != 1.)
 }
 /// The same dt0 query without even writing +0 to the authoritative exposure counter.
 pub(crate) fn bog_value(
@@ -83,6 +111,16 @@ fn burn_dt(cx: &mut Cx, dt_ms: f64) {
         if !(share > 0.) {
             continue;
         }
+        // P-AUG-NATIVE-3: Hazard Walker's ember resistance, and immunity (the tick is skipped before the ledger hit).
+        let mut share = share;
+        if w.is_player(ix) {
+            let (resist, immune) =
+                crate::cards::native::hazard_guard(&w.players[ix.slot()].build, 0);
+            if immune {
+                continue;
+            }
+            share *= 1. - resist;
+        }
         let p = w.core(ix);
         let hit = ledger::Entry {
             terrain: true,
@@ -111,6 +149,19 @@ fn burn_dt(cx: &mut Cx, dt_ms: f64) {
         };
         ledger::record_hit(w, &mut s.ledger, hit);
         w.terrain.seconds[0] += dt_ms / 1000.;
+        // P-AUG-NATIVE-1b: the native hazard hook for a holder's tick on ember.
+        if w.is_player(ix) {
+            let id = w.core(ix).id;
+            crate::cards::native::hooks::fire(
+                k,
+                w,
+                id,
+                crate::cards::native::hooks::NativeEvent::HazardTick {
+                    hazard: 0,
+                    ms: dt_ms,
+                },
+            );
+        }
     }
 }
 pub(crate) fn light(cx: &mut Cx) {

@@ -23,9 +23,12 @@ mod public;
 pub use hud::*;
 pub use public::*;
 
-use hud::{camp_hud_into, roster_into, summary_into};
+use hud::{camp_hud_into, marked_into, roster_into, summary_into};
 
-pub const OBSERVATION_VERSION: u16 = 31;
+/// 33 (P-SYNC-ORIGIN-1): origin's observation 31 (P-NET-DRAWAHEAD-1a, the walk hint) merged with the local 31/32
+/// (P-WIRE19-A/B). 34 (P-AUG-NATIVE-5): `marked`, the public Marked Man rows. 35 (P-SYNC-ORIGIN-2): the local 34 with
+/// origin's heal props (P-COLISEUM-HEALS-2) and tick-rate work (P-TICK-1b to 5), whose observation stayed 31 on origin.
+pub const OBSERVATION_VERSION: u16 = 35;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -356,6 +359,24 @@ pub struct Observation {
     /// Every seated player by ascending id: the display name and bot flag (ADR0026, B3). The same for every viewer; it
     /// carries no position, faction, health or sight fact.
     pub roster: Vec<RosterRow>,
+    /// P-WIRE19-B: the viewer's own native readout rows ([`crate::cards::native::readouts`] of the viewer), in native
+    /// order; empty for a non-player, a non-holder and every Legacy world. Never another seat's (C-OBS). Skipped when
+    /// empty, so an observation without rows serializes and hashes as before the field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub readouts: Vec<crate::cards::native::Readout>,
+    /// P-AUG-NATIVE-5: every `Alive` Marked Man holder's position, by ascending id, the same for every viewer and
+    /// regardless of vision (the minimap marker; owner decision 9, deliberately public). Skipped when empty, so an
+    /// observation without a holder serializes and hashes as before the field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub marked: Vec<MarkedView>,
+}
+
+/// P-AUG-NATIVE-5: one Marked Man holder on every minimap: its id and body position, nothing else.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MarkedView {
+    pub id: PlayerId,
+    pub x: f64,
+    pub y: f64,
 }
 
 impl SeenEvent {
@@ -579,6 +600,8 @@ impl Default for Observation {
             panel: None,
             events: Vec::new(),
             roster: Vec::new(),
+            readouts: Vec::new(),
+            marked: Vec::new(),
         }
     }
 }
@@ -829,6 +852,10 @@ pub(crate) fn observe_with_tiles(
     out.projectiles.clear();
     out.reward_chests.clear();
     out.build = me.map(|p| crate::reward_chests::BuildView::from(&p.build));
+    // P-WIRE19-B: the viewer's own native readout rows (C-OBS: only the viewer's slots); the buffer is reused.
+    out.readouts.clear();
+    out.readouts
+        .extend_from_slice(crate::cards::native::readouts(sim, viewer).rows());
     out.version = OBSERVATION_VERSION;
     out.training = sim.config().training;
     out.tick = sim.tick();
@@ -893,6 +920,8 @@ pub(crate) fn observe_with_tiles(
     // P-WIRE17-HUD-2: the viewer's own panel (a stack array, Copy); None for an unseated viewer, like the summary.
     out.panel = crate::build_summary::champion_panel(sim, viewer);
     roster_into(sim, &mut out.roster);
+    // P-AUG-NATIVE-5: the public Marked Man rows (the same for every viewer; never read by `can_see` or any filter).
+    marked_into(sim, &mut out.marked);
     out.visible.clear();
     if let Some(m) = me {
         let map = sim.collision_view();
@@ -1169,3 +1198,7 @@ mod panel_tooltip_tests;
 #[cfg(test)]
 #[path = "observe/hud_clock_tests.rs"]
 mod hud_clock_tests;
+
+#[cfg(test)]
+#[path = "observe/readouts_view_tests.rs"]
+mod readouts_view_tests;

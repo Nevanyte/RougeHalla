@@ -3,7 +3,7 @@
 //! Source: `packages/shared/src/rewards.ts` — `conditionalPool`, `rewardAugmentPool`, `pickTiered`, `rollChestOptions`
 //! and `ZONE_AUGMENT_THEMES` — with the interactive augment set from `cards.ts` (`INTERACTIVE_AUGMENT_IDS`). A draw is a
 //! unit double, as the source `Rng` is; the callers supply the stream (production: the reward RNG, tests: the frozen tape).
-use crate::cards::{Build, CardId, CardKind};
+use crate::cards::{Build, CardId};
 use crate::FactionId;
 
 /// The source's interactive augments, in augment source order.
@@ -24,6 +24,57 @@ pub const INTERACTIVE: [CardId; 14] = [
     CardId::SecondWind,
 ];
 
+/// P-AUG-POOL-1: the interactive augments a `Rework` world's chest may offer: `INTERACTIVE` plus Committed, Fists of
+/// Fury, Machine Gun, Here Comes the Boom and A Race to 0 (plan of record `docs/backlog/AUGMENT_ELITE_REWORK.md`).
+/// Source order: the 14 of `INTERACTIVE`, then the five. A chest walks `CardId::ALL` (catalog order), not this order.
+pub static REWORK_POOL: &[CardId] = &[
+    CardId::SlowBurn,
+    CardId::Overkill,
+    CardId::TankEngine,
+    CardId::PocketSand,
+    CardId::Gambler,
+    CardId::ThirdTimesTheCharm,
+    CardId::EyeForAnEye,
+    CardId::BestOffense,
+    CardId::PlantYourFeet,
+    CardId::WishfulThinking,
+    CardId::Hemorrhage,
+    CardId::SpikedShell,
+    CardId::Siphon,
+    CardId::SecondWind,
+    CardId::Committed,
+    CardId::FistsOfFury,
+    CardId::MachineGun,
+    CardId::HereComesTheBoom,
+    CardId::RaceToZero,
+];
+
+/// P-AUG-POOL-1 (decision 5): who a pool entry may be offered to. `Faction(f)`: only when every eligible picker at the
+/// chest is faction `f` (and there is at least one picker).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Offer {
+    Any,
+    Faction(FactionId),
+}
+
+/// P-AUG-POOL-1: one eligible picker at a chest, as the offer rules read it (its build and its faction).
+#[derive(Clone, Copy, Debug)]
+pub struct Picker {
+    pub build: Build,
+    pub faction: FactionId,
+}
+
+impl Offer {
+    /// Decision 5: may this entry be offered to these eligible pickers? A `Faction(f)` entry needs at least one picker,
+    /// every one of them faction `f` (with no picker, e.g. a campless elite's chest, no faction card is offered).
+    pub fn admits(self, pickers: &[Picker]) -> bool {
+        match self {
+            Offer::Any => true,
+            Offer::Faction(f) => !pickers.is_empty() && pickers.iter().all(|p| p.faction == f),
+        }
+    }
+}
+
 pub const fn is_interactive(id: CardId) -> bool {
     let mut i = 0;
     while i < INTERACTIVE.len() {
@@ -35,42 +86,16 @@ pub const fn is_interactive(id: CardId) -> bool {
     false
 }
 
-fn owned_base(build: &Build, base: crate::cards::BaseStatId) -> bool {
-    build.cards().any(|id| id.definition().base == Some(base))
-}
-
-fn held_by_all(pickers: &[Build], id: CardId) -> bool {
-    !pickers.is_empty() && pickers.iter().all(|b| b.owns(id))
-}
-
 /// Source `conditionalPool`: live conditionals a picker's base unlocks and not every picker holds, in catalog order.
+/// The legacy card table's; a world reads its own (`k.cards.conditional_pool`, `cards::Tuning`).
 pub fn conditional_pool(pickers: &[Build]) -> Vec<CardId> {
-    CardId::ALL
-        .into_iter()
-        .filter(|id| {
-            let def = id.definition();
-            def.kind == CardKind::Conditional
-                && def.ready
-                && def
-                    .requires
-                    .is_some_and(|base| pickers.iter().any(|b| owned_base(b, base)))
-                && !held_by_all(pickers, *id)
-        })
-        .collect()
+    crate::cards::Tuning::legacy().conditional_pool(pickers)
 }
 
-/// Source `rewardAugmentPool`: live interactive augments not held by every picker, in catalog order.
+/// Source `rewardAugmentPool`: live interactive augments not held by every picker, in catalog order. The legacy card
+/// table's; a world reads its own (`k.cards.augment_pool`, `cards::Tuning`).
 pub fn augment_pool(pickers: &[Build]) -> Vec<CardId> {
-    CardId::ALL
-        .into_iter()
-        .filter(|id| {
-            let def = id.definition();
-            def.kind == CardKind::Augment
-                && def.ready
-                && is_interactive(*id)
-                && !held_by_all(pickers, *id)
-        })
-        .collect()
+    crate::cards::Tuning::legacy().augment_pool(pickers)
 }
 
 /// Source `ZONE_AUGMENT_THEMES`.

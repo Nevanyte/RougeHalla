@@ -61,8 +61,15 @@ pub struct CollectionView {
     pub(crate) roster: Vec<rh_protocol::WireRosterRow>,
     /// State key 13: the owner's own build summary (None when unseated).
     pub(crate) summary: Option<rh_protocol::state::WireBuildSummary>,
+    /// State key 14 (P-WIRE19-B): the owner's own native readout rows; optional, never required for completeness.
+    pub(crate) readouts: Vec<rh_protocol::WireReadout>,
+    /// State key 15 (P-AUG-NATIVE-5): the public Marked Man rows; optional, never required for completeness.
+    pub(crate) marked: Vec<rh_protocol::WireMarked>,
     pub(crate) tick: u32,
 }
+/// The keys a complete view must have received: 1..=13. Keys 14 (P-WIRE19-B readouts) and 15 (P-AUG-NATIVE-5 Marked
+/// Man rows) are sent only on change, so a viewer without native cards or a holder never receives them.
+const REQUIRED_STATE_KEYS: usize = 13;
 impl CollectionView {
     pub fn inventory(&self) -> Option<&WireInventory> {
         self.inventory.as_ref()
@@ -106,11 +113,20 @@ impl CollectionView {
     pub fn summary(&self) -> Option<&rh_protocol::state::WireBuildSummary> {
         self.summary.as_ref()
     }
+    /// P-WIRE19-B: the owner's own native readout rows (State key 14) as delivered; empty until key 14 arrives.
+    pub fn readouts(&self) -> &[rh_protocol::WireReadout] {
+        &self.readouts
+    }
+    /// P-AUG-NATIVE-5: the public Marked Man rows of State key 15 the client holds (empty until key 15 arrives; each
+    /// key 15 replaces them).
+    pub fn marked(&self) -> &[rh_protocol::WireMarked] {
+        &self.marked
+    }
     pub fn tick(&self) -> u32 {
         self.tick
     }
     pub fn complete(&self) -> bool {
-        self.seen.iter().all(|v| *v)
+        self.seen[..REQUIRED_STATE_KEYS].iter().all(|v| *v)
     }
     /// Atomic same-view replacement, including retained props/quests. Domain/budget checks apply
     /// to this actual update, not to an invented oversized re-encoding of all retained collections.
@@ -136,6 +152,8 @@ impl CollectionView {
                 StateItem::Trade(v) => next.trade = v.clone(),
                 StateItem::Roster(v) => next.roster = v.clone(),
                 StateItem::BuildSummary(v) => next.summary = v.clone(),
+                StateItem::Readouts(v) => next.readouts = v.clone(),
+                StateItem::Marked(v) => next.marked = v.clone(),
             }
         }
         rh_protocol::validate_quest_props(&next.props, next.quests.as_ref())?;

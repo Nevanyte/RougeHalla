@@ -534,8 +534,9 @@ fn frame14_requires_all_eleven_keys_including_explicit_trade_unavailable() {
         .unwrap();
     assert!(matches!(f.trade(), Fact::Delivered(None)));
     assert!(
-        ServerMsg::decode(&[0x88, 0x01, 0x01, 14, 0]).is_err(),
-        "State 14 is still unknown"
+        // P-AUG-NATIVE-5 (oracle-amend): key 15 is the Marked Man rows; 16 is the first unknown key.
+        ServerMsg::decode(&[0x88, 0x01, 0x01, 16, 0]).is_err(),
+        "State 16 is still unknown"
     );
 }
 

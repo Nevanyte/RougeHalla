@@ -6,7 +6,7 @@ use super::mob_hunt::{
 use super::types::{AttackFn, LogFn, StrategyContext};
 use crate::bots::mob_hunt::MobHuntConfig;
 use crate::bots::types::PersonaParams;
-use rh_sim::constants::{ELITE_HP_MULT, ELITE_K, MOB_HP_MULT, MOB_K};
+use rh_sim::constants::{MOB_HP_MULT, MOB_K};
 use rh_sim::{math, mob_catalog, FactionId, Vec2};
 
 const PVE_RELIEF: f64 = 0.25;
@@ -71,10 +71,11 @@ impl HuntAdapter {
     }
 
     fn mobs(ctx: &StrategyContext<'_>) -> Vec<(String, HuntMobLike)> {
-        hunt_mobs(
+        hunt_mobs_under(
             ctx.mem.mobs(),
             ctx.p.extras.camps.as_deref(),
             &ctx.cfg.map.camps,
+            ctx.know.elite_rule(),
         )
     }
 
@@ -162,6 +163,7 @@ impl HuntAdapter {
         elites_ready: Option<bool>,
     ) -> HuntDecision {
         let now = ctx.p.now;
+        self.hunter.rule = ctx.know.elite_rule();
         let (players, nearest) = Self::players(ctx);
         let mobs = Self::mobs(ctx);
         let self_view = Self::self_view(ctx);
@@ -276,31 +278,42 @@ fn is_regional_kind(kind: &str) -> bool {
 }
 
 /// The source max HP a remembered mob's type/name/faction gives (huntAdapter.ts mobMaxHp and mobTypeFaction's hp part).
-fn mob_max_hp(zone: Option<FactionId>, elite: bool, name: Option<&str>) -> f64 {
+fn mob_max_hp(
+    zone: Option<FactionId>,
+    elite: bool,
+    name: Option<&str>,
+    rule: rh_sim::EliteRule,
+) -> f64 {
     let Some(zone) = zone else {
         return f64::NAN;
     };
     let typed = name.and_then(|name| {
         mob_catalog::mob_types_of(zone).find(|t| t.elite == elite && t.name == name)
     });
-    let k = if elite { ELITE_K } else { MOB_K };
+    // The sim's elite seam (P-AUG-RULES-1) under the room's rule (`MatchStart::elites`, P-AUG-BOTS-1).
+    let elites = rh_sim::mob_runtime::EliteTuning::of(rule);
+    let k = if elite { elites.k } else { MOB_K };
     let base = crate::bots::build_route::reward_stat(None).map_or(0., |_| 0.)
         + rh_sim::content::faction(zone).hp
             * k
             * MOB_HP_MULT
-            * if elite { ELITE_HP_MULT } else { 1. };
+            * if elite { elites.hp_mult } else { 1. };
     let typed_mult = typed.map_or(1., |t| t.role_def().hp_mult);
     base * typed_mult
 }
 
+#[cfg(test)]
+mod elite_tests;
+
 fn mob_like_of(
     m: &super::super::memory::MobMemory,
     reward: Option<crate::bots::build_route::FarmStat>,
+    rule: rh_sim::EliteRule,
 ) -> Option<HuntMobLike> {
     if !is_regional_kind(&m.kind) {
         return None;
     }
-    let max_hp = mob_max_hp(m.faction, m.kind == "elite", m.name.as_deref());
+    let max_hp = mob_max_hp(m.faction, m.kind == "elite", m.name.as_deref(), rule);
     Some(HuntMobLike {
         kind: m.kind.clone(),
         status: if m.alive {
@@ -330,6 +343,16 @@ pub(crate) fn hunt_mobs(
     camps: Option<&[super::types::CampView]>,
     defs: &[super::types::CampDef],
 ) -> Vec<(String, HuntMobLike)> {
+    hunt_mobs_under(mobs, camps, defs, rh_sim::EliteRule::Legacy)
+}
+
+/// `hunt_mobs` with the room's elite rule (P-AUG-BOTS-1).
+pub(crate) fn hunt_mobs_under(
+    mobs: &[(String, super::super::memory::MobMemory)],
+    camps: Option<&[super::types::CampView]>,
+    defs: &[super::types::CampDef],
+    rule: rh_sim::EliteRule,
+) -> Vec<(String, HuntMobLike)> {
     let mut out = Vec::new();
     for (id, m) in mobs {
         if m.returning {
@@ -339,7 +362,7 @@ pub(crate) fn hunt_mobs(
             .camp_id
             .as_deref()
             .and_then(|camp| camp_paid_stat(camp, camps?, defs));
-        if let Some(like) = mob_like_of(m, reward) {
+        if let Some(like) = mob_like_of(m, reward, rule) {
             out.push((id.clone(), like));
         }
     }

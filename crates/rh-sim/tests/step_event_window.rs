@@ -226,8 +226,9 @@ fn fold_seed() -> u64 {
 
 /// The fold of this scenario's state hashes for a caller that clears its buffer before every step (the live room, the
 /// headless runner), measured on the integration base this packet branched from. A fix must not move it.
+/// Re-measured for checkpoint 33 (P-AUG-PLANT-1: `range_mult`, 1.0 here, on every pending action and flight).
 fn pinned_fold() -> u64 {
-    0xfb59_e066_ff3c_feaa
+    0x1f79_d826_12e3_db9d
 }
 
 #[test]

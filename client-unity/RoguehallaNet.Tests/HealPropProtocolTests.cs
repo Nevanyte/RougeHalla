@@ -35,7 +35,7 @@ namespace Roguehalla.Net.Tests
             return new WireProp { Handle = new PickupHandle((uint)(i + 1)), X = Xs[i], Y = Ys[i], Kind = PropKind.Heal, ReadyAt = Ready[i] };
         }
 
-        [Test] public void CodecSpeaksProtocol21() { Assert.AreEqual(21, Wire.ProtocolVersion, "a new prop kind is an incompatible wire change: 19 -> 20"); }
+        [Test] public void CodecSpeaksProtocol22() { Assert.AreEqual(22, Wire.ProtocolVersion, "a new prop kind is an incompatible wire change: 19 -> 20 (origin); P-SYNC-ORIGIN-2 carries it as 22"); }
 
         [Test]
         public void TheHealKindIsByte8InBothEnums()

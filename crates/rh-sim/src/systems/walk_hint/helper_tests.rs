@@ -254,6 +254,7 @@ fn method_world(c: &Value) -> Sim {
             a: 0.,
             packet,
             roam_armed: false,
+            range_mult: 1.0,
         });
     }
     if let Some(held) = input["held"].as_bool() {
@@ -659,6 +660,7 @@ fn captured_npc_timings_drive_real_ai_aim_proposals() {
         camps: vec![],
         life: vec![],
         buffs: Default::default(),
+        elites: crate::EliteRule::Legacy,
     });
     let vel = super::super::targeting::velocity(&sim.w.players[0].core, now);
     let decide = |windup| {
@@ -1005,6 +1007,7 @@ mod boundary24 {
                     a: a["a"].as_f64().unwrap_or(0.),
                     packet,
                     roam_armed: false,
+                    range_mult: 1.0,
                 })
             };
         }

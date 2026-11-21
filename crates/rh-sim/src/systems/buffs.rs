@@ -18,7 +18,12 @@ pub(crate) fn clamp(barrier: f64, max_hp: f64) -> f64 {
 
 /// Legacy `decayBarrier`: what is left of a barrier `dt_seconds` later, floored to zero below `BARRIER_EPS`.
 pub(crate) fn decay(barrier: f64, max_hp: f64, dt_seconds: f64) -> f64 {
-    let left = barrier - BARRIER_DECAY_SHARE_PER_SECOND * max_hp.max(0.) * dt_seconds.max(0.);
+    decay_at(barrier, max_hp, dt_seconds, BARRIER_DECAY_SHARE_PER_SECOND)
+}
+
+/// The decay at `share_per_second` of max hp a second (an Overflow holder's barrier fades over its own, longer time).
+fn decay_at(barrier: f64, max_hp: f64, dt_seconds: f64, share_per_second: f64) -> f64 {
+    let left = barrier - share_per_second * max_hp.max(0.) * dt_seconds.max(0.);
     if left > BARRIER_EPS {
         left
     } else {
@@ -41,9 +46,15 @@ pub(crate) fn grant_heal_barrier(w: &mut crate::state::World, i: usize, hp: f64,
     if p.status != Status::Alive {
         return;
     }
+    // P-AUG-NATIVE-3: an Overflow holder's barriers (every one) last REWORK_OVERFLOW_FADE_MS instead of the G6 5 s.
+    let life = if crate::cards::native::holds_overflow(&p.build) {
+        crate::constants::REWORK_OVERFLOW_FADE_MS
+    } else {
+        heal_barrier_life_ms()
+    };
     p.vitals.barrier = clamp(p.vitals.barrier + hp, p.vitals.max_hp);
     p.barrier_decays = true;
-    p.barrier_until = p.barrier_until.max(now + heal_barrier_life_ms());
+    p.barrier_until = p.barrier_until.max(now + life);
 }
 
 /// Legacy `expireBoosts` system: a barrier ends on time or with its holder, and a heal-made one decays
@@ -63,7 +74,12 @@ pub(crate) fn expire(cx: &mut crate::systems::Cx) {
             p.barrier_decays = false;
             p.vitals.barrier = 0.;
         } else if p.barrier_decays {
-            p.vitals.barrier = decay(p.vitals.barrier, p.vitals.max_hp, tick_ms / 1000.);
+            p.vitals.barrier = if crate::cards::native::holds_overflow(&p.build) {
+                let rate = BARRIER_MAX_SHARE / (crate::constants::REWORK_OVERFLOW_FADE_MS / 1000.);
+                decay_at(p.vitals.barrier, p.vitals.max_hp, tick_ms / 1000., rate)
+            } else {
+                decay(p.vitals.barrier, p.vitals.max_hp, tick_ms / 1000.)
+            };
         }
     }
 }

@@ -3,7 +3,7 @@
 //! creation from the bot's independent tag-3 Knowledge stream (ten faction masks, ten weapon masks, then one share error per me/region/elite
 //! triple), so a replay of the same seed knows the same wheels; nothing here reads a clock or the world.
 use crate::bots::mob_hunt::weapon_edge as true_weapon_edge;
-use crate::bots::planning::matchup_share;
+use crate::bots::planning::matchup_share_under;
 use crate::bots::random::Rng;
 use crate::bots::types::{BotWeapon, FightOdds, OpponentSnapshot, SelfView, TierParams};
 use rh_sim::FactionId;
@@ -78,6 +78,8 @@ pub struct Knowledge {
     faction_known: [bool; 10],
     weapon_known: [bool; 10],
     share_error: [f64; 50],
+    /// The room's elite rule (P-AUG-BOTS-1): which elite a mob share is measured against. Not drawn; Legacy at creation.
+    elite_rule: rh_sim::EliteRule,
 }
 
 impl Knowledge {
@@ -109,7 +111,19 @@ impl Knowledge {
             faction_known,
             weapon_known,
             share_error,
+            elite_rule: rh_sim::EliteRule::Legacy,
         }
+    }
+
+    /// This Knowledge under the room's elite rule (`MatchStart::elites`).
+    pub fn with_elite_rule(mut self, rule: rh_sim::EliteRule) -> Self {
+        self.elite_rule = rule;
+        self
+    }
+
+    /// The room's elite rule this Knowledge measures elites against.
+    pub fn elite_rule(&self) -> rh_sim::EliteRule {
+        self.elite_rule
     }
 
     fn faction_is_known(&self, a: FactionId, b: FactionId) -> bool {
@@ -147,7 +161,8 @@ impl Knowledge {
     /// Source mobShare: the shared planning matchupShare plus this bot's fixed error, clamped into 0..1.
     pub fn mob_share(&self, me: FactionId, region: FactionId, elite: bool) -> f64 {
         clamp(
-            matchup_share(me, region, elite) + self.share_error[share_key(me, region, elite)],
+            matchup_share_under(me, region, elite, self.elite_rule)
+                + self.share_error[share_key(me, region, elite)],
             0.,
             1.,
         )

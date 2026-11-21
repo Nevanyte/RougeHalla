@@ -1,6 +1,7 @@
 //! Player and typed regional/practice Frost sources. Prior chill belongs to weapons; post-ledger chill to the next tick.
 use super::{signatures::LandedHit, Cx};
 use crate::{
+    cards::native::hooks::{self as native, NativeEvent},
     constants::*,
     fighter::FighterCore,
     hooks::{HookArgs, Hx},
@@ -92,16 +93,22 @@ pub(crate) fn ranged_hits(w: &mut World, hits: &[LandedHit]) {
             continue;
         }
         // The source archer is a Frost PLAYER; the victim is any admitted actor.
-        let Some(by) =
-            h.by.and_then(|id| w.player(id))
-                .filter(|p| p.standing() && p.vitals.faction == FactionId::Frost)
-        else {
+        let Some(by) = h.by.filter(|&id| {
+            w.player(id)
+                .is_some_and(|p| p.standing() && p.vitals.faction == FactionId::Frost)
+        }) else {
             continue;
         };
-        let _ = by;
         if let Some(i) = w.fighter_idx(h.victim).filter(|&i| w.standing(i)) {
             w.core_mut(i).signature.ranged_chill_until =
                 Some(w.server_time + FROST_RANGED_CHILL_MS);
+            native::fire_held(
+                w,
+                by,
+                NativeEvent::ChillInflicted {
+                    ms: FROST_RANGED_CHILL_MS,
+                },
+            );
         }
     }
 }
@@ -283,6 +290,7 @@ pub(crate) fn after_damage(w: &mut World, tick_ms: f64) {
                 p.weapon.action = Some(a);
             }
         }
+        native::attack_chill(w, ix, tick_ms);
     }
 }
 pub(crate) fn movement_modifier(
@@ -397,6 +405,25 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
         )
+    }
+    /// An unplanted bow draw with a unit physical packet.
+    fn bow_draw(started_at: f64, lands_at: f64) -> crate::state::PendingAction {
+        crate::state::PendingAction {
+            kind: ActionKind::Draw,
+            weapon: WeaponId::Bow,
+            target: None,
+            started_at,
+            lands_at,
+            a: 0.,
+            packet: crate::state::Packet {
+                raw: 1.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            roam_armed: false,
+            range_mult: 1.0,
+        }
     }
     fn numbers(v: &mut Value) {
         match v {
@@ -535,21 +562,7 @@ mod tests {
             p.weapon.ready_at = 10000. + c["readyLeft"].as_f64().unwrap_or(100.);
             p.weapon.buffered_until = 10000. + c["bufferLeft"].as_f64().unwrap_or(100.);
             if let Some(left) = c["drawLeft"].as_f64() {
-                p.weapon.action = Some(crate::state::PendingAction {
-                    kind: ActionKind::Draw,
-                    weapon: WeaponId::Bow,
-                    target: None,
-                    started_at: 9000.,
-                    lands_at: 10000. + left,
-                    a: 0.,
-                    packet: crate::state::Packet {
-                        raw: 1.,
-                        phys: 1.,
-                        magic: 0.,
-                        true_: 0.,
-                    },
-                    roam_armed: false,
-                });
+                p.weapon.action = Some(bow_draw(9000., 10000. + left));
                 p.weapon.draw_started_at = 9000.;
             }
             assert_eq!(
@@ -917,21 +930,7 @@ mod tests {
         // 100 ms left is above m*dt for m about 0.808: the kept time grows by (1-m)*dt each chilled tick.
         p.weapon.ready_at = 10_100.;
         p.weapon.buffered_until = 10_100.;
-        p.weapon.action = Some(crate::state::PendingAction {
-            kind: ActionKind::Draw,
-            weapon: WeaponId::Bow,
-            target: None,
-            started_at: 9_900.,
-            lands_at: 10_100.,
-            a: 0.,
-            packet: crate::state::Packet {
-                raw: 1.,
-                phys: 1.,
-                magic: 0.,
-                true_: 0.,
-            },
-            roam_armed: false,
-        });
+        p.weapon.action = Some(bow_draw(9_900., 10_100.));
         p.weapon.draw_started_at = 9_900.;
         after_damage(&mut s.w, TICK_MS);
         let p = &s.w.players[1];
@@ -1269,6 +1268,7 @@ mod tests {
             a: 0.,
             packet,
             roam_armed: false,
+            range_mult: 1.0,
         };
         let mut events = Vec::new();
         // The instant attackStarted hook is source player-only: an instant NPC swing is NOT corrected there.

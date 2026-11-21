@@ -1,7 +1,7 @@
 //! P-PROTOCOL-18-STAMP-1 oracle: the build that is next deployed speaks protocol 18 (owner approval 9, 2026-11-12), its
 //! golden vectors are `protocol/fixtures/v18.json`, and no wire byte other than the version moved: v18 is v17 with the
 //! version substituted. `v17.json` stays in the tree as history (crates/rh-protocol/AGENTS.md).
-use rh_protocol::{ClientMsg, ServerMsg};
+use rh_protocol::{ClientMsg, ServerMsg, PROTOCOL_VERSION};
 use std::path::PathBuf;
 
 fn fixture_path(version: u16) -> PathBuf {
@@ -33,6 +33,12 @@ fn vector(text: &str, name: &str) -> Vec<u8> {
         .step_by(2)
         .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("hex"))
         .collect()
+}
+
+#[test]
+fn protocol_version_is_at_least_18() {
+    // P-WIRE19-A moved the protocol to 19; the v17/v18 history below stays.
+    assert!(std::hint::black_box(PROTOCOL_VERSION) >= 18);
 }
 
 #[test]

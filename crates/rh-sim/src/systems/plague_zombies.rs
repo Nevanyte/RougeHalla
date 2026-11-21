@@ -480,7 +480,7 @@ pub(crate) fn movement(
     } else {
         1.
     };
-    owner.modifiers.mirrors().speed_mult.max(1.) * catchup
+    crate::modifiers::speed_mult(owner).max(1.) * catchup
 }
 
 pub(crate) fn after_weapons(cx: &mut Cx) {
